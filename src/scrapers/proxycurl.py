@@ -3,12 +3,13 @@ Proxycurl Client
 Cliente para API do Proxycurl - dados de LinkedIn
 """
 
-import structlog
 from typing import Any, Dict, List, Optional
 
-from .base import BaseScraper
+import structlog
+
 from config.settings import settings
 
+from .base import BaseScraper
 
 logger = structlog.get_logger()
 

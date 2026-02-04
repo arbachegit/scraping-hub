@@ -3,16 +3,15 @@ Cache Utils
 Sistema de cache em memoria com TTL
 """
 
-import structlog
-from typing import Any, Optional, Callable
-from functools import wraps
-from cachetools import TTLCache
-from datetime import datetime
 import hashlib
 import json
+from functools import wraps
+from typing import Any, Callable, Optional
+
+import structlog
+from cachetools import TTLCache
 
 from config.settings import settings
-
 
 logger = structlog.get_logger()
 

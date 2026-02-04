@@ -3,66 +3,57 @@ Scraping Hub - Settings
 Configuracoes centralizadas do sistema
 """
 
-import os
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Configuracoes do Scraping Hub"""
 
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
     # Environment
-    environment: str = Field(default="development", env="ENVIRONMENT")
-    debug: bool = Field(default=False, env="DEBUG")
+    environment: str = "development"
+    debug: bool = False
 
     # Coresignal
-    coresignal_api_key: str = Field(default="", env="CORESIGNAL_API_KEY")
-    coresignal_base_url: str = Field(
-        default="https://api.coresignal.com/cdapi/v1",
-        env="CORESIGNAL_BASE_URL"
-    )
-    coresignal_rate_limit: int = Field(default=100, env="CORESIGNAL_RATE_LIMIT")
+    coresignal_api_key: str = ""
+    coresignal_base_url: str = "https://api.coresignal.com/cdapi/v1"
+    coresignal_rate_limit: int = 100
 
     # Proxycurl
-    proxycurl_api_key: str = Field(default="", env="PROXYCURL_API_KEY")
-    proxycurl_base_url: str = Field(
-        default="https://nubela.co/proxycurl/api/v2",
-        env="PROXYCURL_BASE_URL"
-    )
-    proxycurl_rate_limit: int = Field(default=50, env="PROXYCURL_RATE_LIMIT")
+    proxycurl_api_key: str = ""
+    proxycurl_base_url: str = "https://nubela.co/proxycurl/api/v2"
+    proxycurl_rate_limit: int = 50
 
     # Firecrawl
-    firecrawl_api_key: str = Field(default="", env="FIRECRAWL_API_KEY")
-    firecrawl_base_url: str = Field(
-        default="https://api.firecrawl.dev",
-        env="FIRECRAWL_BASE_URL"
-    )
-    firecrawl_rate_limit: int = Field(default=200, env="FIRECRAWL_RATE_LIMIT")
+    firecrawl_api_key: str = ""
+    firecrawl_base_url: str = "https://api.firecrawl.dev"
+    firecrawl_rate_limit: int = 200
 
     # Rate Limiting
-    rate_limit_period: int = Field(default=60, env="RATE_LIMIT_PERIOD")
+    rate_limit_period: int = 60
 
     # Supabase
-    supabase_url: str = Field(default="", env="SUPABASE_URL")
-    supabase_service_key: str = Field(default="", env="SUPABASE_SERVICE_KEY")
-    supabase_anon_key: str = Field(default="", env="SUPABASE_ANON_KEY")
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_anon_key: str = ""
 
     # Redis
-    redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
+    redis_url: str = "redis://localhost:6379/0"
 
     # Cache
-    cache_ttl: int = Field(default=3600, env="CACHE_TTL")
-    cache_max_size: int = Field(default=1000, env="CACHE_MAX_SIZE")
+    cache_ttl: int = 3600
+    cache_max_size: int = 1000
 
     # Logging
-    log_level: str = Field(default="INFO", env="LOG_LEVEL")
-    log_format: str = Field(default="json", env="LOG_FORMAT")
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
+    log_level: str = "INFO"
+    log_format: str = "json"
 
 
 @lru_cache()

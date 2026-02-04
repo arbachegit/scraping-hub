@@ -4,7 +4,7 @@ Servicos de negocio para enriquecimento de dados
 """
 
 from .empresa import EmpresaService
-from .linkedin import LinkedInService
 from .governo import GovernoService
+from .linkedin import LinkedInService
 
 __all__ = ["EmpresaService", "LinkedInService", "GovernoService"]

@@ -2,10 +2,11 @@
 Tests for Scrapers
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.scrapers import CoresignalClient, ProxycurlClient, FirecrawlClient
+import pytest
+
+from src.scrapers import CoresignalClient, FirecrawlClient, ProxycurlClient
 
 
 class TestCoresignalClient:

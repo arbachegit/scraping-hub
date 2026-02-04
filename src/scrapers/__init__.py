@@ -4,7 +4,7 @@ Clientes para APIs de scraping externas
 """
 
 from .coresignal import CoresignalClient
-from .proxycurl import ProxycurlClient
 from .firecrawl import FirecrawlClient
+from .proxycurl import ProxycurlClient
 
 __all__ = ["CoresignalClient", "ProxycurlClient", "FirecrawlClient"]

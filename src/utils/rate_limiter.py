@@ -3,15 +3,15 @@ Rate Limiter
 Controle de taxa de requisicoes
 """
 
-import structlog
 import asyncio
-from typing import Dict, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
 from collections import deque
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+import structlog
 
 from config.settings import settings
-
 
 logger = structlog.get_logger()
 

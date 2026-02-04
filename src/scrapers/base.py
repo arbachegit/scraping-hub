@@ -3,15 +3,13 @@ Base Scraper Client
 Classe base para todos os clientes de scraping
 """
 
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 import httpx
 import structlog
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential
-from datetime import datetime
-
-from config.settings import settings
-
 
 logger = structlog.get_logger()
 

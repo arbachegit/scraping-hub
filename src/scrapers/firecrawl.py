@@ -3,13 +3,14 @@ Firecrawl Client
 Cliente para API do Firecrawl - web scraping estruturado
 """
 
-import structlog
-from typing import Any, Dict, List, Optional
 import asyncio
+from typing import Any, Dict, List, Optional
 
-from .base import BaseScraper
+import structlog
+
 from config.settings import settings
 
+from .base import BaseScraper
 
 logger = structlog.get_logger()
 

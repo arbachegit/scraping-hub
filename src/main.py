@@ -4,26 +4,36 @@ Ponto de entrada principal do sistema
 """
 
 import asyncio
+import logging
+
 import structlog
-from typing import Optional
 
 from config.settings import settings
-from src.scrapers import CoresignalClient, ProxycurlClient, FirecrawlClient
-from src.services import EmpresaService, LinkedInService, GovernoService
-
+from src.services import EmpresaService, GovernoService, LinkedInService
 
 # Configurar logging
+logging.basicConfig(
+    format="%(message)s",
+    level=getattr(logging, settings.log_level.upper(), logging.INFO)
+)
+
 structlog.configure(
     processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer()
-        if settings.log_format == "json"
-        else structlog.dev.ConsoleRenderer()
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.dev.ConsoleRenderer()
+        if settings.log_format != "json"
+        else structlog.processors.JSONRenderer()
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(
-        getattr(structlog, settings.log_level.upper(), structlog.INFO)
-    ),
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
 )
 
 logger = structlog.get_logger()

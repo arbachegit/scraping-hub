@@ -3,12 +3,12 @@ Governo Service
 Servico para scraping de dados governamentais
 """
 
-import structlog
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
+import structlog
 
 from src.scrapers import FirecrawlClient
-
 
 logger = structlog.get_logger()
 

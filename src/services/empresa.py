@@ -3,12 +3,12 @@ Empresa Service
 Servico de enriquecimento de dados de empresas
 """
 
-import structlog
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from src.scrapers import CoresignalClient, ProxycurlClient, FirecrawlClient
+import structlog
 
+from src.scrapers import CoresignalClient, FirecrawlClient, ProxycurlClient
 
 logger = structlog.get_logger()
 
