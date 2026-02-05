@@ -371,38 +371,77 @@ Notícias:
         country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
-        Busca tópicos em alta
+        Busca tópicos em alta com análise AI
 
         Args:
             category: Categoria (negócios, tecnologia, etc)
             country: País
 
         Returns:
-            Tópicos em trending
+            Tópicos em trending com análise
         """
         logger.info("news_trending", category=category, country=country)
 
-        query = f"tendências {category or 'negócios'} {country} 2024"
+        cat = category or "negócios"
 
-        # Buscar tendências
-        trends = await self.tavily.get_market_trends(
-            category or "negócios",
-            country
-        )
+        # Buscar múltiplas fontes em paralelo
+        tasks = [
+            self.tavily.get_market_trends(cat, country),
+            self.serper.search_news(f"tendências {cat} {country}", num=15, tbs="qdr:d"),
+            self.serper.search_news(f"principais notícias {cat} Brasil hoje", num=10, tbs="qdr:d"),
+            self.perplexity.research(
+                f"Quais são as principais tendências e assuntos em alta no setor de {cat} no {country} hoje? "
+                f"Liste os 5-10 tópicos mais relevantes do momento.",
+                depth="detailed"
+            )
+        ]
 
-        # Buscar notícias relacionadas
-        news = await self.serper.search_news(query, num=10, tbs="qdr:d")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        trends_data = results[0] if not isinstance(results[0], Exception) else {}
+        news1 = results[1] if not isinstance(results[1], Exception) else {}
+        news2 = results[2] if not isinstance(results[2], Exception) else {}
+        ai_trends = results[3] if not isinstance(results[3], Exception) else {}
+
+        # Combinar notícias
+        all_news = (news1.get("news", []) or []) + (news2.get("news", []) or [])
+
+        # Remover duplicatas
+        seen_urls = set()
+        unique_news = []
+        for n in all_news:
+            url = n.get("link", n.get("url", ""))
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_news.append(n)
 
         # Extrair tópicos das notícias
-        topics = self._extract_trending_topics(news.get("news", []))
+        topics = self._extract_trending_topics(unique_news)
+
+        # Construir análise de tendências usando AI
+        trends_analysis = ai_trends.get("answer", trends_data.get("trends", ""))
+
+        # Se temos notícias, fazer análise adicional
+        if unique_news and not trends_analysis:
+            try:
+                titles = [n.get("title", "") for n in unique_news[:10]]
+                analysis_prompt = f"Com base nestas manchetes recentes, quais são os principais assuntos em alta?\n{titles}"
+                ai_result = await self.ai_analyzer._call_claude(
+                    analysis_prompt,
+                    system="Você é um analista de tendências. Identifique os principais temas em destaque."
+                )
+                trends_analysis = ai_result
+            except Exception as e:
+                logger.warning("trends_ai_error", error=str(e))
 
         return {
-            "category": category,
+            "category": cat,
             "country": country,
-            "trends": trends.get("trends"),
-            "trending_topics": topics,
-            "recent_news": news.get("news", []),
-            "sources": trends.get("sources", [])
+            "trends": trends_analysis,
+            "trending_topics": topics[:15],
+            "recent_news": unique_news[:15],
+            "ai_analysis": ai_trends.get("answer"),
+            "sources": ai_trends.get("citations", []) + trends_data.get("sources", [])
         }
 
     def _extract_trending_topics(self, news_items: List[Dict]) -> List[str]:

@@ -27,13 +27,16 @@ class CompanyIntelService:
     Serviço de inteligência empresarial
 
     Fluxo:
-    1. Buscar CNPJ (se não fornecido)
-    2. Coletar dados cadastrais (BrasilAPI)
-    3. Enriquecer com buscas (Serper, Tavily)
+    1. Buscar CNPJ (se não fornecido) - opcional para PMEs
+    2. Coletar dados cadastrais (BrasilAPI) se CNPJ disponível
+    3. Enriquecer com buscas (Serper, Tavily) - fonte principal para PMEs
     4. Pesquisar contexto (Perplexity)
     5. Scrape do website
     6. Analisar com AI (Claude)
     """
+
+    # Cache em memória para compartilhar dados entre quick_lookup e analyze
+    _cache: Dict[str, Dict] = {}
 
     def __init__(self):
         self.brasil_api = BrasilAPIClient()
@@ -43,6 +46,20 @@ class CompanyIntelService:
         self.apollo = ApolloClient()
         self.web_scraper = WebScraperClient()
         self.ai_analyzer = AIAnalyzer()
+
+    def _cache_key(self, name: str) -> str:
+        """Gera chave de cache normalizada"""
+        return name.lower().strip()
+
+    def _get_from_cache(self, name: str) -> Optional[Dict]:
+        """Busca dados do cache"""
+        key = self._cache_key(name)
+        return CompanyIntelService._cache.get(key)
+
+    def _save_to_cache(self, name: str, data: Dict):
+        """Salva dados no cache"""
+        key = self._cache_key(name)
+        CompanyIntelService._cache[key] = data
 
     async def close(self):
         """Fecha todos os clientes"""
@@ -86,33 +103,56 @@ class CompanyIntelService:
         }
 
         try:
-            # 1. Buscar CNPJ se não fornecido
-            if not cnpj:
+            # Verificar cache de quick_lookup anterior
+            cached = self._get_from_cache(name) or {}
+            cached_cnpj_data = cached.get("cnpj_data", {})
+            cached_search_data = cached.get("search_data", {})
+            cached_research_data = cached.get("research_data", {})
+
+            # 1. Usar CNPJ do cache ou buscar
+            if not cnpj and cached.get("quick_lookup", {}).get("cnpj"):
+                cnpj = cached["quick_lookup"]["cnpj"]
+                logger.info("company_intel_cnpj_from_cache", company=name)
+            elif not cnpj:
                 logger.info("company_intel_finding_cnpj", company=name)
                 cnpj = await self.serper.find_company_cnpj(name)
 
-            # 2. Coletar dados em paralelo
-            tasks = {
-                "cnpj_data": self._get_cnpj_data(cnpj) if cnpj else asyncio.sleep(0),
-                "search_data": self.serper.find_company_info(name),
-                "research_data": self.perplexity.analyze_company(name, analysis_type="full"),
-                "news_data": self.tavily.get_company_news(name, days=30)
-            }
+            # 2. Definir tarefas - usar cache se disponível
+            tasks = {}
+
+            # CNPJ data
+            if cached_cnpj_data:
+                result["cnpj_data"] = cached_cnpj_data
+            elif cnpj:
+                tasks["cnpj_data"] = self._get_cnpj_data(cnpj)
+
+            # Search data
+            if cached_search_data:
+                result["search_data"] = cached_search_data
+            else:
+                tasks["search_data"] = self.serper.find_company_info(name)
+
+            # Research data - sempre buscar análise completa para enriquecer
+            tasks["research_data"] = self.perplexity.analyze_company(name, analysis_type="full")
+
+            # News - sempre buscar fresco
+            tasks["news_data"] = self.tavily.get_company_news(name, days=30)
 
             # Executar tarefas em paralelo
-            results = await asyncio.gather(
-                *tasks.values(),
-                return_exceptions=True
-            )
+            if tasks:
+                task_results = await asyncio.gather(
+                    *tasks.values(),
+                    return_exceptions=True
+                )
 
-            # Mapear resultados
-            task_keys = list(tasks.keys())
-            for i, key in enumerate(task_keys):
-                if isinstance(results[i], Exception):
-                    logger.warning(f"company_intel_{key}_error", error=str(results[i]))
-                    result[key] = {}
-                else:
-                    result[key] = results[i]
+                # Mapear resultados
+                task_keys = list(tasks.keys())
+                for i, key in enumerate(task_keys):
+                    if isinstance(task_results[i], Exception):
+                        logger.warning(f"company_intel_{key}_error", error=str(task_results[i]))
+                        result[key] = result.get(key, {})
+                    else:
+                        result[key] = task_results[i]
 
             # 3. Scrape do website
             website_url = (
@@ -411,6 +451,7 @@ class CompanyIntelService:
     async def quick_lookup(self, name: str) -> Dict[str, Any]:
         """
         Busca rápida de empresa (apenas dados básicos)
+        Dados são salvos no cache para uso posterior no analyze_company
 
         Args:
             name: Nome da empresa
@@ -420,31 +461,62 @@ class CompanyIntelService:
         """
         logger.info("company_intel_quick_lookup", company=name)
 
-        # Buscar CNPJ
-        cnpj = await self.serper.find_company_cnpj(name)
+        # Verificar cache primeiro
+        cached = self._get_from_cache(name)
+        if cached and cached.get("quick_lookup"):
+            logger.info("company_intel_cache_hit", company=name)
+            return cached.get("quick_lookup")
 
-        # Buscar dados em paralelo
+        # Buscar dados em paralelo (CNPJ, busca e pesquisa)
         tasks = [
-            self._get_cnpj_data(cnpj) if cnpj else asyncio.sleep(0),
-            self.serper.find_company_info(name)
+            self.serper.find_company_cnpj(name),
+            self.serper.find_company_info(name),
+            self.perplexity.research(f"empresa {name} Brasil perfil negócio", depth="brief")
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        cnpj_data = results[0] if not isinstance(results[0], Exception) else {}
+        cnpj = results[0] if not isinstance(results[0], Exception) else None
         search_data = results[1] if not isinstance(results[1], Exception) else {}
+        research_data = results[2] if not isinstance(results[2], Exception) else {}
 
-        return {
+        # Buscar dados CNPJ se disponível
+        cnpj_data = {}
+        if cnpj:
+            try:
+                cnpj_data = await self._get_cnpj_data(cnpj)
+            except Exception as e:
+                logger.warning("cnpj_lookup_failed", error=str(e))
+
+        # Construir resultado combinando todas as fontes
+        result = {
             "name": name,
             "cnpj": cnpj,
-            "razao_social": cnpj_data.get("razao_social") if isinstance(cnpj_data, dict) else None,
-            "nome_fantasia": cnpj_data.get("nome_fantasia") if isinstance(cnpj_data, dict) else name,
+            "razao_social": cnpj_data.get("razao_social") if cnpj_data else None,
+            "nome_fantasia": cnpj_data.get("nome_fantasia") if cnpj_data else name,
             "website": search_data.get("website") if isinstance(search_data, dict) else None,
             "industry": search_data.get("industry") if isinstance(search_data, dict) else None,
-            "description": search_data.get("description") if isinstance(search_data, dict) else None,
-            "endereco": cnpj_data.get("endereco") if isinstance(cnpj_data, dict) else None,
-            "situacao_cadastral": cnpj_data.get("situacao_cadastral") if isinstance(cnpj_data, dict) else None
+            "description": (
+                search_data.get("description") or
+                research_data.get("answer", "")[:500] if isinstance(research_data, dict) else None
+            ),
+            "endereco": cnpj_data.get("endereco") if cnpj_data else None,
+            "situacao_cadastral": cnpj_data.get("situacao_cadastral") if cnpj_data else None,
+            "linkedin_url": search_data.get("linkedin") if isinstance(search_data, dict) else None,
+            "knowledge_graph": search_data.get("knowledge_graph") if isinstance(search_data, dict) else None,
+            "research_summary": research_data.get("answer") if isinstance(research_data, dict) else None,
+            "sources": ["Google Search", "Perplexity"] + (["BrasilAPI"] if cnpj_data else [])
         }
+
+        # Salvar no cache para uso posterior
+        cache_data = self._get_from_cache(name) or {}
+        cache_data["quick_lookup"] = result
+        cache_data["cnpj_data"] = cnpj_data
+        cache_data["search_data"] = search_data
+        cache_data["research_data"] = research_data
+        self._save_to_cache(name, cache_data)
+
+        return result
 
     async def get_swot(self, name: str) -> Dict[str, Any]:
         """

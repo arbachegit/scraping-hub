@@ -494,32 +494,71 @@ class PeopleIntelService:
 
     async def quick_lookup(self, name: str, company: Optional[str] = None) -> Dict[str, Any]:
         """
-        Busca rápida de pessoa
+        Busca rápida de pessoa com dados enriquecidos do Apollo
 
         Args:
             name: Nome da pessoa
             company: Empresa (opcional)
 
         Returns:
-            Dados básicos
+            Dados básicos enriquecidos
         """
         logger.info("people_intel_quick", name=name)
 
-        # Buscar LinkedIn
-        linkedin = await self.serper.find_person_linkedin(name, company)
+        # Buscar todas as fontes em paralelo
+        tasks = [
+            self.serper.find_person_linkedin(name, company),
+            self.serper.find_person_info(name, company),
+            self.perplexity.research_person(name, company, focus="professional")
+        ]
 
-        # Buscar via Apollo
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        linkedin = results[0] if not isinstance(results[0], Exception) else None
+        search_info = results[1] if not isinstance(results[1], Exception) else {}
+        research = results[2] if not isinstance(results[2], Exception) else {}
+
+        # Buscar via Apollo com LinkedIn encontrado
         apollo_data = await self._get_apollo_data(name, company, linkedin)
 
-        return {
-            "name": name,
-            "company": company or apollo_data.get("company", {}).get("name"),
-            "title": apollo_data.get("title"),
+        # Construir perfil combinando fontes
+        profile = {
+            "name": apollo_data.get("name") or name,
+            "company": apollo_data.get("company", {}).get("name") or company,
+            "title": apollo_data.get("title") or search_info.get("title"),
+            "headline": apollo_data.get("headline"),
             "linkedin_url": linkedin or apollo_data.get("linkedin_url"),
             "email": apollo_data.get("email"),
+            "phone": apollo_data.get("phone_numbers", [None])[0] if apollo_data.get("phone_numbers") else None,
             "photo_url": apollo_data.get("photo_url"),
-            "location": f"{apollo_data.get('city', '')}, {apollo_data.get('state', '')}"
+            "city": apollo_data.get("city"),
+            "state": apollo_data.get("state"),
+            "country": apollo_data.get("country") or "Brasil",
+            "location": f"{apollo_data.get('city', '')}, {apollo_data.get('state', '')}".strip(", "),
+            "seniority": apollo_data.get("seniority"),
+            "departments": apollo_data.get("departments", []),
+            "twitter_url": apollo_data.get("twitter_url"),
+            "profile_summary": research.get("profile"),
+            "sources": []
         }
+
+        # Registrar fontes usadas
+        if apollo_data:
+            profile["sources"].append("Apollo.io")
+        if search_info:
+            profile["sources"].append("Google Search")
+        if research.get("profile"):
+            profile["sources"].append("Perplexity AI")
+
+        # Enriquecer com dados da pesquisa se Apollo não retornou muito
+        if not profile.get("title") and not profile.get("company"):
+            # Extrair do knowledge graph se disponível
+            kg = search_info.get("knowledge_graph", {})
+            if kg:
+                profile["title"] = kg.get("title") or kg.get("occupation")
+                profile["description"] = kg.get("description")
+
+        return profile
 
     async def get_career_history(self, name: str, linkedin_url: Optional[str] = None) -> Dict[str, Any]:
         """

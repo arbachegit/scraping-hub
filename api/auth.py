@@ -44,6 +44,13 @@ class UserResponse(BaseModel):
     role: str
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
 def hash_password(password: str) -> str:
     """Simple SHA256 hash for password"""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -106,3 +113,41 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     return token_data
+
+
+def update_user(
+    current_email: str,
+    update_data: UserUpdate
+) -> Optional[dict]:
+    """
+    Update user data in the in-memory store
+
+    Returns updated user or None if validation fails
+    """
+    user = USERS_DB.get(current_email)
+    if not user:
+        return None
+
+    # Verify current password if changing password
+    if update_data.new_password:
+        if not update_data.current_password:
+            return None
+        if not verify_password(update_data.current_password, user["password_hash"]):
+            return None
+        user["password_hash"] = hash_password(update_data.new_password)
+
+    # Update name
+    if update_data.name:
+        user["name"] = update_data.name
+
+    # Update email (requires re-keying the dict)
+    if update_data.email and update_data.email != current_email:
+        # Check if new email already exists
+        if update_data.email in USERS_DB:
+            return None
+        # Move user to new email key
+        USERS_DB[update_data.email] = user
+        user["email"] = update_data.email
+        del USERS_DB[current_email]
+
+    return user

@@ -467,22 +467,34 @@ class PoliticianIntelService:
         role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Busca rápida de político
+        Busca rápida de político com dados enriquecidos
 
         Args:
             name: Nome do político
             role: Cargo
 
         Returns:
-            Dados básicos
+            Dados básicos enriquecidos
         """
         logger.info("politician_intel_quick", name=name)
 
-        # Buscar informações básicas
-        search = await self.serper.search(
-            f'"{name}" {"" if not role else role} político Brasil',
-            num=5
-        )
+        # Buscar múltiplas fontes em paralelo
+        search_query = f'"{name}" {role or ""} político Brasil'
+        tasks = [
+            self.serper.search(search_query, num=10),
+            self.perplexity.chat(
+                f"Quem é {name}{' (' + role + ')' if role else ''}? "
+                "Forneça informações básicas sobre esta pessoa: cargo, estado, partido, formação acadêmica.",
+                system_prompt="Responda de forma concisa e objetiva com informações factuais."
+            ),
+            self._get_social_media(name, role)
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        search = results[0] if not isinstance(results[0], Exception) else {}
+        research = results[1] if not isinstance(results[1], Exception) else {}
+        social = results[2] if not isinstance(results[2], Exception) else {}
 
         # Garantir que search não é None
         if not search:
@@ -491,21 +503,35 @@ class PoliticianIntelService:
         # Extrair knowledge graph se disponível
         kg = search.get("knowledge_graph", {}) or {}
 
-        # Buscar redes sociais
-        social = await self._get_social_media(name, role)
-
-        # Extrair descrição com fallback seguro
+        # Extrair descrição combinando fontes
         organic = search.get("organic", [])
         description = kg.get("description")
+        if not description and research.get("answer"):
+            description = research.get("answer", "")[:500]
         if not description and organic:
             description = organic[0].get("snippet", "")
+
+        # Extrair informações adicionais do knowledge graph
+        additional_info = {}
+        if kg:
+            additional_info = {
+                "image": kg.get("image"),
+                "born": kg.get("born"),
+                "party": kg.get("party") or kg.get("political_party"),
+                "education": kg.get("education"),
+                "office": kg.get("office"),
+            }
 
         return {
             "name": name,
             "role": role,
             "description": description,
             "social_media": social,
-            "search_results": organic[:3]
+            "search_results": organic[:5],
+            "research_summary": research.get("answer"),
+            "knowledge_graph": kg,
+            "additional_info": additional_info,
+            "citations": research.get("citations", [])
         }
 
     async def monitor_politician(

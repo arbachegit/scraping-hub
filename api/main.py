@@ -19,9 +19,11 @@ from .auth import (
     TokenData,
     UserLogin,
     UserResponse,
+    UserUpdate,
     authenticate_user,
     create_access_token,
     get_current_user,
+    update_user,
 )
 from .routes import companies_router, news_router, people_router, politicians_router
 
@@ -202,6 +204,38 @@ async def get_me(current_user: TokenData = Depends(get_current_user)):
         name=user["name"],
         role=user["role"]
     )
+
+
+@app.put("/auth/me", response_model=Token, tags=["Auth"])
+async def update_me(
+    update_data: UserUpdate,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Update current user profile
+
+    - name: Update display name
+    - email: Update email (must be unique)
+    - current_password + new_password: Change password
+    """
+    updated_user = update_user(current_user.email, update_data)
+    if not updated_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Falha na atualizacao. Verifique os dados e senha atual."
+        )
+
+    # Generate new token with updated info
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": updated_user["email"],
+            "user_id": updated_user["id"],
+            "role": updated_user["role"]
+        },
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ===========================================
