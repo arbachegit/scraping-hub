@@ -1,57 +1,82 @@
 """
-Scraping Hub API
-API REST para serviços de scraping
+Scraping Hub API v2.0
+API REST para Business Intelligence Brasil
 """
 
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Optional
 
 import structlog
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-
-from src.scrapers import CoresignalClient, FirecrawlClient
 
 from .auth import (
     Token, UserLogin, UserResponse, TokenData,
     authenticate_user, create_access_token, get_current_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from .routes import (
+    companies_router,
+    people_router,
+    politicians_router,
+    news_router
+)
 
 logger = structlog.get_logger()
-
-# Clients globais
-coresignal: Optional[CoresignalClient] = None
-firecrawl: Optional[FirecrawlClient] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação"""
-    global coresignal, firecrawl
-
-    logger.info("api_startup", message="Inicializando clientes...")
-
-    coresignal = CoresignalClient()
-    firecrawl = FirecrawlClient()
-
+    logger.info("api_startup", message="Scraping Hub v2.0 iniciando...")
     yield
-
-    logger.info("api_shutdown", message="Fechando clientes...")
-    await coresignal.close()
-    await firecrawl.close()
+    logger.info("api_shutdown", message="Scraping Hub v2.0 encerrando...")
 
 
 app = FastAPI(
     title="Scraping Hub API",
-    description="API para enriquecimento de dados de empresas, LinkedIn e governo",
-    version="1.0.0",
-    lifespan=lifespan
+    description="""
+## Business Intelligence Brasil v2.0
+
+API para análise de inteligência empresarial focada no mercado brasileiro.
+
+### Funcionalidades
+
+**Empresas**
+- Análise completa com SWOT e OKRs
+- Identificação de concorrentes
+- Busca de funcionários e decisores
+
+**Pessoas**
+- Análise de perfil profissional
+- Fit cultural com empresas
+- Comparação de candidatos
+
+**Políticos**
+- Perfil pessoal (não político)
+- Presença em redes sociais
+- Percepção pública
+
+**Notícias**
+- Monitoramento de empresas/setores
+- Cenário econômico
+- Alertas e briefings
+
+### APIs Utilizadas
+- BrasilAPI (CNPJ)
+- Serper.dev (Google Search)
+- Tavily (AI Search)
+- Perplexity (Research)
+- Apollo.io (LinkedIn/Contatos)
+- Claude (Análise AI)
+    """,
+    version="2.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS
@@ -70,17 +95,17 @@ if static_path.exists():
 
 
 # ===========================================
-# SCHEMAS
+# INCLUDE ROUTERS
 # ===========================================
 
-class ScrapeRequest(BaseModel):
-    url: str
-    formats: List[str] = ["markdown"]
-    only_main_content: bool = True
+app.include_router(companies_router)
+app.include_router(people_router)
+app.include_router(politicians_router)
+app.include_router(news_router)
 
 
 # ===========================================
-# ROOT & STATIC
+# ROOT & HEALTH
 # ===========================================
 
 @app.get("/", include_in_schema=False)
@@ -91,21 +116,39 @@ async def root():
         return FileResponse(str(index_file))
     return {
         "service": "Scraping Hub API",
-        "version": "1.0.0",
-        "status": "running"
+        "version": "2.0.0",
+        "status": "running",
+        "docs": "/docs"
     }
 
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    """Health check endpoint"""
+    return {"status": "healthy", "version": "2.0.0"}
+
+
+@app.get("/api/v2/status")
+async def api_status(current_user: TokenData = Depends(get_current_user)):
+    """Status da API (autenticado)"""
+    return {
+        "status": "operational",
+        "version": "2.0.0",
+        "user": current_user.email,
+        "endpoints": {
+            "companies": "/api/v2/company",
+            "people": "/api/v2/person",
+            "politicians": "/api/v2/politician",
+            "news": "/api/v2/news"
+        }
+    }
 
 
 # ===========================================
 # AUTH
 # ===========================================
 
-@app.post("/auth/login", response_model=Token)
+@app.post("/auth/login", response_model=Token, tags=["Auth"])
 async def login(user_data: UserLogin):
     """Login endpoint"""
     user = authenticate_user(user_data.email, user_data.password)
@@ -126,7 +169,7 @@ async def login(user_data: UserLogin):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/auth/me", response_model=UserResponse)
+@app.get("/auth/me", response_model=UserResponse, tags=["Auth"])
 async def get_me(current_user: TokenData = Depends(get_current_user)):
     """Get current user info"""
     from .auth import USERS_DB
@@ -142,212 +185,42 @@ async def get_me(current_user: TokenData = Depends(get_current_user)):
 
 
 # ===========================================
-# EMPRESA (Coresignal)
+# LEGACY ENDPOINTS (v1 compatibility)
 # ===========================================
 
-@app.get("/empresa/search")
-async def search_empresas(
-    name: Optional[str] = None,
-    website: Optional[str] = None,
-    industry: Optional[str] = None,
-    country: Optional[str] = None,
-    limit: int = Query(default=10, le=100),
+@app.get("/empresa/search", tags=["Legacy"], deprecated=True)
+async def legacy_empresa_search(
+    name: str = None,
     current_user: TokenData = Depends(get_current_user)
 ):
-    """Busca empresas por critérios"""
-    try:
-        logger.info("empresa_search", user=current_user.email, name=name)
-        results = await coresignal.search_companies(
-            name=name,
-            website=website,
-            industry=industry,
-            country=country,
-            limit=limit
-        )
-        return {"count": len(results), "data": results}
-    except Exception as e:
-        logger.error("empresa_search_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+    """
+    [DEPRECATED] Use /api/v2/company/search
+
+    Endpoint mantido para compatibilidade.
+    """
+    if not name:
+        raise HTTPException(status_code=400, detail="Nome é obrigatório")
+
+    from src.services import CompanyIntelService
+    async with CompanyIntelService() as service:
+        result = await service.quick_lookup(name)
+        return {"count": 1 if result else 0, "data": [result] if result else []}
 
 
-@app.get("/empresa/{company_id}")
-async def get_empresa(
-    company_id: str,
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Obtém detalhes de uma empresa pelo ID"""
-    try:
-        result = await coresignal.get_company(company_id)
-        if not result:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("empresa_get_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/empresa/linkedin/search")
-async def get_empresa_by_linkedin(
+@app.get("/scrape", tags=["Legacy"], deprecated=True)
+async def legacy_scrape(
     url: str,
     current_user: TokenData = Depends(get_current_user)
 ):
-    """Busca empresa pelo URL do LinkedIn"""
-    try:
-        result = await coresignal.get_company_by_linkedin(url)
-        if not result:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    """
+    [DEPRECATED] Web scraping básico
+
+    Use os novos endpoints de /api/v2/company para análise completa.
+    """
+    from src.scrapers import WebScraperClient
+    async with WebScraperClient() as scraper:
+        result = await scraper.scrape(url)
         return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("empresa_linkedin_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/empresa/{company_id}/employees")
-async def get_empresa_employees(
-    company_id: str,
-    limit: int = Query(default=50, le=200),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Lista funcionários de uma empresa"""
-    try:
-        results = await coresignal.get_company_employees(company_id, limit=limit)
-        return {"count": len(results), "data": results}
-    except Exception as e:
-        logger.error("empresa_employees_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ===========================================
-# LINKEDIN (Requer Proxycurl)
-# ===========================================
-
-@app.get("/linkedin/search")
-async def search_profissionais(current_user: TokenData = Depends(get_current_user)):
-    """Busca profissionais - Requer Proxycurl API"""
-    raise HTTPException(
-        status_code=503,
-        detail="LinkedIn search requer Proxycurl API. Configure PROXYCURL_API_KEY no .env"
-    )
-
-
-@app.get("/linkedin/profile/{member_id}")
-async def get_profissional(
-    member_id: str,
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Perfil profissional - Requer Proxycurl API"""
-    raise HTTPException(
-        status_code=503,
-        detail="LinkedIn profile requer Proxycurl API. Configure PROXYCURL_API_KEY no .env"
-    )
-
-
-@app.get("/linkedin/profile")
-async def get_profissional_by_url(
-    url: str,
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Busca por URL - Requer Proxycurl API"""
-    raise HTTPException(
-        status_code=503,
-        detail="LinkedIn profile requer Proxycurl API. Configure PROXYCURL_API_KEY no .env"
-    )
-
-
-# ===========================================
-# SCRAPE (Firecrawl)
-# ===========================================
-
-@app.post("/scrape")
-async def scrape_url_post(
-    request: ScrapeRequest,
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Faz scrape de uma URL"""
-    try:
-        logger.info("scrape", user=current_user.email, url=request.url)
-        result = await firecrawl.scrape_url(
-            url=request.url,
-            formats=request.formats,
-            only_main_content=request.only_main_content
-        )
-        return result
-    except Exception as e:
-        logger.error("scrape_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/scrape")
-async def scrape_url_get(
-    url: str,
-    format: str = "markdown",
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Faz scrape de uma URL (GET)"""
-    try:
-        logger.info("scrape", user=current_user.email, url=url)
-        result = await firecrawl.scrape_url(
-            url=url,
-            formats=[format]
-        )
-        return result
-    except Exception as e:
-        logger.error("scrape_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/scrape/map")
-async def map_site(
-    url: str,
-    limit: int = Query(default=100, le=5000),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Mapeia URLs de um site"""
-    try:
-        logger.info("map", user=current_user.email, url=url)
-        urls = await firecrawl.map_site(url=url, limit=limit)
-        return {"count": len(urls), "urls": urls}
-    except Exception as e:
-        logger.error("map_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/scrape/crawl")
-async def crawl_site(
-    url: str,
-    max_depth: int = Query(default=2, le=5),
-    limit: int = Query(default=50, le=200),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Inicia crawl de um site"""
-    try:
-        logger.info("crawl", user=current_user.email, url=url)
-        result = await firecrawl.crawl_site(
-            url=url,
-            max_depth=max_depth,
-            limit=limit
-        )
-        return result
-    except Exception as e:
-        logger.error("crawl_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/scrape/crawl/{crawl_id}")
-async def get_crawl_status(
-    crawl_id: str,
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Verifica status de um crawl"""
-    try:
-        return await firecrawl.get_crawl_status(crawl_id)
-    except Exception as e:
-        logger.error("crawl_status_error", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

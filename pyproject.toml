@@ -1,16 +1,16 @@
 [project]
 name = "scraping-hub"
-version = "0.1.0"
-description = "Sistema de scraping inteligente com Coresignal, Proxycurl e Firecrawl"
+version = "2.0.0"
+description = "Sistema de Business Intelligence Brasil - Análise de empresas, pessoas e políticos"
 authors = [
     {name = "Iconsai", email = "dev@iconsai.ai"}
 ]
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-keywords = ["scraping", "linkedin", "empresa", "governo", "api"]
+keywords = ["scraping", "business-intelligence", "brasil", "empresas", "api", "swot", "okrs"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.10",
@@ -39,11 +39,16 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-v --tb=short"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --tb=short -x"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["tests/*"]
+source = ["src", "api"]
+omit = ["tests/*", "venv/*"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -51,4 +56,5 @@ exclude_lines = [
     "def __repr__",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]

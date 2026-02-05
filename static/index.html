@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scraping Hub - iconsai</title>
+    <title>Scraping Hub v2.0 - Business Intelligence Brasil</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -14,6 +14,17 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
+        .loading {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .tab-active {
+            border-bottom: 2px solid #667eea;
+            color: #667eea;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -21,22 +32,22 @@
     <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
             <div class="text-center mb-8">
-                <div class="text-5xl mb-4">🔍</div>
-                <h1 class="text-2xl font-bold text-gray-800">Scraping Hub</h1>
-                <p class="text-gray-500 mt-2">Powered by iconsai</p>
+                <div class="text-5xl mb-4">🎯</div>
+                <h1 class="text-2xl font-bold text-gray-800">Scraping Hub v2.0</h1>
+                <p class="text-gray-500 mt-2">Business Intelligence Brasil</p>
             </div>
             <form id="loginForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input type="email" id="email" required
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="admin@iconsai.ai">
+                        placeholder="admin@iconsai.ai" value="admin@iconsai.ai">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
                     <input type="password" id="password" required
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="••••••••">
+                        placeholder="••••••••" value="admin123">
                 </div>
                 <div id="loginError" class="hidden text-red-500 text-sm text-center"></div>
                 <button type="submit"
@@ -54,10 +65,10 @@
             <div class="container mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <span class="text-3xl">🔍</span>
+                        <span class="text-3xl">🎯</span>
                         <div>
-                            <h1 class="text-xl font-bold">Scraping Hub</h1>
-                            <p class="text-purple-200 text-sm">iconsai.ai</p>
+                            <h1 class="text-xl font-bold">Scraping Hub v2.0</h1>
+                            <p class="text-purple-200 text-sm">Business Intelligence Brasil</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-4">
@@ -86,28 +97,28 @@
                 <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Scrapes</p>
-                            <p class="text-2xl font-bold text-gray-800" id="statScrapes">0</p>
+                            <p class="text-gray-500 text-sm">Pessoas</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statPessoas">0</p>
                         </div>
-                        <div class="text-3xl">📄</div>
+                        <div class="text-3xl">👤</div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">LinkedIn</p>
-                            <p class="text-2xl font-bold text-gray-800" id="statLinkedin">0</p>
+                            <p class="text-gray-500 text-sm">Politicos</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statPoliticos">0</p>
                         </div>
-                        <div class="text-3xl">💼</div>
+                        <div class="text-3xl">🏛️</div>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Creditos</p>
-                            <p class="text-2xl font-bold text-gray-800" id="statCredits">1000</p>
+                            <p class="text-gray-500 text-sm">Noticias</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statNoticias">0</p>
                         </div>
-                        <div class="text-3xl">💎</div>
+                        <div class="text-3xl">📰</div>
                     </div>
                 </div>
             </div>
@@ -117,106 +128,240 @@
                 <div class="border-b border-gray-200">
                     <nav class="flex">
                         <button onclick="showTab('empresas')" id="tabEmpresas"
-                            class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-purple-500 text-purple-600">
+                            class="tab-btn px-6 py-4 text-sm font-medium tab-active">
                             🏢 Empresas
                         </button>
-                        <button onclick="showTab('scrape')" id="tabScrape"
+                        <button onclick="showTab('pessoas')" id="tabPessoas"
                             class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            📄 Web Scrape
+                            👤 Pessoas
                         </button>
-                        <button onclick="showTab('linkedin')" id="tabLinkedin"
+                        <button onclick="showTab('politicos')" id="tabPoliticos"
                             class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            💼 LinkedIn
+                            🏛️ Politicos
                         </button>
-                        <button onclick="showTab('historico')" id="tabHistorico"
+                        <button onclick="showTab('noticias')" id="tabNoticias"
                             class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                            📊 Historico
+                            📰 Noticias
                         </button>
                     </nav>
                 </div>
 
                 <!-- Tab Content: Empresas -->
                 <div id="contentEmpresas" class="p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Buscar Empresas (Coresignal)</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <input type="text" id="empresaNome" placeholder="Nome da empresa"
-                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                        <input type="text" id="empresaIndustria" placeholder="Industria"
-                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                        <input type="text" id="empresaPais" placeholder="Pais"
-                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Analise de Empresas</h2>
+                    <p class="text-gray-600 mb-4">Analise completa com SWOT, OKRs, concorrentes e funcionarios.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Empresa</label>
+                            <input type="text" id="empresaNome" placeholder="Ex: Nubank, Magazine Luiza"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ (opcional)</label>
+                            <input type="text" id="empresaCnpj" placeholder="00.000.000/0000-00"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
                     </div>
-                    <button onclick="searchEmpresas()"
-                        class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                        🔍 Buscar
-                    </button>
+
+                    <div class="flex items-center space-x-4 mb-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="includeCompetitors" checked class="mr-2">
+                            <span class="text-sm text-gray-600">Incluir concorrentes</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="includeEmployees" checked class="mr-2">
+                            <span class="text-sm text-gray-600">Incluir funcionarios</span>
+                        </label>
+                    </div>
+
+                    <div class="flex space-x-4 mb-4">
+                        <button onclick="analyzeCompany()"
+                            class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            🔍 Analise Completa
+                        </button>
+                        <button onclick="quickLookupCompany()"
+                            class="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            ⚡ Busca Rapida
+                        </button>
+                        <button onclick="getSwot()"
+                            class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            📊 Apenas SWOT
+                        </button>
+                    </div>
+
                     <div id="empresasResults" class="mt-6"></div>
                 </div>
 
-                <!-- Tab Content: Scrape -->
-                <div id="contentScrape" class="p-6 hidden">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Web Scraping (Firecrawl)</h2>
-                    <div class="space-y-4 mb-4">
-                        <input type="url" id="scrapeUrl" placeholder="https://exemplo.com"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                        <select id="scrapeFormat"
-                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            <option value="markdown">Markdown</option>
-                            <option value="html">HTML</option>
-                        </select>
+                <!-- Tab Content: Pessoas -->
+                <div id="contentPessoas" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Analise de Pessoas</h2>
+                    <p class="text-gray-600 mb-4">Perfil profissional, fit cultural e comparacao de candidatos.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Pessoa</label>
+                            <input type="text" id="pessoaNome" placeholder="Nome completo"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Empresa (opcional)</label>
+                            <input type="text" id="pessoaEmpresa" placeholder="Empresa atual"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo (opcional)</label>
+                            <input type="text" id="pessoaCargo" placeholder="Cargo atual"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
                     </div>
-                    <div class="flex space-x-4">
-                        <button onclick="doScrape()"
+
+                    <div class="flex space-x-4 mb-4">
+                        <button onclick="analyzePerson()"
                             class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                            📄 Scrape Pagina
+                            🔍 Analise Completa
                         </button>
-                        <button onclick="doMap()"
+                        <button onclick="quickLookupPerson()"
                             class="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                            🗺️ Mapear Site
+                            ⚡ Busca Rapida
                         </button>
                     </div>
-                    <div id="scrapeResults" class="mt-6"></div>
+
+                    <hr class="my-6">
+
+                    <h3 class="text-md font-semibold text-gray-800 mb-4">Analise de Fit Cultural</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Candidato</label>
+                            <input type="text" id="fitPessoa" placeholder="Nome do candidato"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Empresa Alvo</label>
+                            <input type="text" id="fitEmpresa" placeholder="Empresa para fit"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+                            <input type="text" id="fitCargo" placeholder="Cargo em questao"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+                    <button onclick="analyzeFit()"
+                        class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                        🎯 Analisar Fit
+                    </button>
+
+                    <div id="pessoasResults" class="mt-6"></div>
                 </div>
 
-                <!-- Tab Content: LinkedIn -->
-                <div id="contentLinkedin" class="p-6 hidden">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">LinkedIn (Proxycurl)</h2>
+                <!-- Tab Content: Politicos -->
+                <div id="contentPoliticos" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Analise de Politicos</h2>
+                    <p class="text-gray-600 mb-4">Perfil pessoal (nao politico), redes sociais e percepcao publica.</p>
+
                     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                        <p class="text-yellow-800">
-                            ⚠️ LinkedIn requer configuracao do Proxycurl API.
-                            <a href="https://nubela.co/proxycurl" target="_blank" class="underline">Configurar</a>
+                        <p class="text-yellow-800 text-sm">
+                            ⚠️ <strong>Nota:</strong> Esta analise foca no perfil PESSOAL do politico, nao em posicoes politicas ou votacoes.
                         </p>
                     </div>
-                    <input type="url" id="linkedinUrl" placeholder="https://linkedin.com/in/usuario"
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 mb-4">
-                    <button onclick="searchLinkedin()" disabled
-                        class="bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed">
-                        💼 Buscar Perfil (Indisponivel)
-                    </button>
-                    <div id="linkedinResults" class="mt-6"></div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Politico</label>
+                            <input type="text" id="politicoNome" placeholder="Nome completo"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo (opcional)</label>
+                            <select id="politicoCargo"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <option value="">Selecione...</option>
+                                <option value="prefeito">Prefeito</option>
+                                <option value="governador">Governador</option>
+                                <option value="senador">Senador</option>
+                                <option value="deputado federal">Deputado Federal</option>
+                                <option value="deputado estadual">Deputado Estadual</option>
+                                <option value="vereador">Vereador</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Estado (opcional)</label>
+                            <input type="text" id="politicoEstado" placeholder="Ex: SP, RJ, MG"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4 mb-4">
+                        <button onclick="analyzePolitician()"
+                            class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            🔍 Analise Completa
+                        </button>
+                        <button onclick="quickLookupPolitician()"
+                            class="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            ⚡ Busca Rapida
+                        </button>
+                        <button onclick="getPerception()"
+                            class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            📊 Percepcao Publica
+                        </button>
+                    </div>
+
+                    <div id="politicosResults" class="mt-6"></div>
                 </div>
 
-                <!-- Tab Content: Historico -->
-                <div id="contentHistorico" class="p-6 hidden">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Historico de Pesquisas</h2>
-                    <div id="historicoList" class="space-y-4">
-                        <p class="text-gray-500">Nenhuma pesquisa realizada ainda.</p>
+                <!-- Tab Content: Noticias -->
+                <div id="contentNoticias" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Monitoramento de Noticias</h2>
+                    <p class="text-gray-600 mb-4">Busca de noticias, cenario economico e alertas.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Termo de Busca</label>
+                            <input type="text" id="noticiaQuery" placeholder="Ex: economia brasil, tecnologia"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Periodo</label>
+                            <select id="noticiaDias"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <option value="1">Ultimo dia</option>
+                                <option value="7" selected>Ultima semana</option>
+                                <option value="30">Ultimo mes</option>
+                            </select>
+                        </div>
                     </div>
+
+                    <div class="flex space-x-4 mb-4">
+                        <button onclick="searchNews()"
+                            class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            🔍 Buscar Noticias
+                        </button>
+                        <button onclick="getEconomicScenario()"
+                            class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            📈 Cenario Economico
+                        </button>
+                        <button onclick="getTrends()"
+                            class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            🔥 Trending
+                        </button>
+                    </div>
+
+                    <div id="noticiasResults" class="mt-6"></div>
                 </div>
             </div>
         </main>
 
         <!-- Footer -->
         <footer class="text-center py-6 text-gray-500 text-sm">
-            <p>Scraping Hub v1.0.0 | Powered by iconsai.ai</p>
-            <p class="mt-1">Coresignal + Firecrawl + Proxycurl</p>
+            <p>Scraping Hub v2.0 | Business Intelligence Brasil</p>
+            <p class="mt-1">BrasilAPI + Serper + Tavily + Perplexity + Apollo + Claude</p>
         </footer>
     </div>
 
     <script>
         const API_URL = '';
         let token = localStorage.getItem('token');
-        let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
 
         // Check if logged in
         if (token) {
@@ -256,7 +401,7 @@
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('app').classList.remove('hidden');
             document.getElementById('userEmail').textContent = localStorage.getItem('userEmail') || '';
-            updateHistory();
+            updateStats();
         }
 
         function logout() {
@@ -270,154 +415,690 @@
             document.querySelectorAll('[id^="content"]').forEach(el => el.classList.add('hidden'));
             // Reset all tabs
             document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-purple-500', 'text-purple-600');
+                el.classList.remove('tab-active');
                 el.classList.add('border-transparent', 'text-gray-500');
             });
             // Show selected
             document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
-            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('border-purple-500', 'text-purple-600');
+            const tabEl = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            tabEl.classList.add('tab-active');
+            tabEl.classList.remove('border-transparent', 'text-gray-500');
         }
 
-        async function searchEmpresas() {
-            const nome = document.getElementById('empresaNome').value;
-            const industria = document.getElementById('empresaIndustria').value;
-            const pais = document.getElementById('empresaPais').value;
+        function showLoading(elementId, message = 'Processando...') {
+            document.getElementById(elementId).innerHTML = `
+                <div class="text-center py-8">
+                    <div class="loading text-4xl mb-4">⏳</div>
+                    <p class="text-gray-500">${message}</p>
+                </div>
+            `;
+        }
 
-            const params = new URLSearchParams();
-            if (nome) params.append('name', nome);
-            if (industria) params.append('industry', industria);
-            if (pais) params.append('country', pais);
+        function showError(elementId, error) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p class="text-red-800">❌ Erro: ${error}</p>
+                </div>
+            `;
+        }
 
-            document.getElementById('empresasResults').innerHTML = '<p class="text-gray-500">Buscando...</p>';
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Erro na requisicao');
+            }
+            return response.json();
+        }
+
+        // ===========================================
+        // EMPRESAS
+        // ===========================================
+
+        async function analyzeCompany() {
+            const name = document.getElementById('empresaNome').value;
+            if (!name) return alert('Digite o nome da empresa');
+
+            showLoading('empresasResults', 'Analisando empresa... (pode demorar alguns minutos)');
+            incrementStat('Empresas');
 
             try {
-                const response = await fetch(`${API_URL}/empresa/search?${params}`, {
-                    headers: {'Authorization': `Bearer ${token}`}
+                const data = await apiCall('/api/v2/company/analyze', 'POST', {
+                    name,
+                    cnpj: document.getElementById('empresaCnpj').value || null,
+                    include_competitors: document.getElementById('includeCompetitors').checked,
+                    include_employees: document.getElementById('includeEmployees').checked
                 });
-                const data = await response.json();
-
-                if (data.data && data.data.length > 0) {
-                    const html = data.data.map(emp => `
-                        <div class="border border-gray-200 rounded-lg p-4 mb-3">
-                            <h3 class="font-semibold text-gray-800">${emp.name || 'Sem nome'}</h3>
-                            <p class="text-sm text-gray-500">${emp.industry || ''} | ${emp.headquarters_country_parsed || ''}</p>
-                            <p class="text-sm text-gray-600 mt-2">${(emp.description || '').substring(0, 200)}...</p>
-                            ${emp.website ? `<a href="${emp.website}" target="_blank" class="text-purple-600 text-sm">🔗 ${emp.website}</a>` : ''}
-                        </div>
-                    `).join('');
-                    document.getElementById('empresasResults').innerHTML = `<p class="text-sm text-gray-500 mb-4">${data.count} resultado(s)</p>` + html;
-                    addToHistory('empresa', {nome, industria, pais}, data.count);
-                } else {
-                    document.getElementById('empresasResults').innerHTML = '<p class="text-gray-500">Nenhum resultado encontrado.</p>';
-                }
+                displayCompanyResult(data);
             } catch (error) {
-                document.getElementById('empresasResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
+                showError('empresasResults', error.message);
             }
         }
 
-        async function doScrape() {
-            const url = document.getElementById('scrapeUrl').value;
-            const format = document.getElementById('scrapeFormat').value;
+        async function quickLookupCompany() {
+            const name = document.getElementById('empresaNome').value;
+            if (!name) return alert('Digite o nome da empresa');
 
-            if (!url) return alert('Digite uma URL');
-
-            document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Processando...</p>';
+            showLoading('empresasResults', 'Buscando empresa...');
+            incrementStat('Empresas');
 
             try {
-                const response = await fetch(`${API_URL}/scrape?url=${encodeURIComponent(url)}&format=${format}`, {
-                    headers: {'Authorization': `Bearer ${token}`}
-                });
-                const data = await response.json();
+                const data = await apiCall('/api/v2/company/quick', 'POST', { name });
+                displayQuickCompanyResult(data);
+            } catch (error) {
+                showError('empresasResults', error.message);
+            }
+        }
 
-                const content = data.markdown || data.html || JSON.stringify(data, null, 2);
-                document.getElementById('scrapeResults').innerHTML = `
-                    <div class="bg-gray-100 rounded-lg p-4 max-h-96 overflow-auto">
-                        <pre class="text-sm text-gray-800 whitespace-pre-wrap">${content.substring(0, 5000)}${content.length > 5000 ? '...' : ''}</pre>
+        async function getSwot() {
+            const name = document.getElementById('empresaNome').value;
+            if (!name) return alert('Digite o nome da empresa');
+
+            showLoading('empresasResults', 'Gerando SWOT...');
+
+            try {
+                const data = await apiCall('/api/v2/company/swot', 'POST', { name });
+                displaySwotResult(data);
+            } catch (error) {
+                showError('empresasResults', error.message);
+            }
+        }
+
+        function displayCompanyResult(data) {
+            const profile = data.company_profile || {};
+            const swot = data.swot_analysis || {};
+
+            let html = `
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-lg mb-2">🏢 ${profile.nome_fantasia || profile.name}</h3>
+                        <p class="text-gray-600">${profile.description || 'Sem descricao'}</p>
+                        ${profile.cnpj ? `<p class="text-sm text-gray-500 mt-2">CNPJ: ${profile.cnpj}</p>` : ''}
+                        ${profile.website ? `<a href="${profile.website}" target="_blank" class="text-purple-600 text-sm">🔗 ${profile.website}</a>` : ''}
+                    </div>
+            `;
+
+            if (swot.strengths) {
+                html += `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-green-800 mb-2">💪 Forcas</h4>
+                            <ul class="list-disc pl-5 text-sm text-green-700">
+                                ${(swot.strengths || []).map(s => `<li>${s.point || s}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-red-800 mb-2">⚠️ Fraquezas</h4>
+                            <ul class="list-disc pl-5 text-sm text-red-700">
+                                ${(swot.weaknesses || []).map(w => `<li>${w.point || w}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">🚀 Oportunidades</h4>
+                            <ul class="list-disc pl-5 text-sm text-blue-700">
+                                ${(swot.opportunities || []).map(o => `<li>${o.point || o}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-yellow-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-yellow-800 mb-2">⚡ Ameacas</h4>
+                            <ul class="list-disc pl-5 text-sm text-yellow-700">
+                                ${(swot.threats || []).map(t => `<li>${t.point || t}</li>`).join('')}
+                            </ul>
+                        </div>
                     </div>
                 `;
-                addToHistory('scrape', {url, format}, 1);
-            } catch (error) {
-                document.getElementById('scrapeResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
             }
+
+            if (data.competitors && data.competitors.competitors) {
+                html += `
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-purple-800 mb-2">🎯 Concorrentes</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            ${data.competitors.competitors.map(c => `
+                                <div class="bg-white rounded p-2 text-sm">
+                                    <p class="font-medium">${c.name}</p>
+                                    <p class="text-gray-500 text-xs">${c.description || ''}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="text-sm text-gray-500">
+                    <p>Confianca: ${Math.round((data.confidence_score || 0) * 100)}%</p>
+                    <p>Fontes: ${(profile.sources || []).join(', ')}</p>
+                </div>
+            </div>`;
+
+            document.getElementById('empresasResults').innerHTML = html;
         }
 
-        async function doMap() {
-            const url = document.getElementById('scrapeUrl').value;
-            if (!url) return alert('Digite uma URL');
+        function displayQuickCompanyResult(data) {
+            document.getElementById('empresasResults').innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-semibold text-lg mb-2">🏢 ${data.nome_fantasia || data.name}</h3>
+                    <p class="text-gray-600 mb-2">${data.description || 'Sem descricao'}</p>
+                    ${data.cnpj ? `<p class="text-sm text-gray-500">CNPJ: ${data.cnpj}</p>` : ''}
+                    ${data.industry ? `<p class="text-sm text-gray-500">Setor: ${data.industry}</p>` : ''}
+                    ${data.website ? `<a href="${data.website}" target="_blank" class="text-purple-600 text-sm block mt-2">🔗 ${data.website}</a>` : ''}
+                    ${data.situacao_cadastral ? `<p class="text-sm mt-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded">${data.situacao_cadastral}</span></p>` : ''}
+                </div>
+            `;
+        }
 
-            document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Mapeando site...</p>';
+        function displaySwotResult(data) {
+            let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+
+            html += `
+                <div class="bg-green-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-green-800 mb-2">💪 Forcas</h4>
+                    <ul class="list-disc pl-5 text-sm text-green-700">
+                        ${(data.strengths || []).map(s => `<li>${s.point || s}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-red-800 mb-2">⚠️ Fraquezas</h4>
+                    <ul class="list-disc pl-5 text-sm text-red-700">
+                        ${(data.weaknesses || []).map(w => `<li>${w.point || w}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-blue-800 mb-2">🚀 Oportunidades</h4>
+                    <ul class="list-disc pl-5 text-sm text-blue-700">
+                        ${(data.opportunities || []).map(o => `<li>${o.point || o}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-yellow-800 mb-2">⚡ Ameacas</h4>
+                    <ul class="list-disc pl-5 text-sm text-yellow-700">
+                        ${(data.threats || []).map(t => `<li>${t.point || t}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            html += `</div>`;
+            if (data.summary) {
+                html += `<div class="mt-4 p-4 bg-gray-50 rounded-lg"><p class="text-gray-700">${data.summary}</p></div>`;
+            }
+
+            document.getElementById('empresasResults').innerHTML = html;
+        }
+
+        // ===========================================
+        // PESSOAS
+        // ===========================================
+
+        async function analyzePerson() {
+            const name = document.getElementById('pessoaNome').value;
+            if (!name) return alert('Digite o nome da pessoa');
+
+            showLoading('pessoasResults', 'Analisando pessoa...');
+            incrementStat('Pessoas');
 
             try {
-                const response = await fetch(`${API_URL}/scrape/map?url=${encodeURIComponent(url)}&limit=50`, {
-                    headers: {'Authorization': `Bearer ${token}`}
+                const data = await apiCall('/api/v2/person/analyze', 'POST', {
+                    name,
+                    company: document.getElementById('pessoaEmpresa').value || null,
+                    role: document.getElementById('pessoaCargo').value || null
                 });
-                const data = await response.json();
-
-                if (data.urls && data.urls.length > 0) {
-                    const html = data.urls.map(u => `<li class="text-sm text-purple-600 hover:underline"><a href="${u}" target="_blank">${u}</a></li>`).join('');
-                    document.getElementById('scrapeResults').innerHTML = `
-                        <p class="text-sm text-gray-500 mb-2">${data.count} URLs encontradas</p>
-                        <ul class="list-disc pl-5 space-y-1 max-h-96 overflow-auto">${html}</ul>
-                    `;
-                    addToHistory('map', {url}, data.count);
-                } else {
-                    document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Nenhuma URL encontrada.</p>';
-                }
+                displayPersonResult(data);
             } catch (error) {
-                document.getElementById('scrapeResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
+                showError('pessoasResults', error.message);
             }
         }
 
-        function addToHistory(type, query, results) {
-            searchHistory.unshift({
-                type,
-                query,
-                results,
-                timestamp: new Date().toISOString()
-            });
-            searchHistory = searchHistory.slice(0, 50); // Keep last 50
-            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
-            updateHistory();
-            updateStats();
+        async function quickLookupPerson() {
+            const name = document.getElementById('pessoaNome').value;
+            if (!name) return alert('Digite o nome da pessoa');
+
+            showLoading('pessoasResults', 'Buscando pessoa...');
+            incrementStat('Pessoas');
+
+            try {
+                const data = await apiCall('/api/v2/person/quick', 'POST', {
+                    name,
+                    company: document.getElementById('pessoaEmpresa').value || null
+                });
+                displayQuickPersonResult(data);
+            } catch (error) {
+                showError('pessoasResults', error.message);
+            }
         }
 
-        function updateHistory() {
-            const list = document.getElementById('historicoList');
-            if (searchHistory.length === 0) {
-                list.innerHTML = '<p class="text-gray-500">Nenhuma pesquisa realizada ainda.</p>';
-                return;
+        async function analyzeFit() {
+            const person = document.getElementById('fitPessoa').value;
+            const company = document.getElementById('fitEmpresa').value;
+            if (!person || !company) return alert('Preencha nome e empresa');
+
+            showLoading('pessoasResults', 'Analisando fit cultural...');
+
+            try {
+                const data = await apiCall('/api/v2/person/fit-analysis', 'POST', {
+                    person_name: person,
+                    company_name: company,
+                    role: document.getElementById('fitCargo').value || null
+                });
+                displayFitResult(data);
+            } catch (error) {
+                showError('pessoasResults', error.message);
+            }
+        }
+
+        function displayPersonResult(data) {
+            const profile = data.profile || {};
+            const analysis = data.ai_analysis || {};
+
+            let html = `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-start space-x-4">
+                            ${profile.photo_url ? `<img src="${profile.photo_url}" class="w-16 h-16 rounded-full">` : '<div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-2xl">👤</div>'}
+                            <div>
+                                <h3 class="font-semibold text-lg">${profile.full_name || profile.name}</h3>
+                                <p class="text-gray-600">${profile.current_title || ''} ${profile.current_company ? 'na ' + profile.current_company : ''}</p>
+                                ${profile.linkedin_url ? `<a href="${profile.linkedin_url}" target="_blank" class="text-blue-600 text-sm">LinkedIn</a>` : ''}
+                            </div>
+                        </div>
+                    </div>
+            `;
+
+            if (analysis.profile_summary) {
+                html += `
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">📝 Resumo</h4>
+                        <p class="text-sm text-blue-700">${analysis.profile_summary}</p>
+                    </div>
+                `;
             }
 
-            list.innerHTML = searchHistory.map(h => {
-                const icons = {empresa: '🏢', scrape: '📄', map: '🗺️', linkedin: '💼'};
-                const date = new Date(h.timestamp).toLocaleString('pt-BR');
-                return `
-                    <div class="border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+            if (analysis.strengths) {
+                html += `
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-green-800 mb-2">💪 Pontos Fortes</h4>
+                        <ul class="list-disc pl-5 text-sm text-green-700">
+                            ${(analysis.strengths || []).map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            document.getElementById('pessoasResults').innerHTML = html;
+        }
+
+        function displayQuickPersonResult(data) {
+            document.getElementById('pessoasResults').innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-start space-x-4">
+                        ${data.photo_url ? `<img src="${data.photo_url}" class="w-16 h-16 rounded-full">` : '<div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-2xl">👤</div>'}
                         <div>
-                            <span class="text-xl mr-2">${icons[h.type] || '📋'}</span>
-                            <span class="font-medium">${h.type}</span>
-                            <span class="text-gray-500 text-sm ml-2">${JSON.stringify(h.query).substring(0, 50)}</span>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm text-gray-600">${h.results} resultado(s)</p>
-                            <p class="text-xs text-gray-400">${date}</p>
+                            <h3 class="font-semibold text-lg">${data.name}</h3>
+                            <p class="text-gray-600">${data.title || ''} ${data.company ? 'na ' + data.company : ''}</p>
+                            ${data.linkedin_url ? `<a href="${data.linkedin_url}" target="_blank" class="text-blue-600 text-sm">LinkedIn</a>` : ''}
+                            ${data.email ? `<p class="text-sm text-gray-500 mt-1">📧 ${data.email}</p>` : ''}
                         </div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `;
         }
+
+        function displayFitResult(data) {
+            const scores = data.scores || {};
+
+            document.getElementById('pessoasResults').innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-lg mb-4">🎯 Analise de Fit: ${data.person?.name} → ${data.company?.name}</h3>
+
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="text-center">
+                                <p class="text-sm text-gray-500">Cultural</p>
+                                <p class="text-2xl font-bold text-purple-600">${Math.round((scores.cultural_fit || 0) * 100)}%</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm text-gray-500">Cargo</p>
+                                <p class="text-2xl font-bold text-blue-600">${Math.round((scores.role_fit || 0) * 100)}%</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm text-gray-500">Geral</p>
+                                <p class="text-2xl font-bold text-green-600">${Math.round((scores.overall_fit || 0) * 100)}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${data.recommendation ? `
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">📋 Recomendacao</h4>
+                            <p class="text-sm text-blue-700">${data.recommendation}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ===========================================
+        // POLITICOS
+        // ===========================================
+
+        async function analyzePolitician() {
+            const name = document.getElementById('politicoNome').value;
+            if (!name) return alert('Digite o nome do politico');
+
+            showLoading('politicosResults', 'Analisando politico...');
+            incrementStat('Politicos');
+
+            try {
+                const data = await apiCall('/api/v2/politician/analyze', 'POST', {
+                    name,
+                    role: document.getElementById('politicoCargo').value || null,
+                    state: document.getElementById('politicoEstado').value || null
+                });
+                displayPoliticianResult(data);
+            } catch (error) {
+                showError('politicosResults', error.message);
+            }
+        }
+
+        async function quickLookupPolitician() {
+            const name = document.getElementById('politicoNome').value;
+            if (!name) return alert('Digite o nome do politico');
+
+            showLoading('politicosResults', 'Buscando politico...');
+            incrementStat('Politicos');
+
+            try {
+                const data = await apiCall('/api/v2/politician/quick', 'POST', {
+                    name,
+                    role: document.getElementById('politicoCargo').value || null
+                });
+                displayQuickPoliticianResult(data);
+            } catch (error) {
+                showError('politicosResults', error.message);
+            }
+        }
+
+        async function getPerception() {
+            const name = document.getElementById('politicoNome').value;
+            if (!name) return alert('Digite o nome do politico');
+
+            showLoading('politicosResults', 'Analisando percepcao publica...');
+
+            try {
+                const data = await apiCall(`/api/v2/politician/${encodeURIComponent(name)}/perception`);
+                displayPerceptionResult(data);
+            } catch (error) {
+                showError('politicosResults', error.message);
+            }
+        }
+
+        function displayPoliticianResult(data) {
+            const profile = data.profile || {};
+            const analysis = data.ai_analysis || {};
+            const social = data.social_media || {};
+
+            let html = `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-lg">🏛️ ${data.name}</h3>
+                        <p class="text-gray-600">${data.role || ''} ${data.state ? '- ' + data.state : ''}</p>
+
+                        <div class="flex space-x-2 mt-2">
+                            ${social.instagram ? `<a href="${social.instagram.url || social.instagram}" target="_blank" class="text-pink-600">📸 Instagram</a>` : ''}
+                            ${social.twitter ? `<a href="${social.twitter.url || social.twitter}" target="_blank" class="text-blue-400">🐦 Twitter</a>` : ''}
+                            ${social.facebook ? `<a href="${social.facebook.url || social.facebook}" target="_blank" class="text-blue-600">📘 Facebook</a>` : ''}
+                        </div>
+                    </div>
+            `;
+
+            if (analysis.personal_profile) {
+                const pp = analysis.personal_profile;
+                html += `
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">📝 Perfil Pessoal</h4>
+                        ${pp.background ? `<p class="text-sm text-blue-700 mb-2"><strong>Historico:</strong> ${pp.background}</p>` : ''}
+                        ${pp.education ? `<p class="text-sm text-blue-700 mb-2"><strong>Formacao:</strong> ${pp.education.join(', ')}</p>` : ''}
+                    </div>
+                `;
+            }
+
+            if (profile.recent_news && profile.recent_news.length > 0) {
+                html += `
+                    <div class="bg-yellow-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-yellow-800 mb-2">📰 Noticias Recentes</h4>
+                        <ul class="space-y-2">
+                            ${profile.recent_news.slice(0, 5).map(n => `
+                                <li class="text-sm">
+                                    <a href="${n.link}" target="_blank" class="text-yellow-700 hover:underline">${n.title}</a>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            document.getElementById('politicosResults').innerHTML = html;
+        }
+
+        function displayQuickPoliticianResult(data) {
+            const social = data.social_media || {};
+
+            document.getElementById('politicosResults').innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="font-semibold text-lg">🏛️ ${data.name}</h3>
+                    <p class="text-gray-600 mb-2">${data.role || ''}</p>
+                    <p class="text-sm text-gray-500">${data.description || ''}</p>
+
+                    <div class="flex space-x-2 mt-3">
+                        ${social.instagram ? `<a href="${social.instagram.url}" target="_blank" class="text-pink-600 text-sm">📸 Instagram</a>` : ''}
+                        ${social.twitter ? `<a href="${social.twitter.url}" target="_blank" class="text-blue-400 text-sm">🐦 Twitter</a>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayPerceptionResult(data) {
+            const sentiment = data.news_sentiment || {};
+
+            document.getElementById('politicosResults').innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-lg mb-4">📊 Percepcao Publica: ${data.name}</h3>
+
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="text-center bg-green-100 rounded-lg p-3">
+                                <p class="text-sm text-green-600">Positivo</p>
+                                <p class="text-2xl font-bold text-green-700">${sentiment.positive || 0}</p>
+                            </div>
+                            <div class="text-center bg-gray-100 rounded-lg p-3">
+                                <p class="text-sm text-gray-600">Neutro</p>
+                                <p class="text-2xl font-bold text-gray-700">${sentiment.neutral || 0}</p>
+                            </div>
+                            <div class="text-center bg-red-100 rounded-lg p-3">
+                                <p class="text-sm text-red-600">Negativo</p>
+                                <p class="text-2xl font-bold text-red-700">${sentiment.negative || 0}</p>
+                            </div>
+                        </div>
+
+                        <p class="text-sm text-gray-500">Total: ${data.total_news || 0} noticias nos ultimos ${data.analysis_period_days || 30} dias</p>
+                    </div>
+
+                    ${data.perception_analysis ? `
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">📝 Analise</h4>
+                            <p class="text-sm text-blue-700">${data.perception_analysis}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ===========================================
+        // NOTICIAS
+        // ===========================================
+
+        async function searchNews() {
+            const query = document.getElementById('noticiaQuery').value;
+            if (!query) return alert('Digite um termo de busca');
+
+            showLoading('noticiasResults', 'Buscando noticias...');
+            incrementStat('Noticias');
+
+            try {
+                const days = document.getElementById('noticiaDias').value;
+                const data = await apiCall(`/api/v2/news/search?q=${encodeURIComponent(query)}&days=${days}`);
+                displayNewsResult(data);
+            } catch (error) {
+                showError('noticiasResults', error.message);
+            }
+        }
+
+        async function getEconomicScenario() {
+            showLoading('noticiasResults', 'Analisando cenario economico...');
+
+            try {
+                const data = await apiCall('/api/v2/news/economic');
+                displayEconomicResult(data);
+            } catch (error) {
+                showError('noticiasResults', error.message);
+            }
+        }
+
+        async function getTrends() {
+            showLoading('noticiasResults', 'Buscando tendencias...');
+
+            try {
+                const data = await apiCall('/api/v2/news/trends');
+                displayTrendsResult(data);
+            } catch (error) {
+                showError('noticiasResults', error.message);
+            }
+        }
+
+        function displayNewsResult(data) {
+            const sentiment = data.sentiment_distribution || {};
+
+            let html = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <p class="text-gray-600">${data.total || 0} noticias encontradas</p>
+                        <div class="flex space-x-2 text-sm">
+                            <span class="text-green-600">✅ ${sentiment.positive || 0}</span>
+                            <span class="text-gray-600">⚪ ${sentiment.neutral || 0}</span>
+                            <span class="text-red-600">❌ ${sentiment.negative || 0}</span>
+                        </div>
+                    </div>
+
+                    ${data.summary ? `
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">📝 Resumo</h4>
+                            <p class="text-sm text-blue-700">${data.summary}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="space-y-3">
+            `;
+
+            (data.news || []).forEach(news => {
+                const sentimentIcon = news.sentiment === 'positive' ? '✅' : news.sentiment === 'negative' ? '❌' : '⚪';
+                html += `
+                    <div class="border border-gray-200 rounded-lg p-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <a href="${news.url}" target="_blank" class="font-medium text-gray-800 hover:text-purple-600">${news.title}</a>
+                                <p class="text-sm text-gray-500 mt-1">${news.source || ''} ${news.published_at ? '• ' + news.published_at : ''}</p>
+                            </div>
+                            <span>${sentimentIcon}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">${(news.content || '').substring(0, 200)}...</p>
+                    </div>
+                `;
+            });
+
+            html += '</div></div>';
+            document.getElementById('noticiasResults').innerHTML = html;
+        }
+
+        function displayEconomicResult(data) {
+            let html = `
+                <div class="space-y-4">
+                    ${data.overview ? `
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">📊 Visao Geral</h4>
+                            <p class="text-sm text-blue-700">${data.overview}</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            `;
+
+            const aspects = data.aspects || {};
+            Object.entries(aspects).forEach(([key, value]) => {
+                html += `
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h5 class="font-medium text-gray-800 mb-2">${key.charAt(0).toUpperCase() + key.slice(1)}</h5>
+                        <p class="text-sm text-gray-600">${value.summary || 'Sem dados'}</p>
+                    </div>
+                `;
+            });
+
+            html += '</div></div>';
+            document.getElementById('noticiasResults').innerHTML = html;
+        }
+
+        function displayTrendsResult(data) {
+            let html = `
+                <div class="space-y-4">
+                    ${data.trends ? `
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">🔥 Tendencias</h4>
+                            <p class="text-sm text-purple-700">${data.trends}</p>
+                        </div>
+                    ` : ''}
+
+                    ${data.trending_topics ? `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">📈 Topicos em Alta</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${data.trending_topics.map(t => `<span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            document.getElementById('noticiasResults').innerHTML = html;
+        }
+
+        // ===========================================
+        // UTILS
+        // ===========================================
 
         function updateStats() {
-            const empresas = searchHistory.filter(h => h.type === 'empresa').length;
-            const scrapes = searchHistory.filter(h => h.type === 'scrape' || h.type === 'map').length;
-            const linkedin = searchHistory.filter(h => h.type === 'linkedin').length;
-
-            document.getElementById('statEmpresas').textContent = empresas;
-            document.getElementById('statScrapes').textContent = scrapes;
-            document.getElementById('statLinkedin').textContent = linkedin;
+            const stats = JSON.parse(localStorage.getItem('stats') || '{"Empresas":0,"Pessoas":0,"Politicos":0,"Noticias":0}');
+            document.getElementById('statEmpresas').textContent = stats.Empresas || 0;
+            document.getElementById('statPessoas').textContent = stats.Pessoas || 0;
+            document.getElementById('statPoliticos').textContent = stats.Politicos || 0;
+            document.getElementById('statNoticias').textContent = stats.Noticias || 0;
         }
 
-        updateStats();
+        function incrementStat(type) {
+            const stats = JSON.parse(localStorage.getItem('stats') || '{"Empresas":0,"Pessoas":0,"Politicos":0,"Noticias":0}');
+            stats[type] = (stats[type] || 0) + 1;
+            localStorage.setItem('stats', JSON.stringify(stats));
+            updateStats();
+        }
     </script>
 </body>
 </html>
