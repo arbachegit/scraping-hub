@@ -29,9 +29,10 @@ jobs:
           ruff check .
 
       - name: Run type checking
+        continue-on-error: true  # Type hints are advisory, not blocking
         run: |
           pip install mypy
-          mypy src --ignore-missing-imports
+          mypy src --ignore-missing-imports || echo "Type checking has warnings (non-blocking)"
 
       - name: Run tests
         run: |

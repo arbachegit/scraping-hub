@@ -24,19 +24,27 @@ class RateLimitConfig:
     burst: Optional[int] = None
 
 
-# Configuracoes por provider
+# Configuracoes por provider (v2.0 - novas APIs)
 DEFAULT_LIMITS = {
-    "coresignal": RateLimitConfig(
-        requests=settings.coresignal_rate_limit,
-        period=settings.rate_limit_period
+    "serper": RateLimitConfig(
+        requests=getattr(settings, "serper_rate_limit", 100),
+        period=getattr(settings, "rate_limit_period", 60)
     ),
-    "proxycurl": RateLimitConfig(
-        requests=settings.proxycurl_rate_limit,
-        period=settings.rate_limit_period
+    "tavily": RateLimitConfig(
+        requests=getattr(settings, "tavily_rate_limit", 100),
+        period=getattr(settings, "rate_limit_period", 60)
     ),
-    "firecrawl": RateLimitConfig(
-        requests=settings.firecrawl_rate_limit,
-        period=settings.rate_limit_period
+    "perplexity": RateLimitConfig(
+        requests=getattr(settings, "perplexity_rate_limit", 50),
+        period=getattr(settings, "rate_limit_period", 60)
+    ),
+    "apollo": RateLimitConfig(
+        requests=getattr(settings, "apollo_rate_limit", 50),
+        period=getattr(settings, "rate_limit_period", 60)
+    ),
+    "brasilapi": RateLimitConfig(
+        requests=200,  # BrasilAPI is free and generous
+        period=60
     )
 }
 
