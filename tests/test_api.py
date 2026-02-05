@@ -52,8 +52,11 @@ class TestHealthEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        # Status pode ser "healthy" (com APIs) ou "degraded" (sem APIs no CI)
+        assert data["status"] in ["healthy", "degraded"]
         assert "version" in data
+        assert "apis" in data
+        assert "apis_configured" in data
 
     def test_root_returns_frontend_or_info(self, client):
         """Testa endpoint root"""
