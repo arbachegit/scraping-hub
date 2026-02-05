@@ -29,6 +29,8 @@ class PeopleIntelService:
 
     IMPORTANTE: Coleta TODOS os dados de TODAS as fontes e passa
     para análise profunda com Claude AI.
+
+    PERSISTÊNCIA: Todas as análises são salvas no banco de dados.
     """
 
     def __init__(self):
@@ -39,6 +41,15 @@ class PeopleIntelService:
         self.ai_analyzer = AIAnalyzer()
         # Cache interno para compartilhar entre métodos
         self._cache: Dict[str, Any] = {}
+
+        # Repository para persistência
+        try:
+            from src.database import PeopleRepository, SearchHistoryRepository
+            self.repository = PeopleRepository()
+            self.search_history = SearchHistoryRepository()
+        except Exception:
+            self.repository = None
+            self.search_history = None
 
     async def close(self):
         """Fecha todos os clientes"""
@@ -207,6 +218,35 @@ class PeopleIntelService:
             # Cache para uso posterior
             cache_key = f"person:{name}:{company or ''}"
             self._cache[cache_key] = result
+
+            # ============================================
+            # FASE 5: SALVAR NO BANCO DE DADOS
+            # ============================================
+            if self.repository:
+                try:
+                    # Salvar pessoa
+                    person_id = await self.repository.save_person(result.get("profile", {}))
+                    result["person_id"] = person_id
+
+                    # Salvar análise
+                    if person_id and ai_analysis:
+                        await self.repository.save_analysis(person_id, result)
+
+                    logger.info("person_saved_to_db", name=name, id=person_id)
+                except Exception as db_error:
+                    logger.warning("person_db_save_error", error=str(db_error))
+
+            # Salvar histórico de busca
+            if self.search_history:
+                try:
+                    await self.search_history.save_search(
+                        search_type="person_analysis",
+                        query={"name": name, "company": company, "role": role, "type": analysis_type},
+                        results_count=1,
+                        result_ids=[result.get("person_id")]
+                    )
+                except Exception:
+                    pass
 
         except Exception as e:
             logger.error("people_intel_error", name=name, error=str(e))

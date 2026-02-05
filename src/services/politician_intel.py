@@ -29,6 +29,8 @@ class PoliticianIntelService:
 
     VERSÃO 2.0: Coleta TODOS os dados de TODAS as fontes
     e passa para análise profunda com Claude AI.
+
+    PERSISTÊNCIA: Todas as análises são salvas no banco de dados.
     """
 
     def __init__(self):
@@ -38,6 +40,15 @@ class PoliticianIntelService:
         self.ai_analyzer = AIAnalyzer()
         # Cache interno
         self._cache: Dict[str, Any] = {}
+
+        # Repository para persistência
+        try:
+            from src.database import PoliticianRepository, SearchHistoryRepository
+            self.repository = PoliticianRepository()
+            self.search_history = SearchHistoryRepository()
+        except Exception:
+            self.repository = None
+            self.search_history = None
 
     async def close(self):
         """Fecha todos os clientes"""
@@ -200,6 +211,45 @@ class PoliticianIntelService:
             # Cache
             cache_key = f"politician:{name}:{role or ''}:{state or ''}"
             self._cache[cache_key] = result
+
+            # ============================================
+            # FASE 6: SALVAR NO BANCO DE DADOS
+            # ============================================
+            if self.repository:
+                try:
+                    # Preparar dados para salvar
+                    save_data = {
+                        "name": name,
+                        "role": role,
+                        "state": state,
+                        "personal_summary": result.get("personal_summary"),
+                        **profile,
+                        **social_media
+                    }
+
+                    # Salvar político
+                    politician_id = await self.repository.save_politician(save_data)
+                    result["politician_id"] = politician_id
+
+                    # Salvar análise
+                    if politician_id and ai_analysis:
+                        await self.repository.save_analysis(politician_id, result)
+
+                    logger.info("politician_saved_to_db", name=name, id=politician_id)
+                except Exception as db_error:
+                    logger.warning("politician_db_save_error", error=str(db_error))
+
+            # Salvar histórico de busca
+            if self.search_history:
+                try:
+                    await self.search_history.save_search(
+                        search_type="politician_analysis",
+                        query={"name": name, "role": role, "state": state, "focus": focus},
+                        results_count=1,
+                        result_ids=[result.get("politician_id")]
+                    )
+                except Exception:
+                    pass
 
         except Exception as e:
             logger.error("politician_intel_error", name=name, error=str(e))

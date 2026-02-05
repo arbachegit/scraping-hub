@@ -25,6 +25,8 @@ class NewsMonitorService:
     - Monitoramento de setores
     - Cenário econômico
     - Alertas de tendências
+
+    PERSISTÊNCIA: Todas as buscas são salvas no banco de dados.
     """
 
     def __init__(self):
@@ -32,6 +34,15 @@ class NewsMonitorService:
         self.tavily = TavilyClient()
         self.perplexity = PerplexityClient()
         self.ai_analyzer = AIAnalyzer()
+
+        # Repository para persistência
+        try:
+            from src.database import SearchHistoryRepository, SearchRepository
+            self.search_history = SearchHistoryRepository()
+            self.cache_repository = SearchRepository()
+        except Exception:
+            self.search_history = None
+            self.cache_repository = None
 
     async def close(self):
         """Fecha todos os clientes"""
@@ -138,7 +149,7 @@ class NewsMonitorService:
             except Exception as e:
                 logger.warning("news_ai_consolidation_error", error=str(e))
 
-        return {
+        result = {
             "query": query,
             "news": final_news,
             "total": len(unique_news),
@@ -147,6 +158,31 @@ class NewsMonitorService:
             "sentiment_distribution": self._calculate_sentiment_distribution(unique_news),
             "sources": perplexity_citations
         }
+
+        # Salvar no banco de dados
+        if self.search_history:
+            try:
+                await self.search_history.save_search(
+                    search_type="news_search",
+                    query={"query": query, "days": days, "max_results": max_results},
+                    results_count=len(final_news)
+                )
+            except Exception:
+                pass
+
+        # Cache de resultado
+        if self.cache_repository:
+            try:
+                await self.cache_repository.cache_search(
+                    search_type="news",
+                    query=query,
+                    result=result,
+                    ttl_hours=2  # Notícias expiram em 2 horas
+                )
+            except Exception:
+                pass
+
+        return result
 
     def _days_to_tbs(self, days: int) -> str:
         """Converte dias para formato tbs do Google"""
