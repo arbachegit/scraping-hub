@@ -484,18 +484,28 @@ class PoliticianIntelService:
             num=5
         )
 
+        # Garantir que search não é None
+        if not search:
+            search = {}
+
         # Extrair knowledge graph se disponível
-        kg = search.get("knowledge_graph", {})
+        kg = search.get("knowledge_graph", {}) or {}
 
         # Buscar redes sociais
         social = await self._get_social_media(name, role)
 
+        # Extrair descrição com fallback seguro
+        organic = search.get("organic", [])
+        description = kg.get("description")
+        if not description and organic:
+            description = organic[0].get("snippet", "")
+
         return {
             "name": name,
             "role": role,
-            "description": kg.get("description") or search.get("organic", [{}])[0].get("snippet"),
+            "description": description,
             "social_media": social,
-            "search_results": search.get("organic", [])[:3]
+            "search_results": organic[:3]
         }
 
     async def monitor_politician(

@@ -28,8 +28,8 @@ class AIAnalyzer:
 
     MODELS = {
         "fast": "claude-3-haiku-20240307",
-        "balanced": "claude-3-5-sonnet-20240620",
-        "powerful": "claude-3-opus-20240229"
+        "balanced": "claude-3-haiku-20240307",  # Fallback to haiku if no access to sonnet
+        "powerful": "claude-3-haiku-20240307"   # Fallback to haiku if no access to opus
     }
 
     def __init__(
