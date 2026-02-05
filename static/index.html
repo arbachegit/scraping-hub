@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraping Hub - iconsai</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div class="text-center mb-8">
+                <div class="text-5xl mb-4">🔍</div>
+                <h1 class="text-2xl font-bold text-gray-800">Scraping Hub</h1>
+                <p class="text-gray-500 mt-2">Powered by iconsai</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="email" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="admin@iconsai.ai">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <input type="password" id="password" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="••••••••">
+                </div>
+                <div id="loginError" class="hidden text-red-500 text-sm text-center"></div>
+                <button type="submit"
+                    class="w-full gradient-bg text-white py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                    Entrar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">🔍</span>
+                        <div>
+                            <h1 class="text-xl font-bold">Scraping Hub</h1>
+                            <p class="text-purple-200 text-sm">iconsai.ai</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="userEmail" class="text-purple-200"></span>
+                        <button onclick="logout()" class="bg-white/20 px-4 py-2 rounded-lg hover:bg-white/30 transition">
+                            Sair
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Empresas</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statEmpresas">0</p>
+                        </div>
+                        <div class="text-3xl">🏢</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Scrapes</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statScrapes">0</p>
+                        </div>
+                        <div class="text-3xl">📄</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">LinkedIn</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statLinkedin">0</p>
+                        </div>
+                        <div class="text-3xl">💼</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Creditos</p>
+                            <p class="text-2xl font-bold text-gray-800" id="statCredits">1000</p>
+                        </div>
+                        <div class="text-3xl">💎</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="border-b border-gray-200">
+                    <nav class="flex">
+                        <button onclick="showTab('empresas')" id="tabEmpresas"
+                            class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-purple-500 text-purple-600">
+                            🏢 Empresas
+                        </button>
+                        <button onclick="showTab('scrape')" id="tabScrape"
+                            class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                            📄 Web Scrape
+                        </button>
+                        <button onclick="showTab('linkedin')" id="tabLinkedin"
+                            class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                            💼 LinkedIn
+                        </button>
+                        <button onclick="showTab('historico')" id="tabHistorico"
+                            class="tab-btn px-6 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                            📊 Historico
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content: Empresas -->
+                <div id="contentEmpresas" class="p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Buscar Empresas (Coresignal)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <input type="text" id="empresaNome" placeholder="Nome da empresa"
+                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <input type="text" id="empresaIndustria" placeholder="Industria"
+                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <input type="text" id="empresaPais" placeholder="Pais"
+                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button onclick="searchEmpresas()"
+                        class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                        🔍 Buscar
+                    </button>
+                    <div id="empresasResults" class="mt-6"></div>
+                </div>
+
+                <!-- Tab Content: Scrape -->
+                <div id="contentScrape" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Web Scraping (Firecrawl)</h2>
+                    <div class="space-y-4 mb-4">
+                        <input type="url" id="scrapeUrl" placeholder="https://exemplo.com"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <select id="scrapeFormat"
+                            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            <option value="markdown">Markdown</option>
+                            <option value="html">HTML</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button onclick="doScrape()"
+                            class="gradient-bg text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            📄 Scrape Pagina
+                        </button>
+                        <button onclick="doMap()"
+                            class="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            🗺️ Mapear Site
+                        </button>
+                    </div>
+                    <div id="scrapeResults" class="mt-6"></div>
+                </div>
+
+                <!-- Tab Content: LinkedIn -->
+                <div id="contentLinkedin" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">LinkedIn (Proxycurl)</h2>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <p class="text-yellow-800">
+                            ⚠️ LinkedIn requer configuracao do Proxycurl API.
+                            <a href="https://nubela.co/proxycurl" target="_blank" class="underline">Configurar</a>
+                        </p>
+                    </div>
+                    <input type="url" id="linkedinUrl" placeholder="https://linkedin.com/in/usuario"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 mb-4">
+                    <button onclick="searchLinkedin()" disabled
+                        class="bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed">
+                        💼 Buscar Perfil (Indisponivel)
+                    </button>
+                    <div id="linkedinResults" class="mt-6"></div>
+                </div>
+
+                <!-- Tab Content: Historico -->
+                <div id="contentHistorico" class="p-6 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Historico de Pesquisas</h2>
+                    <div id="historicoList" class="space-y-4">
+                        <p class="text-gray-500">Nenhuma pesquisa realizada ainda.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center py-6 text-gray-500 text-sm">
+            <p>Scraping Hub v1.0.0 | Powered by iconsai.ai</p>
+            <p class="mt-1">Coresignal + Firecrawl + Proxycurl</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_URL = '';
+        let token = localStorage.getItem('token');
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+
+        // Check if logged in
+        if (token) {
+            showApp();
+        }
+
+        // Login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    token = data.access_token;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('userEmail', email);
+                    showApp();
+                } else {
+                    document.getElementById('loginError').textContent = 'Email ou senha incorretos';
+                    document.getElementById('loginError').classList.remove('hidden');
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Erro ao conectar';
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        });
+
+        function showApp() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('userEmail').textContent = localStorage.getItem('userEmail') || '';
+            updateHistory();
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userEmail');
+            location.reload();
+        }
+
+        function showTab(tab) {
+            // Hide all content
+            document.querySelectorAll('[id^="content"]').forEach(el => el.classList.add('hidden'));
+            // Reset all tabs
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-purple-500', 'text-purple-600');
+                el.classList.add('border-transparent', 'text-gray-500');
+            });
+            // Show selected
+            document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('border-purple-500', 'text-purple-600');
+        }
+
+        async function searchEmpresas() {
+            const nome = document.getElementById('empresaNome').value;
+            const industria = document.getElementById('empresaIndustria').value;
+            const pais = document.getElementById('empresaPais').value;
+
+            const params = new URLSearchParams();
+            if (nome) params.append('name', nome);
+            if (industria) params.append('industry', industria);
+            if (pais) params.append('country', pais);
+
+            document.getElementById('empresasResults').innerHTML = '<p class="text-gray-500">Buscando...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/empresa/search?${params}`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    const html = data.data.map(emp => `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                            <h3 class="font-semibold text-gray-800">${emp.name || 'Sem nome'}</h3>
+                            <p class="text-sm text-gray-500">${emp.industry || ''} | ${emp.headquarters_country_parsed || ''}</p>
+                            <p class="text-sm text-gray-600 mt-2">${(emp.description || '').substring(0, 200)}...</p>
+                            ${emp.website ? `<a href="${emp.website}" target="_blank" class="text-purple-600 text-sm">🔗 ${emp.website}</a>` : ''}
+                        </div>
+                    `).join('');
+                    document.getElementById('empresasResults').innerHTML = `<p class="text-sm text-gray-500 mb-4">${data.count} resultado(s)</p>` + html;
+                    addToHistory('empresa', {nome, industria, pais}, data.count);
+                } else {
+                    document.getElementById('empresasResults').innerHTML = '<p class="text-gray-500">Nenhum resultado encontrado.</p>';
+                }
+            } catch (error) {
+                document.getElementById('empresasResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function doScrape() {
+            const url = document.getElementById('scrapeUrl').value;
+            const format = document.getElementById('scrapeFormat').value;
+
+            if (!url) return alert('Digite uma URL');
+
+            document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Processando...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/scrape?url=${encodeURIComponent(url)}&format=${format}`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await response.json();
+
+                const content = data.markdown || data.html || JSON.stringify(data, null, 2);
+                document.getElementById('scrapeResults').innerHTML = `
+                    <div class="bg-gray-100 rounded-lg p-4 max-h-96 overflow-auto">
+                        <pre class="text-sm text-gray-800 whitespace-pre-wrap">${content.substring(0, 5000)}${content.length > 5000 ? '...' : ''}</pre>
+                    </div>
+                `;
+                addToHistory('scrape', {url, format}, 1);
+            } catch (error) {
+                document.getElementById('scrapeResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function doMap() {
+            const url = document.getElementById('scrapeUrl').value;
+            if (!url) return alert('Digite uma URL');
+
+            document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Mapeando site...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/scrape/map?url=${encodeURIComponent(url)}&limit=50`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const data = await response.json();
+
+                if (data.urls && data.urls.length > 0) {
+                    const html = data.urls.map(u => `<li class="text-sm text-purple-600 hover:underline"><a href="${u}" target="_blank">${u}</a></li>`).join('');
+                    document.getElementById('scrapeResults').innerHTML = `
+                        <p class="text-sm text-gray-500 mb-2">${data.count} URLs encontradas</p>
+                        <ul class="list-disc pl-5 space-y-1 max-h-96 overflow-auto">${html}</ul>
+                    `;
+                    addToHistory('map', {url}, data.count);
+                } else {
+                    document.getElementById('scrapeResults').innerHTML = '<p class="text-gray-500">Nenhuma URL encontrada.</p>';
+                }
+            } catch (error) {
+                document.getElementById('scrapeResults').innerHTML = `<p class="text-red-500">Erro: ${error.message}</p>`;
+            }
+        }
+
+        function addToHistory(type, query, results) {
+            searchHistory.unshift({
+                type,
+                query,
+                results,
+                timestamp: new Date().toISOString()
+            });
+            searchHistory = searchHistory.slice(0, 50); // Keep last 50
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+            updateHistory();
+            updateStats();
+        }
+
+        function updateHistory() {
+            const list = document.getElementById('historicoList');
+            if (searchHistory.length === 0) {
+                list.innerHTML = '<p class="text-gray-500">Nenhuma pesquisa realizada ainda.</p>';
+                return;
+            }
+
+            list.innerHTML = searchHistory.map(h => {
+                const icons = {empresa: '🏢', scrape: '📄', map: '🗺️', linkedin: '💼'};
+                const date = new Date(h.timestamp).toLocaleString('pt-BR');
+                return `
+                    <div class="border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                        <div>
+                            <span class="text-xl mr-2">${icons[h.type] || '📋'}</span>
+                            <span class="font-medium">${h.type}</span>
+                            <span class="text-gray-500 text-sm ml-2">${JSON.stringify(h.query).substring(0, 50)}</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">${h.results} resultado(s)</p>
+                            <p class="text-xs text-gray-400">${date}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const empresas = searchHistory.filter(h => h.type === 'empresa').length;
+            const scrapes = searchHistory.filter(h => h.type === 'scrape' || h.type === 'map').length;
+            const linkedin = searchHistory.filter(h => h.type === 'linkedin').length;
+
+            document.getElementById('statEmpresas').textContent = empresas;
+            document.getElementById('statScrapes').textContent = scrapes;
+            document.getElementById('statLinkedin').textContent = linkedin;
+        }
+
+        updateStats();
+    </script>
+</body>
+</html>
