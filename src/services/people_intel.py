@@ -8,12 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from src.scrapers import (
-    SerperClient,
-    TavilyClient,
-    PerplexityClient,
-    ApolloClient
-)
+from src.scrapers import ApolloClient, PerplexityClient, SerperClient, TavilyClient
+
 from .ai_analyzer import AIAnalyzer
 
 logger = structlog.get_logger()
@@ -149,11 +145,7 @@ class PeopleIntelService:
             if linkedin_url:
                 return await self.apollo.enrich_person(linkedin_url=linkedin_url)
 
-            # Senão, buscar
-            name_parts = name.split()
-            first_name = name_parts[0] if name_parts else None
-            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else None
-
+            # Senão, buscar pelo nome completo
             result = await self.apollo.search_people(
                 q_person_name=name,
                 q_organization_name=company,

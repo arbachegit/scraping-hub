@@ -3,20 +3,20 @@ Scraping Hub v2.0 - Tests for Scrapers
 Testes para os clientes de API
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from tests.conftest import (
-    MOCK_CNPJ_DATA,
-    MOCK_CEP_DATA,
-    MOCK_SERPER_SEARCH,
-    MOCK_SERPER_NEWS,
-    MOCK_TAVILY_SEARCH,
-    MOCK_PERPLEXITY_RESPONSE,
+    MOCK_APOLLO_ORGANIZATION,
     MOCK_APOLLO_PERSON,
-    MOCK_APOLLO_ORGANIZATION
+    MOCK_CEP_DATA,
+    MOCK_CNPJ_DATA,
+    MOCK_PERPLEXITY_RESPONSE,
+    MOCK_SERPER_NEWS,
+    MOCK_SERPER_SEARCH,
+    MOCK_TAVILY_SEARCH,
 )
-
 
 # ===========================================
 # BRASIL API TESTS
@@ -354,7 +354,7 @@ class TestTavilyClient:
         with patch.object(client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = MOCK_TAVILY_SEARCH
 
-            result = await client.research("Análise do mercado de fintechs")
+            await client.research("Análise do mercado de fintechs")
 
             call_args = mock_post.call_args
             # Deep search usa search_depth=advanced
@@ -535,7 +535,7 @@ class TestApolloClient:
         with patch.object(client, "get_company_employees", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_response
 
-            result = await client.get_decision_makers("Nubank")
+            await client.get_decision_makers("Nubank")
 
             mock_get.assert_called_once()
             # Verifica que busca por seniority

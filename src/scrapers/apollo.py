@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from config.settings import settings
+
 from .base import BaseScraper
 
 logger = structlog.get_logger()
@@ -448,14 +449,7 @@ class ApolloClient(BaseScraper):
         Returns:
             Lista de decision makers
         """
-        # Títulos típicos de decision makers
-        dm_titles = [
-            "CEO", "CFO", "CTO", "COO", "CMO", "CIO", "CHRO",
-            "President", "Vice President", "VP",
-            "Director", "Head", "Manager",
-            "Founder", "Co-Founder", "Owner"
-        ]
-
+        # Busca por seniority ao invés de títulos específicos
         return await self.get_company_employees(
             organization_name=organization_name,
             domain=domain,

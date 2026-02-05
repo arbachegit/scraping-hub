@@ -3,9 +3,8 @@ Scraping Hub v2.0 - Tests for Services
 Testes básicos para os serviços de inteligência
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
+import pytest
 
 # ===========================================
 # AI ANALYZER TESTS

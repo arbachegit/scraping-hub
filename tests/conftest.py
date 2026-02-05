@@ -3,9 +3,9 @@ Scraping Hub v2.0 - Test Fixtures
 Configurações compartilhadas para testes
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 
 # ===========================================
 # MOCK DATA

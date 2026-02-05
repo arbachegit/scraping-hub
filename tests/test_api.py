@@ -3,12 +3,12 @@ Scraping Hub v2.0 - Tests for API
 Testes para os endpoints da API
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
 from api.main import app
-
 
 # ===========================================
 # FIXTURES
