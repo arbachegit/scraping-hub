@@ -53,16 +53,25 @@ gh run watch
 
 Configurar em: **Settings > Secrets and variables > Actions**
 
+#### Secrets de Deploy (Obrigatorios)
+
 | Secret | Descricao | Exemplo |
 |--------|-----------|---------|
 | `DO_HOST` | IP ou hostname do Droplet | `143.198.xxx.xxx` |
 | `DO_USERNAME` | Usuario SSH | `root` ou `deploy` |
 | `DO_SSH_KEY` | Chave privada SSH | `-----BEGIN OPENSSH...` |
-| `CORESIGNAL_API_KEY` | API Key Coresignal | `cs_...` |
-| `PROXYCURL_API_KEY` | API Key Proxycurl | `px_...` |
-| `FIRECRAWL_API_KEY` | API Key Firecrawl | `fc_...` |
-| `SUPABASE_URL` | URL do Supabase | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | Chave de servico Supabase | `eyJhbG...` |
+
+#### Secrets de APIs v2.0 (Configurar no servidor .env)
+
+| Secret | Descricao | Como Obter |
+|--------|-----------|------------|
+| `SERPER_API_KEY` | Google Search API | https://serper.dev |
+| `TAVILY_API_KEY` | News/AI Search | https://tavily.com |
+| `PERPLEXITY_API_KEY` | Research AI | https://perplexity.ai |
+| `APOLLO_API_KEY` | LinkedIn/Contacts | https://apollo.io |
+| `ANTHROPIC_API_KEY` | Claude AI | https://console.anthropic.com |
+| `SUPABASE_URL` | URL do Supabase | https://supabase.com |
+| `SUPABASE_SERVICE_KEY` | Chave de servico | Dashboard Supabase |
 
 ## Configuracao do Servidor (Digital Ocean)
 
