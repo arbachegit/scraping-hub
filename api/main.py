@@ -124,8 +124,28 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Health check endpoint"""
-    return {"status": "healthy", "version": "2.0.0"}
+    """Health check endpoint com status das APIs"""
+    from config.settings import settings
+
+    apis = {
+        "anthropic": bool(settings.anthropic_api_key),
+        "serper": bool(settings.serper_api_key),
+        "tavily": bool(settings.tavily_api_key),
+        "perplexity": bool(settings.perplexity_api_key),
+        "apollo": bool(settings.apollo_api_key),
+        "supabase": bool(settings.supabase_url),
+    }
+
+    configured = sum(apis.values())
+    total = len(apis)
+
+    return {
+        "status": "healthy" if configured >= 3 else "degraded",
+        "version": "2.0.0",
+        "apis": apis,
+        "apis_configured": f"{configured}/{total}",
+        "ready": configured >= 3
+    }
 
 
 @app.get("/api/v2/status")
