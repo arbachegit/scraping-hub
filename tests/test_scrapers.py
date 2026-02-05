@@ -18,18 +18,22 @@ class TestCoresignalClient:
 
     @pytest.mark.asyncio
     async def test_headers(self, client):
-        """Testa headers de autenticacao"""
+        """Testa headers de autenticacao - Coresignal usa 'apikey'"""
         headers = client._get_headers()
-        assert "Authorization" in headers
-        assert headers["Authorization"] == "Bearer test_key"
+        assert "apikey" in headers
+        assert headers["apikey"] == "test_key"
 
     @pytest.mark.asyncio
     async def test_search_companies(self, client):
         """Testa busca de empresas"""
-        with patch.object(client, 'post', new_callable=AsyncMock) as mock_post:
-            mock_post.return_value = {"data": [{"name": "Test Company"}]}
+        with patch.object(client, "post", new_callable=AsyncMock) as mock_post, \
+             patch.object(client, "get", new_callable=AsyncMock) as mock_get:
+            # Coresignal retorna lista de IDs na busca
+            mock_post.return_value = [12345]
+            # E detalhes no collect
+            mock_get.return_value = {"name": "Test Company", "id": 12345}
 
-            result = await client.search_companies(name="Test")
+            result = await client.search_companies(name="Test", limit=1)
 
             mock_post.assert_called_once()
             assert len(result) == 1
