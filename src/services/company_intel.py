@@ -153,17 +153,58 @@ class CompanyIntelService:
                     else:
                         result[key] = task_results[i]
 
-            # 3. Scrape do website
+            # 3. Scrape do website - PRIORIDADE MÁXIMA
             website_url = (
-                result.get("cnpj_data", {}).get("website") or
-                result.get("search_data", {}).get("website")
+                result.get("search_data", {}).get("website") or
+                result.get("cnpj_data", {}).get("website")
             )
-            if website_url:
+
+            # Se não encontrou, buscar agressivamente
+            if not website_url:
+                logger.info("company_intel_searching_website", company=name)
                 try:
-                    result["website_data"] = await self.web_scraper.scrape_company_website(website_url)
+                    website_search = await self.serper.search(f'"{name}" site oficial Brasil', num=5)
+                    for item in website_search.get("organic", []):
+                        link = item.get("link", "")
+                        # Evitar redes sociais e sites de busca
+                        if link and not any(x in link for x in ["linkedin", "facebook", "instagram", "twitter", "youtube", "google", "wikipedia"]):
+                            website_url = link
+                            break
                 except Exception as e:
-                    logger.warning("company_intel_website_error", error=str(e))
+                    logger.warning("website_search_error", error=str(e))
+
+            if website_url:
+                logger.info("company_intel_scraping_website", url=website_url)
+                try:
+                    # Scrape da página principal
+                    main_scrape = await self.web_scraper.scrape_company_website(website_url)
+                    result["website_data"] = main_scrape
+
+                    # Scrape de páginas importantes (about, services, etc)
+                    important_pages = main_scrape.get("important_pages", {})
+                    additional_content = []
+
+                    for page_type, page_url in important_pages.items():
+                        if page_url and page_type in ["about", "services", "products"]:
+                            try:
+                                page_data = await self.web_scraper.scrape(page_url)
+                                page_text = page_data.get("content", {}).get("text", "")[:3000]
+                                if page_text:
+                                    additional_content.append(f"\n\n=== {page_type.upper()} ===\n{page_text}")
+                            except Exception:
+                                pass
+
+                    # Adicionar conteúdo das páginas importantes
+                    if additional_content:
+                        current_content = result["website_data"].get("content_summary", "")
+                        result["website_data"]["content_summary"] = current_content + "".join(additional_content)
+
+                except Exception as e:
+                    logger.warning("company_intel_website_error", url=website_url, error=str(e))
                     result["website_data"] = {}
+            else:
+                logger.warning("company_intel_no_website", company=name)
+                result["website_data"] = {}
 
             # 4. Consolidar dados da empresa
             company_profile = self._consolidate_company_data(result, name, cnpj)
@@ -218,46 +259,60 @@ class CompanyIntelService:
         name: str,
         cnpj: Optional[str]
     ) -> Dict[str, Any]:
-        """Consolida dados de múltiplas fontes"""
+        """
+        Consolida dados de múltiplas fontes
+        PRIORIDADE: Website > Perplexity > Serper > CNPJ
+        """
         cnpj_data = result.get("cnpj_data", {})
         search_data = result.get("search_data", {})
         website_data = result.get("website_data", {})
         research_data = result.get("research_data", {})
 
+        # Extrair conteúdo do site (PRIORIDADE)
+        website_content = website_data.get("content_summary", "")
+        website_headings = website_data.get("headings", [])
+        website_contact = website_data.get("contact_info", {})
+
         profile = {
             # Identificação
             "name": name,
-            "nome_fantasia": cnpj_data.get("nome_fantasia") or name,
+            "nome_fantasia": cnpj_data.get("nome_fantasia") or website_data.get("company_name") or name,
             "razao_social": cnpj_data.get("razao_social"),
-            "cnpj": cnpj or cnpj_data.get("cnpj"),
+            "cnpj": cnpj or cnpj_data.get("cnpj") or website_contact.get("cnpj"),
 
-            # Contato e localização
+            # Contato e localização (prioriza dados do site)
             "website": (
                 website_data.get("url") or
                 search_data.get("website") or
                 cnpj_data.get("website")
             ),
             "endereco": cnpj_data.get("endereco", {}),
-            "telefone": cnpj_data.get("telefone"),
-            "email": cnpj_data.get("email"),
+            "telefone": website_contact.get("phones", [None])[0] or cnpj_data.get("telefone"),
+            "email": website_contact.get("emails", [None])[0] if website_contact.get("emails") else cnpj_data.get("email"),
 
-            # Negócio
+            # Negócio - PRIORIZA CONTEÚDO DO SITE
             "industry": (
                 search_data.get("industry") or
                 cnpj_data.get("cnae_principal", {}).get("descricao")
             ),
             "description": (
+                website_data.get("description") or  # Meta description do site
                 search_data.get("description") or
-                website_data.get("description") or
                 cnpj_data.get("cnae_principal", {}).get("descricao")
             ),
+
+            # CONTEÚDO DO SITE - DADOS PRINCIPAIS PARA ANÁLISE
+            "website_content": website_content,  # Texto completo do site
+            "website_headings": website_headings,  # Títulos e seções
+            "website_pages": website_data.get("important_pages", {}),  # Páginas importantes
+
             "porte": cnpj_data.get("porte"),
             "capital_social": cnpj_data.get("capital_social"),
             "data_abertura": cnpj_data.get("data_abertura"),
             "situacao_cadastral": cnpj_data.get("situacao_cadastral"),
 
-            # Social
-            "linkedin_url": search_data.get("linkedin") or website_data.get("social_media", {}).get("linkedin"),
+            # Social (prioriza dados do site)
+            "linkedin_url": website_data.get("social_media", {}).get("linkedin") or search_data.get("linkedin"),
             "social_media": website_data.get("social_media", {}),
 
             # Sócios
@@ -266,6 +321,9 @@ class CompanyIntelService:
             # Dados extras
             "knowledge_graph": search_data.get("knowledge_graph"),
             "research_summary": research_data.get("analysis"),
+
+            # Tecnologias detectadas no site
+            "technologies": website_data.get("technologies", []),
 
             # Fontes
             "sources": self._list_sources(result)

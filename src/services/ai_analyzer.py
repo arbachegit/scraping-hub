@@ -152,16 +152,36 @@ class AIAnalyzer:
 Sua tarefa é criar uma análise SWOT detalhada e acionável para empresas.
 
 Regras:
-1. Seja específico e baseie-se nos dados fornecidos
-2. Cada ponto deve ser claro e acionável
-3. Considere o contexto do mercado brasileiro
-4. Forneça 3-5 pontos em cada categoria
-5. Responda SEMPRE em formato JSON válido"""
+1. PRIORIZE o conteúdo extraído do website da empresa - é a fonte mais confiável
+2. Analise os serviços, produtos, posicionamento e diferenciais mencionados no site
+3. Seja específico e cite evidências dos dados fornecidos
+4. Cada ponto deve ser claro e acionável
+5. Considere o contexto do mercado brasileiro
+6. Forneça 3-5 pontos em cada categoria
+7. Responda SEMPRE em formato JSON válido"""
 
-        prompt = f"""Analise os dados desta empresa e gere uma análise SWOT completa:
+        # Extrair e preparar conteúdo do site para análise
+        website_content = company_data.get("website_content", "")
+        website_headings = company_data.get("website_headings", [])
 
-## Dados da Empresa
-{json.dumps(company_data, indent=2, ensure_ascii=False, default=str)}
+        prompt = f"""Analise os dados desta empresa e gere uma análise SWOT completa.
+
+IMPORTANTE: O conteúdo do website é a fonte PRINCIPAL de informação. Analise cuidadosamente:
+
+## Conteúdo do Website da Empresa
+{website_content[:8000] if website_content else "Não disponível"}
+
+## Seções do Site
+{json.dumps(website_headings, indent=2, ensure_ascii=False) if website_headings else "Não disponível"}
+
+## Dados Cadastrais e Complementares
+- Nome: {company_data.get("nome_fantasia")}
+- Razão Social: {company_data.get("razao_social")}
+- CNPJ: {company_data.get("cnpj")}
+- Setor: {company_data.get("industry")}
+- Website: {company_data.get("website")}
+- Descrição: {company_data.get("description")}
+- Redes Sociais: {json.dumps(company_data.get("social_media", {}), ensure_ascii=False)}
 
 {f"## Contexto de Mercado{chr(10)}{market_context}" if market_context else ""}
 
@@ -220,16 +240,27 @@ Responda em JSON com a seguinte estrutura:
 Sua tarefa é criar OKRs ambiciosos mas alcançáveis para empresas brasileiras.
 
 Regras:
-1. Objetivos devem ser inspiradores e qualitativos
-2. Key Results devem ser mensuráveis e específicos
-3. Considere o cenário econômico brasileiro atual
-4. Sugira 3-5 OKRs estratégicos
-5. Responda SEMPRE em formato JSON válido"""
+1. ANALISE o conteúdo do website para entender os serviços e posicionamento da empresa
+2. Objetivos devem ser inspiradores e qualitativos
+3. Key Results devem ser mensuráveis e específicos
+4. Baseie-se nos serviços/produtos oferecidos pela empresa
+5. Considere o cenário econômico brasileiro atual
+6. Sugira 3-5 OKRs estratégicos
+7. Responda SEMPRE em formato JSON válido"""
+
+        # Extrair conteúdo do site
+        website_content = company_data.get("website_content", "")
 
         prompt = f"""Com base nos dados desta empresa, sugira OKRs estratégicos para o período {timeframe}:
 
+## Conteúdo do Website (FONTE PRINCIPAL)
+{website_content[:6000] if website_content else "Não disponível"}
+
 ## Dados da Empresa
-{json.dumps(company_data, indent=2, ensure_ascii=False, default=str)}
+- Nome: {company_data.get("nome_fantasia")}
+- Setor: {company_data.get("industry")}
+- Descrição: {company_data.get("description")}
+- Website: {company_data.get("website")}
 
 {f"## Análise SWOT{chr(10)}{json.dumps(swot, indent=2, ensure_ascii=False)}" if swot else ""}
 
