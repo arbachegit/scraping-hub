@@ -26,9 +26,9 @@ class PerplexityClient(BaseScraper):
     """
 
     MODELS = {
-        "sonar": "llama-3.1-sonar-small-128k-online",
-        "sonar-large": "llama-3.1-sonar-large-128k-online",
-        "sonar-huge": "llama-3.1-sonar-huge-128k-online"
+        "sonar": "sonar",
+        "sonar-pro": "sonar-pro",
+        "sonar-reasoning": "sonar-reasoning"
     }
 
     def __init__(
