@@ -48,10 +48,11 @@ class NewsMonitorService:
         days: int = 7,
         max_results: int = 20,
         sources: Optional[List[str]] = None,
-        sentiment_filter: Optional[str] = None
+        sentiment_filter: Optional[str] = None,
+        include_ai_analysis: bool = True
     ) -> Dict[str, Any]:
         """
-        Busca notícias por query
+        Busca notícias por query COM ANÁLISE AI CONSOLIDADA
 
         Args:
             query: Termo de busca
@@ -59,16 +60,21 @@ class NewsMonitorService:
             max_results: Máximo de resultados
             sources: Fontes específicas
             sentiment_filter: "positive", "negative", "neutral"
+            include_ai_analysis: Incluir análise AI consolidada
 
         Returns:
-            Notícias encontradas
+            Notícias encontradas com análise consolidada
         """
-        logger.info("news_search", query=query, days=days)
+        logger.info("news_search_v2", query=query, days=days)
 
-        # Buscar via múltiplas fontes
+        # Buscar via múltiplas fontes em paralelo
         tasks = [
             self.serper.search_news(query, num=max_results, tbs=self._days_to_tbs(days)),
-            self.tavily.search_news(query, max_results=max_results, days=days)
+            self.tavily.search_news(query, max_results=max_results, days=days),
+            self.perplexity.research(
+                f"Quais são as principais notícias e desenvolvimentos recentes sobre '{query}'? "
+                "Forneça um resumo consolidado das informações mais relevantes."
+            )
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -111,12 +117,35 @@ class NewsMonitorService:
             reverse=True
         )
 
+        final_news = unique_news[:max_results]
+
+        # Pesquisa Perplexity
+        perplexity_summary = ""
+        perplexity_citations = []
+        if not isinstance(results[2], Exception):
+            perplexity_summary = results[2].get("answer", "")
+            perplexity_citations = results[2].get("citations", [])
+
+        # Análise AI consolidada
+        ai_consolidated = None
+        if include_ai_analysis and final_news:
+            try:
+                ai_consolidated = await self.ai_analyzer.consolidate_news_insights(
+                    news_data=final_news,
+                    topic=query,
+                    context=perplexity_summary
+                )
+            except Exception as e:
+                logger.warning("news_ai_consolidation_error", error=str(e))
+
         return {
             "query": query,
-            "news": unique_news[:max_results],
+            "news": final_news,
             "total": len(unique_news),
-            "summary": results[1].get("answer") if not isinstance(results[1], Exception) else None,
-            "sentiment_distribution": self._calculate_sentiment_distribution(unique_news)
+            "perplexity_summary": perplexity_summary,
+            "ai_consolidated_analysis": ai_consolidated,
+            "sentiment_distribution": self._calculate_sentiment_distribution(unique_news),
+            "sources": perplexity_citations
         }
 
     def _days_to_tbs(self, days: int) -> str:
@@ -307,62 +336,113 @@ Notícias:
         country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
-        Busca cenário econômico atual
+        Busca cenário econômico atual COM ANÁLISE AI PROFUNDA
 
         Args:
             aspects: Aspectos específicos
             country: País
 
         Returns:
-            Análise do cenário econômico
+            Análise completa do cenário econômico
         """
-        logger.info("news_economic_scenario", country=country)
+        logger.info("news_economic_scenario_v2", country=country)
 
         if aspects is None:
             aspects = [
                 "inflação",
-                "taxa de juros",
-                "PIB",
-                "câmbio",
-                "emprego"
+                "taxa de juros SELIC",
+                "PIB crescimento",
+                "câmbio dólar",
+                "emprego desemprego"
             ]
 
-        results = {}
+        # Coletar dados de todas as fontes em paralelo
+        tasks = {
+            "perplexity_overview": self.perplexity.research(
+                f"Faça uma análise COMPLETA do cenário econômico do {country} em {datetime.utcnow().strftime('%B %Y')}. "
+                f"Inclua: inflação atual e projeções, taxa SELIC e perspectivas, PIB e crescimento, "
+                f"câmbio e tendências, mercado de trabalho. Qual é a perspectiva para os próximos meses?",
+                depth="detailed"
+            ),
+            "tavily_economy": self.tavily.search(
+                f"cenário econômico {country} {datetime.utcnow().strftime('%Y')}",
+                search_depth="advanced",
+                include_answer=True,
+                max_results=10
+            ),
+            "serper_news": self.serper.search_news(f"economia {country}", num=15, tbs="qdr:w"),
+        }
 
         # Buscar cada aspecto
         for aspect in aspects:
-            query = f"{aspect} {country} economia"
-            search = await self.tavily.search(
-                query,
+            tasks[f"tavily_{aspect}"] = self.tavily.search(
+                f"{aspect} {country} {datetime.utcnow().strftime('%B %Y')}",
                 search_depth="basic",
                 include_answer=True,
                 max_results=3
             )
-            results[aspect] = {
-                "summary": search.get("answer"),
-                "sources": [r.get("url") for r in search.get("results", [])]
+
+        task_names = list(tasks.keys())
+        task_results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+
+        collected = {}
+        for i, name in enumerate(task_names):
+            collected[name] = task_results[i] if not isinstance(task_results[i], Exception) else {}
+
+        # Extrair resultados por aspecto
+        aspects_data = {}
+        for aspect in aspects:
+            key = f"tavily_{aspect}"
+            data = collected.get(key, {})
+            aspects_data[aspect] = {
+                "summary": data.get("answer", "Dados não disponíveis"),
+                "sources": [r.get("url") for r in data.get("results", [])]
             }
 
-        # Visão geral
-        overview = await self.perplexity.research(
-            f"cenário econômico {country} atual perspectivas",
-            depth="detailed"
-        )
+        # Coletar todas as notícias
+        all_news = []
+        serper_news = collected.get("serper_news", {})
+        for item in serper_news.get("news", []):
+            all_news.append(self._normalize_news_item(item, "serper"))
 
-        # Notícias econômicas
-        news = await self.search_news(
-            f"economia {country}",
-            days=7,
-            max_results=15
-        )
+        tavily_results = collected.get("tavily_economy", {}).get("results", [])
+        for item in tavily_results:
+            all_news.append(self._normalize_news_item(item, "tavily"))
+
+        # Análise AI consolidada do cenário
+        ai_analysis = None
+        perplexity_overview = collected.get("perplexity_overview", {})
+
+        if all_news or perplexity_overview.get("answer"):
+            context = f"""## Análise Perplexity
+{perplexity_overview.get('answer', '')}
+
+## Análise Tavily
+{collected.get('tavily_economy', {}).get('answer', '')}
+
+## Aspectos Econômicos
+"""
+            for aspect, data in aspects_data.items():
+                context += f"\n### {aspect}\n{data.get('summary', 'N/A')}"
+
+            try:
+                ai_analysis = await self.ai_analyzer.consolidate_news_insights(
+                    news_data=all_news[:15],
+                    topic=f"cenário econômico {country}",
+                    context=context
+                )
+            except Exception as e:
+                logger.warning("economic_ai_error", error=str(e))
 
         return {
             "country": country,
-            "overview": overview.get("answer"),
-            "aspects": results,
-            "recent_news": news.get("news", []),
-            "sentiment": news.get("sentiment_distribution"),
-            "sources": overview.get("citations", [])
+            "date": datetime.utcnow().strftime("%Y-%m-%d"),
+            "overview": perplexity_overview.get("answer", ""),
+            "ai_consolidated_analysis": ai_analysis,
+            "aspects": aspects_data,
+            "recent_news": all_news[:15],
+            "sentiment": self._calculate_sentiment_distribution(all_news),
+            "sources": perplexity_overview.get("citations", [])
         }
 
     async def get_trending_topics(

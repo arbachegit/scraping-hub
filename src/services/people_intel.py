@@ -1,6 +1,8 @@
 """
 People Intelligence Service
 Inteligência sobre pessoas - funcionários, executivos, candidatos
+
+VERSÃO 2.0 - Análise profunda com integração completa de todas as fontes
 """
 
 import asyncio
@@ -20,10 +22,13 @@ class PeopleIntelService:
     Serviço de inteligência sobre pessoas
 
     Funcionalidades:
-    - Análise de perfil profissional
+    - Análise de perfil profissional COMPLETA
     - Busca de contatos/executivos
     - Análise de fit cultural
     - Histórico de carreira
+
+    IMPORTANTE: Coleta TODOS os dados de TODAS as fontes e passa
+    para análise profunda com Claude AI.
     """
 
     def __init__(self):
@@ -32,6 +37,8 @@ class PeopleIntelService:
         self.perplexity = PerplexityClient()
         self.apollo = ApolloClient()
         self.ai_analyzer = AIAnalyzer()
+        # Cache interno para compartilhar entre métodos
+        self._cache: Dict[str, Any] = {}
 
     async def close(self):
         """Fecha todos os clientes"""
@@ -52,7 +59,14 @@ class PeopleIntelService:
         analysis_type: str = "full"
     ) -> Dict[str, Any]:
         """
-        Análise completa de uma pessoa
+        Análise COMPLETA e PROFUNDA de uma pessoa
+
+        FLUXO:
+        1. Coleta dados de TODAS as fontes em paralelo
+        2. Pesquisa adicional focada (carreira, notícias, redes)
+        3. Consolida TODOS os dados brutos em contexto rico
+        4. Passa TUDO para Claude fazer análise profunda
+        5. Retorna análise estruturada completa
 
         Args:
             name: Nome da pessoa
@@ -62,10 +76,10 @@ class PeopleIntelService:
             analysis_type: "full", "quick", "fit"
 
         Returns:
-            Perfil completo da pessoa
+            Perfil completo com análise profunda
         """
         logger.info(
-            "people_intel_analyze",
+            "people_intel_analyze_v2",
             name=name,
             company=company,
             type=analysis_type
@@ -76,55 +90,123 @@ class PeopleIntelService:
             "company": company,
             "role": role,
             "analysis_type": analysis_type,
-            "status": "processing"
+            "status": "processing",
+            "sources_used": []
         }
 
         try:
-            # 1. Buscar LinkedIn se não fornecido
+            # ============================================
+            # FASE 1: COLETA MASSIVA DE DADOS EM PARALELO
+            # ============================================
+
+            # Primeiro, buscar LinkedIn se não fornecido
             if not linkedin_url:
                 linkedin_url = await self.serper.find_person_linkedin(name, company)
-
             result["linkedin_url"] = linkedin_url
 
-            # 2. Coletar dados em paralelo
+            # Construir query de busca enriquecida
+            search_query = f"{name}"
+            if company:
+                search_query += f" {company}"
+            if role:
+                search_query += f" {role}"
+
+            # Coletar TODAS as fontes em paralelo
             tasks = {
-                "search_data": self.serper.find_person_info(name, company),
-                "research_data": self.perplexity.research_person(name, company),
-                "news_data": self.tavily.research_person(name, company)
+                # Buscas Google via Serper
+                "serper_person": self.serper.find_person_info(name, company),
+                "serper_career": self.serper.search(f'"{name}" carreira experiência profissional', num=10),
+                "serper_news": self.serper.search_news(f'"{name}"', num=10),
+                "serper_social": self.serper.search(f'"{name}" LinkedIn Instagram Twitter site:linkedin.com OR site:instagram.com OR site:twitter.com', num=10),
+
+                # Pesquisa profunda Perplexity
+                "perplexity_profile": self.perplexity.research_person(name, company, focus="complete"),
+                "perplexity_career": self.perplexity.research(
+                    f"Descreva em detalhes a carreira profissional de {name}" +
+                    (f" da empresa {company}" if company else "") +
+                    ". Inclua: formação, experiências anteriores, conquistas, projetos relevantes, especializações."
+                ),
+
+                # Pesquisa Tavily
+                "tavily_research": self.tavily.research_person(name, company),
+                "tavily_news": self.tavily.search(f'"{name}" notícias recentes', search_depth="advanced"),
             }
 
-            # Buscar via Apollo se tiver mais contexto
+            # Apollo se tiver contexto
             if company or linkedin_url:
                 tasks["apollo_data"] = self._get_apollo_data(name, company, linkedin_url)
 
-            # Executar em paralelo
-            results = await asyncio.gather(
-                *tasks.values(),
-                return_exceptions=True
-            )
+            # Executar TUDO em paralelo
+            task_names = list(tasks.keys())
+            task_results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
             # Mapear resultados
-            task_keys = list(tasks.keys())
-            for i, key in enumerate(task_keys):
-                if isinstance(results[i], Exception):
-                    logger.warning(f"people_intel_{key}_error", error=str(results[i]))
-                    result[key] = {}
+            collected_data: Dict[str, Any] = {}
+            for i, task_name in enumerate(task_names):
+                if isinstance(task_results[i], Exception):
+                    logger.warning(f"people_intel_{task_name}_error", error=str(task_results[i]))
+                    collected_data[task_name] = {}
                 else:
-                    result[key] = results[i]
+                    collected_data[task_name] = task_results[i]
+                    if task_results[i]:
+                        result["sources_used"].append(task_name)
 
-            # 3. Consolidar perfil
-            profile = self._consolidate_person_data(result, name, company, role)
+            # Guardar dados brutos para referência
+            result["raw_data"] = collected_data
+
+            # ============================================
+            # FASE 2: CONSOLIDAR DADOS BÁSICOS
+            # ============================================
+
+            profile = self._consolidate_basic_profile(
+                collected_data, name, company, role, linkedin_url
+            )
             result["profile"] = profile
 
-            # 4. Análise AI
-            if analysis_type != "quick":
-                ai_analysis = await self.ai_analyzer.analyze_person_profile(
-                    profile,
-                    context=f"Contexto: {company}, {role}" if company else None
+            # ============================================
+            # FASE 3: ANÁLISE PROFUNDA COM CLAUDE
+            # ============================================
+
+            if analysis_type == "quick":
+                # Quick ainda faz uma análise, mas mais rápida
+                quick_context = self._prepare_quick_context(collected_data, name, company)
+                ai_analysis = await self.ai_analyzer.analyze_person_deep(
+                    person_data=profile,
+                    rich_context=quick_context,
+                    analysis_depth="quick"
                 )
-                result["ai_analysis"] = ai_analysis
+            else:
+                # ANÁLISE COMPLETA - passa TUDO para o Claude
+                full_context = self._prepare_full_context(collected_data, name, company, role)
+                ai_analysis = await self.ai_analyzer.analyze_person_deep(
+                    person_data=profile,
+                    rich_context=full_context,
+                    analysis_depth="full"
+                )
+
+            result["ai_analysis"] = ai_analysis
+
+            # ============================================
+            # FASE 4: ESTRUTURAR RESULTADO FINAL
+            # ============================================
+
+            # Extrair análise estruturada
+            if ai_analysis and not ai_analysis.get("error"):
+                result["professional_summary"] = ai_analysis.get("professional_summary", "")
+                result["career_analysis"] = ai_analysis.get("career_analysis", {})
+                result["skills_assessment"] = ai_analysis.get("skills_assessment", [])
+                result["strengths"] = ai_analysis.get("strengths", [])
+                result["development_areas"] = ai_analysis.get("development_areas", [])
+                result["notable_achievements"] = ai_analysis.get("notable_achievements", [])
+                result["public_presence"] = ai_analysis.get("public_presence", {})
+                result["insights"] = ai_analysis.get("key_insights", [])
+                result["recommendations"] = ai_analysis.get("recommendations", [])
 
             result["status"] = "completed"
+
+            # Cache para uso posterior
+            cache_key = f"person:{name}:{company or ''}"
+            self._cache[cache_key] = result
 
         except Exception as e:
             logger.error("people_intel_error", name=name, error=str(e))
@@ -132,6 +214,268 @@ class PeopleIntelService:
             result["error"] = str(e)
 
         return result
+
+    def _consolidate_basic_profile(
+        self,
+        data: Dict[str, Any],
+        name: str,
+        company: Optional[str],
+        role: Optional[str],
+        linkedin_url: Optional[str]
+    ) -> Dict[str, Any]:
+        """Consolida dados básicos do perfil de múltiplas fontes"""
+
+        apollo = data.get("apollo_data", {})
+        serper = data.get("serper_person", {})
+        perplexity = data.get("perplexity_profile", {})
+
+        # Knowledge graph do Google (se disponível)
+        kg = serper.get("knowledge_graph", {})
+
+        return {
+            # Identificação
+            "name": apollo.get("name") or name,
+            "full_name": apollo.get("name") or kg.get("title", "").split(" - ")[0] or name,
+
+            # Profissional - prioridade: Apollo > Perplexity > Serper
+            "current_title": (
+                apollo.get("title") or
+                perplexity.get("title") or
+                role or
+                kg.get("occupation")
+            ),
+            "current_company": (
+                apollo.get("company", {}).get("name") or
+                perplexity.get("company") or
+                company
+            ),
+            "headline": apollo.get("headline") or perplexity.get("headline"),
+            "seniority": apollo.get("seniority"),
+            "departments": apollo.get("departments", []),
+
+            # Contato
+            "email": apollo.get("email"),
+            "phone": (apollo.get("phone_numbers") or [None])[0] if apollo.get("phone_numbers") else None,
+
+            # Social
+            "linkedin_url": linkedin_url or apollo.get("linkedin_url"),
+            "twitter_url": apollo.get("twitter_url"),
+
+            # Localização
+            "city": apollo.get("city"),
+            "state": apollo.get("state"),
+            "country": apollo.get("country") or "Brasil",
+
+            # Foto
+            "photo_url": apollo.get("photo_url"),
+
+            # Descrição do Knowledge Graph
+            "description": kg.get("description"),
+        }
+
+    def _prepare_quick_context(
+        self,
+        data: Dict[str, Any],
+        name: str,
+        company: Optional[str]
+    ) -> str:
+        """Prepara contexto resumido para análise rápida"""
+
+        context_parts = []
+
+        # Perplexity profile summary
+        perplexity = data.get("perplexity_profile", {})
+        if perplexity.get("profile"):
+            context_parts.append(f"## Perfil Profissional (Perplexity)\n{perplexity['profile']}")
+
+        # Apollo data
+        apollo = data.get("apollo_data", {})
+        if apollo:
+            apollo_info = f"""## Dados Apollo
+- Nome: {apollo.get('name', 'N/A')}
+- Cargo: {apollo.get('title', 'N/A')}
+- Empresa: {apollo.get('company', {}).get('name', 'N/A')}
+- Senioridade: {apollo.get('seniority', 'N/A')}
+- Departamentos: {', '.join(apollo.get('departments', []))}
+- Email: {apollo.get('email', 'N/A')}"""
+            context_parts.append(apollo_info)
+
+        # Knowledge graph
+        kg = data.get("serper_person", {}).get("knowledge_graph", {})
+        if kg:
+            context_parts.append(f"## Knowledge Graph\n{kg.get('description', '')}")
+
+        return "\n\n".join(context_parts)
+
+    def _prepare_full_context(
+        self,
+        data: Dict[str, Any],
+        name: str,
+        company: Optional[str],
+        role: Optional[str]
+    ) -> str:
+        """
+        Prepara contexto COMPLETO e RICO para análise profunda
+
+        Inclui TODOS os dados coletados de TODAS as fontes
+        """
+
+        context_parts = []
+
+        context_parts.append(f"# ANÁLISE PROFUNDA: {name}")
+        if company:
+            context_parts.append(f"**Empresa referência:** {company}")
+        if role:
+            context_parts.append(f"**Cargo referência:** {role}")
+
+        # ============================================
+        # DADOS PERPLEXITY - Pesquisa profunda
+        # ============================================
+
+        perplexity_profile = data.get("perplexity_profile", {})
+        perplexity_career = data.get("perplexity_career", {})
+
+        if perplexity_profile.get("profile") or perplexity_career.get("answer"):
+            context_parts.append("\n## PESQUISA PERPLEXITY (Fonte principal)")
+
+            if perplexity_profile.get("profile"):
+                context_parts.append(f"### Perfil Completo\n{perplexity_profile['profile']}")
+
+            if perplexity_career.get("answer"):
+                context_parts.append(f"### Análise de Carreira\n{perplexity_career['answer']}")
+
+            # Citations
+            citations = perplexity_profile.get("citations", []) + perplexity_career.get("citations", [])
+            if citations:
+                context_parts.append("### Fontes citadas\n" + "\n".join(f"- {c}" for c in citations[:10]))
+
+        # ============================================
+        # DADOS APOLLO - Dados profissionais estruturados
+        # ============================================
+
+        apollo = data.get("apollo_data", {})
+        if apollo and any(apollo.values()):
+            apollo_section = """
+## DADOS APOLLO (Dados estruturados)
+### Informações Profissionais
+- **Nome completo:** {name}
+- **Cargo atual:** {title}
+- **Empresa:** {company}
+- **Headline:** {headline}
+- **Senioridade:** {seniority}
+- **Departamentos:** {departments}
+
+### Contato
+- **Email:** {email}
+- **Telefones:** {phones}
+
+### Redes Sociais
+- **LinkedIn:** {linkedin}
+- **Twitter:** {twitter}
+
+### Localização
+- {city}, {state}, {country}
+""".format(
+                name=apollo.get("name", "N/A"),
+                title=apollo.get("title", "N/A"),
+                company=apollo.get("company", {}).get("name", "N/A") if isinstance(apollo.get("company"), dict) else apollo.get("company", "N/A"),
+                headline=apollo.get("headline", "N/A"),
+                seniority=apollo.get("seniority", "N/A"),
+                departments=", ".join(apollo.get("departments", [])) or "N/A",
+                email=apollo.get("email", "N/A"),
+                phones=", ".join(apollo.get("phone_numbers", [])) if apollo.get("phone_numbers") else "N/A",
+                linkedin=apollo.get("linkedin_url", "N/A"),
+                twitter=apollo.get("twitter_url", "N/A"),
+                city=apollo.get("city", ""),
+                state=apollo.get("state", ""),
+                country=apollo.get("country", "Brasil")
+            )
+            context_parts.append(apollo_section)
+
+        # ============================================
+        # DADOS SERPER - Google Search
+        # ============================================
+
+        # Knowledge Graph
+        serper_person = data.get("serper_person", {})
+        kg = serper_person.get("knowledge_graph", {})
+        if kg:
+            kg_section = f"""
+## KNOWLEDGE GRAPH (Google)
+- **Título:** {kg.get('title', 'N/A')}
+- **Descrição:** {kg.get('description', 'N/A')}
+- **Tipo:** {kg.get('type', 'N/A')}
+"""
+            if kg.get("attributes"):
+                kg_section += "\n### Atributos:\n"
+                for key, value in kg.get("attributes", {}).items():
+                    kg_section += f"- **{key}:** {value}\n"
+            context_parts.append(kg_section)
+
+        # Resultados orgânicos de carreira
+        serper_career = data.get("serper_career", {})
+        organic_career = serper_career.get("organic", [])
+        if organic_career:
+            context_parts.append("\n## RESULTADOS GOOGLE - CARREIRA")
+            for item in organic_career[:8]:
+                context_parts.append(f"### {item.get('title', 'N/A')}")
+                context_parts.append(f"- **Link:** {item.get('link', '')}")
+                context_parts.append(f"- **Snippet:** {item.get('snippet', '')}")
+
+        # Perfis sociais encontrados
+        serper_social = data.get("serper_social", {})
+        social_results = serper_social.get("organic", [])
+        if social_results:
+            context_parts.append("\n## PERFIS EM REDES SOCIAIS ENCONTRADOS")
+            for item in social_results[:6]:
+                context_parts.append(f"- **{item.get('title', '')}:** {item.get('link', '')}")
+                if item.get('snippet'):
+                    context_parts.append(f"  {item.get('snippet', '')}")
+
+        # ============================================
+        # DADOS TAVILY - Pesquisa avançada
+        # ============================================
+
+        tavily_research = data.get("tavily_research", {})
+        if tavily_research.get("answer") or tavily_research.get("results"):
+            context_parts.append("\n## PESQUISA TAVILY")
+
+            if tavily_research.get("answer"):
+                context_parts.append(f"### Síntese\n{tavily_research['answer']}")
+
+            for res in tavily_research.get("results", [])[:5]:
+                context_parts.append(f"### {res.get('title', 'N/A')}")
+                context_parts.append(f"- **URL:** {res.get('url', '')}")
+                context_parts.append(f"- **Conteúdo:** {res.get('content', '')[:500]}")
+
+        # ============================================
+        # NOTÍCIAS
+        # ============================================
+
+        serper_news = data.get("serper_news", {})
+        news_items = serper_news.get("news", [])
+
+        tavily_news = data.get("tavily_news", {})
+        tavily_news_items = tavily_news.get("results", [])
+
+        if news_items or tavily_news_items:
+            context_parts.append("\n## NOTÍCIAS E MENÇÕES NA MÍDIA")
+
+            for news in news_items[:5]:
+                context_parts.append(f"### {news.get('title', 'N/A')}")
+                context_parts.append(f"- **Fonte:** {news.get('source', 'N/A')}")
+                context_parts.append(f"- **Data:** {news.get('date', 'N/A')}")
+                context_parts.append(f"- **Snippet:** {news.get('snippet', '')}")
+
+            for news in tavily_news_items[:3]:
+                context_parts.append(f"### {news.get('title', 'N/A')}")
+                context_parts.append(f"- **URL:** {news.get('url', '')}")
+                context_parts.append(f"- **Conteúdo:** {news.get('content', '')[:400]}")
+
+        full_context = "\n".join(context_parts)
+
+        # Limitar tamanho mas manter o máximo possível
+        return full_context[:25000]
 
     async def _get_apollo_data(
         self,
@@ -161,78 +505,6 @@ class PeopleIntelService:
         except Exception as e:
             logger.warning("apollo_error", error=str(e))
             return {}
-
-    def _consolidate_person_data(
-        self,
-        result: Dict,
-        name: str,
-        company: Optional[str],
-        role: Optional[str]
-    ) -> Dict[str, Any]:
-        """Consolida dados de múltiplas fontes"""
-        search_data = result.get("search_data", {})
-        research_data = result.get("research_data", {})
-        apollo_data = result.get("apollo_data", {})
-
-        profile = {
-            # Identificação
-            "name": name,
-            "full_name": apollo_data.get("name") or name,
-
-            # Profissional
-            "current_title": (
-                apollo_data.get("title") or
-                role
-            ),
-            "current_company": (
-                apollo_data.get("company", {}).get("name") or
-                company
-            ),
-            "seniority": apollo_data.get("seniority"),
-            "departments": apollo_data.get("departments", []),
-
-            # Contato
-            "email": apollo_data.get("email"),
-            "phone": (apollo_data.get("phone_numbers") or [{}])[0] if apollo_data.get("phone_numbers") else None,
-
-            # Social
-            "linkedin_url": result.get("linkedin_url") or apollo_data.get("linkedin_url"),
-            "twitter_url": apollo_data.get("twitter_url"),
-
-            # Localização
-            "city": apollo_data.get("city"),
-            "state": apollo_data.get("state"),
-            "country": apollo_data.get("country") or "Brasil",
-
-            # Foto
-            "photo_url": apollo_data.get("photo_url"),
-            "headline": apollo_data.get("headline"),
-
-            # Pesquisa
-            "profile_summary": research_data.get("profile"),
-            "news_mentions": result.get("news_data", {}).get("sources", []),
-
-            # Knowledge graph do Google
-            "knowledge_graph": search_data.get("knowledge_graph"),
-
-            # Fontes
-            "sources": self._list_person_sources(result)
-        }
-
-        return profile
-
-    def _list_person_sources(self, result: Dict) -> List[str]:
-        """Lista fontes usadas"""
-        sources = []
-        if result.get("apollo_data"):
-            sources.append("Apollo.io")
-        if result.get("search_data"):
-            sources.append("Google Search (Serper)")
-        if result.get("research_data"):
-            sources.append("Perplexity AI")
-        if result.get("news_data"):
-            sources.append("Tavily Search")
-        return sources
 
     async def analyze_fit(
         self,
@@ -494,38 +766,54 @@ class PeopleIntelService:
 
     async def quick_lookup(self, name: str, company: Optional[str] = None) -> Dict[str, Any]:
         """
-        Busca rápida de pessoa com dados enriquecidos do Apollo
+        Busca rápida de pessoa - mas AINDA com análise AI
+
+        A quick lookup agora também passa por análise Claude,
+        apenas com menos fontes e análise mais rápida.
 
         Args:
             name: Nome da pessoa
             company: Empresa (opcional)
 
         Returns:
-            Dados básicos enriquecidos
+            Perfil enriquecido com análise AI
         """
-        logger.info("people_intel_quick", name=name)
+        logger.info("people_intel_quick_v2", name=name)
 
-        # Buscar todas as fontes em paralelo
-        tasks = [
-            self.serper.find_person_linkedin(name, company),
-            self.serper.find_person_info(name, company),
-            self.perplexity.research_person(name, company, focus="professional")
-        ]
+        # Buscar fontes essenciais em paralelo
+        tasks = {
+            "linkedin": self.serper.find_person_linkedin(name, company),
+            "serper_info": self.serper.find_person_info(name, company),
+            "perplexity": self.perplexity.research_person(name, company, focus="professional"),
+            "tavily": self.tavily.research_person(name, company)
+        }
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        task_names = list(tasks.keys())
+        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-        linkedin = results[0] if not isinstance(results[0], Exception) else None
-        search_info = results[1] if not isinstance(results[1], Exception) else {}
-        research = results[2] if not isinstance(results[2], Exception) else {}
+        # Mapear resultados
+        collected = {}
+        for i, name_key in enumerate(task_names):
+            if isinstance(results[i], Exception):
+                collected[name_key] = {} if name_key != "linkedin" else None
+            else:
+                collected[name_key] = results[i]
+
+        linkedin = collected.get("linkedin")
+        search_info = collected.get("serper_info", {})
+        research = collected.get("perplexity", {})
+        tavily_data = collected.get("tavily", {})
 
         # Buscar via Apollo com LinkedIn encontrado
         apollo_data = await self._get_apollo_data(name, company, linkedin)
 
         # Construir perfil combinando fontes
+        kg = search_info.get("knowledge_graph", {})
+
         profile = {
             "name": apollo_data.get("name") or name,
-            "company": apollo_data.get("company", {}).get("name") or company,
-            "title": apollo_data.get("title") or search_info.get("title"),
+            "company": apollo_data.get("company", {}).get("name") if isinstance(apollo_data.get("company"), dict) else company,
+            "title": apollo_data.get("title") or kg.get("occupation"),
             "headline": apollo_data.get("headline"),
             "linkedin_url": linkedin or apollo_data.get("linkedin_url"),
             "email": apollo_data.get("email"),
@@ -538,25 +826,55 @@ class PeopleIntelService:
             "seniority": apollo_data.get("seniority"),
             "departments": apollo_data.get("departments", []),
             "twitter_url": apollo_data.get("twitter_url"),
-            "profile_summary": research.get("profile"),
+            "description": kg.get("description"),
             "sources": []
         }
 
         # Registrar fontes usadas
-        if apollo_data:
-            profile["sources"].append("Apollo.io")
+        sources_used = []
+        if apollo_data and any(apollo_data.values()):
+            sources_used.append("Apollo.io")
         if search_info:
-            profile["sources"].append("Google Search")
+            sources_used.append("Google Search")
         if research.get("profile"):
-            profile["sources"].append("Perplexity AI")
+            sources_used.append("Perplexity AI")
+        if tavily_data:
+            sources_used.append("Tavily")
+        profile["sources"] = sources_used
 
-        # Enriquecer com dados da pesquisa se Apollo não retornou muito
-        if not profile.get("title") and not profile.get("company"):
-            # Extrair do knowledge graph se disponível
-            kg = search_info.get("knowledge_graph", {})
-            if kg:
-                profile["title"] = kg.get("title") or kg.get("occupation")
-                profile["description"] = kg.get("description")
+        # Preparar contexto para análise AI rápida
+        context_parts = []
+
+        if research.get("profile"):
+            context_parts.append(f"## Perfil Perplexity\n{research['profile']}")
+
+        if tavily_data.get("answer"):
+            context_parts.append(f"## Pesquisa Tavily\n{tavily_data['answer']}")
+
+        if kg:
+            context_parts.append(f"## Knowledge Graph\n{kg.get('description', '')}")
+
+        if apollo_data:
+            context_parts.append(f"""## Dados Apollo
+- Cargo: {apollo_data.get('title', 'N/A')}
+- Empresa: {apollo_data.get('company', {}).get('name', 'N/A') if isinstance(apollo_data.get('company'), dict) else 'N/A'}
+- Senioridade: {apollo_data.get('seniority', 'N/A')}
+- Headline: {apollo_data.get('headline', 'N/A')}""")
+
+        quick_context = "\n\n".join(context_parts)
+
+        # Análise AI rápida
+        if quick_context:
+            ai_analysis = await self.ai_analyzer.analyze_person_deep(
+                person_data=profile,
+                rich_context=quick_context,
+                analysis_depth="quick"
+            )
+
+            if ai_analysis and not ai_analysis.get("error"):
+                profile["professional_summary"] = ai_analysis.get("professional_summary", "")
+                profile["key_insights"] = ai_analysis.get("key_insights", [])
+                profile["strengths"] = ai_analysis.get("strengths", [])
 
         return profile
 
