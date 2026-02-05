@@ -107,7 +107,6 @@ class CompanyIntelService:
             cached = self._get_from_cache(name) or {}
             cached_cnpj_data = cached.get("cnpj_data", {})
             cached_search_data = cached.get("search_data", {})
-            cached_research_data = cached.get("research_data", {})
 
             # 1. Usar CNPJ do cache ou buscar
             if not cnpj and cached.get("quick_lookup", {}).get("cnpj"):
