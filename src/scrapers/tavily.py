@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from config.settings import settings
+
 from .base import BaseScraper
 
 logger = structlog.get_logger()
@@ -114,7 +115,7 @@ class TavilyClient(BaseScraper):
             Notícias encontradas
         """
         # Adicionar filtro de tempo à query
-        time_filter = f"últimos {days} dias" if days <= 7 else f"último mês"
+        time_filter = f"últimos {days} dias" if days <= 7 else "último mês"
         enhanced_query = f"{query} notícias {time_filter}"
 
         return await self.search(

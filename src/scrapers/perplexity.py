@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from config.settings import settings
+
 from .base import BaseScraper
 
 logger = structlog.get_logger()

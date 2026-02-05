@@ -9,7 +9,8 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from src.scrapers import SerperClient, TavilyClient, PerplexityClient
+from src.scrapers import PerplexityClient, SerperClient, TavilyClient
+
 from .ai_analyzer import AIAnalyzer
 
 logger = structlog.get_logger()

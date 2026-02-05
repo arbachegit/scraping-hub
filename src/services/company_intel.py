@@ -5,18 +5,18 @@ Inteligência completa sobre empresas brasileiras
 
 import asyncio
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 import structlog
 
 from src.scrapers import (
+    ApolloClient,
     BrasilAPIClient,
+    PerplexityClient,
     SerperClient,
     TavilyClient,
-    PerplexityClient,
-    ApolloClient,
-    WebScraperClient
+    WebScraperClient,
 )
+
 from .ai_analyzer import AIAnalyzer
 
 logger = structlog.get_logger()

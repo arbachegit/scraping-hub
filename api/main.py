@@ -8,22 +8,22 @@ from datetime import timedelta
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .auth import (
-    Token, UserLogin, UserResponse, TokenData,
-    authenticate_user, create_access_token, get_current_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    Token,
+    TokenData,
+    UserLogin,
+    UserResponse,
+    authenticate_user,
+    create_access_token,
+    get_current_user,
 )
-from .routes import (
-    companies_router,
-    people_router,
-    politicians_router,
-    news_router
-)
+from .routes import companies_router, news_router, people_router, politicians_router
 
 logger = structlog.get_logger()
 
