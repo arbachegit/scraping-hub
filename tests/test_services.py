@@ -23,8 +23,8 @@ class TestAIAnalyzer:
 
     def test_init_with_model(self):
         """Testa inicialização com modelo específico"""
-        from src.services import AIAnalyzer
         from config.settings import settings
+        from src.services import AIAnalyzer
 
         analyzer = AIAnalyzer(model="fast")
         # Se settings.anthropic_model estiver configurado, usa ele
