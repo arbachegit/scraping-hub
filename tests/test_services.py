@@ -24,9 +24,15 @@ class TestAIAnalyzer:
     def test_init_with_model(self):
         """Testa inicialização com modelo específico"""
         from src.services import AIAnalyzer
+        from config.settings import settings
 
         analyzer = AIAnalyzer(model="fast")
-        assert analyzer.model == "claude-3-haiku-20240307"
+        # Se settings.anthropic_model estiver configurado, usa ele
+        # Senão, usa o mapeamento MODELS
+        if settings.anthropic_model:
+            assert analyzer.model == settings.anthropic_model
+        else:
+            assert analyzer.model == AIAnalyzer.MODELS["fast"]
 
     def test_models_available(self):
         """Testa modelos disponíveis"""
