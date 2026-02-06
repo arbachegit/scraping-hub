@@ -9,6 +9,7 @@ from .competitor_analysis import CompetitorAnalysisService
 from .news_monitor import NewsMonitorService
 from .people_intel import PeopleIntelService
 from .politician_intel import PoliticianIntelService
+from .regional_intel import RegionalIntelService
 
 __all__ = [
     "AIAnalyzer",
@@ -16,5 +17,6 @@ __all__ = [
     "CompetitorAnalysisService",
     "NewsMonitorService",
     "PeopleIntelService",
-    "PoliticianIntelService"
+    "PoliticianIntelService",
+    "RegionalIntelService"
 ]

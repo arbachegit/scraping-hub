@@ -71,10 +71,15 @@ class Settings(BaseSettings):
     # Banco de Dados
     # ===========================================
 
-    # Supabase
+    # Supabase - Principal (Scraping Hub)
     supabase_url: str = ""
     supabase_service_key: str = ""
     supabase_anon_key: str = ""
+
+    # Supabase - Fiscal Brasil (Dados Municipais)
+    # https://supabase.com/dashboard/project/tijadrwimhxlggzxuwna
+    fiscal_supabase_url: str = ""
+    fiscal_supabase_key: str = ""
 
     # Redis (opcional)
     redis_url: str = "redis://localhost:6379/0"
@@ -153,6 +158,11 @@ class Settings(BaseSettings):
     def has_supabase(self) -> bool:
         """Verifica se Supabase está configurado"""
         return bool(self.supabase_url and self.supabase_service_key)
+
+    @property
+    def has_fiscal_supabase(self) -> bool:
+        """Verifica se Supabase Fiscal está configurado"""
+        return bool(self.fiscal_supabase_url and self.fiscal_supabase_key)
 
 
 @lru_cache()

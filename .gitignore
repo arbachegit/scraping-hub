@@ -66,8 +66,15 @@ data/
 *.csv
 *.json
 !config/*.json
+!frontend/*.json
+!frontend/**/*.json
 *.xlsx
 *.parquet
+
+# Frontend (Next.js) - Ignorar builds mas nao config
+frontend/node_modules/
+frontend/.next/
+frontend/out/
 
 # OS
 .DS_Store

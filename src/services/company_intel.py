@@ -50,10 +50,12 @@ class CompanyIntelService:
 
         # Repository para persistência
         try:
-            from src.database import CompanyRepository
+            from src.database import CompanyRepository, SearchHistoryRepository
             self.repository = CompanyRepository()
+            self.search_history = SearchHistoryRepository()
         except Exception:
             self.repository = None
+            self.search_history = None
 
     def _cache_key(self, name: str) -> str:
         """Gera chave de cache normalizada"""
@@ -90,16 +92,19 @@ class CompanyIntelService:
         include_employees: bool = True
     ) -> Dict[str, Any]:
         """
-        Análise completa de uma empresa
+        Análise COMPLETA de uma empresa com múltiplas perspectivas
 
         FLUXO:
         1. Verificar cache/DB
         2. Coletar TODAS as fontes em paralelo
         3. Fazer scraping do site
-        4. Consolidar dados
-        5. Gerar SWOT com dados completos
-        6. Buscar concorrentes (SEMPRE)
-        7. Salvar no DB
+        4. Buscar funcionários via Apollo
+        5. Consolidar dados
+        6. Análise MULTI-PERSPECTIVA com Claude (leigo, profissional, fornecedor, concorrente, cliente)
+        7. Buscar concorrentes COM MESMA PROFUNDIDADE
+        8. Salvar no DB
+
+        Retorna análise densa com citações de fontes [1], [2], etc.
         """
         logger.info("company_intel_analyze", company=name, type=analysis_type)
 
@@ -137,7 +142,7 @@ class CompanyIntelService:
             search_data = initial_results[1] if not isinstance(initial_results[1], Exception) else {}
             website_url = search_data.get("website")
 
-            # 3. Segunda rodada: coletar dados detalhados
+            # 3. Segunda rodada: coletar dados detalhados + funcionários
             detail_tasks = {
                 "perplexity_full": self.perplexity.analyze_company(name, analysis_type="full"),
                 "perplexity_competitors": self.perplexity.find_competitors(name, search_data.get("industry")),
@@ -170,47 +175,61 @@ class CompanyIntelService:
             website_data = await self._scrape_website_fully(name, website_url, search_data)
             result["website_data"] = website_data
 
-            # 5. CONSOLIDAR TODOS OS DADOS
+            # 5. BUSCAR FUNCIONÁRIOS VIA APOLLO
+            logger.info("company_intel_fetching_employees", company=name)
+            employees_data = []
+            if include_employees:
+                employees_data = await self._get_employees_apollo(name, search_data, website_data)
+                result["employees"] = employees_data
+
+            # 6. CONSOLIDAR TODOS OS DADOS
             company_profile = self._consolidate_all_data(result, name, cnpj)
             result["company_profile"] = company_profile
 
-            # 6. ANÁLISE AI COM TODOS OS DADOS
-            logger.info("company_intel_ai_analysis", company=name)
+            # 7. PREPARAR FONTES PARA CITAÇÃO
+            sources = self._build_sources_list(result)
+            result["sources_list"] = sources
 
-            # Preparar contexto rico para AI
-            ai_context = self._prepare_ai_context(result)
+            # 8. ANÁLISE MULTI-PERSPECTIVA COM CLAUDE
+            logger.info("company_intel_multiperspective_analysis", company=name)
 
-            # Gerar SWOT com contexto completo
-            swot = await self.ai_analyzer.analyze_company_swot(
-                company_profile,
-                market_context=ai_context
+            # Preparar contexto rico de pesquisa
+            research_context = self._prepare_research_context(result)
+
+            # Extrair conteúdo do website
+            website_content = (
+                website_data.get("full_content") or
+                website_data.get("content_summary", "")
             )
-            result["swot_analysis"] = swot
 
-            # Gerar OKRs
-            okrs = await self.ai_analyzer.generate_okrs(
-                company_profile,
-                swot=swot
+            # Extrair notícias
+            news_data = result.get("tavily_news", {}).get("results", [])
+
+            # Análise COMPLETA multi-perspectiva com Claude
+            complete_analysis = await self.ai_analyzer.analyze_company_complete(
+                company_data=company_profile,
+                website_content=website_content,
+                employees_data=employees_data,
+                news_data=news_data,
+                research_context=research_context,
+                sources=sources
             )
-            result["suggested_okrs"] = okrs
+            result["complete_analysis"] = complete_analysis
 
-            # 7. CONCORRENTES - SEMPRE BUSCAR
-            logger.info("company_intel_competitors", company=name)
-            result["competitors"] = await self._analyze_competitors_full(
+            # 9. CONCORRENTES COM MESMA PROFUNDIDADE
+            logger.info("company_intel_competitors_deep", company=name)
+            result["competitors"] = await self._analyze_competitors_deep(
                 name,
                 company_profile,
-                result.get("perplexity_competitors", {})
+                result.get("perplexity_competitors", {}),
+                sources
             )
-
-            # 8. Funcionários se solicitado
-            if include_employees:
-                result["key_people"] = await self._get_key_people(name, company_profile)
 
             result["status"] = "completed"
             result["confidence_score"] = self._calculate_confidence(result)
-            result["sources_used"] = self._list_all_sources(result)
+            result["sources_used"] = sources
 
-            # 9. Salvar no cache e DB
+            # 10. Salvar no cache e DB
             cache_data = self._get_from_cache(name) or {}
             cache_data["full_analysis"] = result
             self._save_to_cache(name, cache_data)
@@ -223,12 +242,183 @@ class CompanyIntelService:
                 except Exception as e:
                     logger.warning("db_save_error", error=str(e))
 
+            # Salvar no histórico de buscas
+            if self.search_history:
+                try:
+                    await self.search_history.save_search(
+                        search_type="company",
+                        query={
+                            "name": name,
+                            "cnpj": cnpj,
+                            "analysis_type": analysis_type,
+                            "include_competitors": include_competitors,
+                            "include_employees": include_employees
+                        },
+                        results_count=1 + len(result.get("competitors", {}).get("competitors_analyzed", [])),
+                        credits_used=1
+                    )
+                except Exception as e:
+                    logger.warning("search_history_error", error=str(e))
+
         except Exception as e:
             logger.error("company_intel_error", company=name, error=str(e))
             result["status"] = "error"
             result["error"] = str(e)
 
         return result
+
+    async def _get_employees_apollo(
+        self,
+        company_name: str,
+        search_data: Dict,
+        website_data: Dict
+    ) -> List[Dict[str, Any]]:
+        """Busca funcionários via Apollo"""
+        employees = []
+
+        try:
+            domain = self._extract_domain(
+                website_data.get("url") or search_data.get("website") or ""
+            )
+
+            # Buscar funcionários gerais
+            company_employees = await self.apollo.get_company_employees(
+                organization_name=company_name,
+                domain=domain,
+                limit=20
+            )
+            if company_employees.get("employees"):
+                employees.extend(company_employees["employees"])
+
+            # Buscar executivos
+            executives = await self.apollo.get_executives(
+                organization_name=company_name,
+                domain=domain
+            )
+            if executives.get("employees"):
+                # Adicionar sem duplicar
+                existing_ids = {e.get("id") for e in employees}
+                for exec_data in executives.get("employees", []):
+                    if exec_data.get("id") not in existing_ids:
+                        employees.append(exec_data)
+
+            # Buscar decision makers
+            decision_makers = await self.apollo.get_decision_makers(
+                organization_name=company_name
+            )
+            if decision_makers.get("employees"):
+                existing_ids = {e.get("id") for e in employees}
+                for dm in decision_makers.get("employees", []):
+                    if dm.get("id") not in existing_ids:
+                        employees.append(dm)
+
+            logger.info("apollo_employees_found", company=company_name, count=len(employees))
+
+        except Exception as e:
+            logger.warning("apollo_employees_error", company=company_name, error=str(e))
+            # Fallback: buscar via Serper
+            employees = await self._fallback_search_people(company_name)
+
+        return employees[:25]  # Limitar a 25 pessoas
+
+    async def _fallback_search_people(self, company_name: str) -> List[Dict[str, Any]]:
+        """Fallback: buscar pessoas via Serper quando Apollo falha"""
+        people = []
+        try:
+            for title in ["CEO", "CFO", "CTO", "COO", "Diretor", "Fundador", "Head"]:
+                search = await self.serper.search(
+                    f'"{company_name}" {title} LinkedIn site:linkedin.com/in',
+                    num=3
+                )
+                for item in search.get("organic", []):
+                    if "linkedin.com/in/" in item.get("link", ""):
+                        name_parts = item.get("title", "").split(" - ")
+                        people.append({
+                            "name": name_parts[0].strip() if name_parts else "N/A",
+                            "linkedin_url": item.get("link"),
+                            "title": title,
+                            "snippet": item.get("snippet", "")
+                        })
+        except Exception as e:
+            logger.warning("fallback_people_error", error=str(e))
+        return people
+
+    def _build_sources_list(self, result: Dict) -> List[str]:
+        """Constrói lista de fontes para citação"""
+        sources = []
+
+        # Website
+        website = result.get("website_data", {}).get("url")
+        if website:
+            sources.append(f"Website oficial: {website}")
+
+        # Perplexity
+        perplexity = result.get("perplexity_full", {})
+        if perplexity.get("citations"):
+            for citation in perplexity["citations"][:5]:
+                sources.append(f"Perplexity: {citation}")
+
+        # Tavily research
+        tavily = result.get("tavily_research", {})
+        if tavily.get("results"):
+            for res in tavily["results"][:3]:
+                sources.append(f"Tavily: {res.get('url', res.get('title', 'N/A'))}")
+
+        # Tavily news
+        news = result.get("tavily_news", {})
+        if news.get("results"):
+            for n in news["results"][:5]:
+                sources.append(f"Notícia: {n.get('title', 'N/A')} ({n.get('source', 'N/A')})")
+
+        # Google Search
+        search = result.get("search_data", {})
+        if search.get("knowledge_graph"):
+            sources.append("Google Knowledge Graph")
+
+        # BrasilAPI
+        if result.get("cnpj_data"):
+            sources.append("BrasilAPI (Dados Cadastrais CNPJ)")
+
+        # Apollo
+        if result.get("employees"):
+            sources.append("Apollo.io (Perfis LinkedIn)")
+
+        return sources
+
+    def _prepare_research_context(self, result: Dict) -> str:
+        """Prepara contexto de pesquisa para análise Claude"""
+        parts = []
+
+        # Perplexity full analysis
+        perplexity = result.get("perplexity_full", {})
+        if perplexity.get("analysis"):
+            parts.append(f"## ANÁLISE PERPLEXITY\n{perplexity['analysis']}")
+
+        # Tavily research
+        tavily = result.get("tavily_research", {})
+        if tavily.get("answer"):
+            parts.append(f"## PESQUISA TAVILY\n{tavily['answer']}")
+
+        # Competitors preview
+        competitors = result.get("perplexity_competitors", {})
+        if competitors.get("competitors_analysis"):
+            parts.append(f"## CONCORRENTES IDENTIFICADOS\n{competitors['competitors_analysis']}")
+
+        # CNPJ data summary
+        cnpj_data = result.get("cnpj_data", {})
+        if cnpj_data:
+            cnpj_summary = f"""## DADOS CADASTRAIS (CNPJ)
+- Razão Social: {cnpj_data.get('razao_social', 'N/A')}
+- Nome Fantasia: {cnpj_data.get('nome_fantasia', 'N/A')}
+- CNPJ: {cnpj_data.get('cnpj', 'N/A')}
+- Situação: {cnpj_data.get('situacao_cadastral', 'N/A')}
+- Porte: {cnpj_data.get('porte', 'N/A')}
+- Capital Social: {cnpj_data.get('capital_social', 'N/A')}
+- Data Abertura: {cnpj_data.get('data_abertura', 'N/A')}
+- CNAE Principal: {cnpj_data.get('cnae_principal', {}).get('descricao', 'N/A')}"""
+            parts.append(cnpj_summary)
+
+        return "\n\n".join(parts)
 
     async def _scrape_website_fully(
         self,
@@ -397,53 +587,120 @@ class CompanyIntelService:
 
         return "\n\n".join(parts)
 
+    async def _analyze_competitors_deep(
+        self,
+        company_name: str,
+        company_profile: Dict,
+        perplexity_competitors: Dict,
+        main_company_sources: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Análise PROFUNDA de concorrentes - mesma profundidade da empresa principal
+
+        Para cada concorrente:
+        1. Buscar informações básicas (Serper)
+        2. Fazer scraping do website
+        3. Buscar pesquisa contextual (Perplexity)
+        4. Análise completa via Claude
+        """
+        logger.info("company_intel_analyzing_competitors_deep", company=company_name)
+
+        competitors_deep = []
+
+        # Extrair nomes dos concorrentes
+        competitor_names = self._extract_competitor_names(
+            perplexity_competitors.get("competitors_analysis", "")
+        )[:5]  # Limitar a 5 concorrentes
+
+        for comp_name in competitor_names:
+            logger.info("analyzing_competitor", competitor=comp_name)
+
+            try:
+                # 1. Buscar informações básicas
+                comp_info = await self.serper.find_company_info(comp_name)
+
+                competitor_data = {
+                    "name": comp_name,
+                    "website": comp_info.get("website"),
+                    "description": comp_info.get("description"),
+                    "industry": comp_info.get("industry"),
+                    "linkedin": comp_info.get("linkedin")
+                }
+
+                # 2. Scraping do website do concorrente
+                website_content = ""
+                competitor_sources = [f"Website: {comp_info.get('website', 'N/A')}"]
+
+                if comp_info.get("website"):
+                    try:
+                        website_data = await self.web_scraper.scrape_company_website(
+                            comp_info["website"]
+                        )
+                        website_content = (
+                            website_data.get("full_content") or
+                            website_data.get("content_summary", "")
+                        )
+                        competitor_data["website_data"] = website_data
+                    except Exception as e:
+                        logger.warning("competitor_website_error", competitor=comp_name, error=str(e))
+
+                # 3. Pesquisa contextual do concorrente
+                research_context = ""
+                try:
+                    perplexity_result = await self.perplexity.analyze_company(
+                        comp_name,
+                        analysis_type="brief"
+                    )
+                    research_context = perplexity_result.get("analysis", "")
+                    if perplexity_result.get("citations"):
+                        for c in perplexity_result["citations"][:3]:
+                            competitor_sources.append(f"Perplexity: {c}")
+                except Exception as e:
+                    logger.warning("competitor_perplexity_error", competitor=comp_name, error=str(e))
+
+                # 4. Análise COMPLETA via Claude
+                competitor_analysis = await self.ai_analyzer.analyze_competitor_complete(
+                    competitor_data=competitor_data,
+                    website_content=website_content[:6000],
+                    research_context=research_context[:4000],
+                    main_company_name=company_name,
+                    sources=competitor_sources
+                )
+
+                competitors_deep.append({
+                    "basic_info": competitor_data,
+                    "deep_analysis": competitor_analysis,
+                    "sources": competitor_sources
+                })
+
+            except Exception as e:
+                logger.warning("competitor_deep_analysis_error", competitor=comp_name, error=str(e))
+                # Adicionar mesmo com erro, mas com análise básica
+                competitors_deep.append({
+                    "basic_info": {"name": comp_name, "error": str(e)},
+                    "deep_analysis": None,
+                    "sources": []
+                })
+
+        return {
+            "perplexity_overview": perplexity_competitors.get("competitors_analysis"),
+            "competitors_analyzed": competitors_deep,
+            "total_competitors": len(competitors_deep)
+        }
+
     async def _analyze_competitors_full(
         self,
         company_name: str,
         company_profile: Dict,
         perplexity_competitors: Dict
     ) -> Dict[str, Any]:
-        """Análise completa de concorrentes"""
-        logger.info("company_intel_analyzing_competitors", company=company_name)
-
-        competitors_data = []
-
-        # Extrair nomes dos concorrentes
-        competitor_names = self._extract_competitor_names(
-            perplexity_competitors.get("competitors_analysis", "")
-        )[:5]
-
-        # Buscar dados de cada concorrente
-        for comp_name in competitor_names:
-            try:
-                comp_info = await self.serper.find_company_info(comp_name)
-                competitors_data.append({
-                    "name": comp_name,
-                    "website": comp_info.get("website"),
-                    "description": comp_info.get("description"),
-                    "industry": comp_info.get("industry"),
-                    "linkedin": comp_info.get("linkedin")
-                })
-            except Exception as e:
-                logger.warning("competitor_info_error", competitor=comp_name, error=str(e))
-
-        # Análise comparativa AI
-        competitive_analysis = {}
-        if competitors_data:
-            try:
-                competitive_analysis = await self.ai_analyzer.analyze_competitors(
-                    company_profile,
-                    competitors_data
-                )
-            except Exception as e:
-                logger.warning("competitor_analysis_error", error=str(e))
-
-        return {
-            "perplexity_analysis": perplexity_competitors.get("competitors_analysis"),
-            "competitors_found": competitors_data,
-            "competitive_analysis": competitive_analysis,
-            "total_competitors": len(competitors_data)
-        }
+        """Análise de concorrentes (método legado - redireciona para deep)"""
+        return await self._analyze_competitors_deep(
+            company_name,
+            company_profile,
+            perplexity_competitors,
+            []
+        )
 
     def _extract_competitor_names(self, text: str) -> List[str]:
         """Extrai nomes de concorrentes do texto"""
@@ -546,19 +803,22 @@ class CompanyIntelService:
         """Calcula score de confiança"""
         score = 0.0
         weights = {
-            "cnpj_data": 0.15,
+            "cnpj_data": 0.10,
             "search_data": 0.10,
-            "perplexity_full": 0.20,
-            "website_data": 0.25,
+            "perplexity_full": 0.15,
+            "website_data": 0.20,
             "tavily_research": 0.10,
-            "swot_analysis": 0.10,
+            "complete_analysis": 0.15,  # Análise multi-perspectiva
+            "employees": 0.10,           # Funcionários Apollo
             "competitors": 0.10
         }
 
         for key, weight in weights.items():
-            data = result.get(key, {})
+            data = result.get(key)
             if data and not isinstance(data, Exception):
-                if isinstance(data, dict) and not data.get("error") or data:
+                if isinstance(data, dict) and not data.get("error"):
+                    score += weight
+                elif isinstance(data, list) and len(data) > 0:
                     score += weight
 
         return round(min(score, 1.0), 2)
@@ -569,8 +829,13 @@ class CompanyIntelService:
 
     async def quick_lookup(self, name: str) -> Dict[str, Any]:
         """
-        Busca rápida - usa Perplexity como fonte principal
-        Dados são armazenados para uso no analyze_company
+        Busca rápida com descrição mínima
+
+        Retorna:
+        - Dados básicos (CNPJ, website, LinkedIn)
+        - Descrição breve da empresa
+        - Setor de atuação
+        - Análise resumida do Perplexity
         """
         logger.info("company_intel_quick_lookup", company=name)
 
@@ -584,7 +849,7 @@ class CompanyIntelService:
         tasks = [
             self.serper.find_company_cnpj(name),
             self.serper.find_company_info(name),
-            self.perplexity.analyze_company(name, analysis_type="full"),  # Análise completa
+            self.perplexity.analyze_company(name, analysis_type="brief"),  # Análise breve
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -598,7 +863,12 @@ class CompanyIntelService:
         if cnpj:
             cnpj_data = await self._get_cnpj_data(cnpj) or {}
 
-        # Montar resultado com formato markdown do Perplexity
+        # Construir descrição mínima
+        description = self._build_quick_description(
+            name, search_data, cnpj_data, perplexity_data
+        )
+
+        # Montar resultado
         result = {
             "name": name,
             "cnpj": cnpj,
@@ -606,15 +876,21 @@ class CompanyIntelService:
             "nome_fantasia": cnpj_data.get("nome_fantasia") or name,
             "website": search_data.get("website"),
             "linkedin": search_data.get("linkedin"),
-            "industry": search_data.get("industry"),
+            "industry": search_data.get("industry") or cnpj_data.get("cnae_principal", {}).get("descricao"),
 
-            # PERPLEXITY - Fonte principal (já vem em markdown)
+            # DESCRIÇÃO - Sempre presente
+            "description": description,
+
+            # Análise Perplexity
             "analysis": perplexity_data.get("analysis"),
             "citations": perplexity_data.get("citations", []),
 
             # Dados complementares
             "endereco": cnpj_data.get("endereco"),
             "situacao_cadastral": cnpj_data.get("situacao_cadastral"),
+            "porte": cnpj_data.get("porte"),
+            "capital_social": cnpj_data.get("capital_social"),
+            "data_abertura": cnpj_data.get("data_abertura"),
             "knowledge_graph": search_data.get("knowledge_graph"),
 
             "sources": ["Perplexity AI", "Google Search"] + (["BrasilAPI"] if cnpj_data else [])
@@ -630,41 +906,165 @@ class CompanyIntelService:
 
         return result
 
-    async def get_swot(self, name: str) -> Dict[str, Any]:
-        """Gera SWOT usando dados completos"""
-        # Primeiro faz quick_lookup para coletar dados
-        await self.quick_lookup(name)
+    def _build_quick_description(
+        self,
+        name: str,
+        search_data: Dict,
+        cnpj_data: Dict,
+        perplexity_data: Dict
+    ) -> str:
+        """
+        Constrói descrição mínima da empresa
 
-        # Depois usa os dados do cache
+        Prioridade:
+        1. Perplexity (se disponível e curto)
+        2. Google Knowledge Graph
+        3. Descrição do Google
+        4. CNAE + dados cadastrais
+        """
+        # Tentar extrair resumo do Perplexity (primeiros 500 chars)
+        perplexity_text = perplexity_data.get("analysis", "")
+        if perplexity_text:
+            # Pegar primeiro parágrafo ou até 500 chars
+            first_para = perplexity_text.split("\n\n")[0]
+            if len(first_para) > 50:
+                return first_para[:500] + ("..." if len(first_para) > 500 else "")
+
+        # Tentar Knowledge Graph do Google
+        kg = search_data.get("knowledge_graph", {})
+        if kg:
+            kg_desc = kg.get("description", "")
+            if kg_desc:
+                return kg_desc
+
+        # Tentar descrição do Serper
+        serper_desc = search_data.get("description", "")
+        if serper_desc:
+            return serper_desc
+
+        # Fallback: construir a partir dos dados cadastrais
+        parts = []
+
+        nome = cnpj_data.get("nome_fantasia") or name
+        parts.append(f"**{nome}**")
+
+        cnae = cnpj_data.get("cnae_principal", {})
+        if cnae.get("descricao"):
+            parts.append(f"atua no setor de {cnae['descricao']}")
+
+        porte = cnpj_data.get("porte")
+        if porte:
+            parts.append(f"({porte})")
+
+        endereco = cnpj_data.get("endereco", {})
+        cidade = endereco.get("municipio")
+        uf = endereco.get("uf")
+        if cidade and uf:
+            parts.append(f"— {cidade}/{uf}")
+
+        industry = search_data.get("industry")
+        if industry and not cnae.get("descricao"):
+            parts.append(f"Setor: {industry}")
+
+        if parts:
+            return " ".join(parts)
+
+        return f"Empresa {name} - informações básicas disponíveis via CNPJ e busca"
+
+    async def get_swot(self, name: str, use_full_analysis: bool = True) -> Dict[str, Any]:
+        """
+        Gera análise SWOT COMPLETA
+
+        Se use_full_analysis=True (padrão), primeiro faz a análise completa
+        da empresa para ter todos os dados necessários:
+        - Concorrentes analisados
+        - Funcionários via Apollo
+        - Notícias
+        - Dados regionais
+
+        Args:
+            name: Nome da empresa
+            use_full_analysis: Se True, usa dados da análise completa
+
+        Returns:
+            SWOT completo com scoring, priorização e recomendações
+        """
+        logger.info("company_intel_swot", company=name, full=use_full_analysis)
+
+        # Verificar se já temos análise completa no cache
         cached = self._get_from_cache(name) or {}
 
-        company_data = {
-            "name": name,
-            "perplexity_analysis": cached.get("perplexity_full", {}).get("analysis"),
-            "industry": cached.get("search_data", {}).get("industry"),
-            "website_content": "",  # Será preenchido pelo scraping
-        }
+        if use_full_analysis and not cached.get("full_analysis"):
+            # Fazer análise completa primeiro
+            full_result = await self.analyze_company(
+                name,
+                include_competitors=True,
+                include_employees=True
+            )
+            cached = self._get_from_cache(name) or {}
 
-        # Fazer scraping se tiver website
-        website_url = cached.get("search_data", {}).get("website")
-        if website_url:
-            try:
-                website_data = await self.web_scraper.scrape_company_website(website_url)
-                company_data["website_content"] = website_data.get("content_summary", "")
-            except Exception:
-                pass
+        full_analysis = cached.get("full_analysis", {})
 
-        return await self.ai_analyzer.analyze_company_swot(
-            company_data,
-            market_context=cached.get("perplexity_full", {}).get("analysis")
+        # Extrair dados necessários para SWOT completo
+        company_profile = full_analysis.get("company_profile", {})
+        competitors_data = full_analysis.get("competitors", {}).get("competitors_analyzed", [])
+        employees_data = full_analysis.get("employees", [])
+        news_data = full_analysis.get("tavily_news", {}).get("results", [])
+        sources = full_analysis.get("sources_used", [])
+
+        # Preparar contexto de pesquisa
+        research_context = self._prepare_research_context(full_analysis)
+
+        # Obter dados regionais
+        regional_data = await self._get_regional_data(company_profile)
+
+        # Gerar SWOT COMPLETO
+        swot = await self.ai_analyzer.analyze_swot_comprehensive(
+            company_data=company_profile,
+            competitors_data=competitors_data,
+            employees_data=employees_data,
+            news_data=news_data,
+            regional_data=regional_data,
+            research_context=research_context,
+            sources=sources
         )
+
+        # Salvar SWOT no cache
+        cached["swot_analysis"] = swot
+        self._save_to_cache(name, cached)
+
+        return swot
+
+    async def _get_regional_data(self, company_profile: Dict) -> Dict[str, Any]:
+        """
+        Obtém dados regionais para contextualizar SWOT
+
+        Usa endereço da empresa para buscar:
+        - PIB municipal
+        - IDHM
+        - População
+        - Indicadores fiscais
+        """
+        try:
+            from .regional_intel import RegionalIntelService
+
+            endereco = company_profile.get("endereco", {})
+            if not endereco:
+                return {"available": False, "reason": "Endereço não disponível"}
+
+            async with RegionalIntelService() as regional:
+                return await regional.get_region_for_swot(endereco)
+
+        except Exception as e:
+            logger.warning("regional_data_error", error=str(e))
+            return {"available": False, "reason": str(e)}
 
     async def get_okrs(
         self,
         name: str,
         focus_areas: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Gera OKRs"""
+        """Gera OKRs baseados no SWOT completo"""
         company_data = await self.quick_lookup(name)
         swot = await self.get_swot(name)
         return await self.ai_analyzer.generate_okrs(company_data, swot=swot, focus_areas=focus_areas)

@@ -131,84 +131,641 @@ class AIAnalyzer:
     # ANÁLISE DE EMPRESAS
     # ===========================================
 
+    async def analyze_company_complete(
+        self,
+        company_data: Dict[str, Any],
+        website_content: str,
+        employees_data: List[Dict[str, Any]],
+        news_data: List[Dict[str, Any]],
+        research_context: str,
+        sources: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Análise COMPLETA de empresa com múltiplas perspectivas
+
+        Gera análise densa e estruturada por temas, com visões de:
+        - Leigo (pessoa comum)
+        - Profissional (especialista do setor)
+        - Fornecedor (potencial parceiro)
+        - Concorrente (análise competitiva)
+        - Cliente (potencial comprador)
+
+        Args:
+            company_data: Dados básicos da empresa
+            website_content: Conteúdo completo do site
+            employees_data: Funcionários encontrados via Apollo/LinkedIn
+            news_data: Notícias sobre a empresa
+            research_context: Pesquisa Perplexity + Tavily
+            sources: Lista de fontes para citação
+
+        Returns:
+            Análise completa multi-perspectiva
+        """
+        logger.info("ai_analyze_company_complete", company=company_data.get("nome_fantasia", ""))
+
+        # Preparar lista de fontes para citação
+        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:20])])
+
+        # Preparar dados de funcionários
+        employees_text = ""
+        if employees_data:
+            employees_text = "## FUNCIONÁRIOS IDENTIFICADOS (LinkedIn/Apollo)\n"
+            for emp in employees_data[:15]:
+                employees_text += f"""
+### {emp.get('name', 'N/A')}
+- **Cargo:** {emp.get('title', 'N/A')}
+- **Departamento:** {', '.join(emp.get('departments', [])) if emp.get('departments') else 'N/A'}
+- **Senioridade:** {emp.get('seniority', 'N/A')}
+- **LinkedIn:** {emp.get('linkedin_url', 'N/A')}
+- **Tempo na empresa:** {emp.get('tenure', 'N/A')}
+"""
+
+        # Preparar notícias
+        news_text = ""
+        if news_data:
+            news_text = "## NOTÍCIAS RECENTES\n"
+            for i, news in enumerate(news_data[:10]):
+                news_text += f"[{i+1}] **{news.get('title', 'N/A')}** - {news.get('source', 'N/A')}\n"
+                news_text += f"   {news.get('content', news.get('snippet', ''))[:300]}\n\n"
+
+        system = """Você é um ANALISTA DE INTELIGÊNCIA EMPRESARIAL SÊNIOR especializado no mercado brasileiro.
+
+Sua tarefa é criar uma ANÁLISE COMPLETA E PROFUNDA de uma empresa, estruturada em MÚLTIPLAS PERSPECTIVAS.
+
+REGRAS CRÍTICAS:
+1. Escreva TEXTOS DENSOS - parágrafos substanciais, não bullet points superficiais
+2. CITE AS FONTES no formato [1], [2] ao longo do texto
+3. Seja ESPECÍFICO - mencione produtos, serviços, nomes, números
+4. Analise de MÚLTIPLOS ÂNGULOS - cada perspectiva deve ter visão única
+5. Use o conteúdo do WEBSITE como fonte primária
+6. INCLUA os funcionários identificados na análise
+7. Forneça INSIGHTS ACIONÁVEIS em cada perspectiva
+8. Mínimo de 3-4 parágrafos por perspectiva
+
+Responda SEMPRE em formato JSON válido com textos em Markdown."""
+
+        prompt = f"""Analise COMPLETAMENTE esta empresa com múltiplas perspectivas.
+
+# DADOS DA EMPRESA
+- **Nome:** {company_data.get('nome_fantasia') or company_data.get('name')}
+- **Razão Social:** {company_data.get('razao_social', 'N/A')}
+- **CNPJ:** {company_data.get('cnpj', 'N/A')}
+- **Setor:** {company_data.get('industry', 'N/A')}
+- **Website:** {company_data.get('website', 'N/A')}
+
+# CONTEÚDO DO WEBSITE (FONTE PRINCIPAL)
+{website_content[:12000]}
+
+# PESQUISA CONTEXTUAL
+{research_context[:8000]}
+
+{employees_text}
+
+{news_text}
+
+# FONTES DISPONÍVEIS PARA CITAÇÃO
+{sources_list}
+
+---
+
+Gere uma análise COMPLETA em JSON com a seguinte estrutura:
+
+{{
+    "company_overview": {{
+        "summary": "Resumo executivo da empresa em 2-3 parágrafos densos. O que a empresa faz, seu posicionamento, principais produtos/serviços. Cite fontes [1], [2], etc.",
+        "key_facts": {{
+            "founded": "Ano de fundação se disponível",
+            "headquarters": "Localização",
+            "size_estimate": "Estimativa de tamanho",
+            "main_products": ["Produto/Serviço 1", "Produto/Serviço 2"],
+            "target_market": "Mercado alvo principal"
+        }}
+    }},
+
+    "perspectives": {{
+        "layperson_view": {{
+            "title": "Visão do Leigo",
+            "analysis": "TEXTO DENSO (mínimo 3 parágrafos). Como uma pessoa comum, sem conhecimento técnico, entenderia esta empresa ao visitar o site? O que ela oferece de forma simples? A comunicação é clara? O site é acessível? Quais problemas ela resolve para pessoas comuns? Cite fontes."
+        }},
+        "professional_view": {{
+            "title": "Visão do Profissional",
+            "analysis": "TEXTO DENSO (mínimo 3 parágrafos). Como um profissional experiente do setor avaliaria esta empresa? Qual o nível de sofisticação técnica? Como se compara com padrões da indústria? Quais certificações ou metodologias utiliza? Qual a profundidade técnica demonstrada? Cite fontes."
+        }},
+        "supplier_view": {{
+            "title": "Visão do Fornecedor",
+            "analysis": "TEXTO DENSO (mínimo 3 parágrafos). Como um potencial fornecedor ou parceiro avaliaria esta empresa? Qual o potencial de parceria? Quais são as necessidades aparentes de fornecimento? A empresa parece ser boa pagadora/parceira? Qual o porte para negociações? Cite fontes."
+        }},
+        "competitor_view": {{
+            "title": "Visão do Concorrente",
+            "analysis": "TEXTO DENSO (mínimo 3 parágrafos). Como um concorrente direto analisaria esta empresa? Quais são os pontos fortes a temer? Quais as vulnerabilidades a explorar? Onde estão diferenciando? Qual estratégia de mercado aparente? Cite fontes."
+        }},
+        "customer_view": {{
+            "title": "Visão do Cliente",
+            "analysis": "TEXTO DENSO (mínimo 3 parágrafos). Como um potencial cliente avaliaria esta empresa? Os benefícios são claros? A proposta de valor é convincente? O que geraria confiança ou desconfiança? Por que escolher ou não escolher esta empresa? Cite fontes."
+        }}
+    }},
+
+    "team_analysis": {{
+        "overview": "Análise da equipe identificada via LinkedIn. Qual o perfil dos profissionais? Qual a experiência média? Há especialistas notáveis? Como a equipe se compara com concorrentes?",
+        "key_people": [
+            {{
+                "name": "Nome do profissional",
+                "role": "Cargo",
+                "relevance": "Por que esta pessoa é relevante para entender a empresa"
+            }}
+        ],
+        "team_insights": "Insights sobre a cultura e capacidade da equipe baseado nos perfis encontrados"
+    }},
+
+    "market_position": {{
+        "positioning": "Análise do posicionamento de mercado em 2-3 parágrafos",
+        "differentiation": "O que diferencia esta empresa dos concorrentes",
+        "target_segments": ["Segmento 1", "Segmento 2"],
+        "pricing_indication": "Indicação de posicionamento de preço (premium, competitivo, econômico)"
+    }},
+
+    "digital_presence": {{
+        "website_quality": "Avaliação da qualidade do website",
+        "content_strategy": "Análise da estratégia de conteúdo",
+        "seo_observations": "Observações sobre SEO e presença digital",
+        "social_media": "Análise da presença em redes sociais se disponível"
+    }},
+
+    "news_sentiment": {{
+        "overall_sentiment": "positivo/negativo/neutro/misto",
+        "key_themes": ["Tema 1 das notícias", "Tema 2"],
+        "recent_highlights": "Destaques recentes da mídia em 1-2 parágrafos"
+    }},
+
+    "strategic_insights": [
+        "Insight estratégico 1 - acionável e específico",
+        "Insight estratégico 2 - acionável e específico",
+        "Insight estratégico 3 - acionável e específico"
+    ],
+
+    "sources_used": ["Lista das fontes efetivamente citadas na análise"],
+
+    "confidence_score": 0.0-1.0,
+    "analysis_depth": "Nota sobre a profundidade da análise e limitações"
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=8000)
+
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                return json.loads(json_match.group())
+            return {"error": "Failed to parse response", "raw": response}
+
+    async def analyze_competitor_complete(
+        self,
+        competitor_data: Dict[str, Any],
+        website_content: str,
+        research_context: str,
+        main_company_name: str,
+        sources: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Análise COMPLETA de concorrente com mesma profundidade da empresa principal
+        """
+        logger.info("ai_analyze_competitor_complete", competitor=competitor_data.get("name", ""))
+
+        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:15])])
+
+        system = """Você é um ANALISTA DE INTELIGÊNCIA COMPETITIVA especializado no mercado brasileiro.
+
+Analise este CONCORRENTE com a mesma profundidade que analisaria a empresa principal.
+Escreva TEXTOS DENSOS com parágrafos substanciais. Cite fontes no formato [1], [2].
+
+Responda SEMPRE em formato JSON válido."""
+
+        prompt = f"""Analise este CONCORRENTE de "{main_company_name}":
+
+# DADOS DO CONCORRENTE
+- **Nome:** {competitor_data.get('name')}
+- **Website:** {competitor_data.get('website', 'N/A')}
+- **Setor:** {competitor_data.get('industry', 'N/A')}
+
+# CONTEÚDO DO WEBSITE
+{website_content[:8000]}
+
+# PESQUISA CONTEXTUAL
+{research_context[:5000]}
+
+# FONTES
+{sources_list}
+
+---
+
+Responda em JSON:
+{{
+    "competitor_name": "Nome do concorrente",
+    "overview": "Resumo em 2-3 parágrafos densos sobre o concorrente. Cite fontes.",
+
+    "comparison_to_main": {{
+        "similarities": "O que há de similar com {main_company_name}",
+        "differences": "Principais diferenças",
+        "competitive_advantages": "Vantagens deste concorrente",
+        "competitive_disadvantages": "Desvantagens deste concorrente"
+    }},
+
+    "market_position": "Posicionamento de mercado em 2 parágrafos",
+
+    "threat_assessment": {{
+        "threat_level": "alto/médio/baixo",
+        "explanation": "Por que este nível de ameaça",
+        "areas_of_competition": ["Área 1", "Área 2"]
+    }},
+
+    "key_insights": [
+        "Insight 1 sobre este concorrente",
+        "Insight 2 sobre este concorrente"
+    ],
+
+    "sources_used": ["Fontes citadas"]
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=4000)
+
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                return json.loads(json_match.group())
+            return {"error": "Failed to parse response", "raw": response}
+
     async def analyze_company_swot(
         self,
         company_data: Dict[str, Any],
         market_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Gera análise SWOT para uma empresa
-
-        Args:
-            company_data: Dados coletados da empresa
-            market_context: Contexto de mercado adicional
-
-        Returns:
-            Análise SWOT estruturada
+        Gera análise SWOT básica (método legado)
+        Use analyze_swot_comprehensive para análise completa
         """
-        logger.info("ai_analyze_swot", company=company_data.get("nome_fantasia", ""))
+        # Redirecionar para método básico simplificado
+        return await self._basic_swot(company_data, market_context)
 
-        system = """Você é um analista de inteligência competitiva especializado no mercado brasileiro.
-Sua tarefa é criar uma análise SWOT detalhada e acionável para empresas.
+    async def _basic_swot(
+        self,
+        company_data: Dict[str, Any],
+        market_context: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """SWOT básico sem dados complementares"""
+        logger.info("ai_analyze_swot_basic", company=company_data.get("nome_fantasia", ""))
 
-Regras:
-1. PRIORIZE o conteúdo extraído do website da empresa - é a fonte mais confiável
-2. Analise os serviços, produtos, posicionamento e diferenciais mencionados no site
-3. Seja específico e cite evidências dos dados fornecidos
-4. Cada ponto deve ser claro e acionável
-5. Considere o contexto do mercado brasileiro
-6. Forneça 3-5 pontos em cada categoria
-7. Responda SEMPRE em formato JSON válido"""
+        system = """Você é um analista de inteligência competitiva.
+Gere uma análise SWOT básica. Responda em JSON válido."""
 
-        # Extrair e preparar conteúdo do site para análise
         website_content = company_data.get("website_content", "")
-        website_headings = company_data.get("website_headings", [])
 
-        prompt = f"""Analise os dados desta empresa e gere uma análise SWOT completa.
+        prompt = f"""Análise SWOT para: {company_data.get("nome_fantasia")}
 
-IMPORTANTE: O conteúdo do website é a fonte PRINCIPAL de informação. Analise cuidadosamente:
+Website: {website_content[:4000] if website_content else "N/A"}
+Setor: {company_data.get("industry", "N/A")}
+{f"Contexto: {market_context[:2000]}" if market_context else ""}
 
-## Conteúdo do Website da Empresa
-{website_content[:8000] if website_content else "Não disponível"}
+JSON:
+{{"strengths": [{{"point": "...", "impact": "alto/médio/baixo"}}],
+"weaknesses": [{{"point": "...", "impact": "alto/médio/baixo"}}],
+"opportunities": [{{"point": "...", "timeframe": "curto/médio/longo"}}],
+"threats": [{{"point": "...", "probability": "alta/média/baixa"}}],
+"summary": "..."}}"""
 
-## Seções do Site
-{json.dumps(website_headings, indent=2, ensure_ascii=False) if website_headings else "Não disponível"}
-
-## Dados Cadastrais e Complementares
-- Nome: {company_data.get("nome_fantasia")}
-- Razão Social: {company_data.get("razao_social")}
-- CNPJ: {company_data.get("cnpj")}
-- Setor: {company_data.get("industry")}
-- Website: {company_data.get("website")}
-- Descrição: {company_data.get("description")}
-- Redes Sociais: {json.dumps(company_data.get("social_media", {}), ensure_ascii=False)}
-
-{f"## Contexto de Mercado{chr(10)}{market_context}" if market_context else ""}
-
-Responda em JSON com a seguinte estrutura:
-{{
-    "strengths": [
-        {{"point": "descrição do ponto forte", "impact": "alto/médio/baixo", "evidence": "evidência dos dados"}}
-    ],
-    "weaknesses": [
-        {{"point": "descrição do ponto fraco", "impact": "alto/médio/baixo", "recommendation": "recomendação"}}
-    ],
-    "opportunities": [
-        {{"point": "descrição da oportunidade", "timeframe": "curto/médio/longo prazo", "action": "ação sugerida"}}
-    ],
-    "threats": [
-        {{"point": "descrição da ameaça", "probability": "alta/média/baixa", "mitigation": "mitigação sugerida"}}
-    ],
-    "summary": "resumo executivo da análise",
-    "confidence_score": 0.0-1.0
-}}"""
-
-        response = await self._call_claude(prompt, system=system)
+        response = await self._call_claude(prompt, system=system, max_tokens=2000)
 
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            # Tentar extrair JSON do texto
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                return json.loads(json_match.group())
+            return {"error": "Failed to parse response", "raw": response}
+
+    async def analyze_swot_comprehensive(
+        self,
+        company_data: Dict[str, Any],
+        competitors_data: List[Dict[str, Any]],
+        employees_data: List[Dict[str, Any]],
+        news_data: List[Dict[str, Any]],
+        regional_data: Dict[str, Any],
+        research_context: str,
+        sources: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Análise SWOT COMPLETA E ROBUSTA
+
+        Integra TODAS as dimensões de análise:
+        1. EMPRESA: Website, produtos, serviços, posicionamento
+        2. CONCORRENTES: Análise competitiva detalhada
+        3. PESSOAS: Perfil da equipe e talentos
+        4. REGIÃO: Ambiente econômico local (PIB, IDHM, população)
+        5. MERCADO: Notícias, tendências, cenário econômico
+        6. PERCEPÇÕES: Múltiplas perspectivas de stakeholders
+
+        Metodologia baseada em frameworks contemporâneos:
+        - VRIO (Value, Rarity, Imitability, Organization)
+        - PESTEL (Political, Economic, Social, Technological, Environmental, Legal)
+        - Porter's Five Forces
+        - Scoring quantitativo para priorização
+
+        Args:
+            company_data: Dados completos da empresa
+            competitors_data: Lista de concorrentes analisados
+            employees_data: Perfis de funcionários
+            news_data: Notícias recentes sobre empresa/setor
+            regional_data: Dados econômicos regionais (PIB, IDHM, etc)
+            research_context: Contexto de pesquisa (Perplexity, Tavily)
+            sources: Lista de fontes para citação
+
+        Returns:
+            SWOT completo com scoring, priorização e recomendações
+        """
+        logger.info("ai_analyze_swot_comprehensive", company=company_data.get("nome_fantasia", ""))
+
+        # Preparar fontes para citação
+        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:25])])
+
+        # Preparar dados de concorrentes
+        competitors_text = ""
+        if competitors_data:
+            competitors_text = "## ANÁLISE DE CONCORRENTES\n"
+            for i, comp in enumerate(competitors_data[:5], 1):
+                basic = comp.get("basic_info", {})
+                analysis = comp.get("deep_analysis", {})
+                competitors_text += f"""
+### Concorrente {i}: {basic.get('name', 'N/A')}
+- Website: {basic.get('website', 'N/A')}
+- Setor: {basic.get('industry', 'N/A')}
+- Análise: {analysis.get('overview', 'N/A')[:500] if analysis else 'N/A'}
+- Nível de Ameaça: {analysis.get('threat_assessment', {}).get('threat_level', 'N/A') if analysis else 'N/A'}
+"""
+
+        # Preparar dados de funcionários
+        employees_text = ""
+        if employees_data:
+            employees_text = "## PERFIL DA EQUIPE\n"
+            for emp in employees_data[:10]:
+                employees_text += f"- **{emp.get('name', 'N/A')}**: {emp.get('title', 'N/A')} ({emp.get('seniority', 'N/A')})\n"
+
+        # Preparar dados regionais
+        regional_text = ""
+        if regional_data and regional_data.get("available"):
+            pib = regional_data.get("raw_data", {}).get("pib", {}) or {}
+            idhm = regional_data.get("raw_data", {}).get("idhm", {}) or {}
+            pop = regional_data.get("raw_data", {}).get("populacao", {}) or {}
+            profile = regional_data.get("raw_data", {}).get("economic_profile", {}) or {}
+
+            regional_text = f"""## CONTEXTO REGIONAL: {regional_data.get('city', 'N/A')}/{regional_data.get('state', 'N/A')}
+
+### Indicadores Econômicos
+- **PIB Municipal:** R$ {pib.get('pib_total', 0)/1_000_000_000:.2f} bilhões
+- **PIB per capita:** R$ {pib.get('pib_per_capita', 0):,.2f}
+- **Ranking Nacional:** {pib.get('ranking_nacional', 'N/A')}º
+- **Setor Dominante:** {profile.get('main_sector', 'N/A')}
+
+### Desenvolvimento Humano
+- **IDHM:** {idhm.get('idhm_2010', 'N/A')} ({idhm.get('classificacao_2010', 'N/A')})
+
+### População
+- **Total:** {pop.get('populacao', 0):,} habitantes
+
+### Oportunidades Regionais
+{chr(10).join('- ' + o for o in regional_data.get('opportunities', []))}
+
+### Ameaças Regionais
+{chr(10).join('- ' + t for t in regional_data.get('threats', []))}
+"""
+
+        # Preparar notícias
+        news_text = ""
+        if news_data:
+            news_text = "## NOTÍCIAS E CENÁRIO DE MERCADO\n"
+            for i, news in enumerate(news_data[:8], 1):
+                news_text += f"[{i}] **{news.get('title', 'N/A')}**\n"
+                news_text += f"   {news.get('content', news.get('snippet', ''))[:200]}\n\n"
+
+        system = """Você é um CONSULTOR ESTRATÉGICO SÊNIOR especializado em análise SWOT e inteligência competitiva.
+
+Sua tarefa é criar uma análise SWOT PROFUNDA, QUANTIFICADA e ACIONÁVEL.
+
+METODOLOGIA OBRIGATÓRIA:
+
+1. **SCORING QUANTITATIVO** (1-5):
+   - Impacto: quanto afeta o negócio
+   - Probabilidade/Certeza: quão provável ou certo
+   - Urgência: quão rápido precisa ser tratado
+
+2. **MÚLTIPLAS DIMENSÕES**:
+   - Interna: recursos, capacidades, processos
+   - Externa: mercado, concorrência, economia, regulação
+   - Regional: contexto local, oportunidades geográficas
+   - Humana: equipe, talentos, cultura
+
+3. **FRAMEWORKS INTEGRADOS**:
+   - VRIO para recursos (Valor, Raridade, Imitabilidade, Organização)
+   - Porter para competição (5 Forças)
+   - PESTEL para macro ambiente
+
+4. **PRIORIZAÇÃO**:
+   - Score total = Impacto × Probabilidade × Urgência
+   - Ranqueie do mais crítico para menos
+
+5. **RECOMENDAÇÕES ACIONÁVEIS**:
+   - Cada ponto deve ter ação clara
+   - Defina responsável sugerido
+   - Indique horizonte temporal
+
+REGRAS CRÍTICAS:
+- Use TODOS os dados fornecidos
+- CITE fontes no formato [1], [2]
+- Seja ESPECÍFICO - nada genérico
+- Textos DENSOS, não bullet points superficiais
+- Mínimo 5 itens por quadrante SWOT
+- Responda em JSON válido"""
+
+        prompt = f"""Crie uma ANÁLISE SWOT COMPLETA E PROFUNDA para esta empresa.
+
+# DADOS DA EMPRESA
+- **Nome:** {company_data.get('nome_fantasia') or company_data.get('name')}
+- **Razão Social:** {company_data.get('razao_social', 'N/A')}
+- **CNPJ:** {company_data.get('cnpj', 'N/A')}
+- **Setor:** {company_data.get('industry', 'N/A')}
+- **Website:** {company_data.get('website', 'N/A')}
+
+# CONTEÚDO DO WEBSITE
+{company_data.get('website_content', 'N/A')[:8000]}
+
+# PESQUISA CONTEXTUAL
+{research_context[:6000]}
+
+{competitors_text}
+
+{employees_text}
+
+{regional_text}
+
+{news_text}
+
+# FONTES PARA CITAÇÃO
+{sources_list}
+
+---
+
+Responda em JSON com esta estrutura COMPLETA:
+
+{{
+    "executive_summary": "Resumo executivo em 2-3 parágrafos densos. Visão geral da posição estratégica, principais desafios e oportunidades. Cite fontes.",
+
+    "strengths": [
+        {{
+            "id": "S1",
+            "title": "Título do ponto forte",
+            "description": "Descrição detalhada em 2-3 sentenças. Por que é força? Evidências? Cite [fontes].",
+            "category": "recursos/capacidades/processos/mercado/equipe",
+            "vrio_analysis": {{
+                "valuable": true/false,
+                "rare": true/false,
+                "imitable": "fácil/difícil/muito_difícil",
+                "organized": true/false
+            }},
+            "impact_score": 1-5,
+            "certainty_score": 1-5,
+            "total_score": "impact × certainty",
+            "evidence": ["Evidência 1 [fonte]", "Evidência 2 [fonte]"],
+            "leverage_action": "Como explorar esta força"
+        }}
+    ],
+
+    "weaknesses": [
+        {{
+            "id": "W1",
+            "title": "Título da fraqueza",
+            "description": "Descrição detalhada. Por que é fraqueza? Impacto? Cite [fontes].",
+            "category": "recursos/capacidades/processos/mercado/equipe",
+            "impact_score": 1-5,
+            "urgency_score": 1-5,
+            "total_score": "impact × urgency",
+            "root_cause": "Causa raiz identificada",
+            "recommendation": "Recomendação de correção",
+            "effort_level": "baixo/médio/alto",
+            "responsible_area": "Área responsável sugerida"
+        }}
+    ],
+
+    "opportunities": [
+        {{
+            "id": "O1",
+            "title": "Título da oportunidade",
+            "description": "Descrição detalhada. Por que é oportunidade? Potencial? Cite [fontes].",
+            "category": "mercado/tecnologia/regulação/regional/tendências",
+            "source": "De onde vem: concorrentes/região/mercado/notícias",
+            "potential_score": 1-5,
+            "probability_score": 1-5,
+            "total_score": "potential × probability",
+            "timeframe": "curto/médio/longo prazo",
+            "required_resources": ["Recurso 1", "Recurso 2"],
+            "action_plan": "Plano de ação sugerido",
+            "quick_win": true/false
+        }}
+    ],
+
+    "threats": [
+        {{
+            "id": "T1",
+            "title": "Título da ameaça",
+            "description": "Descrição detalhada. Por que é ameaça? Impacto potencial? Cite [fontes].",
+            "category": "concorrência/mercado/economia/regulação/tecnologia/regional",
+            "source": "De onde vem a ameaça",
+            "impact_score": 1-5,
+            "probability_score": 1-5,
+            "total_score": "impact × probability",
+            "timeframe": "iminente/curto/médio/longo prazo",
+            "early_warning_signs": ["Sinal 1", "Sinal 2"],
+            "mitigation_strategy": "Estratégia de mitigação",
+            "contingency_plan": "Plano de contingência se ocorrer"
+        }}
+    ],
+
+    "strategic_matrix": {{
+        "so_strategies": [
+            "Estratégia SO (Força + Oportunidade): Como usar S1 para capturar O1"
+        ],
+        "wo_strategies": [
+            "Estratégia WO (Fraqueza + Oportunidade): Como superar W1 para capturar O1"
+        ],
+        "st_strategies": [
+            "Estratégia ST (Força + Ameaça): Como usar S1 para neutralizar T1"
+        ],
+        "wt_strategies": [
+            "Estratégia WT (Fraqueza + Ameaça): Como minimizar W1 para evitar T1"
+        ]
+    }},
+
+    "competitive_position": {{
+        "market_position": "líder/desafiante/seguidor/nicho",
+        "competitive_advantage": "Vantagem competitiva sustentável identificada",
+        "differentiation": "Como se diferencia dos concorrentes",
+        "vulnerability": "Principal vulnerabilidade competitiva"
+    }},
+
+    "regional_fit": {{
+        "alignment_score": 1-10,
+        "regional_advantages": ["Vantagem regional 1", "Vantagem regional 2"],
+        "regional_challenges": ["Desafio regional 1"],
+        "expansion_potential": "Análise de potencial de expansão na região"
+    }},
+
+    "team_assessment": {{
+        "strengths": ["Força da equipe 1"],
+        "gaps": ["Lacuna identificada 1"],
+        "recommendation": "Recomendação para equipe"
+    }},
+
+    "priority_actions": [
+        {{
+            "priority": 1,
+            "action": "Ação prioritária 1",
+            "rationale": "Por que é prioridade",
+            "related_swot": ["S1", "O2"],
+            "timeframe": "30/60/90 dias",
+            "expected_outcome": "Resultado esperado"
+        }}
+    ],
+
+    "risk_register": [
+        {{
+            "risk": "Risco identificado",
+            "probability": "alta/média/baixa",
+            "impact": "alto/médio/baixo",
+            "mitigation": "Ação de mitigação",
+            "owner": "Responsável sugerido"
+        }}
+    ],
+
+    "sources_used": ["Lista de fontes efetivamente citadas"],
+
+    "methodology_note": "Nota sobre a metodologia aplicada e limitações da análise",
+
+    "confidence_score": 0.0-1.0,
+
+    "next_steps": [
+        "Próximo passo recomendado 1",
+        "Próximo passo recomendado 2"
+    ]
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=10000)
+
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
             import re
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
