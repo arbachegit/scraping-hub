@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = body
 
     // Chamar API do backend Python
-    const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+    const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

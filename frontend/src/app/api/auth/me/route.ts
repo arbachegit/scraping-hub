@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Chamar API do backend Python
-    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+    const res = await fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: authHeader },
     })
 
