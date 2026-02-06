@@ -57,13 +57,12 @@ def hash_password(password: str) -> str:
 
 
 # In-memory user store
-# Password: admin123
 USERS_DB = {
-    "admin@iconsai.ai": {
+    "arbache@gmail.com": {
         "id": 1,
-        "email": "admin@iconsai.ai",
-        "password_hash": hash_password("admin123"),
-        "name": "Admin",
+        "email": "arbache@gmail.com",
+        "password_hash": hash_password("6GjCJKBXJXbells"),
+        "name": "Fernando Arbache",
         "role": "admin"
     }
 }
