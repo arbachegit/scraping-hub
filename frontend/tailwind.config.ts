@@ -15,6 +15,7 @@ const config: Config = {
         'logo-orange': '#F97316',
         // Fundos escuros recomendados
         'bg-dark': '#0a0e1a',
+        'bg-dark-secondary': '#0f1629',
         'bg-darker': '#0f1629',
         'bg-purple': '#1a1a2e',
       },
