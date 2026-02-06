@@ -27,9 +27,9 @@ class AIAnalyzer:
     """
 
     MODELS = {
-        "fast": "claude-3-haiku-20240307",
-        "balanced": "claude-3-haiku-20240307",  # Fallback to haiku if no access to sonnet
-        "powerful": "claude-3-haiku-20240307"   # Fallback to haiku if no access to opus
+        "fast": "claude-3-5-haiku-20241022",
+        "balanced": "claude-sonnet-4-20250514",
+        "powerful": "claude-sonnet-4-20250514"
     }
 
     def __init__(
@@ -39,9 +39,15 @@ class AIAnalyzer:
         timeout: float = 120.0
     ):
         self.api_key = api_key or settings.anthropic_api_key
-        self.model = self.MODELS.get(model, model)
+        # Usar modelo do settings se configurado, senão usar o mapeamento
+        if settings.anthropic_model:
+            self.model = settings.anthropic_model
+        else:
+            self.model = self.MODELS.get(model, model)
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+
+        logger.info("ai_analyzer_init", model=self.model)
 
         # Estatísticas
         self.stats = {

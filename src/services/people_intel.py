@@ -103,7 +103,12 @@ class PeopleIntelService:
             "role": role,
             "analysis_type": analysis_type,
             "status": "processing",
-            "sources_used": []
+            "sources_used": [],
+            "data_quality": {
+                "sources_ok": [],
+                "sources_failed": [],
+                "warnings": []
+            }
         }
 
         try:
@@ -152,16 +157,19 @@ class PeopleIntelService:
             task_names = list(tasks.keys())
             task_results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-            # Mapear resultados
+            # Mapear resultados com rastreamento de qualidade
             collected_data: Dict[str, Any] = {}
             for i, task_name in enumerate(task_names):
                 if isinstance(task_results[i], Exception):
                     logger.warning(f"people_intel_{task_name}_error", error=str(task_results[i]))
                     collected_data[task_name] = {}
+                    result["data_quality"]["sources_failed"].append(task_name)
+                    result["data_quality"]["warnings"].append(f"{task_name}: {str(task_results[i])[:100]}")
                 else:
                     collected_data[task_name] = task_results[i]
                     if task_results[i]:
                         result["sources_used"].append(task_name)
+                        result["data_quality"]["sources_ok"].append(task_name)
 
             # Guardar dados brutos para referência
             result["raw_data"] = collected_data
@@ -215,6 +223,19 @@ class PeopleIntelService:
                 result["recommendations"] = ai_analysis.get("recommendations", [])
 
             result["status"] = "completed"
+
+            # Resumo de qualidade dos dados
+            total_sources = len(result["data_quality"]["sources_ok"]) + len(result["data_quality"]["sources_failed"])
+            ok_count = len(result["data_quality"]["sources_ok"])
+            result["data_quality"]["completeness"] = f"{ok_count}/{total_sources} fontes"
+            result["data_quality"]["quality_score"] = round(ok_count / max(total_sources, 1), 2)
+
+            if result["data_quality"]["sources_failed"]:
+                logger.warning(
+                    "people_intel_incomplete",
+                    name=name,
+                    failed_sources=result["data_quality"]["sources_failed"]
+                )
 
             # Cache para uso posterior
             cache_key = f"person:{name}:{company or ''}"

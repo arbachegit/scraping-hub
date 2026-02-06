@@ -39,10 +39,17 @@ class RegionalIntelService:
 
     def __init__(self):
         self._client: Optional[httpx.AsyncClient] = None
+        self._supabase_client: Optional[httpx.AsyncClient] = None
 
         # Supabase fiscal database config
-        self.fiscal_supabase_url = settings.fiscal_supabase_url if hasattr(settings, 'fiscal_supabase_url') else None
-        self.fiscal_supabase_key = settings.fiscal_supabase_key if hasattr(settings, 'fiscal_supabase_key') else None
+        self.fiscal_supabase_url = getattr(settings, 'fiscal_supabase_url', None)
+        self.fiscal_supabase_key = getattr(settings, 'fiscal_supabase_key', None)
+
+        # Log status de conexão
+        if self.fiscal_supabase_url and self.fiscal_supabase_key:
+            logger.info("regional_intel_supabase_configured", url=self.fiscal_supabase_url[:30])
+        else:
+            logger.warning("regional_intel_supabase_not_configured")
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -54,6 +61,9 @@ class RegionalIntelService:
         if self._client:
             await self._client.aclose()
             self._client = None
+        if self._supabase_client:
+            await self._supabase_client.aclose()
+            self._supabase_client = None
 
     def extract_city_state(self, address: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
         """Extrai cidade e estado de um endereço"""
@@ -161,17 +171,154 @@ class RegionalIntelService:
 
         return context
 
+    @property
+    def supabase_client(self) -> Optional[httpx.AsyncClient]:
+        """Cliente para Supabase fiscal"""
+        if not self.fiscal_supabase_url or not self.fiscal_supabase_key:
+            return None
+
+        if self._supabase_client is None:
+            self._supabase_client = httpx.AsyncClient(
+                base_url=self.fiscal_supabase_url,
+                timeout=30.0,
+                headers={
+                    "apikey": self.fiscal_supabase_key,
+                    "Authorization": f"Bearer {self.fiscal_supabase_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+        return self._supabase_client
+
+    async def _query_supabase(self, table: str, filters: Dict[str, Any]) -> Optional[List[Dict]]:
+        """Executa query no Supabase fiscal"""
+        if not self.supabase_client:
+            logger.warning("supabase_fiscal_not_available")
+            return None
+
+        try:
+            # Construir query params
+            params = []
+            for key, value in filters.items():
+                params.append(f"{key}=eq.{value}")
+
+            query_string = "&".join(params) if params else ""
+            url = f"/rest/v1/{table}?{query_string}"
+
+            response = await self.supabase_client.get(url)
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning("supabase_query_error", table=table, status=response.status_code)
+                return None
+
+        except Exception as e:
+            logger.error("supabase_query_exception", table=table, error=str(e))
+            return None
+
     async def _get_pib_data(self, codigo_ibge: int) -> Dict[str, Any]:
-        """Busca dados de PIB via API"""
-        # Esta função será substituída por chamadas MCP no uso real
+        """Busca dados de PIB no Supabase fiscal"""
+        # Tentar Supabase fiscal primeiro
+        data = await self._query_supabase("pib_municipios", {"codigo_ibge": codigo_ibge})
+
+        if data and len(data) > 0:
+            row = data[0]
+            return {
+                "pib_total": row.get("pib_total") or row.get("pib"),
+                "pib_per_capita": row.get("pib_per_capita"),
+                "pib_servicos": row.get("pib_servicos") or row.get("valor_adicionado_servicos"),
+                "pib_industria": row.get("pib_industria") or row.get("valor_adicionado_industria"),
+                "pib_agropecuaria": row.get("pib_agropecuaria") or row.get("valor_adicionado_agropecuaria"),
+                "ano": row.get("ano"),
+                "ranking_nacional": row.get("ranking_brasil") or row.get("ranking_nacional"),
+                "ranking_estadual": row.get("ranking_uf") or row.get("ranking_estadual"),
+                "source": "supabase_fiscal"
+            }
+
+        # Fallback: tentar tabela alternativa
+        data = await self._query_supabase("indicadores_municipais", {"codigo_ibge": codigo_ibge})
+        if data and len(data) > 0:
+            row = data[0]
+            return {
+                "pib_total": row.get("pib"),
+                "pib_per_capita": row.get("pib_per_capita"),
+                "source": "supabase_indicadores"
+            }
+
         return {}
 
     async def _get_idhm_data(self, codigo_ibge: int) -> Dict[str, Any]:
-        """Busca dados de IDHM"""
+        """Busca dados de IDHM no Supabase fiscal"""
+        # Tentar Supabase fiscal
+        data = await self._query_supabase("idhm_municipios", {"codigo_ibge": codigo_ibge})
+
+        if data and len(data) > 0:
+            row = data[0]
+            idhm = row.get("idhm") or row.get("idhm_2010")
+
+            # Classificar IDHM
+            classificacao = "Não classificado"
+            if idhm:
+                if idhm >= 0.8:
+                    classificacao = "Muito Alto"
+                elif idhm >= 0.7:
+                    classificacao = "Alto"
+                elif idhm >= 0.6:
+                    classificacao = "Médio"
+                elif idhm >= 0.5:
+                    classificacao = "Baixo"
+                else:
+                    classificacao = "Muito Baixo"
+
+            return {
+                "idhm_2010": idhm,
+                "idhm_educacao": row.get("idhm_educacao") or row.get("idhm_e"),
+                "idhm_longevidade": row.get("idhm_longevidade") or row.get("idhm_l"),
+                "idhm_renda": row.get("idhm_renda") or row.get("idhm_r"),
+                "classificacao_2010": classificacao,
+                "ranking_nacional": row.get("ranking_brasil"),
+                "ranking_estadual": row.get("ranking_uf"),
+                "source": "supabase_fiscal"
+            }
+
+        # Fallback: tabela alternativa
+        data = await self._query_supabase("indicadores_municipais", {"codigo_ibge": codigo_ibge})
+        if data and len(data) > 0:
+            row = data[0]
+            idhm = row.get("idhm")
+            return {
+                "idhm_2010": idhm,
+                "source": "supabase_indicadores"
+            }
+
         return {}
 
     async def _get_population_data(self, codigo_ibge: int) -> Dict[str, Any]:
-        """Busca dados populacionais"""
+        """Busca dados populacionais no Supabase fiscal"""
+        # Tentar Supabase fiscal
+        data = await self._query_supabase("populacao_municipios", {"codigo_ibge": codigo_ibge})
+
+        if data and len(data) > 0:
+            row = data[0]
+            return {
+                "populacao": row.get("populacao") or row.get("populacao_estimada"),
+                "populacao_urbana": row.get("populacao_urbana"),
+                "populacao_rural": row.get("populacao_rural"),
+                "densidade_demografica": row.get("densidade_demografica"),
+                "area_km2": row.get("area_km2") or row.get("area"),
+                "ano": row.get("ano"),
+                "source": "supabase_fiscal"
+            }
+
+        # Fallback: tabela alternativa
+        data = await self._query_supabase("indicadores_municipais", {"codigo_ibge": codigo_ibge})
+        if data and len(data) > 0:
+            row = data[0]
+            return {
+                "populacao": row.get("populacao"),
+                "source": "supabase_indicadores"
+            }
+
         return {}
 
     def _analyze_economic_profile(self, context: Dict) -> Dict[str, Any]:

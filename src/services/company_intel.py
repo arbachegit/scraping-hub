@@ -111,7 +111,12 @@ class CompanyIntelService:
         result = {
             "company_name": name,
             "analysis_type": analysis_type,
-            "status": "processing"
+            "status": "processing",
+            "data_quality": {
+                "sources_ok": [],
+                "sources_failed": [],
+                "warnings": []
+            }
         }
 
         try:
@@ -135,11 +140,21 @@ class CompanyIntelService:
                 return_exceptions=True
             )
 
-            # Extrair CNPJ e website
+            # Extrair CNPJ e website com rastreamento de qualidade
             if not cnpj and not isinstance(initial_results[0], Exception):
                 cnpj = initial_results[0]
+                result["data_quality"]["sources_ok"].append("serper_cnpj")
+            elif isinstance(initial_results[0], Exception):
+                result["data_quality"]["sources_failed"].append("serper_cnpj")
+                result["data_quality"]["warnings"].append(f"Falha ao buscar CNPJ: {str(initial_results[0])[:100]}")
 
-            search_data = initial_results[1] if not isinstance(initial_results[1], Exception) else {}
+            if not isinstance(initial_results[1], Exception):
+                search_data = initial_results[1]
+                result["data_quality"]["sources_ok"].append("serper_search")
+            else:
+                search_data = {}
+                result["data_quality"]["sources_failed"].append("serper_search")
+                result["data_quality"]["warnings"].append(f"Falha na busca Google: {str(initial_results[1])[:100]}")
             website_url = search_data.get("website")
 
             # 3. Segunda rodada: coletar dados detalhados + funcionários
@@ -159,14 +174,17 @@ class CompanyIntelService:
                 return_exceptions=True
             )
 
-            # Mapear resultados
+            # Mapear resultados com rastreamento de qualidade
             task_keys = list(detail_tasks.keys())
             for i, key in enumerate(task_keys):
                 if isinstance(detail_results[i], Exception):
                     logger.warning(f"company_intel_{key}_error", error=str(detail_results[i]))
                     result[key] = {}
+                    result["data_quality"]["sources_failed"].append(key)
+                    result["data_quality"]["warnings"].append(f"{key}: {str(detail_results[i])[:100]}")
                 else:
                     result[key] = detail_results[i]
+                    result["data_quality"]["sources_ok"].append(key)
 
             result["search_data"] = search_data
             result["cnpj"] = cnpj
@@ -228,6 +246,19 @@ class CompanyIntelService:
             result["status"] = "completed"
             result["confidence_score"] = self._calculate_confidence(result)
             result["sources_used"] = sources
+
+            # Resumo de qualidade dos dados
+            total_sources = len(result["data_quality"]["sources_ok"]) + len(result["data_quality"]["sources_failed"])
+            ok_count = len(result["data_quality"]["sources_ok"])
+            result["data_quality"]["completeness"] = f"{ok_count}/{total_sources} fontes"
+            result["data_quality"]["quality_score"] = round(ok_count / max(total_sources, 1), 2)
+
+            if result["data_quality"]["sources_failed"]:
+                logger.warning(
+                    "company_intel_incomplete",
+                    company=name,
+                    failed_sources=result["data_quality"]["sources_failed"]
+                )
 
             # 10. Salvar no cache e DB
             cache_data = self._get_from_cache(name) or {}
