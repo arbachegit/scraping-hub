@@ -1658,6 +1658,925 @@ Responda em JSON:
 
         return round(input_cost + output_cost, 4)
 
+    # ===========================================
+    # 11 BLOCOS DE ANÁLISE DE EMPRESAS
+    # ===========================================
+
+    async def generate_block_empresa(
+        self,
+        company_name: str,
+        cnpj_data: Dict[str, Any],
+        website_content: str,
+        perplexity_context: str,
+        tavily_research: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 1: A Empresa
+        Dados cadastrais, história, mercado
+        """
+        logger.info("generate_block_empresa", company=company_name)
+
+        system = """Você é um redator executivo especializado em análises empresariais.
+
+MISSÃO: Escrever um texto EDITORIAL sobre a empresa - como se fosse um artigo de revista de negócios.
+
+REGRAS DE FORMATAÇÃO OBRIGATÓRIAS:
+1. Use Markdown com estrutura visual CLARA
+2. Cada seção deve ter um header ## bem definido
+3. Escreva em PARÁGRAFOS FLUIDOS - mínimo 3-4 linhas por parágrafo
+4. Use **negrito** para destacar informações importantes
+5. Use listas apenas quando fizer sentido (não para tudo)
+6. NUNCA inclua referências como [1], [2], [fonte], etc
+7. NUNCA inclua JSON, código ou formatação técnica
+8. NUNCA mencione "segundo pesquisas" ou "de acordo com fontes"
+9. Escreva como se você conhecesse a empresa pessoalmente
+10. Separe seções com linha em branco
+
+ESTRUTURA EXIGIDA:
+## Identificação
+## História e Trajetória
+## O Que Fazem
+## Mercado de Atuação
+## Diferenciais"""
+
+        prompt = f"""Escreva um texto editorial sobre "{company_name}".
+
+DADOS PARA USAR (não cite como fonte, apenas absorva):
+
+Razão Social: {cnpj_data.get('razao_social', 'N/A')}
+Nome Fantasia: {cnpj_data.get('nome_fantasia', 'N/A')}
+CNPJ: {cnpj_data.get('cnpj', 'N/A')}
+Fundação: {cnpj_data.get('data_abertura', 'N/A')}
+Porte: {cnpj_data.get('porte', 'N/A')}
+Setor: {cnpj_data.get('cnae_principal', {}).get('descricao', 'N/A')}
+
+SOBRE A EMPRESA:
+{website_content[:5000]}
+
+CONTEXTO ADICIONAL:
+{perplexity_context[:3000]}
+
+{tavily_research[:1500] if tavily_research else ""}
+
+---
+
+Agora escreva o texto editorial em Markdown, seguindo a estrutura exigida. Seja específico, use dados reais, e escreva de forma fluida e profissional."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=3000)
+
+        # Limpar possíveis rastros de referências
+        content = self._clean_content(content)
+
+        return {
+            "title": "A Empresa",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.85
+        }
+
+    async def generate_block_pessoas(
+        self,
+        company_name: str,
+        employees: List[Dict[str, Any]],
+        website_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 2: Pessoas da Empresa
+        Colaboradores, executivos, estrutura
+        """
+        logger.info("generate_block_pessoas", company=company_name, employees_count=len(employees))
+
+        # Preparar lista de funcionários de forma limpa
+        employees_text = ""
+        if employees:
+            for emp in employees[:15]:
+                name = emp.get('name', '')
+                title = emp.get('title', '')
+                seniority = emp.get('seniority', '')
+                if name and title:
+                    employees_text += f"- {name}: {title}"
+                    if seniority:
+                        employees_text += f" ({seniority})"
+                    employees_text += "\n"
+
+        system = """Você é um redator de perfis corporativos.
+
+MISSÃO: Descrever as pessoas da empresa de forma clara e organizada.
+
+REGRAS OBRIGATÓRIAS:
+1. Escreva em Markdown com seções ## claras
+2. Parágrafos de 3-4 linhas, fluidos e bem escritos
+3. NUNCA use referências [1], [2] ou similares
+4. NUNCA mencione "LinkedIn", "Apollo" ou fontes
+5. Apresente as pessoas de forma natural, como em um artigo
+6. Use **negrito** para nomes e cargos importantes
+7. Organize por hierarquia: liderança primeiro
+
+ESTRUTURA:
+## Liderança
+## Áreas e Equipes
+## Perfil do Time"""
+
+        prompt = f"""Descreva as pessoas de "{company_name}".
+
+PESSOAS IDENTIFICADAS:
+{employees_text if employees_text else "Informações limitadas sobre a equipe."}
+
+CONTEXTO DA EMPRESA:
+{website_content[:2500]}
+
+---
+
+Escreva sobre as pessoas da empresa. Seja específico com nomes e cargos quando disponíveis."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2500)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Pessoas da Empresa",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.80 if employees else 0.40
+        }
+
+    async def generate_block_formacao(
+        self,
+        company_name: str,
+        employees: List[Dict[str, Any]],
+        perplexity_context: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 3: Formação das Pessoas
+        Background educacional do time
+        """
+        logger.info("generate_block_formacao", company=company_name)
+
+        employees_text = ""
+        if employees:
+            for emp in employees[:15]:
+                name = emp.get('name', '')
+                title = emp.get('title', '')
+                if name and title:
+                    employees_text += f"- {name}: {title}\n"
+
+        system = """Você é um analista de capital humano.
+
+MISSÃO: Analisar o perfil de formação e qualificação da equipe.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Parágrafos fluidos de 3-4 linhas
+3. NUNCA use [1], [2] ou referências
+4. Infira formação com base nos cargos e setor
+5. Seja específico sobre áreas de conhecimento
+6. Use **negrito** para destaques
+
+ESTRUTURA:
+## Perfil Educacional
+## Especializações do Time
+## Competências Técnicas
+## Observações"""
+
+        prompt = f"""Analise a formação da equipe de "{company_name}".
+
+CARGOS IDENTIFICADOS:
+{employees_text if employees_text else "Informações limitadas."}
+
+SOBRE A EMPRESA:
+{perplexity_context[:2500]}
+
+---
+
+Infira e descreva o perfil de formação típico desta equipe."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Formação das Pessoas",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.65
+        }
+
+    async def generate_block_ativo_humano(
+        self,
+        company_name: str,
+        pessoas_content: str,
+        formacao_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 4: Ativo Humano
+        Competências agregadas (baseado em blocos 2+3)
+        """
+        logger.info("generate_block_ativo_humano", company=company_name)
+
+        system = """Você é um consultor de capital humano.
+
+MISSÃO: Sintetizar as competências COLETIVAS do time.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Parágrafos fluidos, bem escritos
+3. NUNCA use [1], [2] ou referências
+4. Foque em competências do GRUPO, não individuais
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Competências Técnicas do Time
+## Competências Comportamentais
+## Pontos Fortes Coletivos
+## Lacunas Identificadas"""
+
+        prompt = f"""Analise o ativo humano de "{company_name}".
+
+PESSOAS:
+{pessoas_content[:2500]}
+
+FORMAÇÃO:
+{formacao_content[:2500]}
+
+---
+
+Sintetize as competências coletivas deste time."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Ativo Humano",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.70
+        }
+
+    async def generate_block_capacidade(
+        self,
+        company_name: str,
+        ativo_humano_content: str,
+        empresa_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 5: Capacidade do Ativo
+        O que conseguem entregar (baseado em bloco 4)
+        """
+        logger.info("generate_block_capacidade", company=company_name)
+
+        system = """Você é um consultor de operações.
+
+MISSÃO: Definir o que esta empresa CONSEGUE ENTREGAR.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Parágrafos fluidos
+3. NUNCA use [1], [2] ou referências
+4. Seja específico sobre entregas possíveis
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## O Que Conseguem Entregar
+## Tipos de Projetos Viáveis
+## Capacidade de Escala
+## Limitações"""
+
+        prompt = f"""O que "{company_name}" consegue entregar?
+
+COMPETÊNCIAS DO TIME:
+{ativo_humano_content[:2500]}
+
+SOBRE A EMPRESA:
+{empresa_content[:2500]}
+
+---
+
+Descreva a capacidade de entrega desta empresa."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Capacidade do Ativo",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.70
+        }
+
+    async def generate_block_comunicacao(
+        self,
+        company_name: str,
+        website_content: str,
+        perplexity_context: str,
+        empresa_content: str,
+        capacidade_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 6: Comunicação vs Características
+        Alinhamento entre mensagem e realidade
+        """
+        logger.info("generate_block_comunicacao", company=company_name)
+
+        system = """Você é um especialista em branding e comunicação.
+
+MISSÃO: Comparar o que a empresa DIZ vs o que ela É.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Parágrafos fluidos
+3. NUNCA use [1], [2] ou referências
+4. Compare promessa vs realidade
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## O Que Comunicam
+## O Que Realmente São
+## Alinhamentos
+## Desalinhamentos
+## Clareza da Proposta"""
+
+        prompt = f"""Compare comunicação vs realidade de "{company_name}".
+
+COMUNICAÇÃO (SITE):
+{website_content[:3000]}
+
+REALIDADE:
+{empresa_content[:2000]}
+
+CAPACIDADES:
+{capacidade_content[:1500]}
+
+---
+
+Analise o alinhamento entre mensagem e realidade."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2500)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Comunicação vs Características",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.75
+        }
+
+    async def generate_block_fraquezas_comunicacao(
+        self,
+        company_name: str,
+        comunicacao_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 7: Fraquezas na Comunicação
+        Gaps identificados (baseado em bloco 6)
+        """
+        logger.info("generate_block_fraquezas", company=company_name)
+
+        system = """Você é um consultor de comunicação.
+
+MISSÃO: Identificar FRAQUEZAS na comunicação da empresa.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Parágrafos fluidos
+3. NUNCA use [1], [2] ou referências
+4. Seja construtivo, ofereça soluções
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Gaps Principais
+## Mensagens Confusas
+## Oportunidades Perdidas
+## Recomendações"""
+
+        prompt = f"""Identifique fraquezas na comunicação de "{company_name}".
+
+ANÁLISE ANTERIOR:
+{comunicacao_content[:3000]}
+
+---
+
+Liste os gaps e proponha melhorias."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Fraquezas na Comunicação",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.75
+        }
+
+    async def generate_block_visao_leigo(
+        self,
+        company_name: str,
+        all_blocks_content: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 8: Visão do Leigo
+        Como o público geral entende a empresa
+        """
+        logger.info("generate_block_visao_leigo", company=company_name)
+
+        system = """Você é uma PESSOA COMUM, sem conhecimento técnico.
+
+MISSÃO: Explicar como um leigo entende esta empresa.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Linguagem SIMPLES, sem jargões
+3. NUNCA use [1], [2] ou referências
+4. Seja honesto sobre confusões
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Primeira Impressão
+## O Que Parece Que Fazem
+## O Que É Confuso
+## Geraria Confiança?"""
+
+        prompt = f"""Como um LEIGO entenderia "{company_name}"?
+
+SOBRE A EMPRESA:
+{all_blocks_content[:5000]}
+
+---
+
+Escreva como uma pessoa comum entenderia esta empresa."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Visão do Leigo",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.80
+        }
+
+    async def generate_block_visao_profissional(
+        self,
+        company_name: str,
+        all_blocks_content: str,
+        perplexity_context: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 9: Visão do Profissional
+        Como especialista do setor avalia
+        """
+        logger.info("generate_block_visao_profissional", company=company_name)
+
+        system = """Você é um ESPECIALISTA do setor desta empresa.
+
+MISSÃO: Avaliar com olhar técnico e crítico.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Linguagem técnica mas acessível
+3. NUNCA use [1], [2] ou referências
+4. Compare com padrões do mercado
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Avaliação Técnica
+## Nível de Sofisticação
+## Diferenciais Técnicos
+## Pontos de Atenção"""
+
+        prompt = f"""Como um PROFISSIONAL DO SETOR avaliaria "{company_name}"?
+
+SOBRE A EMPRESA:
+{all_blocks_content[:4000]}
+
+MERCADO:
+{perplexity_context[:2000]}
+
+---
+
+Faça uma avaliação técnica desta empresa."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2500)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Visão do Profissional",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.80
+        }
+
+    async def generate_block_visao_concorrente(
+        self,
+        company_name: str,
+        all_blocks_content: str,
+        perplexity_context: str,
+        news_data: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 10: Visão do Concorrente
+        Como um rival enxerga a empresa
+        """
+        logger.info("generate_block_visao_concorrente", company=company_name)
+
+        news_text = ""
+        if news_data:
+            for n in news_data[:5]:
+                title = n.get('title', '')
+                if title:
+                    news_text += f"- {title}\n"
+
+        system = """Você é um CONCORRENTE DIRETO desta empresa.
+
+MISSÃO: Analisar como um rival faria - para competir.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Pense estrategicamente
+3. NUNCA use [1], [2] ou referências
+4. Identifique forças e fraquezas
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Pontos Fortes a Temer
+## Vulnerabilidades a Explorar
+## Estratégia Aparente
+## Como Competir"""
+
+        prompt = f"""Como um CONCORRENTE veria "{company_name}"?
+
+SOBRE A EMPRESA:
+{all_blocks_content[:4000]}
+
+MERCADO:
+{perplexity_context[:1500]}
+
+NOTÍCIAS:
+{news_text if news_text else "Sem notícias recentes."}
+
+---
+
+Analise como um concorrente direto analisaria esta empresa."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2500)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Visão do Concorrente",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.75
+        }
+
+    async def generate_block_visao_fornecedor(
+        self,
+        company_name: str,
+        all_blocks_content: str,
+        cnpj_data: Dict[str, Any],
+        perplexity_context: str
+    ) -> Dict[str, Any]:
+        """
+        BLOCO 11: Visão do Fornecedor
+        Como parceiros avaliam a empresa
+        """
+        logger.info("generate_block_visao_fornecedor", company=company_name)
+
+        porte = cnpj_data.get('porte', 'N/A')
+        capital = cnpj_data.get('capital_social', 'N/A')
+        situacao = cnpj_data.get('situacao_cadastral', 'N/A')
+
+        system = """Você é um FORNECEDOR avaliando esta empresa como cliente.
+
+MISSÃO: Analisar como potencial parceiro de negócios.
+
+REGRAS OBRIGATÓRIAS:
+1. Markdown com seções ## claras
+2. Pense comercialmente
+3. NUNCA use [1], [2] ou referências
+4. Avalie potencial e riscos
+5. Use **negrito** para destaques
+
+ESTRUTURA:
+## Potencial como Cliente
+## Necessidades de Fornecimento
+## Avaliação de Confiabilidade
+## Recomendações de Abordagem"""
+
+        prompt = f"""Como um FORNECEDOR avaliaria "{company_name}"?
+
+SOBRE A EMPRESA:
+{all_blocks_content[:3500]}
+
+DADOS FINANCEIROS:
+Porte: {porte}
+Capital: {capital}
+Situação: {situacao}
+
+CONTEXTO:
+{perplexity_context[:1500]}
+
+---
+
+Analise esta empresa como potencial cliente."""
+
+        content = await self._call_claude(prompt, system=system, max_tokens=2000)
+        content = self._clean_content(content)
+
+        return {
+            "title": "Visão do Fornecedor",
+            "content": content,
+            "highlights": self._extract_highlights(content),
+            "confidence": 0.70
+        }
+
+    # ===========================================
+    # SÍNTESE FINAL
+    # ===========================================
+
+    async def generate_hypothesis_and_okrs(
+        self,
+        company_name: str,
+        all_blocks_content: str
+    ) -> Dict[str, Any]:
+        """
+        Gera Hipótese de Objetivo e OKRs sugeridos
+        """
+        logger.info("generate_hypothesis_okrs", company=company_name)
+
+        system = """Você é um consultor estratégico.
+
+MISSÃO: Inferir o objetivo da empresa e sugerir OKRs.
+
+REGRAS:
+1. Hipótese baseada em evidências concretas
+2. OKRs específicos e mensuráveis
+3. Retorne APENAS JSON válido, nada mais
+4. Não inclua explicações fora do JSON"""
+
+        prompt = f"""Analise "{company_name}":
+
+{all_blocks_content[:6000]}
+
+---
+
+Retorne APENAS este JSON (sem texto adicional):
+{{
+    "hypothesis": {{
+        "inferred": "Uma frase clara sobre o objetivo da empresa",
+        "evidence": ["Evidência concreta 1", "Evidência concreta 2", "Evidência concreta 3"]
+    }},
+    "okrs": {{
+        "objectives": [
+            {{
+                "objective": "Objetivo estratégico claro",
+                "key_results": ["KR mensurável 1", "KR mensurável 2", "KR mensurável 3"]
+            }}
+        ]
+    }}
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=1500)
+
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            return {
+                "hypothesis": {
+                    "inferred": "Objetivo não identificado claramente",
+                    "evidence": []
+                },
+                "okrs": {"objectives": []}
+            }
+
+    async def analyze_competitor_with_stamp(
+        self,
+        main_company: str,
+        competitor_name: str,
+        competitor_info: Dict[str, Any],
+        main_company_context: str
+    ) -> Dict[str, Any]:
+        """
+        Analisa concorrente e atribui Stamp (Forte/Médio/Fraco)
+        """
+        logger.info("analyze_competitor_stamp", competitor=competitor_name)
+
+        website = competitor_info.get('website', '')
+        description = competitor_info.get('description', '')
+        industry = competitor_info.get('industry', '')
+
+        system = """Você é um analista competitivo.
+
+MISSÃO: Classificar este concorrente como Forte, Medio ou Fraco.
+
+CRITÉRIOS:
+- Forte = ameaça significativa, empresa consolidada
+- Medio = competidor relevante, alguns diferenciais
+- Fraco = menor ameaça, limitações evidentes
+
+REGRAS:
+1. Retorne APENAS JSON válido
+2. Descrição em 2-3 frases, sem referências
+3. Justificativa clara e direta"""
+
+        prompt = f"""Classifique "{competitor_name}" vs "{main_company}":
+
+CONCORRENTE:
+Nome: {competitor_name}
+Site: {website}
+Descrição: {description}
+Setor: {industry}
+
+EMPRESA ANALISADA:
+{main_company_context[:1500]}
+
+---
+
+Retorne APENAS este JSON:
+{{
+    "name": "{competitor_name}",
+    "description": "O que este concorrente faz (2-3 frases claras)",
+    "stamp": "Forte ou Medio ou Fraco",
+    "justification": "Por que esta classificação"
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=600)
+
+        try:
+            result = json.loads(response)
+            stamp = result.get("stamp", "Medio")
+            if stamp == "Forte":
+                result["stamp_color"] = "green"
+            elif stamp == "Fraco":
+                result["stamp_color"] = "red"
+            else:
+                result["stamp_color"] = "yellow"
+                result["stamp"] = "Medio"
+            return result
+        except json.JSONDecodeError:
+            return {
+                "name": competitor_name,
+                "description": description if description else "Concorrente identificado no mercado.",
+                "stamp": "Medio",
+                "stamp_color": "yellow",
+                "justification": "Avaliação com dados limitados"
+            }
+
+    async def generate_swot_contemporaneo(
+        self,
+        company_name: str,
+        all_blocks_content: str,
+        raw_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Gera SWOT Contemporâneo com scoring e TOWS
+        """
+        logger.info("generate_swot_contemporaneo", company=company_name)
+
+        system = """Você é um estrategista de negócios.
+
+MISSÃO: Criar análise SWOT com scoring.
+
+REGRAS:
+1. Retorne APENAS JSON válido
+2. Score de 1 a 5 (5 = mais impactante)
+3. Cada item deve ser uma frase CURTA e CLARA
+4. Mínimo 3, máximo 5 itens por quadrante
+5. Estratégias TOWS devem ser acionáveis
+6. NÃO inclua referências [1], [2] nos textos"""
+
+        prompt = f"""SWOT para "{company_name}":
+
+{all_blocks_content[:8000]}
+
+---
+
+Retorne APENAS este JSON (sem texto adicional):
+{{
+    "strengths": [
+        {{"point": "Força clara e específica", "score": 4}},
+        {{"point": "Outra força", "score": 3}}
+    ],
+    "weaknesses": [
+        {{"point": "Fraqueza clara e específica", "score": 3}},
+        {{"point": "Outra fraqueza", "score": 2}}
+    ],
+    "opportunities": [
+        {{"point": "Oportunidade clara e específica", "score": 4}},
+        {{"point": "Outra oportunidade", "score": 3}}
+    ],
+    "threats": [
+        {{"point": "Ameaça clara e específica", "score": 3}},
+        {{"point": "Outra ameaça", "score": 2}}
+    ],
+    "tows_strategies": {{
+        "so": ["Estratégia ofensiva: usar força X para capturar oportunidade Y"],
+        "wo": ["Estratégia de reorientação: superar fraqueza X via oportunidade Y"],
+        "st": ["Estratégia defensiva: usar força X contra ameaça Y"],
+        "wt": ["Estratégia de sobrevivência: minimizar fraqueza X e evitar ameaça Y"]
+    }}
+}}"""
+
+        response = await self._call_claude(prompt, system=system, max_tokens=3000)
+
+        try:
+            result = json.loads(response)
+            # Garantir estrutura correta
+            for key in ["strengths", "weaknesses", "opportunities", "threats"]:
+                if key not in result:
+                    result[key] = []
+                for item in result[key]:
+                    if "source_blocks" not in item:
+                        item["source_blocks"] = []
+            if "tows_strategies" not in result:
+                result["tows_strategies"] = {"so": [], "wo": [], "st": [], "wt": []}
+            return result
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                    for key in ["strengths", "weaknesses", "opportunities", "threats"]:
+                        if key not in result:
+                            result[key] = []
+                    if "tows_strategies" not in result:
+                        result["tows_strategies"] = {"so": [], "wo": [], "st": [], "wt": []}
+                    return result
+                except json.JSONDecodeError:
+                    pass
+            return {
+                "strengths": [{"point": "Análise SWOT não disponível", "score": 1}],
+                "weaknesses": [],
+                "opportunities": [],
+                "threats": [],
+                "tows_strategies": {"so": [], "wo": [], "st": [], "wt": []}
+            }
+
+    def _clean_content(self, content: str) -> str:
+        """Remove rastros de referências, JSON e formatação indesejada"""
+        import re
+
+        # Remover referências no formato [1], [2], [fonte], [n], etc
+        content = re.sub(r'\[\d+\]', '', content)
+        content = re.sub(r'\[[\w\s]+\]', '', content)  # Remove qualquer [texto]
+
+        # Remover URLs soltas
+        content = re.sub(r'https?://\S+', '', content)
+        content = re.sub(r'www\.\S+', '', content)
+
+        # Remover menções a fontes
+        content = re.sub(r'segundo (fontes|pesquisas|dados|informações|o site|a empresa)', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'de acordo com (fontes|pesquisas|dados|o site)', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'conforme (fontes|pesquisas|dados|informações)', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'com base (em|nas) (fontes|pesquisas|dados)', '', content, flags=re.IGNORECASE)
+
+        # Remover menções a ferramentas
+        content = re.sub(r'\b(perplexity|tavily|apollo|linkedin|serper|brasilapi)\b', '', content, flags=re.IGNORECASE)
+
+        # Remover linhas que parecem JSON
+        content = re.sub(r'^\s*[\{\}\[\]].*$', '', content, flags=re.MULTILINE)
+        content = re.sub(r'^\s*"[^"]+"\s*:\s*', '', content, flags=re.MULTILINE)
+        content = re.sub(r'```json[\s\S]*?```', '', content)
+        content = re.sub(r'```[\s\S]*?```', '', content)
+
+        # Remover linhas com apenas pontuação ou símbolos
+        content = re.sub(r'^\s*[-=_*]+\s*$', '', content, flags=re.MULTILINE)
+
+        # Limpar espaços extras
+        content = re.sub(r'\n{3,}', '\n\n', content)
+        content = re.sub(r' {2,}', ' ', content)
+        content = re.sub(r'^\s+', '', content, flags=re.MULTILINE)
+
+        # Garantir que headers tenham espaço depois do ##
+        content = re.sub(r'^(#{1,3})([^\s#])', r'\1 \2', content, flags=re.MULTILINE)
+
+        return content.strip()
+
+    def _extract_highlights(self, content: str) -> List[str]:
+        """Extrai pontos-chave do conteúdo"""
+        import re
+
+        highlights = []
+
+        # Extrair itens em negrito
+        bold_items = re.findall(r'\*\*([^*]+)\*\*', content)
+        for item in bold_items[:3]:
+            if len(item) > 10 and len(item) < 100:
+                highlights.append(item)
+
+        # Se não encontrou, extrair primeiras sentenças
+        if not highlights:
+            sentences = content.split('. ')
+            for s in sentences[:3]:
+                if len(s) > 20 and len(s) < 150:
+                    highlights.append(s.strip())
+
+        return highlights[:5]
+
     async def __aenter__(self):
         return self
 

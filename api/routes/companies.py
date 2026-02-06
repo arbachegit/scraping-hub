@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.auth import TokenData, get_current_user
-from src.services import CompanyIntelService, CompetitorAnalysisService
+from src.services import CompanyAnalysisService, CompanyIntelService, CompetitorAnalysisService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v2/company", tags=["Companies"])
@@ -43,9 +43,46 @@ class OKRRequest(BaseModel):
     focus_areas: Optional[List[str]] = None
 
 
+class CompanyAnalyzeCompleteRequest(BaseModel):
+    name: str
+    cnpj: Optional[str] = None
+
+
 # ===========================================
 # ENDPOINTS
 # ===========================================
+
+@router.post("/analyze-complete")
+async def analyze_company_complete(
+    request: CompanyAnalyzeCompleteRequest,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Análise COMPLETA de empresa com 11 blocos temáticos
+
+    Retorna:
+    - 11 blocos de análise (empresa, pessoas, formação, etc.)
+    - Hipótese de objetivo vs OKR sugerido
+    - Concorrentes com stamps (Forte/Médio/Fraco)
+    - SWOT contemporâneo com scoring e TOWS
+    """
+    logger.info(
+        "api_company_analyze_complete",
+        user=current_user.email,
+        company=request.name
+    )
+
+    try:
+        async with CompanyAnalysisService() as service:
+            result = await service.analyze_complete(
+                name=request.name,
+                cnpj=request.cnpj
+            )
+            return result
+
+    except Exception as e:
+        logger.error("api_company_analyze_complete_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/analyze")
 async def analyze_company(
