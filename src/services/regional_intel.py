@@ -4,7 +4,6 @@ Inteligência regional usando dados fiscais e socioeconômicos brasileiros
 """
 
 import asyncio
-import re
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -187,7 +186,7 @@ class RegionalIntelService:
 
         pib = context.get("pib", {})
         idhm = context.get("idhm", {})
-        pop = context.get("populacao", {})
+        # populacao reserved for future use
 
         # Classificar tamanho econômico
         pib_total = pib.get("pib_total", 0) if pib else 0

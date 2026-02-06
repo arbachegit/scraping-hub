@@ -6,6 +6,7 @@ VERSÃO 2.0 - Análise profunda com integração completa de todas as fontes
 """
 
 import asyncio
+import contextlib
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -241,15 +242,13 @@ class PoliticianIntelService:
 
             # Salvar histórico de busca
             if self.search_history:
-                try:
+                with contextlib.suppress(Exception):
                     await self.search_history.save_search(
                         search_type="politician_analysis",
                         query={"name": name, "role": role, "state": state, "focus": focus},
                         results_count=1,
                         result_ids=[result.get("politician_id")]
                     )
-                except Exception:
-                    pass
 
         except Exception as e:
             logger.error("politician_intel_error", name=name, error=str(e))

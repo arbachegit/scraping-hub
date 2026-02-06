@@ -4,6 +4,7 @@ Monitoramento de notícias e cenário econômico
 """
 
 import asyncio
+import contextlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -161,26 +162,22 @@ class NewsMonitorService:
 
         # Salvar no banco de dados
         if self.search_history:
-            try:
+            with contextlib.suppress(Exception):
                 await self.search_history.save_search(
                     search_type="news_search",
                     query={"query": query, "days": days, "max_results": max_results},
                     results_count=len(final_news)
                 )
-            except Exception:
-                pass
 
         # Cache de resultado
         if self.cache_repository:
-            try:
+            with contextlib.suppress(Exception):
                 await self.cache_repository.cache_search(
                     search_type="news",
                     query=query,
                     result=result,
                     ttl_hours=2  # Notícias expiram em 2 horas
                 )
-            except Exception:
-                pass
 
         return result
 

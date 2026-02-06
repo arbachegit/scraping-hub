@@ -6,6 +6,7 @@ VERSÃO 2.0 - Análise profunda com integração completa de todas as fontes
 """
 
 import asyncio
+import contextlib
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -238,15 +239,13 @@ class PeopleIntelService:
 
             # Salvar histórico de busca
             if self.search_history:
-                try:
+                with contextlib.suppress(Exception):
                     await self.search_history.save_search(
                         search_type="person_analysis",
                         query={"name": name, "company": company, "role": role, "type": analysis_type},
                         results_count=1,
                         result_ids=[result.get("person_id")]
                     )
-                except Exception:
-                    pass
 
         except Exception as e:
             logger.error("people_intel_error", name=name, error=str(e))

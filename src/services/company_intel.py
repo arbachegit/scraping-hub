@@ -816,9 +816,7 @@ class CompanyIntelService:
         for key, weight in weights.items():
             data = result.get(key)
             if data and not isinstance(data, Exception):
-                if isinstance(data, dict) and not data.get("error"):
-                    score += weight
-                elif isinstance(data, list) and len(data) > 0:
+                if (isinstance(data, dict) and not data.get("error")) or (isinstance(data, list) and len(data) > 0):
                     score += weight
 
         return round(min(score, 1.0), 2)
@@ -996,7 +994,7 @@ class CompanyIntelService:
 
         if use_full_analysis and not cached.get("full_analysis"):
             # Fazer análise completa primeiro
-            full_result = await self.analyze_company(
+            await self.analyze_company(
                 name,
                 include_competitors=True,
                 include_employees=True
