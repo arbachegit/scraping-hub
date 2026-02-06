@@ -94,7 +94,7 @@ export default function AdminPage() {
         {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Card: Empresas */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/empresas" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-logo-red/10 rounded-lg">
                 <svg className="w-6 h-6 text-logo-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,16 +103,13 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Empresas</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Analise empresas, gere relatorios SWOT e inteligencia competitiva.
             </p>
-            <a href="/admin/empresas" className="text-logo-red text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
 
           {/* Card: Pessoas */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/pessoas" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-logo-orange/10 rounded-lg">
                 <svg className="w-6 h-6 text-logo-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,16 +118,13 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Pessoas</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Pesquise perfis profissionais e analise talentos do mercado.
             </p>
-            <a href="/admin/pessoas" className="text-logo-orange text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
 
           {/* Card: Politicos */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/politicos" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-blue-500/10 rounded-lg">
                 <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,16 +133,13 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Politicos</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Pesquise perfis de politicos e figuras publicas brasileiras.
             </p>
-            <a href="/admin/politicos" className="text-blue-400 text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
 
           {/* Card: Noticias */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/noticias" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-green-500/10 rounded-lg">
                 <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,16 +148,13 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Noticias</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Monitore noticias e tendencias do mercado brasileiro.
             </p>
-            <a href="/admin/noticias" className="text-green-400 text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
 
           {/* Card: Indicadores */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/indicadores" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-purple-500/10 rounded-lg">
                 <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,16 +163,13 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Indicadores</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Acompanhe indicadores fiscais e economicos regionais.
             </p>
-            <a href="/admin/indicadores" className="text-purple-400 text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
 
           {/* Card: Configuracoes */}
-          <div className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-logo-red/30 transition-colors">
+          <a href="/admin/config" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-logo-gray/10 rounded-lg">
                 <svg className="w-6 h-6 text-logo-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,13 +179,10 @@ export default function AdminPage() {
               </div>
               <h2 className="text-lg font-semibold text-logo-gray">Configuracoes</h2>
             </div>
-            <p className="text-logo-gray/60 text-sm mb-4">
+            <p className="text-logo-gray/60 text-sm">
               Gerencie usuarios, APIs e configuracoes do sistema.
             </p>
-            <a href="/admin/config" className="text-logo-gray text-sm font-medium hover:underline">
-              Acessar →
-            </a>
-          </div>
+          </a>
         </div>
       </main>
     </div>
