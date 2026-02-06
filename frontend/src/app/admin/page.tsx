@@ -22,7 +22,7 @@ export default function AdminPage() {
     }
 
     // Verificar token e obter usuario
-    fetch('/api/auth/me', {
+    fetch('/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
