@@ -21,6 +21,7 @@ interface SwotData {
   opportunities: SwotItem[]
   threats: SwotItem[]
   tows_strategies: TowsStrategies
+  error?: string
 }
 
 interface SwotMatrixProps {
