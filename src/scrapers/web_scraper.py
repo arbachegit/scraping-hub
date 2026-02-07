@@ -4,14 +4,25 @@ Scraping genérico de websites com suporte a JavaScript
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 import httpx
 import structlog
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 logger = structlog.get_logger()
+
+
+def _get_attr(tag: Tag, attr: str, default: str = "") -> str:
+    """Extrai atributo de tag BeautifulSoup de forma type-safe"""
+    value = tag.get(attr)
+    if value is None:
+        return default
+    if isinstance(value, list):
+        return " ".join(str(v) for v in value)
+    return str(value)
 
 
 class WebScraperClient:
@@ -132,8 +143,10 @@ class WebScraperClient:
 
         # Meta tags
         for meta in soup.find_all("meta"):
-            name = meta.get("name", "").lower() or meta.get("property", "").lower()
-            content = meta.get("content", "")
+            if not isinstance(meta, Tag):
+                continue
+            name = _get_attr(meta, "name").lower() or _get_attr(meta, "property").lower()
+            content = _get_attr(meta, "content")
 
             if name == "description":
                 metadata["description"] = content
@@ -152,18 +165,20 @@ class WebScraperClient:
 
         # Canonical URL
         canonical = soup.find("link", rel="canonical")
-        if canonical:
-            metadata["canonical_url"] = canonical.get("href")
+        if canonical and isinstance(canonical, Tag):
+            metadata["canonical_url"] = _get_attr(canonical, "href")
 
         # Favicon
-        favicon = soup.find("link", rel=lambda x: x and "icon" in x)
-        if favicon:
-            metadata["favicon"] = urljoin(url, favicon.get("href", ""))
+        favicon = soup.find("link", rel=lambda x: x and "icon" in str(x))
+        if favicon and isinstance(favicon, Tag):
+            href = _get_attr(favicon, "href")
+            if href:
+                metadata["favicon"] = urljoin(url, href)
 
         # Idioma
         html_tag = soup.find("html")
-        if html_tag:
-            metadata["language"] = html_tag.get("lang")
+        if html_tag and isinstance(html_tag, Tag):
+            metadata["language"] = _get_attr(html_tag, "lang")
 
         return metadata
 
@@ -222,7 +237,7 @@ class WebScraperClient:
             "word_count": len(text.split())
         }
 
-    def _extract_links(self, soup: BeautifulSoup, base_url: str) -> Dict[str, List[str]]:
+    def _extract_links(self, soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
         """Extrai links da página"""
         internal_links = set()
         external_links = set()
@@ -240,7 +255,9 @@ class WebScraperClient:
         }
 
         for a in soup.find_all("a", href=True):
-            href = a.get("href", "")
+            if not isinstance(a, Tag):
+                continue
+            href = _get_attr(a, "href")
 
             # Ignorar links vazios ou javascript
             if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
@@ -273,11 +290,12 @@ class WebScraperClient:
         structured_data = []
 
         # JSON-LD
+        import json
         for script in soup.find_all("script", type="application/ld+json"):
             try:
-                import json
-                data = json.loads(script.string)
-                structured_data.append(data)
+                if script.string:
+                    data = json.loads(script.string)
+                    structured_data.append(data)
             except (json.JSONDecodeError, TypeError):
                 pass
 

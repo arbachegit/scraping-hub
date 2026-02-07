@@ -121,7 +121,7 @@ class RegionalIntelService:
         """
         logger.info("regional_intel_context", city=city, state=state)
 
-        context = {
+        context: Dict[str, Any] = {
             "city": city,
             "state": state,
             "codigo_ibge": codigo_ibge,

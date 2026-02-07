@@ -31,7 +31,7 @@ class BaseScraper(ABC):
         self._client: Optional[httpx.AsyncClient] = None
 
         # Metricas
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "requests": 0,
             "success": 0,
             "errors": 0,

@@ -168,6 +168,21 @@ export default function AdminPage() {
             </p>
           </a>
 
+          {/* Card: Analytics */}
+          <a href="/admin/analytics" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-cyan-500/10 rounded-lg">
+                <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-logo-gray">Analytics</h2>
+            </div>
+            <p className="text-logo-gray/60 text-sm">
+              Visualize metricas de uso, qualidade de dados e performance do sistema.
+            </p>
+          </a>
+
           {/* Card: Configuracoes */}
           <a href="/admin/config" className="bg-bg-dark-secondary rounded-xl p-6 border border-white/5 hover:border-cyan-400 hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 cursor-pointer block">
             <div className="flex items-center gap-4 mb-4">
