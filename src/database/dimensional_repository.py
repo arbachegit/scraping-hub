@@ -636,7 +636,7 @@ class AnalyticsQueryRepository:
                 return []
 
             # Aggregate by hour
-            hourly = {h: 0 for h in range(24)}
+            hourly = dict.fromkeys(range(24), 0)
             for row in result.data:
                 hour = row["time_id"] // 100  # Extract hour from HHMM
                 if 0 <= hour < 24:

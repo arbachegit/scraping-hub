@@ -4,7 +4,7 @@ Scraping genérico de websites com suporte a JavaScript
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import httpx

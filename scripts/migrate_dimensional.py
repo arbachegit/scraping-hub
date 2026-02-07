@@ -4,8 +4,8 @@ Migrate Dimensional Schema - Executa o schema dimensional no Supabase
 """
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent
@@ -48,7 +48,7 @@ def copy_to_clipboard(text: str) -> bool:
         p = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
         p.communicate(text.encode('utf-8'))
         return p.returncode == 0
-    except:
+    except Exception:
         return False
 
 
@@ -82,7 +82,7 @@ def execute_sql(database_url: str, sql: str) -> bool:
         error_msg = str(e)
         # Se for erro de "já existe", tudo bem
         if "already exists" in error_msg:
-            print(f"Algumas tabelas ja existiam (OK)")
+            print("Algumas tabelas ja existiam (OK)")
             return True
         print(f"\nErro: {error_msg}")
         return False

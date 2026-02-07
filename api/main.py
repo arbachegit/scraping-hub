@@ -25,7 +25,13 @@ from .auth import (
     get_current_user,
     update_user,
 )
-from .routes import analytics_router, companies_router, news_router, people_router, politicians_router
+from .routes import (
+    analytics_router,
+    companies_router,
+    news_router,
+    people_router,
+    politicians_router,
+)
 
 logger = structlog.get_logger()
 

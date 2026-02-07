@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from src.database.dimensional_client import DimensionalClient, get_date_id, get_time_id
+from src.database.dimensional_client import DimensionalClient
 from src.database.dimensional_repository import (
     FactApiCallRepository,
     FactCompanyAnalysisRepository,

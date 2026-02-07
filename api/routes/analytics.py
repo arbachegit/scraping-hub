@@ -3,7 +3,7 @@ Analytics API Routes
 Endpoints para metricas e analytics do data warehouse
 """
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 import structlog
