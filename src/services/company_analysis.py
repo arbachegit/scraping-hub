@@ -236,7 +236,7 @@ class CompanyAnalysisService:
             self.apollo.get_company_employees(
                 organization_name=name,
                 domain=domain,
-                limit=50
+                per_page=50
             )
         )
         task_names.append("employees")
