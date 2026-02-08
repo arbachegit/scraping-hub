@@ -37,12 +37,16 @@ class EmpresaRepository:
             return None
 
         try:
+            # Usar nome_fantasia como razao_social se não tiver
+            nome_fantasia = data.get("nome_fantasia") or data.get("name")
+            razao_social = data.get("razao_social") or nome_fantasia
+
             record = {
                 "cnpj": self._clean_cnpj(data.get("cnpj")),
                 "cnae_principal": data.get("cnae_principal") or data.get("cnae"),
                 "cnae_descricao": data.get("cnae_descricao"),
-                "razao_social": data.get("razao_social"),
-                "nome_fantasia": data.get("nome_fantasia") or data.get("name"),
+                "razao_social": razao_social,
+                "nome_fantasia": nome_fantasia,
                 "logradouro": data.get("logradouro"),
                 "numero": data.get("numero"),
                 "complemento": data.get("complemento"),
@@ -62,6 +66,7 @@ class EmpresaRepository:
                 "capital_social": data.get("capital_social"),
                 "setor": data.get("setor") or data.get("industry"),
                 "qtd_funcionarios": data.get("qtd_funcionarios") or data.get("employee_count"),
+                "palavras_chave": json.dumps(data.get("palavras_chave", []), ensure_ascii=False),
                 "raw_cnpj_data": json.dumps(data.get("raw_cnpj_data", {}), default=str, ensure_ascii=False),
                 "raw_search_data": json.dumps(data.get("raw_search_data", {}), default=str, ensure_ascii=False),
                 "updated_at": datetime.utcnow().isoformat()
@@ -142,6 +147,22 @@ class EmpresaRepository:
             return None
         return "".join(c for c in cnpj if c.isdigit())
 
+    async def update_keywords(self, empresa_id: str, keywords: List[str]) -> bool:
+        """Atualiza palavras-chave da empresa"""
+        if not self._is_available():
+            return False
+
+        try:
+            result = self.client.table(self.TABLE_NAME).update({
+                "palavras_chave": json.dumps(keywords, ensure_ascii=False),
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", empresa_id).execute()
+
+            return bool(result.data)
+        except Exception as e:
+            logger.error("empresa_keywords_update_error", error=str(e))
+            return False
+
 
 class PessoaRepository:
     """
@@ -187,6 +208,7 @@ class PessoaRepository:
                 "departamento": data.get("departments") or data.get("departamento"),
                 "headline": data.get("headline"),
                 "skills": json.dumps(data.get("skills", []), ensure_ascii=False),
+                "fonte": data.get("fonte", "apollo"),  # apollo, perplexity, google
                 "raw_apollo_data": json.dumps(data.get("raw_apollo_data", data), default=str, ensure_ascii=False),
                 "updated_at": datetime.utcnow().isoformat()
             }

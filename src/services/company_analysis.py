@@ -325,25 +325,137 @@ class CompanyAnalysisService:
             else:
                 logger.warning(f"data_collection_{task_name}_error", error=str(detail_results[i]))
 
-        # Buscar executivos separadamente se necessário
-        if len(data["employees"]) < 5:
+        # ========================================
+        # FALLBACK PARA BUSCA DE PESSOAS
+        # Prioridade: Apollo → Perplexity → Google
+        # ========================================
+        data["employees_source"] = None
+
+        # 1. Tentar Apollo primeiro (já foi tentado acima)
+        if data["employees"]:
+            data["employees_source"] = "Apollo"
+            logger.info("employees_found", source="Apollo", count=len(data["employees"]))
+        else:
+            # 2. Fallback: buscar executivos no Apollo
             try:
                 executives = await self.apollo.get_executives(
                     organization_name=name,
                     domain=domain
                 )
-                existing_ids = {e.get("id") for e in data["employees"]}
-                for exec_data in executives.get("employees", []):
-                    if exec_data.get("id") not in existing_ids:
-                        data["employees"].append(exec_data)
+                if executives.get("employees"):
+                    data["employees"] = executives["employees"]
+                    data["employees_source"] = "Apollo (Executives)"
+                    data["sources"].append("Apollo (LinkedIn)")
+                    logger.info("employees_found", source="Apollo Executives", count=len(data["employees"]))
             except Exception as e:
-                logger.warning("executives_fetch_error", error=str(e))
+                logger.warning("apollo_executives_error", error=str(e))
+
+        # 3. Fallback: Perplexity se Apollo falhou
+        if not data["employees"]:
+            try:
+                logger.info("employees_fallback_perplexity", company=name)
+                people_result = await self.perplexity.search(
+                    f"Quem são os principais executivos, fundadores e líderes da empresa {name} Brasil? "
+                    f"Liste nomes, cargos e LinkedIn se disponível."
+                )
+                if people_result and people_result.get("answer"):
+                    extracted = self._extract_people_from_text(people_result["answer"], name)
+                    if extracted:
+                        data["employees"] = extracted
+                        data["employees_source"] = "Perplexity"
+                        logger.info("employees_found", source="Perplexity", count=len(extracted))
+            except Exception as e:
+                logger.warning("perplexity_people_error", error=str(e))
+
+        # 4. Fallback: Google/Serper se Perplexity falhou
+        if not data["employees"]:
+            try:
+                logger.info("employees_fallback_google", company=name)
+                google_result = await self.serper.search(
+                    f"{name} empresa executivos fundadores CEO diretores LinkedIn"
+                )
+                if google_result and google_result.get("organic"):
+                    extracted = self._extract_people_from_search(google_result["organic"], name)
+                    if extracted:
+                        data["employees"] = extracted
+                        data["employees_source"] = "Google"
+                        logger.info("employees_found", source="Google", count=len(extracted))
+            except Exception as e:
+                logger.warning("google_people_error", error=str(e))
+
+        if data["employees_source"]:
+            data["sources"].append(f"Pessoas ({data['employees_source']})")
 
         data["cnpj"] = cnpj
         data["name"] = name
         data["website_url"] = website_url
 
         return data
+
+    def _extract_people_from_text(self, text: str, company_name: str) -> List[Dict[str, Any]]:
+        """Extrai pessoas de texto do Perplexity"""
+        import re
+
+        people = []
+        # Padrões para encontrar pessoas
+        patterns = [
+            r"([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:,]\s*(CEO|CTO|CFO|COO|Fundador|Founder|Diretor|Director|Presidente|VP|Head|Sócio|Partner|Gerente|Manager)",
+            r"(CEO|CTO|CFO|COO|Fundador|Founder|Diretor|Director|Presidente):\s*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)",
+        ]
+
+        seen_names = set()
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                if len(match) >= 2:
+                    name = match[0].strip() if match[0][0].isupper() else match[1].strip()
+                    title = match[1].strip() if match[0][0].isupper() else match[0].strip()
+
+                    if name and name not in seen_names and len(name) > 5:
+                        seen_names.add(name)
+                        people.append({
+                            "name": name,
+                            "title": title,
+                            "organization_name": company_name,
+                            "fonte": "perplexity"
+                        })
+
+        return people[:20]
+
+    def _extract_people_from_search(self, results: List[Dict], company_name: str) -> List[Dict[str, Any]]:
+        """Extrai pessoas dos resultados de busca Google"""
+        import re
+
+        people = []
+        seen_names = set()
+
+        for result in results[:10]:
+            title = result.get("title", "")
+            link = result.get("link", "")
+
+            # Se é um perfil LinkedIn
+            if "linkedin.com/in/" in link:
+                # Extrair nome do título
+                name_match = re.match(r"^([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)", title)
+                if name_match:
+                    name = name_match.group(1)
+                    if name not in seen_names:
+                        seen_names.add(name)
+                        # Tentar extrair cargo
+                        cargo = ""
+                        cargo_match = re.search(r"[-–|]\s*([^|]+?)(?:\s*[-–|]|$)", title)
+                        if cargo_match:
+                            cargo = cargo_match.group(1).strip()
+
+                        people.append({
+                            "name": name,
+                            "title": cargo,
+                            "linkedin_url": link,
+                            "organization_name": company_name,
+                            "fonte": "google"
+                        })
+
+        return people[:15]
 
     # =========================================
     # FASE 2: BLOCOS 1-3 (PRIMÁRIOS)
@@ -817,6 +929,12 @@ class CompanyAnalysisService:
             persistence_result["palavras_chave"] = keywords_result.get("keywords", [])
             persistence_result["palavras_chave_por_bloco"] = keywords_result.get("keywords_by_block", {})
             persistence_result["search_queries"] = keywords_result.get("search_queries", [])
+
+            # 4.1 Atualizar palavras-chave na dimensão empresa
+            await self.empresa_repo.update_keywords(
+                empresa_id,
+                keywords_result.get("keywords", [])
+            )
 
             # 5. Salvar análise em fato_analises_empresa
             analise_data = {
