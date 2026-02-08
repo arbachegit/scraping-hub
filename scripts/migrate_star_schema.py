@@ -19,18 +19,18 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Adicionar o diretório raiz ao path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 try:
-    import psycopg2
+    import psycopg2  # noqa: E402
 except ImportError:
     print("Instalando psycopg2...")
     os.system(f"{sys.executable} -m pip install psycopg2-binary")
-    import psycopg2
-
-from dotenv import load_dotenv
+    import psycopg2  # noqa: E402
 
 
 def get_database_url() -> str:
