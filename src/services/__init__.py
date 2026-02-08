@@ -8,6 +8,7 @@ from .analytics_etl import AnalyticsETL, AnalyticsTracker, get_analytics_etl, ge
 from .company_analysis import CompanyAnalysisService
 from .company_intel import CompanyIntelService
 from .competitor_analysis import CompetitorAnalysisService
+from .keyword_extractor import KeywordExtractor
 from .news_monitor import NewsMonitorService
 from .people_intel import PeopleIntelService
 from .politician_intel import PoliticianIntelService
@@ -22,6 +23,7 @@ __all__ = [
     "CompanyAnalysisService",
     "CompanyIntelService",
     "CompetitorAnalysisService",
+    "KeywordExtractor",
     "NewsMonitorService",
     "PeopleIntelService",
     "PoliticianIntelService",

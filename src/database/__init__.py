@@ -20,6 +20,14 @@ from .repository import (
     SearchHistoryRepository,
     SearchRepository,
 )
+from .star_repository import (
+    AnaliseEmpresaRepository,
+    BuscaRepository,
+    ConcorrenteRepository,
+    EmpresaRepository,
+    EventoPessoaRepository,
+    PessoaRepository,
+)
 
 __all__ = [
     # Client
@@ -43,4 +51,11 @@ __all__ = [
     "PoliticianRepository",
     "SearchHistoryRepository",
     "SearchRepository",
+    # Star Schema repositories
+    "EmpresaRepository",
+    "PessoaRepository",
+    "AnaliseEmpresaRepository",
+    "EventoPessoaRepository",
+    "ConcorrenteRepository",
+    "BuscaRepository",
 ]

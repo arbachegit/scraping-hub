@@ -9,6 +9,14 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from src.database import (
+    AnaliseEmpresaRepository,
+    BuscaRepository,
+    ConcorrenteRepository,
+    EmpresaRepository,
+    EventoPessoaRepository,
+    PessoaRepository,
+)
 from src.scrapers import (
     ApolloClient,
     BrasilAPIClient,
@@ -19,6 +27,7 @@ from src.scrapers import (
 )
 
 from .ai_analyzer import AIAnalyzer
+from .keyword_extractor import KeywordExtractor
 
 logger = structlog.get_logger()
 
@@ -47,13 +56,25 @@ class CompanyAnalysisService:
     """
 
     def __init__(self):
+        # Scrapers
         self.brasil_api = BrasilAPIClient()
         self.serper = SerperClient()
         self.tavily = TavilyClient()
         self.perplexity = PerplexityClient()
         self.apollo = ApolloClient()
         self.web_scraper = WebScraperClient()
+
+        # AI Services
         self.ai_analyzer = AIAnalyzer()
+        self.keyword_extractor = KeywordExtractor()
+
+        # Repositories
+        self.empresa_repo = EmpresaRepository()
+        self.pessoa_repo = PessoaRepository()
+        self.analise_repo = AnaliseEmpresaRepository()
+        self.evento_repo = EventoPessoaRepository()
+        self.concorrente_repo = ConcorrenteRepository()
+        self.busca_repo = BuscaRepository()
 
         logger.info("company_analysis_service_init")
 
@@ -144,6 +165,26 @@ class CompanyAnalysisService:
             result["metadata"]["data_quality_score"] = self._calculate_quality_score(
                 raw_data, result["blocks"]
             )
+
+            # ===== FASE 7: PERSISTÊNCIA =====
+            logger.info("phase_7_persistence", company=name)
+            persistence_result = await self._persist_analysis(
+                name, cnpj, raw_data, result
+            )
+            result["metadata"]["empresa_id"] = persistence_result.get("empresa_id")
+            result["metadata"]["analise_id"] = persistence_result.get("analise_id")
+            result["palavras_chave"] = persistence_result.get("palavras_chave", [])
+            result["palavras_chave_por_bloco"] = persistence_result.get("palavras_chave_por_bloco", {})
+
+            # ===== FASE 8: BUSCA DE CONCORRENTES =====
+            if persistence_result.get("empresa_id"):
+                logger.info("phase_8_competitors", company=name)
+                await self._find_and_analyze_competitors(
+                    empresa_id=persistence_result["empresa_id"],
+                    company_name=name,
+                    keywords=persistence_result.get("palavras_chave", []),
+                    search_queries=persistence_result.get("search_queries", [])
+                )
 
             result["status"] = "completed"
             result["metadata"]["processing_time_seconds"] = (
@@ -690,6 +731,372 @@ class CompanyAnalysisService:
         from urllib.parse import urlparse
         parsed = urlparse(url if url.startswith("http") else f"https://{url}")
         return parsed.netloc or url
+
+    # =========================================
+    # FASE 7: PERSISTÊNCIA
+    # =========================================
+
+    async def _persist_analysis(
+        self,
+        name: str,
+        cnpj: Optional[str],
+        raw_data: Dict,
+        result: Dict
+    ) -> Dict[str, Any]:
+        """
+        Persiste empresa, pessoas e análise no banco de dados
+
+        Returns:
+            {
+                "empresa_id": "...",
+                "analise_id": "...",
+                "pessoas_salvas": 10,
+                "palavras_chave": [...],
+                "search_queries": [...]
+            }
+        """
+        persistence_result: Dict[str, Any] = {
+            "empresa_id": None,
+            "analise_id": None,
+            "pessoas_salvas": 0,
+            "palavras_chave": [],
+            "palavras_chave_por_bloco": {},
+            "search_queries": []
+        }
+
+        try:
+            # 1. Extrair fundadores dos dados
+            fundadores = self._extract_founders(raw_data)
+
+            # 2. Salvar empresa em dim_empresas
+            cnpj_data = raw_data.get("cnpj_data", {})
+            empresa_data = {
+                "cnpj": cnpj or cnpj_data.get("cnpj"),
+                "razao_social": cnpj_data.get("razao_social"),
+                "nome_fantasia": cnpj_data.get("nome_fantasia") or name,
+                "cnae_principal": cnpj_data.get("cnae_fiscal"),
+                "cnae_descricao": cnpj_data.get("cnae_fiscal_descricao"),
+                "logradouro": cnpj_data.get("logradouro"),
+                "numero": cnpj_data.get("numero"),
+                "complemento": cnpj_data.get("complemento"),
+                "bairro": cnpj_data.get("bairro"),
+                "cidade": cnpj_data.get("municipio"),
+                "estado": cnpj_data.get("uf"),
+                "cep": cnpj_data.get("cep"),
+                "fundadores": fundadores,
+                "website": raw_data.get("website_url"),
+                "telefone": cnpj_data.get("ddd_telefone_1"),
+                "email": cnpj_data.get("email"),
+                "porte": cnpj_data.get("porte"),
+                "natureza_juridica": cnpj_data.get("natureza_juridica"),
+                "situacao_cadastral": cnpj_data.get("descricao_situacao_cadastral"),
+                "data_abertura": cnpj_data.get("data_inicio_atividade"),
+                "capital_social": cnpj_data.get("capital_social"),
+                "setor": raw_data.get("search_data", {}).get("industry"),
+                "raw_cnpj_data": cnpj_data,
+                "raw_search_data": raw_data.get("search_data", {})
+            }
+
+            empresa_id = await self.empresa_repo.upsert(empresa_data)
+            persistence_result["empresa_id"] = empresa_id
+
+            if not empresa_id:
+                logger.warning("empresa_not_saved", name=name)
+                return persistence_result
+
+            # 3. Salvar pessoas em dim_pessoas
+            employees = raw_data.get("employees", [])
+            pessoas_salvas = await self._persist_employees(empresa_id, employees)
+            persistence_result["pessoas_salvas"] = pessoas_salvas
+
+            # 4. Extrair palavras-chave
+            keywords_result = await self.keyword_extractor.extract_from_analysis(
+                company_name=name,
+                blocks=result.get("blocks", {})
+            )
+            persistence_result["palavras_chave"] = keywords_result.get("keywords", [])
+            persistence_result["palavras_chave_por_bloco"] = keywords_result.get("keywords_by_block", {})
+            persistence_result["search_queries"] = keywords_result.get("search_queries", [])
+
+            # 5. Salvar análise em fato_analises_empresa
+            analise_data = {
+                **result,
+                "palavras_chave": keywords_result.get("keywords", []),
+                "palavras_chave_por_bloco": keywords_result.get("keywords_by_block", {}),
+                "raw_data": {
+                    "perplexity_research": raw_data.get("perplexity_research", {}),
+                    "tavily_research": raw_data.get("tavily_research", {})
+                }
+            }
+
+            analise_id = await self.analise_repo.save(empresa_id, analise_data)
+            persistence_result["analise_id"] = analise_id
+
+            logger.info(
+                "persistence_complete",
+                empresa_id=empresa_id,
+                analise_id=analise_id,
+                pessoas=pessoas_salvas,
+                keywords=len(persistence_result["palavras_chave"])
+            )
+
+        except Exception as e:
+            logger.error("persistence_error", error=str(e), company=name)
+
+        return persistence_result
+
+    async def _persist_employees(
+        self,
+        empresa_id: str,
+        employees: List[Dict]
+    ) -> int:
+        """
+        Persiste funcionários em dim_pessoas e fato_eventos_pessoa
+
+        Returns:
+            Número de pessoas salvas
+        """
+        saved_count = 0
+
+        for emp in employees:
+            try:
+                # Salvar pessoa
+                emp["empresa_atual_id"] = empresa_id
+                pessoa_id = await self.pessoa_repo.upsert(emp)
+
+                if not pessoa_id:
+                    continue
+
+                saved_count += 1
+
+                # Salvar emprego atual como evento
+                await self.evento_repo.save_emprego(
+                    pessoa_id=pessoa_id,
+                    emprego={
+                        "title": emp.get("title"),
+                        "organization_name": emp.get("organization_name"),
+                        "is_current": True,
+                        "start_date": emp.get("employment_start_date")
+                    },
+                    empresa_id=empresa_id
+                )
+
+                # Salvar histórico de empregos se disponível
+                for exp in emp.get("employment_history", []):
+                    await self.evento_repo.save_emprego(
+                        pessoa_id=pessoa_id,
+                        emprego=exp
+                    )
+
+                # Salvar educação se disponível
+                for edu in emp.get("education", []):
+                    await self.evento_repo.save_educacao(
+                        pessoa_id=pessoa_id,
+                        educacao=edu
+                    )
+
+            except Exception as e:
+                logger.warning("employee_save_error", error=str(e), name=emp.get("name"))
+
+        return saved_count
+
+    def _extract_founders(self, raw_data: Dict) -> List[Dict]:
+        """Extrai fundadores dos dados coletados"""
+        founders = []
+
+        # Buscar em QSA (Quadro Societário)
+        cnpj_data = raw_data.get("cnpj_data", {})
+        qsa = cnpj_data.get("qsa", [])
+
+        for socio in qsa:
+            qual = socio.get("qualificacao_socio", "").lower()
+            # Identificar fundadores/sócios principais
+            if any(term in qual for term in ["administrador", "socio", "diretor", "presidente"]):
+                founders.append({
+                    "nome": socio.get("nome_socio"),
+                    "cargo": socio.get("qualificacao_socio"),
+                    "data_entrada": socio.get("data_entrada_sociedade")
+                })
+
+        # Buscar em funcionários (C-level)
+        employees = raw_data.get("employees", [])
+        for emp in employees:
+            title = (emp.get("title") or "").lower()
+            if any(term in title for term in ["founder", "fundador", "ceo", "cto", "coo", "cfo", "owner"]):
+                # Evitar duplicatas
+                nome = emp.get("name")
+                if nome and not any(f.get("nome") == nome for f in founders):
+                    founders.append({
+                        "nome": nome,
+                        "cargo": emp.get("title"),
+                        "linkedin_url": emp.get("linkedin_url")
+                    })
+
+        return founders[:10]  # Limitar a 10 fundadores
+
+    # =========================================
+    # FASE 8: BUSCA DE CONCORRENTES
+    # =========================================
+
+    async def _find_and_analyze_competitors(
+        self,
+        empresa_id: str,
+        company_name: str,
+        keywords: List[str],
+        search_queries: List[str]
+    ) -> List[Dict]:
+        """
+        Busca e analisa concorrentes baseado em palavras-chave
+
+        Fluxo:
+        1. Usa queries geradas para buscar no Perplexity
+        2. Extrai nomes de empresas da resposta
+        3. Para cada concorrente:
+           - Busca dados básicos (sem análise completa para evitar loop)
+           - Salva em dim_empresas
+           - Salva relação em fato_concorrentes
+        """
+        competitors = []
+
+        if not search_queries:
+            logger.warning("no_search_queries", company=company_name)
+            return competitors
+
+        try:
+            # Usar primeira query para buscar concorrentes
+            query = search_queries[0]
+            logger.info("searching_competitors", query=query)
+
+            # Buscar no Perplexity
+            perplexity_result = await self.perplexity.search(
+                f"Liste 5 empresas brasileiras concorrentes ou similares a {company_name}. {query}. Retorne apenas os nomes das empresas."
+            )
+
+            if not perplexity_result:
+                return competitors
+
+            # Extrair nomes de concorrentes
+            competitor_names = self._extract_competitor_names(
+                perplexity_result.get("answer", "")
+            )[:5]
+
+            logger.info("competitors_found", count=len(competitor_names), names=competitor_names)
+
+            # Analisar cada concorrente (versão simplificada)
+            for comp_name in competitor_names:
+                if comp_name.lower() == company_name.lower():
+                    continue  # Pular a própria empresa
+
+                try:
+                    comp_data = await self._analyze_competitor_simple(
+                        comp_name, keywords
+                    )
+
+                    if comp_data and comp_data.get("id"):
+                        # Salvar relação de concorrência
+                        await self.concorrente_repo.save(
+                            empresa_id=empresa_id,
+                            concorrente_id=comp_data["id"],
+                            palavras_chave_match=comp_data.get("keywords_match", []),
+                            score_similaridade=comp_data.get("similarity_score", 0.5),
+                            stamp=comp_data.get("stamp", "Medio"),
+                            stamp_justificativa=comp_data.get("stamp_justification", ""),
+                            fonte_descoberta="perplexity",
+                            query_utilizada=query
+                        )
+
+                        competitors.append(comp_data)
+
+                except Exception as e:
+                    logger.warning("competitor_analysis_error", competitor=comp_name, error=str(e))
+
+        except Exception as e:
+            logger.error("competitors_search_error", error=str(e))
+
+        return competitors
+
+    async def _analyze_competitor_simple(
+        self,
+        name: str,
+        source_keywords: List[str]
+    ) -> Optional[Dict]:
+        """
+        Análise simplificada de concorrente (sem recursão)
+
+        Coleta apenas:
+        - Dados básicos via Serper
+        - CNPJ via BrasilAPI (se encontrar)
+        - Avaliação de stamp via AI
+        """
+        try:
+            # Buscar dados básicos
+            search_result = await self.serper.find_company_info(name)
+
+            if not search_result:
+                return None
+
+            # Tentar buscar CNPJ
+            cnpj = await self.serper.find_company_cnpj(name)
+            cnpj_data = {}
+
+            if cnpj:
+                import contextlib
+                with contextlib.suppress(Exception):
+                    cnpj_data = await self.brasil_api.get_cnpj(cnpj)
+
+            # Preparar dados da empresa
+            empresa_data = {
+                "cnpj": cnpj,
+                "nome_fantasia": name,
+                "razao_social": cnpj_data.get("razao_social"),
+                "website": search_result.get("website"),
+                "setor": search_result.get("industry"),
+                "cidade": cnpj_data.get("municipio"),
+                "estado": cnpj_data.get("uf"),
+                "raw_cnpj_data": cnpj_data,
+                "raw_search_data": search_result
+            }
+
+            # Salvar concorrente
+            concorrente_id = await self.empresa_repo.upsert(empresa_data)
+
+            if not concorrente_id:
+                return None
+
+            # Calcular keywords match
+            comp_description = (
+                search_result.get("description", "") +
+                " " +
+                (search_result.get("industry") or "")
+            ).lower()
+
+            keywords_match = [
+                kw for kw in source_keywords
+                if kw.lower() in comp_description
+            ]
+
+            # Gerar stamp via AI
+            stamp_result = await self.ai_analyzer.analyze_competitor_with_stamp(
+                main_company=name,
+                competitor_name=name,
+                competitor_info=search_result,
+                main_company_context=""
+            )
+
+            return {
+                "id": concorrente_id,
+                "name": name,
+                "website": search_result.get("website"),
+                "industry": search_result.get("industry"),
+                "keywords_match": keywords_match,
+                "similarity_score": len(keywords_match) / max(len(source_keywords), 1),
+                "stamp": stamp_result.get("stamp", "Medio"),
+                "stamp_justification": stamp_result.get("justification", "")
+            }
+
+        except Exception as e:
+            logger.error("competitor_simple_analysis_error", name=name, error=str(e))
+            return None
 
     async def __aenter__(self):
         return self
