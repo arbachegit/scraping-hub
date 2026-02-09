@@ -26,6 +26,13 @@ class TavilyClient(BaseScraper):
     - Busca em profundidade
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "Tavily - AI Search"
+    SOURCE_PROVIDER = "Tavily"
+    SOURCE_CATEGORY = "api"
+    SOURCE_COVERAGE = "Busca com contexto AI, extração de conteúdo"
+    SOURCE_DOC_URL = "https://docs.tavily.com"
+
     def __init__(
         self,
         api_key: Optional[str] = None,

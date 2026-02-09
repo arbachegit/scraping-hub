@@ -1,6 +1,8 @@
 """
 Base Scraper Client
 Classe base para todos os clientes de scraping
+
+Inclui registro automático de fontes de dados conforme CLAUDE.md.
 """
 
 from abc import ABC, abstractmethod
@@ -15,7 +17,21 @@ logger = structlog.get_logger()
 
 
 class BaseScraper(ABC):
-    """Classe base para scrapers"""
+    """
+    Classe base para scrapers.
+
+    Inclui:
+    - Retry automático com backoff exponencial
+    - Métricas de uso
+    - Registro automático de fontes de dados (CLAUDE.md compliance)
+    """
+
+    # Metadados da fonte - sobrescrever nas subclasses
+    SOURCE_NAME: str = "Unknown Source"
+    SOURCE_PROVIDER: str = "Unknown Provider"
+    SOURCE_CATEGORY: str = "api"
+    SOURCE_COVERAGE: str = ""
+    SOURCE_DOC_URL: Optional[str] = None
 
     def __init__(
         self,
@@ -29,6 +45,7 @@ class BaseScraper(ABC):
         self.rate_limit = rate_limit
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+        self._source_registered: bool = False
 
         # Metricas
         self.stats: Dict[str, Any] = {
@@ -54,6 +71,43 @@ class BaseScraper(ABC):
         """Retorna headers de autenticacao"""
         pass
 
+    async def _register_source_usage(self, endpoint: str) -> None:
+        """
+        Registra uso da fonte de dados.
+
+        Conforme CLAUDE.md: ALWAYS registrar fontes de dados.
+        Chamado automaticamente após requisição bem-sucedida.
+        """
+        if self._source_registered:
+            return
+
+        try:
+            from src.database.fontes_repository import registrar_fonte_api
+
+            full_url = f"{self.base_url}{endpoint}"
+
+            await registrar_fonte_api(
+                nome=self.SOURCE_NAME,
+                provedor=self.SOURCE_PROVIDER,
+                url=full_url,
+                cobertura=self.SOURCE_COVERAGE
+            )
+
+            self._source_registered = True
+            logger.debug(
+                "source_registered",
+                source=self.SOURCE_NAME,
+                provider=self.SOURCE_PROVIDER
+            )
+
+        except Exception as e:
+            # Não falhar a requisição por erro no registro
+            logger.warning(
+                "source_registration_failed",
+                source=self.SOURCE_NAME,
+                error=str(e)
+            )
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10)
@@ -78,6 +132,9 @@ class BaseScraper(ABC):
             )
             response.raise_for_status()
             self.stats["success"] += 1
+
+            # Registrar uso da fonte após sucesso
+            await self._register_source_usage(endpoint)
 
             return response.json()
 

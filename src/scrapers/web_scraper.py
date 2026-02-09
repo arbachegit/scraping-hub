@@ -36,9 +36,16 @@ class WebScraperClient:
     - Parsing de dados estruturados
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "Web Scraper - HTML"
+    SOURCE_PROVIDER = "Web Scraping"
+    SOURCE_CATEGORY = "scraping"
+    SOURCE_COVERAGE = "Conteúdo HTML de websites"
+
     def __init__(self, timeout: float = 30.0):
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+        self._registered_urls: set = set()
 
         # Estatísticas
         self.stats = {
@@ -46,6 +53,33 @@ class WebScraperClient:
             "success": 0,
             "errors": 0
         }
+
+    async def _register_source_usage(self, url: str) -> None:
+        """
+        Registra uso da fonte de dados (website raspado).
+
+        Conforme CLAUDE.md: ALWAYS registrar fontes de dados.
+        """
+        # Evitar registrar mesmo domínio múltiplas vezes
+        domain = urlparse(url).netloc
+        if domain in self._registered_urls:
+            return
+
+        try:
+            from src.database.fontes_repository import registrar_fonte_scraping
+
+            await registrar_fonte_scraping(
+                nome=f"Website - {domain}",
+                site=domain,
+                url=url,
+                cobertura="Conteúdo HTML extraído"
+            )
+
+            self._registered_urls.add(domain)
+            logger.debug("scraping_source_registered", domain=domain)
+
+        except Exception as e:
+            logger.warning("scraping_source_registration_failed", error=str(e))
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -107,6 +141,9 @@ class WebScraperClient:
         html = await self.fetch(url)
         if not html:
             return {"error": "Failed to fetch URL", "url": url}
+
+        # Registrar uso da fonte (CLAUDE.md compliance)
+        await self._register_source_usage(url)
 
         soup = BeautifulSoup(html, "html.parser")
 

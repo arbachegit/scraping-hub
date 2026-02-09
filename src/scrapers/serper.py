@@ -28,6 +28,13 @@ class SerperClient(BaseScraper):
     - Autocomplete
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "Serper - Google Search"
+    SOURCE_PROVIDER = "Serper.dev"
+    SOURCE_CATEGORY = "api"
+    SOURCE_COVERAGE = "Resultados de busca Google, notícias, imagens"
+    SOURCE_DOC_URL = "https://serper.dev/docs"
+
     def __init__(
         self,
         api_key: Optional[str] = None,

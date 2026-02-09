@@ -26,6 +26,13 @@ class ApolloClient(BaseScraper):
     - Dados de LinkedIn
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "Apollo - B2B Intelligence"
+    SOURCE_PROVIDER = "Apollo.io"
+    SOURCE_CATEGORY = "api"
+    SOURCE_COVERAGE = "Dados B2B, contatos profissionais, empresas"
+    SOURCE_DOC_URL = "https://apolloio.github.io/apollo-api-docs"
+
     def __init__(
         self,
         api_key: Optional[str] = None,

@@ -26,6 +26,13 @@ class BrasilAPIClient(BaseScraper):
     - Feriados: feriados nacionais
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "BrasilAPI - Dados Públicos"
+    SOURCE_PROVIDER = "BrasilAPI"
+    SOURCE_CATEGORY = "api"
+    SOURCE_COVERAGE = "CNPJ, CEP, bancos, DDD, feriados brasileiros"
+    SOURCE_DOC_URL = "https://brasilapi.com.br/docs"
+
     def __init__(self, timeout: float = 30.0):
         # BrasilAPI não requer autenticação
         super().__init__(

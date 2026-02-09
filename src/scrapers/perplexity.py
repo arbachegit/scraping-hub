@@ -25,6 +25,13 @@ class PerplexityClient(BaseScraper):
     - Múltiplos modelos disponíveis
     """
 
+    # Metadados da fonte para rastreabilidade (CLAUDE.md)
+    SOURCE_NAME = "Perplexity - AI Research"
+    SOURCE_PROVIDER = "Perplexity AI"
+    SOURCE_CATEGORY = "api"
+    SOURCE_COVERAGE = "Pesquisa com AI, respostas com citações"
+    SOURCE_DOC_URL = "https://docs.perplexity.ai"
+
     MODELS = {
         "sonar": "sonar",
         "sonar-pro": "sonar-pro",
