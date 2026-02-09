@@ -82,13 +82,13 @@ jobs:
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
-            cd /opt/iconsai-scraping
+            cd /opt/scraping-hub
             git pull origin main
 
             # Backend Python
             source venv/bin/activate
             pip install -r requirements.txt
-            sudo systemctl restart iconsai-scraping
+            sudo systemctl restart scraping-hub
 
             # Fix nginx configuration (proxy to port 8000)
             sudo tee /etc/nginx/sites-available/scraping-hub > /dev/null << 'NGINX_EOF'
@@ -126,6 +126,6 @@ jobs:
             sudo nginx -t && sudo systemctl reload nginx
 
             # Verificar status
-            sudo systemctl status iconsai-scraping --no-pager || true
+            sudo systemctl status scraping-hub --no-pager || true
             echo "=== Testing API ==="
             curl -s http://127.0.0.1:8000/health | head -c 200
