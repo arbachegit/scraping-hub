@@ -537,7 +537,8 @@
                 <div class="form-group">
                     <label>Analise Completa de Empresa</label>
                     <div class="input-row">
-                        <input type="text" id="companyCnpj" placeholder="CNPJ (apenas numeros)">
+                        <input type="text" id="companyAnalyzeName" placeholder="Nome da empresa (obrigatorio)">
+                        <input type="text" id="companyCnpj" placeholder="CNPJ (opcional)">
                         <button onclick="analyzeCompany()">Analisar</button>
                     </div>
                 </div>
@@ -723,15 +724,21 @@
         }
 
         async function analyzeCompany() {
+            const name = document.getElementById('companyAnalyzeName').value;
             const cnpj = document.getElementById('companyCnpj').value.replace(/\D/g, '');
-            if (!cnpj) return;
+            if (!name) {
+                alert('Nome da empresa e obrigatorio');
+                return;
+            }
             const results = document.getElementById('companyAnalysis');
             results.innerHTML = '<div class="loading">Analisando empresa (pode levar alguns minutos)...</div>';
             try {
+                const body = { name: name };
+                if (cnpj) body.cnpj = cnpj;
                 const r = await fetchWithAuth('/api/v2/company/analyze-complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cnpj: cnpj })
+                    body: JSON.stringify(body)
                 });
                 const data = await r.json();
                 if (data.error) {
