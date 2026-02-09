@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database.client import get_supabase
 
-
 MIGRATION_SQL = """
 -- ===========================================
 -- Fontes de Dados - Rastreabilidade (OBRIGATÓRIO)
@@ -78,7 +77,7 @@ INITIAL_DATA = [
         "api_key_necessaria": False,
         "confiabilidade": "alta",
         "cobertura": "CNPJs de empresas brasileiras",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "BrasilAPI - CEP",
@@ -91,7 +90,7 @@ INITIAL_DATA = [
         "api_key_necessaria": False,
         "confiabilidade": "alta",
         "cobertura": "CEPs brasileiros",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "Serper - Google Search",
@@ -104,7 +103,7 @@ INITIAL_DATA = [
         "api_key_necessaria": True,
         "confiabilidade": "alta",
         "cobertura": "Resultados de busca Google",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "Tavily - AI Search",
@@ -117,7 +116,7 @@ INITIAL_DATA = [
         "api_key_necessaria": True,
         "confiabilidade": "alta",
         "cobertura": "Busca com contexto AI",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "Apollo - People Search",
@@ -130,7 +129,7 @@ INITIAL_DATA = [
         "api_key_necessaria": True,
         "confiabilidade": "media",
         "cobertura": "Profissionais e contatos B2B",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "Perplexity - Research",
@@ -143,7 +142,7 @@ INITIAL_DATA = [
         "api_key_necessaria": True,
         "confiabilidade": "alta",
         "cobertura": "Pesquisa com AI avançada",
-        "periodicidade": "tempo_real"
+        "periodicidade": "tempo_real",
     },
     {
         "nome": "Anthropic - Claude",
@@ -156,8 +155,8 @@ INITIAL_DATA = [
         "api_key_necessaria": True,
         "confiabilidade": "alta",
         "cobertura": "Análise e geração de texto com AI",
-        "periodicidade": "tempo_real"
-    }
+        "periodicidade": "tempo_real",
+    },
 ]
 
 
@@ -184,10 +183,7 @@ def run_migration():
 
     for fonte in INITIAL_DATA:
         try:
-            client.table("fontes_dados").upsert(
-                fonte,
-                on_conflict="nome,categoria"
-            ).execute()
+            client.table("fontes_dados").upsert(fonte, on_conflict="nome,categoria").execute()
             print(f"   OK: {fonte['nome']}")
         except Exception as e:
             print(f"   ERRO em {fonte['nome']}: {e}")

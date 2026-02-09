@@ -29,14 +29,11 @@ class AIAnalyzer:
     MODELS = {
         "fast": "claude-3-5-haiku-20241022",
         "balanced": "claude-sonnet-4-20250514",
-        "powerful": "claude-sonnet-4-20250514"
+        "powerful": "claude-sonnet-4-20250514",
     }
 
     def __init__(
-        self,
-        api_key: Optional[str] = None,
-        model: str = "balanced",
-        timeout: float = 120.0
+        self, api_key: Optional[str] = None, model: str = "balanced", timeout: float = 120.0
     ):
         self.api_key = api_key or settings.anthropic_api_key
         # Usar modelo do settings se configurado, senão usar o mapeamento
@@ -50,12 +47,7 @@ class AIAnalyzer:
         logger.info("ai_analyzer_init", model=self.model)
 
         # Estatísticas
-        self.stats = {
-            "requests": 0,
-            "tokens_input": 0,
-            "tokens_output": 0,
-            "errors": 0
-        }
+        self.stats = {"requests": 0, "tokens_input": 0, "tokens_output": 0, "errors": 0}
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -67,8 +59,8 @@ class AIAnalyzer:
                 headers={
                     "x-api-key": self.api_key,
                     "anthropic-version": "2023-06-01",
-                    "content-type": "application/json"
-                }
+                    "content-type": "application/json",
+                },
             )
         return self._client
 
@@ -83,7 +75,7 @@ class AIAnalyzer:
         prompt: str,
         system: Optional[str] = None,
         max_tokens: int = 4096,
-        temperature: float = 0.3
+        temperature: float = 0.3,
     ) -> str:
         """
         Chama a API do Claude
@@ -105,7 +97,7 @@ class AIAnalyzer:
             "model": self.model,
             "max_tokens": max_tokens,
             "temperature": temperature,
-            "messages": messages
+            "messages": messages,
         }
 
         if system:
@@ -144,7 +136,7 @@ class AIAnalyzer:
         employees_data: List[Dict[str, Any]],
         news_data: List[Dict[str, Any]],
         research_context: str,
-        sources: List[str]
+        sources: List[str],
     ) -> Dict[str, Any]:
         """
         Análise COMPLETA de empresa com múltiplas perspectivas
@@ -170,7 +162,7 @@ class AIAnalyzer:
         logger.info("ai_analyze_company_complete", company=company_data.get("nome_fantasia", ""))
 
         # Preparar lista de fontes para citação
-        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:20])])
+        sources_list = "\n".join([f"[{i + 1}] {src}" for i, src in enumerate(sources[:20])])
 
         # Preparar dados de funcionários
         employees_text = ""
@@ -178,12 +170,12 @@ class AIAnalyzer:
             employees_text = "## FUNCIONÁRIOS IDENTIFICADOS (LinkedIn/Apollo)\n"
             for emp in employees_data[:15]:
                 employees_text += f"""
-### {emp.get('name', 'N/A')}
-- **Cargo:** {emp.get('title', 'N/A')}
-- **Departamento:** {', '.join(emp.get('departments', [])) if emp.get('departments') else 'N/A'}
-- **Senioridade:** {emp.get('seniority', 'N/A')}
-- **LinkedIn:** {emp.get('linkedin_url', 'N/A')}
-- **Tempo na empresa:** {emp.get('tenure', 'N/A')}
+### {emp.get("name", "N/A")}
+- **Cargo:** {emp.get("title", "N/A")}
+- **Departamento:** {", ".join(emp.get("departments", [])) if emp.get("departments") else "N/A"}
+- **Senioridade:** {emp.get("seniority", "N/A")}
+- **LinkedIn:** {emp.get("linkedin_url", "N/A")}
+- **Tempo na empresa:** {emp.get("tenure", "N/A")}
 """
 
         # Preparar notícias
@@ -191,7 +183,9 @@ class AIAnalyzer:
         if news_data:
             news_text = "## NOTÍCIAS RECENTES\n"
             for i, news in enumerate(news_data[:10]):
-                news_text += f"[{i+1}] **{news.get('title', 'N/A')}** - {news.get('source', 'N/A')}\n"
+                news_text += (
+                    f"[{i + 1}] **{news.get('title', 'N/A')}** - {news.get('source', 'N/A')}\n"
+                )
                 news_text += f"   {news.get('content', news.get('snippet', ''))[:300]}\n\n"
 
         system = """Você é um ANALISTA DE INTELIGÊNCIA EMPRESARIAL SÊNIOR especializado no mercado brasileiro.
@@ -213,11 +207,11 @@ Responda SEMPRE em formato JSON válido com textos em Markdown."""
         prompt = f"""Analise COMPLETAMENTE esta empresa com múltiplas perspectivas.
 
 # DADOS DA EMPRESA
-- **Nome:** {company_data.get('nome_fantasia') or company_data.get('name')}
-- **Razão Social:** {company_data.get('razao_social', 'N/A')}
-- **CNPJ:** {company_data.get('cnpj', 'N/A')}
-- **Setor:** {company_data.get('industry', 'N/A')}
-- **Website:** {company_data.get('website', 'N/A')}
+- **Nome:** {company_data.get("nome_fantasia") or company_data.get("name")}
+- **Razão Social:** {company_data.get("razao_social", "N/A")}
+- **CNPJ:** {company_data.get("cnpj", "N/A")}
+- **Setor:** {company_data.get("industry", "N/A")}
+- **Website:** {company_data.get("website", "N/A")}
 
 # CONTEÚDO DO WEBSITE (FONTE PRINCIPAL)
 {website_content[:12000]}
@@ -321,7 +315,8 @@ Gere uma análise COMPLETA em JSON com a seguinte estrutura:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -332,14 +327,14 @@ Gere uma análise COMPLETA em JSON com a seguinte estrutura:
         website_content: str,
         research_context: str,
         main_company_name: str,
-        sources: List[str]
+        sources: List[str],
     ) -> Dict[str, Any]:
         """
         Análise COMPLETA de concorrente com mesma profundidade da empresa principal
         """
         logger.info("ai_analyze_competitor_complete", competitor=competitor_data.get("name", ""))
 
-        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:15])])
+        sources_list = "\n".join([f"[{i + 1}] {src}" for i, src in enumerate(sources[:15])])
 
         system = """Você é um ANALISTA DE INTELIGÊNCIA COMPETITIVA especializado no mercado brasileiro.
 
@@ -351,9 +346,9 @@ Responda SEMPRE em formato JSON válido."""
         prompt = f"""Analise este CONCORRENTE de "{main_company_name}":
 
 # DADOS DO CONCORRENTE
-- **Nome:** {competitor_data.get('name')}
-- **Website:** {competitor_data.get('website', 'N/A')}
-- **Setor:** {competitor_data.get('industry', 'N/A')}
+- **Nome:** {competitor_data.get("name")}
+- **Website:** {competitor_data.get("website", "N/A")}
+- **Setor:** {competitor_data.get("industry", "N/A")}
 
 # CONTEÚDO DO WEBSITE
 {website_content[:8000]}
@@ -400,15 +395,14 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_company_swot(
-        self,
-        company_data: Dict[str, Any],
-        market_context: Optional[str] = None
+        self, company_data: Dict[str, Any], market_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Gera análise SWOT básica (método legado)
@@ -418,9 +412,7 @@ Responda em JSON:
         return await self._basic_swot(company_data, market_context)
 
     async def _basic_swot(
-        self,
-        company_data: Dict[str, Any],
-        market_context: Optional[str] = None
+        self, company_data: Dict[str, Any], market_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """SWOT básico sem dados complementares"""
         logger.info("ai_analyze_swot_basic", company=company_data.get("nome_fantasia", ""))
@@ -449,7 +441,8 @@ JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -462,7 +455,7 @@ JSON:
         news_data: List[Dict[str, Any]],
         regional_data: Dict[str, Any],
         research_context: str,
-        sources: List[str]
+        sources: List[str],
     ) -> Dict[str, Any]:
         """
         Análise SWOT COMPLETA E ROBUSTA
@@ -496,7 +489,7 @@ JSON:
         logger.info("ai_analyze_swot_comprehensive", company=company_data.get("nome_fantasia", ""))
 
         # Preparar fontes para citação
-        sources_list = "\n".join([f"[{i+1}] {src}" for i, src in enumerate(sources[:25])])
+        sources_list = "\n".join([f"[{i + 1}] {src}" for i, src in enumerate(sources[:25])])
 
         # Preparar dados de concorrentes
         competitors_text = ""
@@ -506,11 +499,11 @@ JSON:
                 basic = comp.get("basic_info", {})
                 analysis = comp.get("deep_analysis", {})
                 competitors_text += f"""
-### Concorrente {i}: {basic.get('name', 'N/A')}
-- Website: {basic.get('website', 'N/A')}
-- Setor: {basic.get('industry', 'N/A')}
-- Análise: {analysis.get('overview', 'N/A')[:500] if analysis else 'N/A'}
-- Nível de Ameaça: {analysis.get('threat_assessment', {}).get('threat_level', 'N/A') if analysis else 'N/A'}
+### Concorrente {i}: {basic.get("name", "N/A")}
+- Website: {basic.get("website", "N/A")}
+- Setor: {basic.get("industry", "N/A")}
+- Análise: {analysis.get("overview", "N/A")[:500] if analysis else "N/A"}
+- Nível de Ameaça: {analysis.get("threat_assessment", {}).get("threat_level", "N/A") if analysis else "N/A"}
 """
 
         # Preparar dados de funcionários
@@ -528,25 +521,25 @@ JSON:
             pop = regional_data.get("raw_data", {}).get("populacao", {}) or {}
             profile = regional_data.get("raw_data", {}).get("economic_profile", {}) or {}
 
-            regional_text = f"""## CONTEXTO REGIONAL: {regional_data.get('city', 'N/A')}/{regional_data.get('state', 'N/A')}
+            regional_text = f"""## CONTEXTO REGIONAL: {regional_data.get("city", "N/A")}/{regional_data.get("state", "N/A")}
 
 ### Indicadores Econômicos
-- **PIB Municipal:** R$ {pib.get('pib_total', 0)/1_000_000_000:.2f} bilhões
-- **PIB per capita:** R$ {pib.get('pib_per_capita', 0):,.2f}
-- **Ranking Nacional:** {pib.get('ranking_nacional', 'N/A')}º
-- **Setor Dominante:** {profile.get('main_sector', 'N/A')}
+- **PIB Municipal:** R$ {pib.get("pib_total", 0) / 1_000_000_000:.2f} bilhões
+- **PIB per capita:** R$ {pib.get("pib_per_capita", 0):,.2f}
+- **Ranking Nacional:** {pib.get("ranking_nacional", "N/A")}º
+- **Setor Dominante:** {profile.get("main_sector", "N/A")}
 
 ### Desenvolvimento Humano
-- **IDHM:** {idhm.get('idhm_2010', 'N/A')} ({idhm.get('classificacao_2010', 'N/A')})
+- **IDHM:** {idhm.get("idhm_2010", "N/A")} ({idhm.get("classificacao_2010", "N/A")})
 
 ### População
-- **Total:** {pop.get('populacao', 0):,} habitantes
+- **Total:** {pop.get("populacao", 0):,} habitantes
 
 ### Oportunidades Regionais
-{chr(10).join('- ' + o for o in regional_data.get('opportunities', []))}
+{chr(10).join("- " + o for o in regional_data.get("opportunities", []))}
 
 ### Ameaças Regionais
-{chr(10).join('- ' + t for t in regional_data.get('threats', []))}
+{chr(10).join("- " + t for t in regional_data.get("threats", []))}
 """
 
         # Preparar notícias
@@ -599,14 +592,14 @@ REGRAS CRÍTICAS:
         prompt = f"""Crie uma ANÁLISE SWOT COMPLETA E PROFUNDA para esta empresa.
 
 # DADOS DA EMPRESA
-- **Nome:** {company_data.get('nome_fantasia') or company_data.get('name')}
-- **Razão Social:** {company_data.get('razao_social', 'N/A')}
-- **CNPJ:** {company_data.get('cnpj', 'N/A')}
-- **Setor:** {company_data.get('industry', 'N/A')}
-- **Website:** {company_data.get('website', 'N/A')}
+- **Nome:** {company_data.get("nome_fantasia") or company_data.get("name")}
+- **Razão Social:** {company_data.get("razao_social", "N/A")}
+- **CNPJ:** {company_data.get("cnpj", "N/A")}
+- **Setor:** {company_data.get("industry", "N/A")}
+- **Website:** {company_data.get("website", "N/A")}
 
 # CONTEÚDO DO WEBSITE
-{company_data.get('website_content', 'N/A')[:8000]}
+{company_data.get("website_content", "N/A")[:8000]}
 
 # PESQUISA CONTEXTUAL
 {research_context[:6000]}
@@ -773,7 +766,8 @@ Responda em JSON com esta estrutura COMPLETA:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -783,7 +777,7 @@ Responda em JSON com esta estrutura COMPLETA:
         company_data: Dict[str, Any],
         swot: Optional[Dict] = None,
         focus_areas: Optional[List[str]] = None,
-        timeframe: str = "quarterly"
+        timeframe: str = "quarterly",
     ) -> Dict[str, Any]:
         """
         Gera OKRs sugeridos para uma empresa
@@ -854,15 +848,14 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_competitors(
-        self,
-        company_data: Dict[str, Any],
-        competitors_data: List[Dict[str, Any]]
+        self, company_data: Dict[str, Any], competitors_data: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
         Analisa posicionamento competitivo
@@ -877,7 +870,7 @@ Responda em JSON:
         logger.info(
             "ai_analyze_competitors",
             company=company_data.get("nome_fantasia", ""),
-            num_competitors=len(competitors_data)
+            num_competitors=len(competitors_data),
         )
 
         system = """Você é um analista de inteligência competitiva.
@@ -921,7 +914,8 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -931,9 +925,7 @@ Responda em JSON:
     # ===========================================
 
     async def analyze_person_profile(
-        self,
-        person_data: Dict[str, Any],
-        context: Optional[str] = None
+        self, person_data: Dict[str, Any], context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Analisa perfil de uma pessoa (método legado - use analyze_person_deep)
@@ -942,10 +934,7 @@ Responda em JSON:
         return await self.analyze_person_deep(person_data, context or "", "quick")
 
     async def analyze_person_deep(
-        self,
-        person_data: Dict[str, Any],
-        rich_context: str,
-        analysis_depth: str = "full"
+        self, person_data: Dict[str, Any], rich_context: str, analysis_depth: str = "full"
     ) -> Dict[str, Any]:
         """
         Análise PROFUNDA de perfil de pessoa
@@ -961,7 +950,9 @@ Responda em JSON:
         Returns:
             Análise profunda e estruturada
         """
-        logger.info("ai_analyze_person_deep", name=person_data.get("name", ""), depth=analysis_depth)
+        logger.info(
+            "ai_analyze_person_deep", name=person_data.get("name", ""), depth=analysis_depth
+        )
 
         if analysis_depth == "quick":
             system = """Você é um headhunter e especialista em análise de talentos do mercado brasileiro.
@@ -972,9 +963,9 @@ Responda SEMPRE em formato JSON válido."""
             prompt = f"""Analise este profissional com base em TODOS os dados coletados:
 
 ## Dados Básicos
-- Nome: {person_data.get('name')}
-- Cargo: {person_data.get('title') or person_data.get('current_title', 'N/A')}
-- Empresa: {person_data.get('company') or person_data.get('current_company', 'N/A')}
+- Nome: {person_data.get("name")}
+- Cargo: {person_data.get("title") or person_data.get("current_title", "N/A")}
+- Empresa: {person_data.get("company") or person_data.get("current_company", "N/A")}
 
 ## DADOS COLETADOS DE MÚLTIPLAS FONTES
 {rich_context}
@@ -1012,12 +1003,12 @@ ATENÇÃO: Abaixo estão dados coletados de MÚLTIPLAS FONTES (Perplexity, Apoll
 USE TODOS esses dados para construir uma análise rica e detalhada.
 
 ## DADOS BÁSICOS CONSOLIDADOS
-- Nome: {person_data.get('name')}
-- Cargo atual: {person_data.get('title') or person_data.get('current_title', 'Não identificado')}
-- Empresa atual: {person_data.get('company') or person_data.get('current_company', 'Não identificada')}
-- Senioridade: {person_data.get('seniority', 'Não identificada')}
-- Localização: {person_data.get('city', '')}, {person_data.get('state', '')}, {person_data.get('country', 'Brasil')}
-- LinkedIn: {person_data.get('linkedin_url', 'N/A')}
+- Nome: {person_data.get("name")}
+- Cargo atual: {person_data.get("title") or person_data.get("current_title", "Não identificado")}
+- Empresa atual: {person_data.get("company") or person_data.get("current_company", "Não identificada")}
+- Senioridade: {person_data.get("seniority", "Não identificada")}
+- Localização: {person_data.get("city", "")}, {person_data.get("state", "")}, {person_data.get("country", "Brasil")}
+- LinkedIn: {person_data.get("linkedin_url", "N/A")}
 
 ## DADOS COMPLETOS COLETADOS DE TODAS AS FONTES
 {rich_context}
@@ -1092,16 +1083,14 @@ Com base em TODOS os dados acima, responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_cultural_fit(
-        self,
-        person_data: Dict[str, Any],
-        company_data: Dict[str, Any],
-        role: Optional[str] = None
+        self, person_data: Dict[str, Any], company_data: Dict[str, Any], role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Analisa fit cultural entre pessoa e empresa
@@ -1117,7 +1106,7 @@ Com base em TODOS os dados acima, responda em JSON:
         logger.info(
             "ai_analyze_fit",
             person=person_data.get("name", ""),
-            company=company_data.get("nome_fantasia", "")
+            company=company_data.get("nome_fantasia", ""),
         )
 
         system = """Você é um especialista em recrutamento e cultura organizacional.
@@ -1160,7 +1149,8 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -1170,18 +1160,13 @@ Responda em JSON:
     # ===========================================
 
     async def analyze_politician_profile(
-        self,
-        politician_data: Dict[str, Any],
-        news_data: Optional[List[Dict]] = None
+        self, politician_data: Dict[str, Any], news_data: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
         """Método legado - redireciona para analyze_politician_deep"""
         return await self.analyze_politician_deep(politician_data, "", "personal")
 
     async def analyze_politician_deep(
-        self,
-        politician_data: Dict[str, Any],
-        rich_context: str,
-        focus: str = "personal"
+        self, politician_data: Dict[str, Any], rich_context: str, focus: str = "personal"
     ) -> Dict[str, Any]:
         """
         Análise PROFUNDA de perfil de político
@@ -1220,10 +1205,10 @@ ATENÇÃO: Abaixo estão dados coletados de MÚLTIPLAS FONTES (Perplexity, Googl
 USE TODOS esses dados para construir uma análise rica e detalhada.
 
 ## DADOS BÁSICOS
-- Nome: {politician_data.get('name')}
-- Cargo: {politician_data.get('role', 'Não informado')}
-- Estado: {politician_data.get('state', 'Não informado')}
-- Partido: {politician_data.get('party', 'Não informado')}
+- Nome: {politician_data.get("name")}
+- Cargo: {politician_data.get("role", "Não informado")}
+- Estado: {politician_data.get("state", "Não informado")}
+- Partido: {politician_data.get("party", "Não informado")}
 
 ## DADOS COMPLETOS COLETADOS DE TODAS AS FONTES
 {rich_context}
@@ -1294,16 +1279,14 @@ Com base em TODOS os dados acima, responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_politician_quick(
-        self,
-        name: str,
-        role: Optional[str],
-        context: str
+        self, name: str, role: Optional[str], context: str
     ) -> Dict[str, Any]:
         """Análise rápida de político"""
         logger.info("ai_analyze_politician_quick", name=name)
@@ -1316,7 +1299,7 @@ Responda SEMPRE em formato JSON válido."""
 
 ## Político
 - Nome: {name}
-- Cargo: {role or 'N/A'}
+- Cargo: {role or "N/A"}
 
 ## DADOS COLETADOS
 {context}
@@ -1343,17 +1326,14 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_perception_deep(
-        self,
-        name: str,
-        role: Optional[str],
-        context: str,
-        sentiments: Dict[str, int]
+        self, name: str, role: Optional[str], context: str, sentiments: Dict[str, int]
     ) -> Dict[str, Any]:
         """Análise profunda de percepção pública"""
         logger.info("ai_analyze_perception", name=name)
@@ -1362,15 +1342,15 @@ Responda em JSON:
 Analise a percepção pública de forma objetiva e imparcial.
 Responda SEMPRE em formato JSON válido."""
 
-        prompt = f"""Analise a percepção pública de {name}{' (' + role + ')' if role else ''}:
+        prompt = f"""Analise a percepção pública de {name}{" (" + role + ")" if role else ""}:
 
 ## DADOS COLETADOS
 {context}
 
 ## Análise de Sentimento das Notícias
-- Positivas: {sentiments.get('positive', 0)}
-- Negativas: {sentiments.get('negative', 0)}
-- Neutras: {sentiments.get('neutral', 0)}
+- Positivas: {sentiments.get("positive", 0)}
+- Negativas: {sentiments.get("negative", 0)}
+- Neutras: {sentiments.get("neutral", 0)}
 
 Responda em JSON:
 {{
@@ -1391,16 +1371,14 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def analyze_biography_deep(
-        self,
-        name: str,
-        role: Optional[str],
-        context: str
+        self, name: str, role: Optional[str], context: str
     ) -> Dict[str, Any]:
         """Análise profunda de biografia"""
         logger.info("ai_analyze_biography", name=name)
@@ -1409,7 +1387,7 @@ Responda em JSON:
 Organize e estruture informações biográficas de forma clara.
 Responda SEMPRE em formato JSON válido."""
 
-        prompt = f"""Estruture a biografia de {name}{' (' + role + ')' if role else ''}:
+        prompt = f"""Estruture a biografia de {name}{" (" + role + ")" if role else ""}:
 
 ## DADOS COLETADOS
 {context}
@@ -1448,16 +1426,14 @@ Responda em JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
 
     async def consolidate_news_insights(
-        self,
-        news_data: List[Dict[str, Any]],
-        topic: str,
-        context: Optional[str] = None
+        self, news_data: List[Dict[str, Any]], topic: str, context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Consolida e analisa notícias de forma inteligente
@@ -1476,7 +1452,9 @@ Responda em JSON:
         news_content = []
         for i, news in enumerate(news_data[:20], 1):
             title = news.get("title", "")
-            content = news.get("content", "") or news.get("snippet", "") or news.get("description", "")
+            content = (
+                news.get("content", "") or news.get("snippet", "") or news.get("description", "")
+            )
             source = news.get("source", "") or news.get("url", "")
             date = news.get("date", "") or news.get("published_at", "")
 
@@ -1567,7 +1545,8 @@ Forneça uma análise CONSOLIDADA em formato JSON:
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return json.loads(json_match.group())
             return {"error": "Failed to parse response", "raw": response}
@@ -1577,10 +1556,7 @@ Forneça uma análise CONSOLIDADA em formato JSON:
     # ===========================================
 
     async def summarize_data(
-        self,
-        data: Dict[str, Any],
-        context: str,
-        max_length: int = 500
+        self, data: Dict[str, Any], context: str, max_length: int = 500
     ) -> str:
         """
         Sumariza dados em texto
@@ -1603,11 +1579,7 @@ Forneça um resumo claro e objetivo em português brasileiro."""
 
         return await self._call_claude(prompt)
 
-    async def extract_insights(
-        self,
-        data: Dict[str, Any],
-        focus: str
-    ) -> List[Dict[str, str]]:
+    async def extract_insights(self, data: Dict[str, Any], focus: str) -> List[Dict[str, str]]:
         """
         Extrai insights de dados
 
@@ -1641,11 +1613,7 @@ Responda em JSON:
 
     def get_stats(self) -> Dict[str, Any]:
         """Retorna estatísticas de uso"""
-        return {
-            **self.stats,
-            "model": self.model,
-            "estimated_cost": self._estimate_cost()
-        }
+        return {**self.stats, "model": self.model, "estimated_cost": self._estimate_cost()}
 
     def _estimate_cost(self) -> float:
         """Estima custo baseado nos tokens"""
@@ -1668,7 +1636,7 @@ Responda em JSON:
         cnpj_data: Dict[str, Any],
         website_content: str,
         perplexity_context: str,
-        tavily_research: str
+        tavily_research: str,
     ) -> Dict[str, Any]:
         """
         BLOCO 1: A Empresa
@@ -1703,12 +1671,12 @@ ESTRUTURA EXIGIDA:
 
 DADOS PARA USAR (não cite como fonte, apenas absorva):
 
-Razão Social: {cnpj_data.get('razao_social', 'N/A')}
-Nome Fantasia: {cnpj_data.get('nome_fantasia', 'N/A')}
-CNPJ: {cnpj_data.get('cnpj', 'N/A')}
-Fundação: {cnpj_data.get('data_abertura', 'N/A')}
-Porte: {cnpj_data.get('porte', 'N/A')}
-Setor: {cnpj_data.get('cnae_principal', {}).get('descricao', 'N/A')}
+Razão Social: {cnpj_data.get("razao_social", "N/A")}
+Nome Fantasia: {cnpj_data.get("nome_fantasia", "N/A")}
+CNPJ: {cnpj_data.get("cnpj", "N/A")}
+Fundação: {cnpj_data.get("data_abertura", "N/A")}
+Porte: {cnpj_data.get("porte", "N/A")}
+Setor: {cnpj_data.get("cnae_principal", {}).get("descricao", "N/A")}
 
 SOBRE A EMPRESA:
 {website_content[:5000]}
@@ -1731,14 +1699,11 @@ Agora escreva o texto editorial em Markdown, seguindo a estrutura exigida. Seja 
             "title": "A Empresa",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.85
+            "confidence": 0.85,
         }
 
     async def generate_block_pessoas(
-        self,
-        company_name: str,
-        employees: List[Dict[str, Any]],
-        website_content: str
+        self, company_name: str, employees: List[Dict[str, Any]], website_content: str
     ) -> Dict[str, Any]:
         """
         BLOCO 2: Pessoas da Empresa
@@ -1750,9 +1715,9 @@ Agora escreva o texto editorial em Markdown, seguindo a estrutura exigida. Seja 
         employees_text = ""
         if employees:
             for emp in employees[:15]:
-                name = emp.get('name', '')
-                title = emp.get('title', '')
-                seniority = emp.get('seniority', '')
+                name = emp.get("name", "")
+                title = emp.get("title", "")
+                seniority = emp.get("seniority", "")
                 if name and title:
                     employees_text += f"- {name}: {title}"
                     if seniority:
@@ -1796,14 +1761,11 @@ Escreva sobre as pessoas da empresa. Seja específico com nomes e cargos quando 
             "title": "Pessoas da Empresa",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.80 if employees else 0.40
+            "confidence": 0.80 if employees else 0.40,
         }
 
     async def generate_block_formacao(
-        self,
-        company_name: str,
-        employees: List[Dict[str, Any]],
-        perplexity_context: str
+        self, company_name: str, employees: List[Dict[str, Any]], perplexity_context: str
     ) -> Dict[str, Any]:
         """
         BLOCO 3: Formação das Pessoas
@@ -1814,8 +1776,8 @@ Escreva sobre as pessoas da empresa. Seja específico com nomes e cargos quando 
         employees_text = ""
         if employees:
             for emp in employees[:15]:
-                name = emp.get('name', '')
-                title = emp.get('title', '')
+                name = emp.get("name", "")
+                title = emp.get("title", "")
                 if name and title:
                     employees_text += f"- {name}: {title}\n"
 
@@ -1856,14 +1818,11 @@ Infira e descreva o perfil de formação típico desta equipe."""
             "title": "Formação das Pessoas",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.65
+            "confidence": 0.65,
         }
 
     async def generate_block_ativo_humano(
-        self,
-        company_name: str,
-        pessoas_content: str,
-        formacao_content: str
+        self, company_name: str, pessoas_content: str, formacao_content: str
     ) -> Dict[str, Any]:
         """
         BLOCO 4: Ativo Humano
@@ -1907,14 +1866,11 @@ Sintetize as competências coletivas deste time."""
             "title": "Ativo Humano",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.70
+            "confidence": 0.70,
         }
 
     async def generate_block_capacidade(
-        self,
-        company_name: str,
-        ativo_humano_content: str,
-        empresa_content: str
+        self, company_name: str, ativo_humano_content: str, empresa_content: str
     ) -> Dict[str, Any]:
         """
         BLOCO 5: Capacidade do Ativo
@@ -1958,7 +1914,7 @@ Descreva a capacidade de entrega desta empresa."""
             "title": "Capacidade do Ativo",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.70
+            "confidence": 0.70,
         }
 
     async def generate_block_comunicacao(
@@ -1967,7 +1923,7 @@ Descreva a capacidade de entrega desta empresa."""
         website_content: str,
         perplexity_context: str,
         empresa_content: str,
-        capacidade_content: str
+        capacidade_content: str,
     ) -> Dict[str, Any]:
         """
         BLOCO 6: Comunicação vs Características
@@ -2015,13 +1971,11 @@ Analise o alinhamento entre mensagem e realidade."""
             "title": "Comunicação vs Características",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.75
+            "confidence": 0.75,
         }
 
     async def generate_block_fraquezas_comunicacao(
-        self,
-        company_name: str,
-        comunicacao_content: str
+        self, company_name: str, comunicacao_content: str
     ) -> Dict[str, Any]:
         """
         BLOCO 7: Fraquezas na Comunicação
@@ -2062,13 +2016,11 @@ Liste os gaps e proponha melhorias."""
             "title": "Fraquezas na Comunicação",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.75
+            "confidence": 0.75,
         }
 
     async def generate_block_visao_leigo(
-        self,
-        company_name: str,
-        all_blocks_content: str
+        self, company_name: str, all_blocks_content: str
     ) -> Dict[str, Any]:
         """
         BLOCO 8: Visão do Leigo
@@ -2109,14 +2061,11 @@ Escreva como uma pessoa comum entenderia esta empresa."""
             "title": "Visão do Leigo",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.80
+            "confidence": 0.80,
         }
 
     async def generate_block_visao_profissional(
-        self,
-        company_name: str,
-        all_blocks_content: str,
-        perplexity_context: str
+        self, company_name: str, all_blocks_content: str, perplexity_context: str
     ) -> Dict[str, Any]:
         """
         BLOCO 9: Visão do Profissional
@@ -2160,7 +2109,7 @@ Faça uma avaliação técnica desta empresa."""
             "title": "Visão do Profissional",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.80
+            "confidence": 0.80,
         }
 
     async def generate_block_visao_concorrente(
@@ -2168,7 +2117,7 @@ Faça uma avaliação técnica desta empresa."""
         company_name: str,
         all_blocks_content: str,
         perplexity_context: str,
-        news_data: List[Dict[str, Any]]
+        news_data: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
         BLOCO 10: Visão do Concorrente
@@ -2179,7 +2128,7 @@ Faça uma avaliação técnica desta empresa."""
         news_text = ""
         if news_data:
             for n in news_data[:5]:
-                title = n.get('title', '')
+                title = n.get("title", "")
                 if title:
                     news_text += f"- {title}\n"
 
@@ -2222,7 +2171,7 @@ Analise como um concorrente direto analisaria esta empresa."""
             "title": "Visão do Concorrente",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.75
+            "confidence": 0.75,
         }
 
     async def generate_block_visao_fornecedor(
@@ -2230,7 +2179,7 @@ Analise como um concorrente direto analisaria esta empresa."""
         company_name: str,
         all_blocks_content: str,
         cnpj_data: Dict[str, Any],
-        perplexity_context: str
+        perplexity_context: str,
     ) -> Dict[str, Any]:
         """
         BLOCO 11: Visão do Fornecedor
@@ -2238,9 +2187,9 @@ Analise como um concorrente direto analisaria esta empresa."""
         """
         logger.info("generate_block_visao_fornecedor", company=company_name)
 
-        porte = cnpj_data.get('porte', 'N/A')
-        capital = cnpj_data.get('capital_social', 'N/A')
-        situacao = cnpj_data.get('situacao_cadastral', 'N/A')
+        porte = cnpj_data.get("porte", "N/A")
+        capital = cnpj_data.get("capital_social", "N/A")
+        situacao = cnpj_data.get("situacao_cadastral", "N/A")
 
         system = """Você é um FORNECEDOR avaliando esta empresa como cliente.
 
@@ -2283,7 +2232,7 @@ Analise esta empresa como potencial cliente."""
             "title": "Visão do Fornecedor",
             "content": content,
             "highlights": self._extract_highlights(content),
-            "confidence": 0.70
+            "confidence": 0.70,
         }
 
     # ===========================================
@@ -2291,9 +2240,7 @@ Analise esta empresa como potencial cliente."""
     # ===========================================
 
     async def generate_hypothesis_and_okrs(
-        self,
-        company_name: str,
-        all_blocks_content: str
+        self, company_name: str, all_blocks_content: str
     ) -> Dict[str, Any]:
         """
         Gera Hipótese de Objetivo e OKRs sugeridos
@@ -2338,18 +2285,16 @@ Retorne APENAS este JSON (sem texto adicional):
             return json.loads(response)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 try:
                     return json.loads(json_match.group())
                 except json.JSONDecodeError:
                     pass
             return {
-                "hypothesis": {
-                    "inferred": "Objetivo não identificado claramente",
-                    "evidence": []
-                },
-                "okrs": {"objectives": []}
+                "hypothesis": {"inferred": "Objetivo não identificado claramente", "evidence": []},
+                "okrs": {"objectives": []},
             }
 
     async def analyze_competitor_with_stamp(
@@ -2357,16 +2302,16 @@ Retorne APENAS este JSON (sem texto adicional):
         main_company: str,
         competitor_name: str,
         competitor_info: Dict[str, Any],
-        main_company_context: str
+        main_company_context: str,
     ) -> Dict[str, Any]:
         """
         Analisa concorrente e atribui Stamp (Forte/Médio/Fraco)
         """
         logger.info("analyze_competitor_stamp", competitor=competitor_name)
 
-        website = competitor_info.get('website', '')
-        description = competitor_info.get('description', '')
-        industry = competitor_info.get('industry', '')
+        website = competitor_info.get("website", "")
+        description = competitor_info.get("description", "")
+        industry = competitor_info.get("industry", "")
 
         system = """Você é um analista competitivo.
 
@@ -2419,17 +2364,16 @@ Retorne APENAS este JSON:
         except json.JSONDecodeError:
             return {
                 "name": competitor_name,
-                "description": description if description else "Concorrente identificado no mercado.",
+                "description": description
+                if description
+                else "Concorrente identificado no mercado.",
                 "stamp": "Medio",
                 "stamp_color": "yellow",
-                "justification": "Avaliação com dados limitados"
+                "justification": "Avaliação com dados limitados",
             }
 
     async def generate_swot_contemporaneo(
-        self,
-        company_name: str,
-        all_blocks_content: str,
-        raw_data: Dict[str, Any]
+        self, company_name: str, all_blocks_content: str, raw_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Gera SWOT Contemporâneo com scoring e TOWS
@@ -2496,7 +2440,8 @@ Retorne APENAS este JSON (sem texto adicional):
             return result
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 try:
                     result = json.loads(json_match.group())
@@ -2513,7 +2458,7 @@ Retorne APENAS este JSON (sem texto adicional):
                 "weaknesses": [],
                 "opportunities": [],
                 "threats": [],
-                "tows_strategies": {"so": [], "wo": [], "st": [], "wt": []}
+                "tows_strategies": {"so": [], "wo": [], "st": [], "wt": []},
             }
 
     def _clean_content(self, content: str) -> str:
@@ -2521,38 +2466,54 @@ Retorne APENAS este JSON (sem texto adicional):
         import re
 
         # Remover referências no formato [1], [2], [fonte], [n], etc
-        content = re.sub(r'\[\d+\]', '', content)
-        content = re.sub(r'\[[\w\s]+\]', '', content)  # Remove qualquer [texto]
+        content = re.sub(r"\[\d+\]", "", content)
+        content = re.sub(r"\[[\w\s]+\]", "", content)  # Remove qualquer [texto]
 
         # Remover URLs soltas
-        content = re.sub(r'https?://\S+', '', content)
-        content = re.sub(r'www\.\S+', '', content)
+        content = re.sub(r"https?://\S+", "", content)
+        content = re.sub(r"www\.\S+", "", content)
 
         # Remover menções a fontes
-        content = re.sub(r'segundo (fontes|pesquisas|dados|informações|o site|a empresa)', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'de acordo com (fontes|pesquisas|dados|o site)', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'conforme (fontes|pesquisas|dados|informações)', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'com base (em|nas) (fontes|pesquisas|dados)', '', content, flags=re.IGNORECASE)
+        content = re.sub(
+            r"segundo (fontes|pesquisas|dados|informações|o site|a empresa)",
+            "",
+            content,
+            flags=re.IGNORECASE,
+        )
+        content = re.sub(
+            r"de acordo com (fontes|pesquisas|dados|o site)", "", content, flags=re.IGNORECASE
+        )
+        content = re.sub(
+            r"conforme (fontes|pesquisas|dados|informações)", "", content, flags=re.IGNORECASE
+        )
+        content = re.sub(
+            r"com base (em|nas) (fontes|pesquisas|dados)", "", content, flags=re.IGNORECASE
+        )
 
         # Remover menções a ferramentas
-        content = re.sub(r'\b(perplexity|tavily|apollo|linkedin|serper|brasilapi)\b', '', content, flags=re.IGNORECASE)
+        content = re.sub(
+            r"\b(perplexity|tavily|apollo|linkedin|serper|brasilapi)\b",
+            "",
+            content,
+            flags=re.IGNORECASE,
+        )
 
         # Remover linhas que parecem JSON
-        content = re.sub(r'^\s*[\{\}\[\]].*$', '', content, flags=re.MULTILINE)
-        content = re.sub(r'^\s*"[^"]+"\s*:\s*', '', content, flags=re.MULTILINE)
-        content = re.sub(r'```json[\s\S]*?```', '', content)
-        content = re.sub(r'```[\s\S]*?```', '', content)
+        content = re.sub(r"^\s*[\{\}\[\]].*$", "", content, flags=re.MULTILINE)
+        content = re.sub(r'^\s*"[^"]+"\s*:\s*', "", content, flags=re.MULTILINE)
+        content = re.sub(r"```json[\s\S]*?```", "", content)
+        content = re.sub(r"```[\s\S]*?```", "", content)
 
         # Remover linhas com apenas pontuação ou símbolos
-        content = re.sub(r'^\s*[-=_*]+\s*$', '', content, flags=re.MULTILINE)
+        content = re.sub(r"^\s*[-=_*]+\s*$", "", content, flags=re.MULTILINE)
 
         # Limpar espaços extras
-        content = re.sub(r'\n{3,}', '\n\n', content)
-        content = re.sub(r' {2,}', ' ', content)
-        content = re.sub(r'^\s+', '', content, flags=re.MULTILINE)
+        content = re.sub(r"\n{3,}", "\n\n", content)
+        content = re.sub(r" {2,}", " ", content)
+        content = re.sub(r"^\s+", "", content, flags=re.MULTILINE)
 
         # Garantir que headers tenham espaço depois do ##
-        content = re.sub(r'^(#{1,3})([^\s#])', r'\1 \2', content, flags=re.MULTILINE)
+        content = re.sub(r"^(#{1,3})([^\s#])", r"\1 \2", content, flags=re.MULTILINE)
 
         return content.strip()
 
@@ -2563,14 +2524,14 @@ Retorne APENAS este JSON (sem texto adicional):
         highlights = []
 
         # Extrair itens em negrito
-        bold_items = re.findall(r'\*\*([^*]+)\*\*', content)
+        bold_items = re.findall(r"\*\*([^*]+)\*\*", content)
         for item in bold_items[:3]:
             if len(item) > 10 and len(item) < 100:
                 highlights.append(item)
 
         # Se não encontrou, extrair primeiras sentenças
         if not highlights:
-            sentences = content.split('. ')
+            sentences = content.split(". ")
             for s in sentences[:3]:
                 if len(s) > 20 and len(s) < 150:
                     highlights.append(s.strip())

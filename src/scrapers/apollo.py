@@ -33,31 +33,23 @@ class ApolloClient(BaseScraper):
     SOURCE_COVERAGE = "Dados B2B, contatos profissionais, empresas"
     SOURCE_DOC_URL = "https://apolloio.github.io/apollo-api-docs"
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        timeout: float = 30.0
-    ):
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 30.0):
         super().__init__(
             api_key=api_key or settings.apollo_api_key,
             base_url="https://api.apollo.io/v1",
             rate_limit=100,
-            timeout=timeout
+            timeout=timeout,
         )
 
     def _get_headers(self) -> Dict[str, str]:
         return {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
-            "X-Api-Key": self.api_key  # Apollo agora exige chave no header
+            "X-Api-Key": self.api_key,  # Apollo agora exige chave no header
         }
 
     async def _request_with_key(
-        self,
-        method: str,
-        endpoint: str,
-        params: Optional[Dict] = None,
-        json: Optional[Dict] = None
+        self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Request com API key no header (novo padrão Apollo)"""
         if json is None:
@@ -80,7 +72,7 @@ class ApolloClient(BaseScraper):
         organization_locations: Optional[List[str]] = None,
         organization_num_employees_ranges: Optional[List[str]] = None,
         page: int = 1,
-        per_page: int = 25
+        per_page: int = 25,
     ) -> Dict[str, Any]:
         """
         Busca pessoas/contatos
@@ -98,16 +90,9 @@ class ApolloClient(BaseScraper):
         Returns:
             Lista de pessoas encontradas
         """
-        logger.info(
-            "apollo_search_people",
-            name=q_person_name,
-            org=q_organization_name
-        )
+        logger.info("apollo_search_people", name=q_person_name, org=q_organization_name)
 
-        payload = {
-            "page": page,
-            "per_page": min(per_page, 100)
-        }
+        payload = {"page": page, "per_page": min(per_page, 100)}
 
         if q_person_name:
             payload["q_person_name"] = q_person_name
@@ -128,7 +113,7 @@ class ApolloClient(BaseScraper):
         return {
             "people": [self._normalize_person(p) for p in people],
             "pagination": result.get("pagination", {}),
-            "total": result.get("pagination", {}).get("total_entries", 0)
+            "total": result.get("pagination", {}).get("total_entries", 0),
         }
 
     def _normalize_person(self, data: Dict) -> Dict[str, Any]:
@@ -144,37 +129,31 @@ class ApolloClient(BaseScraper):
             "title": data.get("title"),
             "seniority": data.get("seniority"),
             "departments": data.get("departments", []),
-
             # Empresa atual
             "company": {
                 "name": data.get("organization_name") or data.get("organization", {}).get("name"),
                 "website": data.get("organization", {}).get("website_url"),
                 "linkedin_url": data.get("organization", {}).get("linkedin_url"),
                 "industry": data.get("organization", {}).get("industry"),
-                "employee_count": data.get("organization", {}).get("estimated_num_employees")
+                "employee_count": data.get("organization", {}).get("estimated_num_employees"),
             },
-
             # Contato
             "email": data.get("email"),
             "email_status": data.get("email_status"),
             "phone_numbers": data.get("phone_numbers", []),
-
             # Social
             "linkedin_url": data.get("linkedin_url"),
             "twitter_url": data.get("twitter_url"),
             "facebook_url": data.get("facebook_url"),
             "github_url": data.get("github_url"),
-
             # Localização
             "city": data.get("city"),
             "state": data.get("state"),
             "country": data.get("country"),
-
             # Metadados
             "photo_url": data.get("photo_url"),
             "headline": data.get("headline"),
-
-            "raw_data": data
+            "raw_data": data,
         }
 
     async def enrich_person(
@@ -184,7 +163,7 @@ class ApolloClient(BaseScraper):
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         organization_name: Optional[str] = None,
-        domain: Optional[str] = None
+        domain: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Enriquece dados de uma pessoa
@@ -234,7 +213,7 @@ class ApolloClient(BaseScraper):
         organization_num_employees_ranges: Optional[List[str]] = None,
         organization_industries: Optional[List[str]] = None,
         page: int = 1,
-        per_page: int = 25
+        per_page: int = 25,
     ) -> Dict[str, Any]:
         """
         Busca empresas
@@ -252,10 +231,7 @@ class ApolloClient(BaseScraper):
         """
         logger.info("apollo_search_organizations", name=q_organization_name)
 
-        payload = {
-            "page": page,
-            "per_page": min(per_page, 100)
-        }
+        payload = {"page": page, "per_page": min(per_page, 100)}
 
         if q_organization_name:
             payload["q_organization_name"] = q_organization_name
@@ -272,7 +248,7 @@ class ApolloClient(BaseScraper):
         return {
             "organizations": [self._normalize_organization(o) for o in orgs],
             "pagination": result.get("pagination", {}),
-            "total": result.get("pagination", {}).get("total_entries", 0)
+            "total": result.get("pagination", {}).get("total_entries", 0),
         }
 
     def _normalize_organization(self, data: Dict) -> Dict[str, Any]:
@@ -287,32 +263,25 @@ class ApolloClient(BaseScraper):
             "linkedin_url": data.get("linkedin_url"),
             "twitter_url": data.get("twitter_url"),
             "facebook_url": data.get("facebook_url"),
-
             "industry": data.get("industry"),
             "keywords": data.get("keywords", []),
             "estimated_num_employees": data.get("estimated_num_employees"),
             "employee_count_range": self._get_employee_range(data.get("estimated_num_employees")),
-
             "founded_year": data.get("founded_year"),
             "annual_revenue": data.get("annual_revenue"),
             "annual_revenue_printed": data.get("annual_revenue_printed"),
-
             # Localização
             "city": data.get("city"),
             "state": data.get("state"),
             "country": data.get("country"),
             "street_address": data.get("street_address"),
             "postal_code": data.get("postal_code"),
-
             "phone": data.get("phone"),
             "logo_url": data.get("logo_url"),
             "primary_domain": data.get("primary_domain"),
-
             "short_description": data.get("short_description"),
-
             "technologies": data.get("technologies", []),
-
-            "raw_data": data
+            "raw_data": data,
         }
 
     def _get_employee_range(self, count: Optional[int]) -> str:
@@ -334,9 +303,7 @@ class ApolloClient(BaseScraper):
         return "5000+"
 
     async def enrich_organization(
-        self,
-        domain: Optional[str] = None,
-        name: Optional[str] = None
+        self, domain: Optional[str] = None, name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Enriquece dados de uma empresa
@@ -374,7 +341,7 @@ class ApolloClient(BaseScraper):
         person_seniorities: Optional[List[str]] = None,
         person_titles: Optional[List[str]] = None,
         page: int = 1,
-        per_page: int = 25
+        per_page: int = 25,
     ) -> Dict[str, Any]:
         """
         Busca funcionários de uma empresa
@@ -390,16 +357,9 @@ class ApolloClient(BaseScraper):
         Returns:
             Lista de funcionários
         """
-        logger.info(
-            "apollo_get_employees",
-            org=organization_name,
-            domain=domain
-        )
+        logger.info("apollo_get_employees", org=organization_name, domain=domain)
 
-        payload = {
-            "page": page,
-            "per_page": min(per_page, 100)
-        }
+        payload = {"page": page, "per_page": min(per_page, 100)}
 
         if organization_name:
             payload["q_organization_name"] = organization_name
@@ -416,13 +376,11 @@ class ApolloClient(BaseScraper):
         return {
             "employees": [self._normalize_person(p) for p in people],
             "pagination": result.get("pagination", {}),
-            "total": result.get("pagination", {}).get("total_entries", 0)
+            "total": result.get("pagination", {}).get("total_entries", 0),
         }
 
     async def get_executives(
-        self,
-        organization_name: Optional[str] = None,
-        domain: Optional[str] = None
+        self, organization_name: Optional[str] = None, domain: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Busca executivos (C-level, VPs, Diretores) de uma empresa
@@ -438,14 +396,14 @@ class ApolloClient(BaseScraper):
             organization_name=organization_name,
             domain=domain,
             person_seniorities=["c_suite", "vp", "director", "head", "partner"],
-            per_page=50
+            per_page=50,
         )
 
     async def get_decision_makers(
         self,
         organization_name: Optional[str] = None,
         domain: Optional[str] = None,
-        departments: Optional[List[str]] = None
+        departments: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Busca tomadores de decisão de uma empresa
@@ -463,7 +421,7 @@ class ApolloClient(BaseScraper):
             organization_name=organization_name,
             domain=domain,
             person_seniorities=["owner", "founder", "c_suite", "partner", "vp", "director"],
-            per_page=50
+            per_page=50,
         )
 
     # ===========================================
@@ -478,7 +436,7 @@ class ApolloClient(BaseScraper):
         max_employees: Optional[int] = None,
         states: Optional[List[str]] = None,
         page: int = 1,
-        per_page: int = 25
+        per_page: int = 25,
     ) -> Dict[str, Any]:
         """
         Busca empresas brasileiras
@@ -511,19 +469,21 @@ class ApolloClient(BaseScraper):
             organization_num_employees_ranges=employee_ranges,
             organization_industries=industries,
             page=page,
-            per_page=per_page
+            per_page=per_page,
         )
 
-    def _build_employee_ranges(
-        self,
-        min_emp: Optional[int],
-        max_emp: Optional[int]
-    ) -> List[str]:
+    def _build_employee_ranges(self, min_emp: Optional[int], max_emp: Optional[int]) -> List[str]:
         """Constrói ranges de funcionários"""
         ranges = []
         all_ranges = [
-            (1, 10), (11, 50), (51, 200), (201, 500),
-            (501, 1000), (1001, 5000), (5001, 10000), (10001, None)
+            (1, 10),
+            (11, 50),
+            (51, 200),
+            (201, 500),
+            (501, 1000),
+            (1001, 5000),
+            (5001, 10000),
+            (10001, None),
         ]
 
         for r_min, r_max in all_ranges:
@@ -546,7 +506,7 @@ class ApolloClient(BaseScraper):
         seniority: Optional[str] = None,
         state: Optional[str] = None,
         page: int = 1,
-        per_page: int = 25
+        per_page: int = 25,
     ) -> Dict[str, Any]:
         """
         Busca pessoas no Brasil
@@ -575,5 +535,5 @@ class ApolloClient(BaseScraper):
             person_seniorities=seniorities,
             organization_locations=locations,
             page=page,
-            per_page=per_page
+            per_page=per_page,
         )

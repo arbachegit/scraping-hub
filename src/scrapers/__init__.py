@@ -18,5 +18,5 @@ __all__ = [
     "TavilyClient",
     "PerplexityClient",
     "ApolloClient",
-    "WebScraperClient"
+    "WebScraperClient",
 ]

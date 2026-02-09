@@ -47,7 +47,7 @@ class AnalyticsETL:
         credits_used: int = 1,
         status: str = "completed",
         error_message: Optional[str] = None,
-        query_params: Optional[dict] = None
+        query_params: Optional[dict] = None,
     ) -> Optional[str]:
         """
         Record a search event in the analytics fact table.
@@ -62,7 +62,7 @@ class AnalyticsETL:
             processing_time_ms=processing_time_ms,
             credits_used=credits_used,
             status=status,
-            error_message=error_message
+            error_message=error_message,
         )
 
     async def record_company_analysis(
@@ -75,7 +75,7 @@ class AnalyticsETL:
         confidence_score: float = 0,
         processing_time_ms: int = 0,
         ai_tokens_used: int = 0,
-        analysis_result: Optional[Dict[str, Any]] = None
+        analysis_result: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
         Record a company analysis event.
@@ -98,10 +98,14 @@ class AnalyticsETL:
             sources_failed = sources_attempted - sources_succeeded
 
             has_website_data = sources_result.get("website", False)
-            has_linkedin_data = sources_result.get("linkedin", False) or sources_result.get("apollo", False)
+            has_linkedin_data = sources_result.get("linkedin", False) or sources_result.get(
+                "apollo", False
+            )
             has_news_data = sources_result.get("news", False) or sources_result.get("serper", False)
             has_financial_data = sources_result.get("financial", False)
-            has_cnpj_data = sources_result.get("cnpj", False) or sources_result.get("brasilapi", False)
+            has_cnpj_data = sources_result.get("cnpj", False) or sources_result.get(
+                "brasilapi", False
+            )
 
         # Determine what outputs were generated
         has_swot = False
@@ -131,7 +135,7 @@ class AnalyticsETL:
             has_cnpj_data=has_cnpj_data,
             has_swot=has_swot,
             has_okrs=has_okrs,
-            has_competitors=has_competitors
+            has_competitors=has_competitors,
         )
 
     async def record_person_analysis(
@@ -145,7 +149,7 @@ class AnalyticsETL:
         confidence_score: float = 0,
         processing_time_ms: int = 0,
         ai_tokens_used: int = 0,
-        analysis_result: Optional[Dict[str, Any]] = None
+        analysis_result: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         """
         Record a person/politician analysis event.
@@ -165,8 +169,12 @@ class AnalyticsETL:
             sources_succeeded = sum(1 for v in sources_result.values() if v)
             sources_failed = sources_attempted - sources_succeeded
 
-            has_linkedin_data = sources_result.get("linkedin", False) or sources_result.get("apollo", False)
-            has_social_data = sources_result.get("twitter", False) or sources_result.get("instagram", False)
+            has_linkedin_data = sources_result.get("linkedin", False) or sources_result.get(
+                "apollo", False
+            )
+            has_social_data = sources_result.get("twitter", False) or sources_result.get(
+                "instagram", False
+            )
             has_news_data = sources_result.get("news", False) or sources_result.get("serper", False)
             has_photo = sources_result.get("photo", False)
 
@@ -194,7 +202,7 @@ class AnalyticsETL:
             has_news_data=has_news_data,
             has_photo=has_photo,
             has_voting_history=has_voting_history,
-            has_controversies=has_controversies
+            has_controversies=has_controversies,
         )
 
     async def record_news_query(
@@ -203,7 +211,7 @@ class AnalyticsETL:
         source_code: str = "serper",
         user_email: Optional[str] = None,
         results: Optional[List[Dict[str, Any]]] = None,
-        processing_time_ms: int = 0
+        processing_time_ms: int = 0,
     ) -> Optional[str]:
         """
         Record a news query event.
@@ -220,7 +228,9 @@ class AnalyticsETL:
             results_count = len(results)
             relevant_count = sum(1 for r in results if r.get("relevance_score", 0) > 0.5)
 
-            sentiments = [r.get("sentiment_score") for r in results if r.get("sentiment_score") is not None]
+            sentiments = [
+                r.get("sentiment_score") for r in results if r.get("sentiment_score") is not None
+            ]
             if sentiments:
                 avg_sentiment = sum(sentiments) / len(sentiments)
 
@@ -243,7 +253,7 @@ class AnalyticsETL:
             positive_count=positive_count,
             negative_count=negative_count,
             neutral_count=neutral_count,
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
         )
 
     async def record_indicator_query(
@@ -254,7 +264,7 @@ class AnalyticsETL:
         user_email: Optional[str] = None,
         data_found: bool = False,
         data_year: Optional[int] = None,
-        processing_time_ms: int = 0
+        processing_time_ms: int = 0,
     ) -> Optional[str]:
         """
         Record an indicator query event.
@@ -273,7 +283,7 @@ class AnalyticsETL:
             data_found=data_found,
             data_freshness_days=data_freshness_days,
             data_year=data_year,
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
         )
 
     async def record_api_call(
@@ -287,7 +297,7 @@ class AnalyticsETL:
         is_cached: bool = False,
         cache_hit: bool = False,
         error: Optional[Exception] = None,
-        cost: float = 0
+        cost: float = 0,
     ) -> Optional[str]:
         """
         Record an external API call.
@@ -313,7 +323,7 @@ class AnalyticsETL:
             is_error=is_error,
             error_type=error_type,
             error_message=error_message,
-            cost_incurred=cost
+            cost_incurred=cost,
         )
 
 
@@ -347,7 +357,7 @@ class AnalyticsTracker:
         query: str,
         results_count: int = 0,
         status: str = "completed",
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ) -> Optional[str]:
         """End tracking and record as search fact"""
         return await self.etl.record_search(
@@ -359,7 +369,7 @@ class AnalyticsTracker:
             credits_used=self._metadata.get("credits_used", 1),
             status=status,
             error_message=error_message,
-            query_params=self._metadata.get("query_params")
+            query_params=self._metadata.get("query_params"),
         )
 
     async def end_company_analysis(
@@ -369,7 +379,7 @@ class AnalyticsTracker:
         analysis_result: Optional[Dict[str, Any]] = None,
         completeness_score: float = 0,
         confidence_score: float = 0,
-        ai_tokens_used: int = 0
+        ai_tokens_used: int = 0,
     ) -> Optional[str]:
         """End tracking and record as company analysis fact"""
         return await self.etl.record_company_analysis(
@@ -381,7 +391,7 @@ class AnalyticsTracker:
             confidence_score=confidence_score,
             processing_time_ms=self.get_elapsed_ms(),
             ai_tokens_used=ai_tokens_used,
-            analysis_result=analysis_result
+            analysis_result=analysis_result,
         )
 
     async def end_person_analysis(
@@ -392,7 +402,7 @@ class AnalyticsTracker:
         analysis_result: Optional[Dict[str, Any]] = None,
         completeness_score: float = 0,
         confidence_score: float = 0,
-        ai_tokens_used: int = 0
+        ai_tokens_used: int = 0,
     ) -> Optional[str]:
         """End tracking and record as person analysis fact"""
         return await self.etl.record_person_analysis(
@@ -405,7 +415,7 @@ class AnalyticsTracker:
             confidence_score=confidence_score,
             processing_time_ms=self.get_elapsed_ms(),
             ai_tokens_used=ai_tokens_used,
-            analysis_result=analysis_result
+            analysis_result=analysis_result,
         )
 
     async def end_api_call(
@@ -415,7 +425,7 @@ class AnalyticsTracker:
         response_size_bytes: int = 0,
         is_cached: bool = False,
         cache_hit: bool = False,
-        error: Optional[Exception] = None
+        error: Optional[Exception] = None,
     ) -> Optional[str]:
         """End tracking and record as API call fact"""
         return await self.etl.record_api_call(
@@ -428,7 +438,7 @@ class AnalyticsTracker:
             is_cached=is_cached,
             cache_hit=cache_hit,
             error=error,
-            cost=self._metadata.get("cost", 0)
+            cost=self._metadata.get("cost", 0),
         )
 
 

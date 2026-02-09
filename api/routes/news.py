@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v2/news", tags=["News"])
 # SCHEMAS
 # ===========================================
 
+
 class NewsSearchRequest(BaseModel):
     query: str
     days: int = 7
@@ -42,10 +43,10 @@ class DailyBriefingRequest(BaseModel):
 # ENDPOINTS
 # ===========================================
 
+
 @router.post("/search")
 async def search_news(
-    request: NewsSearchRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: NewsSearchRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Busca notícias por query
@@ -55,11 +56,7 @@ async def search_news(
     - Análise de sentimento
     - Resumo consolidado
     """
-    logger.info(
-        "api_news_search",
-        user=current_user.email,
-        query=request.query
-    )
+    logger.info("api_news_search", user=current_user.email, query=request.query)
 
     try:
         async with NewsMonitorService() as service:
@@ -67,7 +64,7 @@ async def search_news(
                 query=request.query,
                 days=request.days,
                 max_results=request.max_results,
-                sentiment_filter=request.sentiment_filter
+                sentiment_filter=request.sentiment_filter,
             )
             return result
 
@@ -82,19 +79,14 @@ async def search_news_get(
     days: int = Query(7, le=30, description="Dias para buscar"),
     limit: int = Query(20, le=50, description="Limite de resultados"),
     sentiment: Optional[str] = Query(None, description="Filtro de sentimento"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca notícias (GET)
     """
     return await search_news(
-        NewsSearchRequest(
-            query=q,
-            days=days,
-            max_results=limit,
-            sentiment_filter=sentiment
-        ),
-        current_user
+        NewsSearchRequest(query=q, days=days, max_results=limit, sentiment_filter=sentiment),
+        current_user,
     )
 
 
@@ -102,28 +94,23 @@ async def search_news_get(
 # COMPANY NEWS
 # ===========================================
 
+
 @router.get("/company/{company_name}")
 async def get_company_news(
     company_name: str,
     days: int = Query(30, le=90, description="Dias para buscar"),
     include_analysis: bool = Query(True, description="Incluir análise AI"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca notícias sobre uma empresa
     """
-    logger.info(
-        "api_news_company",
-        user=current_user.email,
-        company=company_name
-    )
+    logger.info("api_news_company", user=current_user.email, company=company_name)
 
     try:
         async with NewsMonitorService() as service:
             result = await service.get_company_news(
-                company_name=company_name,
-                days=days,
-                include_analysis=include_analysis
+                company_name=company_name, days=days, include_analysis=include_analysis
             )
             return result
 
@@ -136,29 +123,22 @@ async def get_company_news(
 # SECTOR NEWS
 # ===========================================
 
+
 @router.get("/sector/{sector}")
 async def get_sector_news(
     sector: str,
     days: int = Query(7, le=30, description="Dias para buscar"),
     country: str = Query("Brasil", description="País"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca notícias de um setor
     """
-    logger.info(
-        "api_news_sector",
-        user=current_user.email,
-        sector=sector
-    )
+    logger.info("api_news_sector", user=current_user.email, sector=sector)
 
     try:
         async with NewsMonitorService() as service:
-            result = await service.get_sector_news(
-                sector=sector,
-                days=days,
-                country=country
-            )
+            result = await service.get_sector_news(sector=sector, days=days, country=country)
             return result
 
     except Exception as e:
@@ -170,11 +150,12 @@ async def get_sector_news(
 # ECONOMIC SCENARIO
 # ===========================================
 
+
 @router.get("/economic")
 async def get_economic_scenario(
     sector: Optional[str] = Query(None, description="Setor específico"),
     country: str = Query("Brasil", description="País"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca cenário econômico atual
@@ -186,18 +167,15 @@ async def get_economic_scenario(
     - Câmbio
     - Emprego
     """
-    logger.info(
-        "api_news_economic",
-        user=current_user.email,
-        sector=sector
-    )
+    logger.info("api_news_economic", user=current_user.email, sector=sector)
 
     try:
         async with NewsMonitorService() as service:
-            result = await service.get_economic_scenario(
-                aspects=None,
-                sector=sector
-            ) if sector else await service.get_economic_scenario()
+            result = (
+                await service.get_economic_scenario(aspects=None, sector=sector)
+                if sector
+                else await service.get_economic_scenario()
+            )
             return result
 
     except Exception as e:
@@ -209,27 +187,21 @@ async def get_economic_scenario(
 # TRENDS
 # ===========================================
 
+
 @router.get("/trends")
 async def get_trending_topics(
     category: Optional[str] = Query(None, description="Categoria"),
     country: str = Query("Brasil", description="País"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca tópicos em alta
     """
-    logger.info(
-        "api_news_trends",
-        user=current_user.email,
-        category=category
-    )
+    logger.info("api_news_trends", user=current_user.email, category=category)
 
     try:
         async with NewsMonitorService() as service:
-            result = await service.get_trending_topics(
-                category=category,
-                country=country
-            )
+            result = await service.get_trending_topics(category=category, country=country)
             return result
 
     except Exception as e:
@@ -241,10 +213,10 @@ async def get_trending_topics(
 # MONITORING
 # ===========================================
 
+
 @router.post("/monitor")
 async def monitor_entity(
-    request: MonitorEntityRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: MonitorEntityRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Monitora entidade para alertas
@@ -256,18 +228,14 @@ async def monitor_entity(
 
     Retorna alertas baseados em keywords
     """
-    logger.info(
-        "api_news_monitor",
-        user=current_user.email,
-        entity=request.entity_name
-    )
+    logger.info("api_news_monitor", user=current_user.email, entity=request.entity_name)
 
     try:
         async with NewsMonitorService() as service:
             result = await service.monitor_entity(
                 entity_name=request.entity_name,
                 entity_type=request.entity_type,
-                alert_keywords=request.alert_keywords
+                alert_keywords=request.alert_keywords,
             )
             return result
 
@@ -280,10 +248,10 @@ async def monitor_entity(
 # BRIEFING
 # ===========================================
 
+
 @router.post("/briefing")
 async def get_daily_briefing(
-    request: DailyBriefingRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: DailyBriefingRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Gera briefing diário de notícias
@@ -291,23 +259,15 @@ async def get_daily_briefing(
     Envie uma lista de tópicos de interesse para receber
     um resumo consolidado das principais notícias do dia.
     """
-    logger.info(
-        "api_news_briefing",
-        user=current_user.email,
-        topics=request.topics
-    )
+    logger.info("api_news_briefing", user=current_user.email, topics=request.topics)
 
     if len(request.topics) > 10:
-        raise HTTPException(
-            status_code=400,
-            detail="Máximo de 10 tópicos por briefing"
-        )
+        raise HTTPException(status_code=400, detail="Máximo de 10 tópicos por briefing")
 
     try:
         async with NewsMonitorService() as service:
             result = await service.get_daily_briefing(
-                topics=request.topics,
-                country=request.country
+                topics=request.topics, country=request.country
             )
             return result
 
@@ -317,9 +277,7 @@ async def get_daily_briefing(
 
 
 @router.get("/briefing")
-async def get_default_briefing(
-    current_user: TokenData = Depends(get_current_user)
-):
+async def get_default_briefing(current_user: TokenData = Depends(get_current_user)):
     """
     Gera briefing diário com tópicos padrão
 
@@ -337,8 +295,8 @@ async def get_default_briefing(
                 "tecnologia",
                 "negócios",
                 "política econômica",
-                "mercado financeiro"
+                "mercado financeiro",
             ]
         ),
-        current_user
+        current_user,
     )

@@ -45,7 +45,7 @@ class FontesDadosRepository:
         url: str,
         formato: str = "JSON",
         confiabilidade: str = "alta",
-        cobertura: Optional[str] = None
+        cobertura: Optional[str] = None,
     ) -> bool:
         """
         Registra uso de uma fonte de dados.
@@ -78,38 +78,26 @@ class FontesDadosRepository:
                 "formato": formato,
                 "confiabilidade": confiabilidade,
                 "data_ultima_atualizacao": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             if cobertura:
                 record["cobertura"] = cobertura
 
             self.client.table(self.TABLE_NAME).upsert(
-                record,
-                on_conflict="nome,categoria"
+                record, on_conflict="nome,categoria"
             ).execute()
 
             logger.info(
-                "fonte_uso_registrado",
-                nome=nome,
-                categoria=categoria,
-                fonte=fonte_primaria
+                "fonte_uso_registrado", nome=nome, categoria=categoria, fonte=fonte_primaria
             )
             return True
 
         except Exception as e:
-            logger.error(
-                "fonte_registro_erro",
-                nome=nome,
-                error=str(e)
-            )
+            logger.error("fonte_registro_erro", nome=nome, error=str(e))
             return False
 
-    async def obter_fonte(
-        self,
-        nome: str,
-        categoria: str
-    ) -> Optional[Dict[str, Any]]:
+    async def obter_fonte(self, nome: str, categoria: str) -> Optional[Dict[str, Any]]:
         """
         Obtém informações de uma fonte específica.
 
@@ -124,11 +112,14 @@ class FontesDadosRepository:
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "nome", nome
-            ).eq(
-                "categoria", categoria
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("nome", nome)
+                .eq("categoria", categoria)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]
@@ -138,10 +129,7 @@ class FontesDadosRepository:
 
         return None
 
-    async def listar_por_categoria(
-        self,
-        categoria: str
-    ) -> List[Dict[str, Any]]:
+    async def listar_por_categoria(self, categoria: str) -> List[Dict[str, Any]]:
         """
         Lista todas as fontes de uma categoria.
 
@@ -155,9 +143,13 @@ class FontesDadosRepository:
             return []
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "categoria", categoria
-            ).order("fonte_primaria").execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("categoria", categoria)
+                .order("fonte_primaria")
+                .execute()
+            )
 
             return result.data or []
 
@@ -176,11 +168,13 @@ class FontesDadosRepository:
             return []
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").order(
-                "categoria"
-            ).order(
-                "nome"
-            ).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .order("categoria")
+                .order("nome")
+                .execute()
+            )
 
             return result.data or []
 
@@ -207,7 +201,7 @@ class FontesDadosRepository:
                 "por_confiabilidade": {},
                 "com_api_key": 0,
                 "sem_api_key": 0,
-                "ultima_atualizacao": None
+                "ultima_atualizacao": None,
             }
 
             for fonte in todas:
@@ -252,10 +246,7 @@ def get_fontes_repository() -> FontesDadosRepository:
 
 # Helper functions para uso simplificado nos scrapers
 async def registrar_fonte_api(
-    nome: str,
-    provedor: str,
-    url: str,
-    cobertura: Optional[str] = None
+    nome: str, provedor: str, url: str, cobertura: Optional[str] = None
 ) -> bool:
     """
     Atalho para registrar uso de fonte tipo API.
@@ -277,15 +268,12 @@ async def registrar_fonte_api(
         url=url,
         formato="JSON",
         confiabilidade="alta",
-        cobertura=cobertura
+        cobertura=cobertura,
     )
 
 
 async def registrar_fonte_scraping(
-    nome: str,
-    site: str,
-    url: str,
-    cobertura: Optional[str] = None
+    nome: str, site: str, url: str, cobertura: Optional[str] = None
 ) -> bool:
     """
     Atalho para registrar uso de fonte tipo scraping.
@@ -307,5 +295,5 @@ async def registrar_fonte_scraping(
         url=url,
         formato="HTML",
         confiabilidade="media",
-        cobertura=cobertura
+        cobertura=cobertura,
     )

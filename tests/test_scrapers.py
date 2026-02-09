@@ -22,12 +22,14 @@ from tests.conftest import (
 # BRASIL API TESTS
 # ===========================================
 
+
 class TestBrasilAPIClient:
     """Testes para BrasilAPIClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import BrasilAPIClient
+
         return BrasilAPIClient()
 
     def test_init(self, client):
@@ -99,10 +101,7 @@ class TestBrasilAPIClient:
     @pytest.mark.asyncio
     async def test_get_banks(self, client):
         """Testa lista de bancos"""
-        mock_banks = [
-            {"code": 1, "name": "Banco do Brasil"},
-            {"code": 341, "name": "Itaú"}
-        ]
+        mock_banks = [{"code": 1, "name": "Banco do Brasil"}, {"code": 341, "name": "Itaú"}]
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_banks
 
@@ -116,7 +115,7 @@ class TestBrasilAPIClient:
         """Testa feriados nacionais"""
         mock_holidays = [
             {"date": "2024-01-01", "name": "Ano Novo"},
-            {"date": "2024-04-21", "name": "Tiradentes"}
+            {"date": "2024-04-21", "name": "Tiradentes"},
         ]
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_holidays
@@ -150,12 +149,14 @@ class TestBrasilAPIClient:
 # SERPER TESTS
 # ===========================================
 
+
 class TestSerperClient:
     """Testes para SerperClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import SerperClient
+
         return SerperClient(api_key="test_serper_key")
 
     def test_init(self, client):
@@ -195,12 +196,9 @@ class TestSerperClient:
 
             result = await client.search_news("Nubank", num=5)
 
-            mock_post.assert_called_once_with("/news", json={
-                "q": "Nubank",
-                "num": 5,
-                "gl": "br",
-                "hl": "pt-br"
-            })
+            mock_post.assert_called_once_with(
+                "/news", json={"q": "Nubank", "num": 5, "gl": "br", "hl": "pt-br"}
+            )
             assert len(result["news"]) == 1
             assert "100 milhões" in result["news"][0]["title"]
 
@@ -233,10 +231,7 @@ class TestSerperClient:
         """Testa busca de CNPJ pelo nome"""
         mock_result = {
             "organic": [
-                {
-                    "title": "CNPJ Nubank",
-                    "snippet": "CNPJ: 19.131.243/0001-97 - Nubank Pagamentos"
-                }
+                {"title": "CNPJ Nubank", "snippet": "CNPJ: 19.131.243/0001-97 - Nubank Pagamentos"}
             ]
         }
         with patch.object(client, "search", new_callable=AsyncMock) as mock_search:
@@ -259,11 +254,7 @@ class TestSerperClient:
     @pytest.mark.asyncio
     async def test_find_company_website(self, client):
         """Testa busca de website"""
-        mock_result = {
-            "organic": [
-                {"link": "https://nubank.com.br", "title": "Nubank"}
-            ]
-        }
+        mock_result = {"organic": [{"link": "https://nubank.com.br", "title": "Nubank"}]}
         with patch.object(client, "search", new_callable=AsyncMock) as mock_search:
             mock_search.return_value = mock_result
 
@@ -289,9 +280,11 @@ class TestSerperClient:
     @pytest.mark.asyncio
     async def test_find_politician_info(self, client):
         """Testa busca de informações de político"""
-        with patch.object(client, "search", new_callable=AsyncMock) as mock_search, \
-             patch.object(client, "search_news", new_callable=AsyncMock) as mock_news, \
-             patch.object(client, "_find_social", new_callable=AsyncMock) as mock_social:
+        with (
+            patch.object(client, "search", new_callable=AsyncMock) as mock_search,
+            patch.object(client, "search_news", new_callable=AsyncMock) as mock_news,
+            patch.object(client, "_find_social", new_callable=AsyncMock) as mock_social,
+        ):
             mock_search.return_value = MOCK_SERPER_SEARCH
             mock_news.return_value = MOCK_SERPER_NEWS
             mock_social.return_value = "https://instagram.com/politico"
@@ -308,12 +301,14 @@ class TestSerperClient:
 # TAVILY TESTS
 # ===========================================
 
+
 class TestTavilyClient:
     """Testes para TavilyClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import TavilyClient
+
         return TavilyClient(api_key="test_tavily_key")
 
     def test_init(self, client):
@@ -365,12 +360,14 @@ class TestTavilyClient:
 # PERPLEXITY TESTS
 # ===========================================
 
+
 class TestPerplexityClient:
     """Testes para PerplexityClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import PerplexityClient
+
         return PerplexityClient(api_key="test_perplexity_key")
 
     def test_init(self, client):
@@ -400,10 +397,7 @@ class TestPerplexityClient:
     async def test_analyze_company(self, client):
         """Testa análise de empresa"""
         with patch.object(client, "chat", new_callable=AsyncMock) as mock_chat:
-            mock_chat.return_value = {
-                "answer": "O Nubank é uma fintech...",
-                "citations": []
-            }
+            mock_chat.return_value = {"answer": "O Nubank é uma fintech...", "citations": []}
 
             result = await client.analyze_company("Nubank")
 
@@ -417,7 +411,7 @@ class TestPerplexityClient:
         with patch.object(client, "chat", new_callable=AsyncMock) as mock_chat:
             mock_chat.return_value = {
                 "answer": "Concorrentes: Inter, C6 Bank, PicPay",
-                "citations": []
+                "citations": [],
             }
 
             result = await client.find_competitors("Nubank", industry="fintech")
@@ -431,7 +425,7 @@ class TestPerplexityClient:
         with patch.object(client, "chat", new_callable=AsyncMock) as mock_chat:
             mock_chat.return_value = {
                 "answer": '{"objectives": [{"name": "Crescimento", "key_results": []}]}',
-                "citations": []
+                "citations": [],
             }
 
             result = await client.suggest_okrs("Nubank", "fintech context")
@@ -444,12 +438,14 @@ class TestPerplexityClient:
 # APOLLO TESTS
 # ===========================================
 
+
 class TestApolloClient:
     """Testes para ApolloClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import ApolloClient
+
         return ApolloClient(api_key="test_apollo_key")
 
     def test_init(self, client):
@@ -466,17 +462,11 @@ class TestApolloClient:
     @pytest.mark.asyncio
     async def test_search_people(self, client):
         """Testa busca de pessoas"""
-        mock_response = {
-            "people": [MOCK_APOLLO_PERSON["person"]],
-            "pagination": {"total": 1}
-        }
+        mock_response = {"people": [MOCK_APOLLO_PERSON["person"]], "pagination": {"total": 1}}
         with patch.object(client, "_request_with_key", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = mock_response
 
-            result = await client.search_people(
-                q_organization_name="Nubank",
-                person_titles=["CEO"]
-            )
+            result = await client.search_people(q_organization_name="Nubank", person_titles=["CEO"])
 
             assert "people" in result
             assert len(result["people"]) == 1
@@ -487,9 +477,7 @@ class TestApolloClient:
         with patch.object(client, "_request_with_key", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = MOCK_APOLLO_PERSON
 
-            result = await client.enrich_person(
-                email="david@nubank.com.br"
-            )
+            result = await client.enrich_person(email="david@nubank.com.br")
 
             assert result is not None
             mock_request.assert_called_once()
@@ -499,14 +487,12 @@ class TestApolloClient:
         """Testa busca de organizações"""
         mock_response = {
             "organizations": [MOCK_APOLLO_ORGANIZATION["organization"]],
-            "pagination": {"total": 1}
+            "pagination": {"total": 1},
         }
         with patch.object(client, "_request_with_key", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = mock_response
 
-            result = await client.search_organizations(
-                q_organization_name="Nubank"
-            )
+            result = await client.search_organizations(q_organization_name="Nubank")
 
             assert "organizations" in result
 
@@ -515,7 +501,7 @@ class TestApolloClient:
         """Testa busca de funcionários"""
         mock_response = {
             "people": [MOCK_APOLLO_PERSON["person"]],
-            "pagination": {"total": 1, "total_entries": 1}
+            "pagination": {"total": 1, "total_entries": 1},
         }
         with patch.object(client, "_request_with_key", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = mock_response
@@ -530,7 +516,7 @@ class TestApolloClient:
         mock_response = {
             "employees": [MOCK_APOLLO_PERSON["person"]],
             "pagination": {"total": 1},
-            "total": 1
+            "total": 1,
         }
         with patch.object(client, "get_company_employees", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_response
@@ -547,12 +533,14 @@ class TestApolloClient:
 # WEB SCRAPER TESTS
 # ===========================================
 
+
 class TestWebScraperClient:
     """Testes para WebScraperClient"""
 
     @pytest.fixture
     def client(self):
         from src.scrapers import WebScraperClient
+
         return WebScraperClient()
 
     def test_init(self, client):
@@ -604,6 +592,7 @@ class TestWebScraperClient:
 # CIRCUIT BREAKER TESTS
 # ===========================================
 
+
 class TestCircuitBreaker:
     """Testes para o Circuit Breaker"""
 
@@ -611,11 +600,7 @@ class TestCircuitBreaker:
         """Testa estado inicial do Circuit Breaker"""
         from src.utils.circuit_breaker import CircuitBreaker, CircuitState
 
-        breaker = CircuitBreaker(
-            name="test_breaker",
-            failure_threshold=3,
-            timeout=10.0
-        )
+        breaker = CircuitBreaker(name="test_breaker", failure_threshold=3, timeout=10.0)
 
         assert breaker.state == CircuitState.CLOSED
         assert breaker.is_closed
@@ -626,11 +611,7 @@ class TestCircuitBreaker:
         """Testa que o circuito abre após falhas consecutivas"""
         from src.utils.circuit_breaker import CircuitBreaker, CircuitState
 
-        breaker = CircuitBreaker(
-            name="test_open",
-            failure_threshold=3,
-            timeout=60.0
-        )
+        breaker = CircuitBreaker(name="test_open", failure_threshold=3, timeout=60.0)
 
         # Registrar falhas
         breaker.record_failure()
@@ -648,11 +629,7 @@ class TestCircuitBreaker:
         """Testa que sucesso reseta contador de falhas"""
         from src.utils.circuit_breaker import CircuitBreaker, CircuitState
 
-        breaker = CircuitBreaker(
-            name="test_reset",
-            failure_threshold=3,
-            timeout=60.0
-        )
+        breaker = CircuitBreaker(name="test_reset", failure_threshold=3, timeout=60.0)
 
         # Duas falhas
         breaker.record_failure()
@@ -666,13 +643,14 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_half_open_on_timeout(self):
         """Testa transição para HALF_OPEN após timeout"""
-        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
         import time
+
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
 
         breaker = CircuitBreaker(
             name="test_half_open",
             failure_threshold=1,
-            timeout=0.1  # 100ms
+            timeout=0.1,  # 100ms
         )
 
         # Abrir circuito
@@ -688,14 +666,12 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_closes_after_success_in_half_open(self):
         """Testa que circuito fecha após sucesso em HALF_OPEN"""
-        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
         import time
 
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+
         breaker = CircuitBreaker(
-            name="test_close",
-            failure_threshold=1,
-            success_threshold=2,
-            timeout=0.1
+            name="test_close", failure_threshold=1, success_threshold=2, timeout=0.1
         )
 
         # Abrir e esperar timeout
@@ -713,14 +689,11 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_reopens_on_failure_in_half_open(self):
         """Testa que falha em HALF_OPEN reabre o circuito"""
-        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
         import time
 
-        breaker = CircuitBreaker(
-            name="test_reopen",
-            failure_threshold=1,
-            timeout=0.1
-        )
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+
+        breaker = CircuitBreaker(name="test_reopen", failure_threshold=1, timeout=0.1)
 
         # Abrir e esperar timeout
         breaker.record_failure()
@@ -735,11 +708,7 @@ class TestCircuitBreaker:
         """Testa estatísticas do Circuit Breaker"""
         from src.utils.circuit_breaker import CircuitBreaker
 
-        breaker = CircuitBreaker(
-            name="test_stats",
-            failure_threshold=5,
-            timeout=60.0
-        )
+        breaker = CircuitBreaker(name="test_stats", failure_threshold=5, timeout=60.0)
 
         breaker.record_failure()
         breaker.record_failure()
@@ -760,7 +729,7 @@ class TestCircuitBreaker:
 
         # Criar novo
         breaker1 = CircuitBreakerRegistry.get_or_create("service_a")
-        breaker2 = CircuitBreakerRegistry.get_or_create("service_b")
+        CircuitBreakerRegistry.get_or_create("service_b")
 
         # Deve retornar mesmo objeto
         breaker1_again = CircuitBreakerRegistry.get_or_create("service_a")

@@ -87,14 +87,10 @@ class CompanyAnalysisService:
             self.perplexity.close(),
             self.apollo.close(),
             self.web_scraper.close(),
-            self.ai_analyzer.close()
+            self.ai_analyzer.close(),
         )
 
-    async def analyze_complete(
-        self,
-        name: str,
-        cnpj: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def analyze_complete(self, name: str, cnpj: Optional[str] = None) -> Dict[str, Any]:
         """
         Análise COMPLETA com 11 blocos temáticos
 
@@ -115,11 +111,11 @@ class CompanyAnalysisService:
                 "cnpj": cnpj,
                 "analysis_date": start_time.isoformat(),
                 "data_quality_score": 0.0,
-                "sources_used": []
+                "sources_used": [],
             },
             "blocks": {},
             "synthesis": {},
-            "status": "processing"
+            "status": "processing",
         }
 
         try:
@@ -135,30 +131,22 @@ class CompanyAnalysisService:
 
             # ===== FASE 3: BLOCOS 4-5 (DERIVADOS DE PESSOAS) =====
             logger.info("phase_3_people_derived_blocks", company=name)
-            blocks_4_5 = await self._generate_people_derived_blocks(
-                name, raw_data, blocks_1_3
-            )
+            blocks_4_5 = await self._generate_people_derived_blocks(name, raw_data, blocks_1_3)
             result["blocks"].update(blocks_4_5)
 
             # ===== FASE 4: BLOCOS 6-7 (COMUNICAÇÃO) =====
             logger.info("phase_4_communication_blocks", company=name)
-            blocks_6_7 = await self._generate_communication_blocks(
-                name, raw_data, result["blocks"]
-            )
+            blocks_6_7 = await self._generate_communication_blocks(name, raw_data, result["blocks"])
             result["blocks"].update(blocks_6_7)
 
             # ===== FASE 5: BLOCOS 8-11 (PERSPECTIVAS EM PARALELO) =====
             logger.info("phase_5_perspective_blocks", company=name)
-            blocks_8_11 = await self._generate_perspective_blocks(
-                name, raw_data, result["blocks"]
-            )
+            blocks_8_11 = await self._generate_perspective_blocks(name, raw_data, result["blocks"])
             result["blocks"].update(blocks_8_11)
 
             # ===== FASE 6: SÍNTESE FINAL =====
             logger.info("phase_6_synthesis", company=name)
-            synthesis = await self._generate_synthesis(
-                name, raw_data, result["blocks"]
-            )
+            synthesis = await self._generate_synthesis(name, raw_data, result["blocks"])
             result["synthesis"] = synthesis
 
             # Calcular qualidade dos dados
@@ -168,13 +156,13 @@ class CompanyAnalysisService:
 
             # ===== FASE 7: PERSISTÊNCIA =====
             logger.info("phase_7_persistence", company=name)
-            persistence_result = await self._persist_analysis(
-                name, cnpj, raw_data, result
-            )
+            persistence_result = await self._persist_analysis(name, cnpj, raw_data, result)
             result["metadata"]["empresa_id"] = persistence_result.get("empresa_id")
             result["metadata"]["analise_id"] = persistence_result.get("analise_id")
             result["palavras_chave"] = persistence_result.get("palavras_chave", [])
-            result["palavras_chave_por_bloco"] = persistence_result.get("palavras_chave_por_bloco", {})
+            result["palavras_chave_por_bloco"] = persistence_result.get(
+                "palavras_chave_por_bloco", {}
+            )
 
             # ===== FASE 8: BUSCA DE CONCORRENTES =====
             if persistence_result.get("empresa_id"):
@@ -183,7 +171,7 @@ class CompanyAnalysisService:
                     empresa_id=persistence_result["empresa_id"],
                     company_name=name,
                     keywords=persistence_result.get("palavras_chave", []),
-                    search_queries=persistence_result.get("search_queries", [])
+                    search_queries=persistence_result.get("search_queries", []),
                 )
 
             result["status"] = "completed"
@@ -194,7 +182,7 @@ class CompanyAnalysisService:
             logger.info(
                 "company_analysis_complete_done",
                 company=name,
-                duration=result["metadata"]["processing_time_seconds"]
+                duration=result["metadata"]["processing_time_seconds"],
             )
 
         except Exception as e:
@@ -208,11 +196,7 @@ class CompanyAnalysisService:
     # FASE 1: COLETA DE DADOS
     # =========================================
 
-    async def _collect_all_data(
-        self,
-        name: str,
-        cnpj: Optional[str]
-    ) -> Dict[str, Any]:
+    async def _collect_all_data(self, name: str, cnpj: Optional[str]) -> Dict[str, Any]:
         """
         Coleta TODOS os dados necessários em paralelo
 
@@ -232,7 +216,7 @@ class CompanyAnalysisService:
             "employees": [],
             "perplexity_research": {},
             "tavily_news": [],
-            "tavily_research": {}
+            "tavily_research": {},
         }
 
         # Primeira rodada: buscar CNPJ e website
@@ -241,10 +225,7 @@ class CompanyAnalysisService:
             "company_search": self.serper.find_company_info(name),
         }
 
-        initial_results = await asyncio.gather(
-            *initial_tasks.values(),
-            return_exceptions=True
-        )
+        initial_results = await asyncio.gather(*initial_tasks.values(), return_exceptions=True)
 
         # Extrair CNPJ
         if not cnpj and not isinstance(initial_results[0], Exception):
@@ -274,11 +255,7 @@ class CompanyAnalysisService:
         # Apollo - Funcionários
         domain = self._extract_domain(website_url) if website_url else None
         detail_tasks.append(
-            self.apollo.get_company_employees(
-                organization_name=name,
-                domain=domain,
-                per_page=50
-            )
+            self.apollo.get_company_employees(organization_name=name, domain=domain, per_page=50)
         )
         task_names.append("employees")
 
@@ -338,15 +315,14 @@ class CompanyAnalysisService:
         else:
             # 2. Fallback: buscar executivos no Apollo
             try:
-                executives = await self.apollo.get_executives(
-                    organization_name=name,
-                    domain=domain
-                )
+                executives = await self.apollo.get_executives(organization_name=name, domain=domain)
                 if executives.get("employees"):
                     data["employees"] = executives["employees"]
                     data["employees_source"] = "Apollo (Executives)"
                     data["sources"].append("Apollo (LinkedIn)")
-                    logger.info("employees_found", source="Apollo Executives", count=len(data["employees"]))
+                    logger.info(
+                        "employees_found", source="Apollo Executives", count=len(data["employees"])
+                    )
             except Exception as e:
                 logger.warning("apollo_executives_error", error=str(e))
 
@@ -357,7 +333,7 @@ class CompanyAnalysisService:
                 people_result = await self.perplexity.chat(
                     query=f"Quem são os principais executivos, fundadores e líderes da empresa {name} Brasil? "
                     f"Liste nomes, cargos e LinkedIn se disponível.",
-                    system_prompt="Liste pessoas reais com seus cargos. Formato: Nome Completo - Cargo"
+                    system_prompt="Liste pessoas reais com seus cargos. Formato: Nome Completo - Cargo",
                 )
                 if people_result and people_result.get("answer"):
                     extracted = self._extract_people_from_text(people_result["answer"], name)
@@ -423,27 +399,35 @@ class CompanyAnalysisService:
                     part1, part2 = match[0].strip(), match[1].strip()
 
                     # Se part1 começa com maiúscula e não é cargo, é o nome
-                    if part1 and part1[0].isupper() and not re.match(rf"^({cargos})", part1, re.IGNORECASE):
+                    if (
+                        part1
+                        and part1[0].isupper()
+                        and not re.match(rf"^({cargos})", part1, re.IGNORECASE)
+                    ):
                         name, title = part1, part2
                     else:
                         name, title = part2, part1
 
                     # Limpar nome e cargo
-                    name = re.sub(r'\*+', '', name).strip()
-                    title = re.sub(r'\*+|\[.*?\]', '', title).strip()
+                    name = re.sub(r"\*+", "", name).strip()
+                    title = re.sub(r"\*+|\[.*?\]", "", title).strip()
 
                     if name and name not in seen_names and len(name) > 5 and len(name) < 60:
                         seen_names.add(name)
-                        people.append({
-                            "name": name,
-                            "title": title,
-                            "organization_name": company_name,
-                            "fonte": "perplexity"
-                        })
+                        people.append(
+                            {
+                                "name": name,
+                                "title": title,
+                                "organization_name": company_name,
+                                "fonte": "perplexity",
+                            }
+                        )
 
         return people[:20]
 
-    def _extract_people_from_search(self, results: List[Dict], company_name: str) -> List[Dict[str, Any]]:
+    def _extract_people_from_search(
+        self, results: List[Dict], company_name: str
+    ) -> List[Dict[str, Any]]:
         """Extrai pessoas dos resultados de busca Google"""
         import re
 
@@ -457,7 +441,9 @@ class CompanyAnalysisService:
             # Se é um perfil LinkedIn
             if "linkedin.com/in/" in link:
                 # Extrair nome do título
-                name_match = re.match(r"^([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)", title)
+                name_match = re.match(
+                    r"^([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)", title
+                )
                 if name_match:
                     name = name_match.group(1)
                     if name not in seen_names:
@@ -468,13 +454,15 @@ class CompanyAnalysisService:
                         if cargo_match:
                             cargo = cargo_match.group(1).strip()
 
-                        people.append({
-                            "name": name,
-                            "title": cargo,
-                            "linkedin_url": link,
-                            "organization_name": company_name,
-                            "fonte": "google"
-                        })
+                        people.append(
+                            {
+                                "name": name,
+                                "title": cargo,
+                                "linkedin_url": link,
+                                "organization_name": company_name,
+                                "fonte": "google",
+                            }
+                        )
 
         return people[:15]
 
@@ -482,20 +470,15 @@ class CompanyAnalysisService:
     # FASE 2: BLOCOS 1-3 (PRIMÁRIOS)
     # =========================================
 
-    async def _generate_primary_blocks(
-        self,
-        name: str,
-        raw_data: Dict
-    ) -> Dict[str, Any]:
+    async def _generate_primary_blocks(self, name: str, raw_data: Dict) -> Dict[str, Any]:
         """Gera blocos 1, 2 e 3 (dados primários)"""
 
         blocks = {}
 
         # Preparar contexto comum
-        website_content = (
-            raw_data.get("website_data", {}).get("full_content") or
-            raw_data.get("website_data", {}).get("content_summary", "")
-        )
+        website_content = raw_data.get("website_data", {}).get("full_content") or raw_data.get(
+            "website_data", {}
+        ).get("content_summary", "")
         perplexity_text = raw_data.get("perplexity_research", {}).get("analysis", "")
         cnpj_data = raw_data.get("cnpj_data", {})
         employees = raw_data.get("employees", [])
@@ -506,23 +489,19 @@ class CompanyAnalysisService:
             cnpj_data=cnpj_data,
             website_content=website_content,
             perplexity_context=perplexity_text,
-            tavily_research=raw_data.get("tavily_research", {}).get("answer", "")
+            tavily_research=raw_data.get("tavily_research", {}).get("answer", ""),
         )
         blocks["1_empresa"] = block_1
 
         # BLOCO 2: Pessoas da Empresa
         block_2 = await self.ai_analyzer.generate_block_pessoas(
-            company_name=name,
-            employees=employees,
-            website_content=website_content
+            company_name=name, employees=employees, website_content=website_content
         )
         blocks["2_pessoas"] = block_2
 
         # BLOCO 3: Formação das Pessoas
         block_3 = await self.ai_analyzer.generate_block_formacao(
-            company_name=name,
-            employees=employees,
-            perplexity_context=perplexity_text
+            company_name=name, employees=employees, perplexity_context=perplexity_text
         )
         blocks["3_formacao"] = block_3
 
@@ -533,10 +512,7 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _generate_people_derived_blocks(
-        self,
-        name: str,
-        raw_data: Dict,
-        previous_blocks: Dict
+        self, name: str, raw_data: Dict, previous_blocks: Dict
     ) -> Dict[str, Any]:
         """Gera blocos 4 e 5 (derivados das pessoas)"""
 
@@ -549,7 +525,7 @@ class CompanyAnalysisService:
         block_4 = await self.ai_analyzer.generate_block_ativo_humano(
             company_name=name,
             pessoas_content=pessoas_block.get("content", ""),
-            formacao_content=formacao_block.get("content", "")
+            formacao_content=formacao_block.get("content", ""),
         )
         blocks["4_ativo_humano"] = block_4
 
@@ -557,7 +533,7 @@ class CompanyAnalysisService:
         block_5 = await self.ai_analyzer.generate_block_capacidade(
             company_name=name,
             ativo_humano_content=block_4.get("content", ""),
-            empresa_content=previous_blocks.get("1_empresa", {}).get("content", "")
+            empresa_content=previous_blocks.get("1_empresa", {}).get("content", ""),
         )
         blocks["5_capacidade"] = block_5
 
@@ -568,19 +544,15 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _generate_communication_blocks(
-        self,
-        name: str,
-        raw_data: Dict,
-        previous_blocks: Dict
+        self, name: str, raw_data: Dict, previous_blocks: Dict
     ) -> Dict[str, Any]:
         """Gera blocos 6 e 7 (análise de comunicação)"""
 
         blocks = {}
 
-        website_content = (
-            raw_data.get("website_data", {}).get("full_content") or
-            raw_data.get("website_data", {}).get("content_summary", "")
-        )
+        website_content = raw_data.get("website_data", {}).get("full_content") or raw_data.get(
+            "website_data", {}
+        ).get("content_summary", "")
         perplexity_text = raw_data.get("perplexity_research", {}).get("analysis", "")
 
         # BLOCO 6: Comunicação vs Características
@@ -589,14 +561,13 @@ class CompanyAnalysisService:
             website_content=website_content,
             perplexity_context=perplexity_text,
             empresa_content=previous_blocks.get("1_empresa", {}).get("content", ""),
-            capacidade_content=previous_blocks.get("5_capacidade", {}).get("content", "")
+            capacidade_content=previous_blocks.get("5_capacidade", {}).get("content", ""),
         )
         blocks["6_comunicacao"] = block_6
 
         # BLOCO 7: Fraquezas na Comunicação
         block_7 = await self.ai_analyzer.generate_block_fraquezas_comunicacao(
-            company_name=name,
-            comunicacao_content=block_6.get("content", "")
+            company_name=name, comunicacao_content=block_6.get("content", "")
         )
         blocks["7_fraquezas"] = block_7
 
@@ -607,18 +578,17 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _generate_perspective_blocks(
-        self,
-        name: str,
-        raw_data: Dict,
-        previous_blocks: Dict
+        self, name: str, raw_data: Dict, previous_blocks: Dict
     ) -> Dict[str, Any]:
         """Gera blocos 8-11 (perspectivas em paralelo)"""
 
         # Preparar contexto consolidado
-        all_blocks_content = "\n\n".join([
-            f"## {key.upper()}\n{block.get('content', '')}"
-            for key, block in previous_blocks.items()
-        ])
+        all_blocks_content = "\n\n".join(
+            [
+                f"## {key.upper()}\n{block.get('content', '')}"
+                for key, block in previous_blocks.items()
+            ]
+        )
 
         perplexity_text = raw_data.get("perplexity_research", {}).get("analysis", "")
         news_data = raw_data.get("tavily_news", [])
@@ -626,26 +596,25 @@ class CompanyAnalysisService:
         # Executar 4 perspectivas em paralelo
         perspective_tasks = [
             self.ai_analyzer.generate_block_visao_leigo(
-                company_name=name,
-                all_blocks_content=all_blocks_content
+                company_name=name, all_blocks_content=all_blocks_content
             ),
             self.ai_analyzer.generate_block_visao_profissional(
                 company_name=name,
                 all_blocks_content=all_blocks_content,
-                perplexity_context=perplexity_text
+                perplexity_context=perplexity_text,
             ),
             self.ai_analyzer.generate_block_visao_concorrente(
                 company_name=name,
                 all_blocks_content=all_blocks_content,
                 perplexity_context=perplexity_text,
-                news_data=news_data
+                news_data=news_data,
             ),
             self.ai_analyzer.generate_block_visao_fornecedor(
                 company_name=name,
                 all_blocks_content=all_blocks_content,
                 cnpj_data=raw_data.get("cnpj_data", {}),
-                perplexity_context=perplexity_text
-            )
+                perplexity_context=perplexity_text,
+            ),
         ]
 
         results = await asyncio.gather(*perspective_tasks, return_exceptions=True)
@@ -656,25 +625,41 @@ class CompanyAnalysisService:
         if not isinstance(results[0], Exception):
             blocks["8_visao_leigo"] = results[0]
         else:
-            blocks["8_visao_leigo"] = {"title": "Visão do Leigo", "content": "Erro na geração", "error": str(results[0])}
+            blocks["8_visao_leigo"] = {
+                "title": "Visão do Leigo",
+                "content": "Erro na geração",
+                "error": str(results[0]),
+            }
 
         # BLOCO 9: Visão do Profissional
         if not isinstance(results[1], Exception):
             blocks["9_visao_profissional"] = results[1]
         else:
-            blocks["9_visao_profissional"] = {"title": "Visão do Profissional", "content": "Erro na geração", "error": str(results[1])}
+            blocks["9_visao_profissional"] = {
+                "title": "Visão do Profissional",
+                "content": "Erro na geração",
+                "error": str(results[1]),
+            }
 
         # BLOCO 10: Visão do Concorrente
         if not isinstance(results[2], Exception):
             blocks["10_visao_concorrente"] = results[2]
         else:
-            blocks["10_visao_concorrente"] = {"title": "Visão do Concorrente", "content": "Erro na geração", "error": str(results[2])}
+            blocks["10_visao_concorrente"] = {
+                "title": "Visão do Concorrente",
+                "content": "Erro na geração",
+                "error": str(results[2]),
+            }
 
         # BLOCO 11: Visão do Fornecedor
         if not isinstance(results[3], Exception):
             blocks["11_visao_fornecedor"] = results[3]
         else:
-            blocks["11_visao_fornecedor"] = {"title": "Visão do Fornecedor", "content": "Erro na geração", "error": str(results[3])}
+            blocks["11_visao_fornecedor"] = {
+                "title": "Visão do Fornecedor",
+                "content": "Erro na geração",
+                "error": str(results[3]),
+            }
 
         return blocks
 
@@ -683,10 +668,7 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _generate_synthesis(
-        self,
-        name: str,
-        raw_data: Dict,
-        all_blocks: Dict
+        self, name: str, raw_data: Dict, all_blocks: Dict
     ) -> Dict[str, Any]:
         """
         Gera síntese final:
@@ -698,28 +680,22 @@ class CompanyAnalysisService:
         synthesis = {}
 
         # Preparar contexto consolidado
-        all_blocks_content = "\n\n".join([
-            f"## {key.upper()}\n{block.get('content', '')}"
-            for key, block in all_blocks.items()
-        ])
+        all_blocks_content = "\n\n".join(
+            [f"## {key.upper()}\n{block.get('content', '')}" for key, block in all_blocks.items()]
+        )
 
         # Tarefas de síntese em paralelo
         synthesis_tasks = [
             # Hipótese de Objetivo e OKRs
             self.ai_analyzer.generate_hypothesis_and_okrs(
-                company_name=name,
-                all_blocks_content=all_blocks_content
+                company_name=name, all_blocks_content=all_blocks_content
             ),
             # Análise de Concorrentes com Stamps
-            self._analyze_competitors_with_stamps(
-                name, raw_data, all_blocks_content
-            ),
+            self._analyze_competitors_with_stamps(name, raw_data, all_blocks_content),
             # SWOT Contemporâneo
             self.ai_analyzer.generate_swot_contemporaneo(
-                company_name=name,
-                all_blocks_content=all_blocks_content,
-                raw_data=raw_data
-            )
+                company_name=name, all_blocks_content=all_blocks_content, raw_data=raw_data
+            ),
         ]
 
         results = await asyncio.gather(*synthesis_tasks, return_exceptions=True)
@@ -747,10 +723,7 @@ class CompanyAnalysisService:
         return synthesis
 
     async def _analyze_competitors_with_stamps(
-        self,
-        company_name: str,
-        raw_data: Dict,
-        all_blocks_content: str
+        self, company_name: str, raw_data: Dict, all_blocks_content: str
     ) -> List[Dict[str, Any]]:
         """
         Analisa concorrentes e atribui Stamps (Forte/Médio/Fraco)
@@ -758,8 +731,7 @@ class CompanyAnalysisService:
         # Buscar concorrentes via Perplexity
         try:
             competitors_info = await self.perplexity.find_competitors(
-                company_name,
-                raw_data.get("search_data", {}).get("industry")
+                company_name, raw_data.get("search_data", {}).get("industry")
             )
         except Exception:
             competitors_info = {}
@@ -784,20 +756,22 @@ class CompanyAnalysisService:
                     main_company=company_name,
                     competitor_name=comp_name,
                     competitor_info=comp_info,
-                    main_company_context=all_blocks_content[:4000]
+                    main_company_context=all_blocks_content[:4000],
                 )
 
                 competitors.append(comp_analysis)
 
             except Exception as e:
                 logger.warning("competitor_stamp_error", competitor=comp_name, error=str(e))
-                competitors.append({
-                    "name": comp_name,
-                    "description": "Informações não disponíveis",
-                    "stamp": "Medio",
-                    "stamp_color": "yellow",
-                    "justification": "Dados insuficientes para avaliação completa"
-                })
+                competitors.append(
+                    {
+                        "name": comp_name,
+                        "description": "Informações não disponíveis",
+                        "stamp": "Medio",
+                        "stamp_color": "yellow",
+                        "justification": "Dados insuficientes para avaliação completa",
+                    }
+                )
 
         return competitors
 
@@ -812,17 +786,17 @@ class CompanyAnalysisService:
 
         # Padrão 1: Listas numeradas com nomes de empresas
         # Ex: "1. Empresa ABC" ou "1. **Empresa ABC**"
-        pattern1 = r'(?:^|\n)\s*\d+[\.\)]\s*\*?\*?([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\*?\*?)\s*(?:[-–:,\n]|$)'
+        pattern1 = r"(?:^|\n)\s*\d+[\.\)]\s*\*?\*?([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\*?\*?)\s*(?:[-–:,\n]|$)"
         matches1 = re.findall(pattern1, text, re.MULTILINE)
 
         # Padrão 2: Nomes em negrito (markdown)
         # Ex: "**Nome da Empresa**" ou "- **Empresa XYZ**"
-        pattern2 = r'\*\*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)\*\*'
+        pattern2 = r"\*\*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)\*\*"
         matches2 = re.findall(pattern2, text)
 
         # Padrão 3: Nomes após bullet points
         # Ex: "- Empresa ABC:" ou "• Empresa XYZ -"
-        pattern3 = r'(?:^|\n)\s*[-•]\s*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\s*[-–:]|\s*$)'
+        pattern3 = r"(?:^|\n)\s*[-•]\s*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\s*[-–:]|\s*$)"
         matches3 = re.findall(pattern3, text, re.MULTILINE)
 
         # Combinar e filtrar resultados
@@ -830,33 +804,58 @@ class CompanyAnalysisService:
 
         # Palavras que NÃO são nomes de empresas
         blacklist = {
-            'concorrentes', 'competidores', 'empresas', 'principais', 'diretos',
-            'indiretos', 'mercado', 'setor', 'brasil', 'análise', 'comparação',
-            'branding', 'criatividade', 'habilidades', 'profissionais', 'plataformas',
-            'cursos', 'online', 'design', 'educação', 'digital', 'criativos',
-            'conclusão', 'resumo', 'observação', 'nota', 'importante', 'destaque',
-            'informações', 'disponíveis', 'dados', 'insuficientes'
+            "concorrentes",
+            "competidores",
+            "empresas",
+            "principais",
+            "diretos",
+            "indiretos",
+            "mercado",
+            "setor",
+            "brasil",
+            "análise",
+            "comparação",
+            "branding",
+            "criatividade",
+            "habilidades",
+            "profissionais",
+            "plataformas",
+            "cursos",
+            "online",
+            "design",
+            "educação",
+            "digital",
+            "criativos",
+            "conclusão",
+            "resumo",
+            "observação",
+            "nota",
+            "importante",
+            "destaque",
+            "informações",
+            "disponíveis",
+            "dados",
+            "insuficientes",
         }
 
         for match in all_matches:
-            cleaned = match.strip().strip('.').strip('*').strip(':').strip()
+            cleaned = match.strip().strip(".").strip("*").strip(":").strip()
             # Validar: tem entre 3 e 50 chars, começa com maiúscula, não é blacklisted
-            if (3 < len(cleaned) < 50 and
-                cleaned[0].isupper() and
-                cleaned.lower() not in blacklist and
-                not any(word in cleaned.lower() for word in blacklist) and
+            if (
+                3 < len(cleaned) < 50
+                and cleaned[0].isupper()
+                and cleaned.lower() not in blacklist
+                and not any(word in cleaned.lower() for word in blacklist)
+                and
                 # Deve ter pelo menos uma palavra com 3+ letras
-                any(len(w) >= 3 for w in cleaned.split())):
+                any(len(w) >= 3 for w in cleaned.split())
+            ):
                 names.append(cleaned)
 
         # Remover duplicatas mantendo ordem
         return list(dict.fromkeys(names))[:5]
 
-    def _calculate_quality_score(
-        self,
-        raw_data: Dict,
-        blocks: Dict
-    ) -> float:
+    def _calculate_quality_score(self, raw_data: Dict, blocks: Dict) -> float:
         """Calcula score de qualidade dos dados"""
         score = 0.0
         max_score = 0.0
@@ -867,13 +866,17 @@ class CompanyAnalysisService:
             "website_data": 0.12,
             "employees": 0.08,
             "perplexity_research": 0.08,
-            "tavily_news": 0.04
+            "tavily_news": 0.04,
         }
 
         for source, weight in source_weights.items():
             max_score += weight
             data = raw_data.get(source)
-            if data and (isinstance(data, dict) and data) or (isinstance(data, list) and len(data) > 0):
+            if (
+                data
+                and (isinstance(data, dict) and data)
+                or (isinstance(data, list) and len(data) > 0)
+            ):
                 score += weight
 
         # Blocos gerados (60%)
@@ -891,6 +894,7 @@ class CompanyAnalysisService:
         if not url:
             return None
         from urllib.parse import urlparse
+
         parsed = urlparse(url if url.startswith("http") else f"https://{url}")
         return parsed.netloc or url
 
@@ -899,11 +903,7 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _persist_analysis(
-        self,
-        name: str,
-        cnpj: Optional[str],
-        raw_data: Dict,
-        result: Dict
+        self, name: str, cnpj: Optional[str], raw_data: Dict, result: Dict
     ) -> Dict[str, Any]:
         """
         Persiste empresa, pessoas e análise no banco de dados
@@ -923,7 +923,7 @@ class CompanyAnalysisService:
             "pessoas_salvas": 0,
             "palavras_chave": [],
             "palavras_chave_por_bloco": {},
-            "search_queries": []
+            "search_queries": [],
         }
 
         try:
@@ -956,7 +956,7 @@ class CompanyAnalysisService:
                 "capital_social": cnpj_data.get("capital_social"),
                 "setor": raw_data.get("search_data", {}).get("industry"),
                 "raw_cnpj_data": cnpj_data,
-                "raw_search_data": raw_data.get("search_data", {})
+                "raw_search_data": raw_data.get("search_data", {}),
             }
 
             empresa_id = await self.empresa_repo.upsert(empresa_data)
@@ -973,18 +973,16 @@ class CompanyAnalysisService:
 
             # 4. Extrair palavras-chave
             keywords_result = await self.keyword_extractor.extract_from_analysis(
-                company_name=name,
-                blocks=result.get("blocks", {})
+                company_name=name, blocks=result.get("blocks", {})
             )
             persistence_result["palavras_chave"] = keywords_result.get("keywords", [])
-            persistence_result["palavras_chave_por_bloco"] = keywords_result.get("keywords_by_block", {})
+            persistence_result["palavras_chave_por_bloco"] = keywords_result.get(
+                "keywords_by_block", {}
+            )
             persistence_result["search_queries"] = keywords_result.get("search_queries", [])
 
             # 4.1 Atualizar palavras-chave na dimensão empresa
-            await self.empresa_repo.update_keywords(
-                empresa_id,
-                keywords_result.get("keywords", [])
-            )
+            await self.empresa_repo.update_keywords(empresa_id, keywords_result.get("keywords", []))
 
             # 5. Salvar análise em fato_analises_empresa
             analise_data = {
@@ -993,8 +991,8 @@ class CompanyAnalysisService:
                 "palavras_chave_por_bloco": keywords_result.get("keywords_by_block", {}),
                 "raw_data": {
                     "perplexity_research": raw_data.get("perplexity_research", {}),
-                    "tavily_research": raw_data.get("tavily_research", {})
-                }
+                    "tavily_research": raw_data.get("tavily_research", {}),
+                },
             }
 
             analise_id = await self.analise_repo.save(empresa_id, analise_data)
@@ -1005,7 +1003,7 @@ class CompanyAnalysisService:
                 empresa_id=empresa_id,
                 analise_id=analise_id,
                 pessoas=pessoas_salvas,
-                keywords=len(persistence_result["palavras_chave"])
+                keywords=len(persistence_result["palavras_chave"]),
             )
 
         except Exception as e:
@@ -1013,11 +1011,7 @@ class CompanyAnalysisService:
 
         return persistence_result
 
-    async def _persist_employees(
-        self,
-        empresa_id: str,
-        employees: List[Dict]
-    ) -> int:
+    async def _persist_employees(self, empresa_id: str, employees: List[Dict]) -> int:
         """
         Persiste funcionários em dim_pessoas e fato_eventos_pessoa
 
@@ -1044,24 +1038,18 @@ class CompanyAnalysisService:
                         "title": emp.get("title"),
                         "organization_name": emp.get("organization_name"),
                         "is_current": True,
-                        "start_date": emp.get("employment_start_date")
+                        "start_date": emp.get("employment_start_date"),
                     },
-                    empresa_id=empresa_id
+                    empresa_id=empresa_id,
                 )
 
                 # Salvar histórico de empregos se disponível
                 for exp in emp.get("employment_history", []):
-                    await self.evento_repo.save_emprego(
-                        pessoa_id=pessoa_id,
-                        emprego=exp
-                    )
+                    await self.evento_repo.save_emprego(pessoa_id=pessoa_id, emprego=exp)
 
                 # Salvar educação se disponível
                 for edu in emp.get("education", []):
-                    await self.evento_repo.save_educacao(
-                        pessoa_id=pessoa_id,
-                        educacao=edu
-                    )
+                    await self.evento_repo.save_educacao(pessoa_id=pessoa_id, educacao=edu)
 
             except Exception as e:
                 logger.warning("employee_save_error", error=str(e), name=emp.get("name"))
@@ -1080,25 +1068,32 @@ class CompanyAnalysisService:
             qual = socio.get("qualificacao_socio", "").lower()
             # Identificar fundadores/sócios principais
             if any(term in qual for term in ["administrador", "socio", "diretor", "presidente"]):
-                founders.append({
-                    "nome": socio.get("nome_socio"),
-                    "cargo": socio.get("qualificacao_socio"),
-                    "data_entrada": socio.get("data_entrada_sociedade")
-                })
+                founders.append(
+                    {
+                        "nome": socio.get("nome_socio"),
+                        "cargo": socio.get("qualificacao_socio"),
+                        "data_entrada": socio.get("data_entrada_sociedade"),
+                    }
+                )
 
         # Buscar em funcionários (C-level)
         employees = raw_data.get("employees", [])
         for emp in employees:
             title = (emp.get("title") or "").lower()
-            if any(term in title for term in ["founder", "fundador", "ceo", "cto", "coo", "cfo", "owner"]):
+            if any(
+                term in title
+                for term in ["founder", "fundador", "ceo", "cto", "coo", "cfo", "owner"]
+            ):
                 # Evitar duplicatas
                 nome = emp.get("name")
                 if nome and not any(f.get("nome") == nome for f in founders):
-                    founders.append({
-                        "nome": nome,
-                        "cargo": emp.get("title"),
-                        "linkedin_url": emp.get("linkedin_url")
-                    })
+                    founders.append(
+                        {
+                            "nome": nome,
+                            "cargo": emp.get("title"),
+                            "linkedin_url": emp.get("linkedin_url"),
+                        }
+                    )
 
         return founders[:10]  # Limitar a 10 fundadores
 
@@ -1107,11 +1102,7 @@ class CompanyAnalysisService:
     # =========================================
 
     async def _find_and_analyze_competitors(
-        self,
-        empresa_id: str,
-        company_name: str,
-        keywords: List[str],
-        search_queries: List[str]
+        self, empresa_id: str, company_name: str, keywords: List[str], search_queries: List[str]
     ) -> List[Dict]:
         """
         Busca e analisa concorrentes baseado em palavras-chave
@@ -1144,9 +1135,9 @@ class CompanyAnalysisService:
                 return competitors
 
             # Extrair nomes de concorrentes
-            competitor_names = self._extract_competitor_names(
-                perplexity_result.get("answer", "")
-            )[:5]
+            competitor_names = self._extract_competitor_names(perplexity_result.get("answer", ""))[
+                :5
+            ]
 
             logger.info("competitors_found", count=len(competitor_names), names=competitor_names)
 
@@ -1156,9 +1147,7 @@ class CompanyAnalysisService:
                     continue  # Pular a própria empresa
 
                 try:
-                    comp_data = await self._analyze_competitor_simple(
-                        comp_name, keywords
-                    )
+                    comp_data = await self._analyze_competitor_simple(comp_name, keywords)
 
                     if comp_data and comp_data.get("id"):
                         # Salvar relação de concorrência
@@ -1170,7 +1159,7 @@ class CompanyAnalysisService:
                             stamp=comp_data.get("stamp", "Medio"),
                             stamp_justificativa=comp_data.get("stamp_justification", ""),
                             fonte_descoberta="perplexity",
-                            query_utilizada=query
+                            query_utilizada=query,
                         )
 
                         competitors.append(comp_data)
@@ -1184,9 +1173,7 @@ class CompanyAnalysisService:
         return competitors
 
     async def _analyze_competitor_simple(
-        self,
-        name: str,
-        source_keywords: List[str]
+        self, name: str, source_keywords: List[str]
     ) -> Optional[Dict]:
         """
         Análise simplificada de concorrente (sem recursão)
@@ -1209,6 +1196,7 @@ class CompanyAnalysisService:
 
             if cnpj:
                 import contextlib
+
                 with contextlib.suppress(Exception):
                     cnpj_data = await self.brasil_api.get_cnpj(cnpj)
 
@@ -1222,7 +1210,7 @@ class CompanyAnalysisService:
                 "cidade": cnpj_data.get("municipio"),
                 "estado": cnpj_data.get("uf"),
                 "raw_cnpj_data": cnpj_data,
-                "raw_search_data": search_result
+                "raw_search_data": search_result,
             }
 
             # Salvar concorrente
@@ -1233,22 +1221,17 @@ class CompanyAnalysisService:
 
             # Calcular keywords match
             comp_description = (
-                search_result.get("description", "") +
-                " " +
-                (search_result.get("industry") or "")
+                search_result.get("description", "") + " " + (search_result.get("industry") or "")
             ).lower()
 
-            keywords_match = [
-                kw for kw in source_keywords
-                if kw.lower() in comp_description
-            ]
+            keywords_match = [kw for kw in source_keywords if kw.lower() in comp_description]
 
             # Gerar stamp via AI
             stamp_result = await self.ai_analyzer.analyze_competitor_with_stamp(
                 main_company=name,
                 competitor_name=name,
                 competitor_info=search_result,
-                main_company_context=""
+                main_company_context="",
             )
 
             return {
@@ -1259,7 +1242,7 @@ class CompanyAnalysisService:
                 "keywords_match": keywords_match,
                 "similarity_score": len(keywords_match) / max(len(source_keywords), 1),
                 "stamp": stamp_result.get("stamp", "Medio"),
-                "stamp_justification": stamp_result.get("justification", "")
+                "stamp_justification": stamp_result.get("justification", ""),
             }
 
         except Exception as e:

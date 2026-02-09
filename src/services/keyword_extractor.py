@@ -26,16 +26,87 @@ class KeywordExtractor:
 
     # Stopwords em portugues para filtrar
     STOPWORDS = {
-        "a", "o", "e", "de", "da", "do", "em", "para", "com", "por", "que",
-        "um", "uma", "os", "as", "dos", "das", "no", "na", "nos", "nas",
-        "ao", "aos", "pela", "pelo", "pelos", "pelas", "se", "ou", "mas",
-        "como", "mais", "muito", "bem", "pode", "tem", "ser", "ter", "foi",
-        "sua", "seu", "seus", "suas", "este", "esta", "esse", "essa",
-        "isso", "isto", "aqui", "ali", "la", "ele", "ela", "eles", "elas",
-        "voces", "empresa", "empresas", "cliente", "clientes",
-        "servico", "servicos", "produto", "produtos", "mercado", "area",
-        "trabalho", "equipe", "time", "anos", "ano", "brasil", "brasileiro",
-        "forma", "tipo", "tipos", "parte", "partes", "exemplo", "cada"
+        "a",
+        "o",
+        "e",
+        "de",
+        "da",
+        "do",
+        "em",
+        "para",
+        "com",
+        "por",
+        "que",
+        "um",
+        "uma",
+        "os",
+        "as",
+        "dos",
+        "das",
+        "no",
+        "na",
+        "nos",
+        "nas",
+        "ao",
+        "aos",
+        "pela",
+        "pelo",
+        "pelos",
+        "pelas",
+        "se",
+        "ou",
+        "mas",
+        "como",
+        "mais",
+        "muito",
+        "bem",
+        "pode",
+        "tem",
+        "ser",
+        "ter",
+        "foi",
+        "sua",
+        "seu",
+        "seus",
+        "suas",
+        "este",
+        "esta",
+        "esse",
+        "essa",
+        "isso",
+        "isto",
+        "aqui",
+        "ali",
+        "la",
+        "ele",
+        "ela",
+        "eles",
+        "elas",
+        "voces",
+        "empresa",
+        "empresas",
+        "cliente",
+        "clientes",
+        "servico",
+        "servicos",
+        "produto",
+        "produtos",
+        "mercado",
+        "area",
+        "trabalho",
+        "equipe",
+        "time",
+        "anos",
+        "ano",
+        "brasil",
+        "brasileiro",
+        "forma",
+        "tipo",
+        "tipos",
+        "parte",
+        "partes",
+        "exemplo",
+        "cada",
     }
 
     def __init__(self):
@@ -46,9 +117,7 @@ class KeywordExtractor:
         await self.ai_analyzer.close()
 
     async def extract_from_analysis(
-        self,
-        company_name: str,
-        blocks: Dict[str, Any]
+        self, company_name: str, blocks: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Extrai palavras-chave de todos os blocos de analise
@@ -73,15 +142,15 @@ class KeywordExtractor:
             "keywords_by_block": {},
             "sector_keywords": [],
             "capability_keywords": [],
-            "search_queries": []
+            "search_queries": [],
         }
 
         # Blocos mais relevantes para concorrentes
         priority_blocks = [
-            "1_empresa",       # Setor, mercado, atuacao
+            "1_empresa",  # Setor, mercado, atuacao
             "4_ativo_humano",  # Competencias
-            "5_capacidade",    # O que entregam
-            "6_comunicacao"    # Como se posicionam
+            "5_capacidade",  # O que entregam
+            "6_comunicacao",  # Como se posicionam
         ]
 
         all_keywords: Set[str] = set()
@@ -106,25 +175,19 @@ class KeywordExtractor:
 
         # Gerar queries de busca
         result["search_queries"] = self._generate_search_queries(
-            company_name,
-            result["sector_keywords"],
-            result["capability_keywords"]
+            company_name, result["sector_keywords"], result["capability_keywords"]
         )
 
         logger.info(
             "keyword_extraction_done",
             company=company_name,
             total_keywords=len(all_keywords),
-            queries=len(result["search_queries"])
+            queries=len(result["search_queries"]),
         )
 
         return result
 
-    async def _extract_keywords_from_text(
-        self,
-        text: str,
-        company_name: str
-    ) -> List[str]:
+    async def _extract_keywords_from_text(self, text: str, company_name: str) -> List[str]:
         """
         Extrai palavras-chave de um texto usando Claude
 
@@ -165,10 +228,7 @@ Retorne APENAS as palavras-chave separadas por virgula, sem explicacao.
 
 Exemplo de saida: consultoria, tecnologia, SaaS, B2B, automacao, inteligencia artificial, startups"""
 
-        response = await self.ai_analyzer._call_claude(
-            prompt=prompt,
-            max_tokens=200
-        )
+        response = await self.ai_analyzer._call_claude(prompt=prompt, max_tokens=200)
 
         if response:
             # Parse da resposta
@@ -179,9 +239,7 @@ Exemplo de saida: consultoria, tecnologia, SaaS, B2B, automacao, inteligencia ar
             ]
             # Filtrar stopwords e nome da empresa
             keywords = [
-                kw for kw in keywords
-                if kw not in self.STOPWORDS
-                and company_name.lower() not in kw
+                kw for kw in keywords if kw not in self.STOPWORDS and company_name.lower() not in kw
             ]
             return keywords[:15]
 
@@ -192,18 +250,13 @@ Exemplo de saida: consultoria, tecnologia, SaaS, B2B, automacao, inteligencia ar
 
         # Limpar texto
         text = text.lower()
-        text = re.sub(r'[^\w\s]', ' ', text)
+        text = re.sub(r"[^\w\s]", " ", text)
 
         # Tokenizar
         words = text.split()
 
         # Filtrar stopwords e palavras curtas
-        words = [
-            w for w in words
-            if w not in self.STOPWORDS
-            and len(w) > 3
-            and not w.isdigit()
-        ]
+        words = [w for w in words if w not in self.STOPWORDS and len(w) > 3 and not w.isdigit()]
 
         # Contar frequencia
         freq: Dict[str, int] = {}
@@ -220,20 +273,67 @@ Exemplo de saida: consultoria, tecnologia, SaaS, B2B, automacao, inteligencia ar
         """Identifica keywords relacionadas a setor/industria"""
 
         sector_indicators = {
-            "tecnologia", "tech", "software", "saas", "fintech", "healthtech",
-            "edtech", "agtech", "legaltech", "insurtech", "proptech",
-            "varejo", "retail", "e-commerce", "ecommerce", "marketplace",
-            "financeiro", "banco", "financa", "credito", "pagamento",
-            "saude", "health", "medicina", "farmacia", "hospital",
-            "educacao", "ensino", "treinamento", "capacitacao",
-            "logistica", "transporte", "delivery", "frete",
-            "industria", "manufatura", "fabricacao", "producao",
-            "agro", "agronegocio", "agricultura", "rural",
-            "energia", "sustentabilidade", "renovavel", "solar",
-            "construcao", "imobiliario", "imoveis", "engenharia",
-            "consultoria", "assessoria", "servicos", "terceirizacao",
-            "marketing", "publicidade", "comunicacao", "midia",
-            "telecomunicacoes", "telecom", "conectividade"
+            "tecnologia",
+            "tech",
+            "software",
+            "saas",
+            "fintech",
+            "healthtech",
+            "edtech",
+            "agtech",
+            "legaltech",
+            "insurtech",
+            "proptech",
+            "varejo",
+            "retail",
+            "e-commerce",
+            "ecommerce",
+            "marketplace",
+            "financeiro",
+            "banco",
+            "financa",
+            "credito",
+            "pagamento",
+            "saude",
+            "health",
+            "medicina",
+            "farmacia",
+            "hospital",
+            "educacao",
+            "ensino",
+            "treinamento",
+            "capacitacao",
+            "logistica",
+            "transporte",
+            "delivery",
+            "frete",
+            "industria",
+            "manufatura",
+            "fabricacao",
+            "producao",
+            "agro",
+            "agronegocio",
+            "agricultura",
+            "rural",
+            "energia",
+            "sustentabilidade",
+            "renovavel",
+            "solar",
+            "construcao",
+            "imobiliario",
+            "imoveis",
+            "engenharia",
+            "consultoria",
+            "assessoria",
+            "servicos",
+            "terceirizacao",
+            "marketing",
+            "publicidade",
+            "comunicacao",
+            "midia",
+            "telecomunicacoes",
+            "telecom",
+            "conectividade",
         }
 
         return [kw for kw in keywords if kw in sector_indicators]
@@ -242,27 +342,64 @@ Exemplo de saida: consultoria, tecnologia, SaaS, B2B, automacao, inteligencia ar
         """Identifica keywords relacionadas a capacidades/tecnologias"""
 
         capability_indicators = {
-            "ia", "inteligencia artificial", "machine learning", "ml",
-            "automacao", "robotica", "rpa", "bot",
-            "dados", "data", "analytics", "bi", "big data",
-            "cloud", "nuvem", "aws", "azure", "gcp",
-            "api", "integracao", "plataforma", "sistema",
-            "mobile", "app", "aplicativo", "ios", "android",
-            "web", "frontend", "backend", "fullstack",
-            "blockchain", "cripto", "defi", "web3",
-            "iot", "sensores", "conectado", "smart",
-            "seguranca", "ciberseguranca", "protecao", "compliance",
-            "erp", "crm", "gestao", "administrativo",
-            "design", "ux", "ui", "experiencia", "interface"
+            "ia",
+            "inteligencia artificial",
+            "machine learning",
+            "ml",
+            "automacao",
+            "robotica",
+            "rpa",
+            "bot",
+            "dados",
+            "data",
+            "analytics",
+            "bi",
+            "big data",
+            "cloud",
+            "nuvem",
+            "aws",
+            "azure",
+            "gcp",
+            "api",
+            "integracao",
+            "plataforma",
+            "sistema",
+            "mobile",
+            "app",
+            "aplicativo",
+            "ios",
+            "android",
+            "web",
+            "frontend",
+            "backend",
+            "fullstack",
+            "blockchain",
+            "cripto",
+            "defi",
+            "web3",
+            "iot",
+            "sensores",
+            "conectado",
+            "smart",
+            "seguranca",
+            "ciberseguranca",
+            "protecao",
+            "compliance",
+            "erp",
+            "crm",
+            "gestao",
+            "administrativo",
+            "design",
+            "ux",
+            "ui",
+            "experiencia",
+            "interface",
         }
 
         return [kw for kw in keywords if kw in capability_indicators]
 
     def _generate_search_queries(
-        self,
-        company_name: str,
-        sector_keywords: List[str],
-        capability_keywords: List[str]
+        self, company_name: str, sector_keywords: List[str], capability_keywords: List[str]
     ) -> List[str]:
         """Gera queries para busca de concorrentes no Perplexity"""
 

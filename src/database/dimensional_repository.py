@@ -36,7 +36,7 @@ class FactSearchRepository:
         processing_time_ms: int = 0,
         credits_used: int = 1,
         status: str = "completed",
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ) -> Optional[str]:
         """Record a search in the fact table"""
         if not self._is_available():
@@ -62,7 +62,7 @@ class FactSearchRepository:
                 "credits_used": credits_used,
                 "status": status,
                 "error_message": error_message,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -108,7 +108,7 @@ class FactCompanyAnalysisRepository:
         has_cnpj_data: bool = False,
         has_swot: bool = False,
         has_okrs: bool = False,
-        has_competitors: bool = False
+        has_competitors: bool = False,
     ) -> Optional[str]:
         """Record a company analysis in the fact table"""
         if not self._is_available():
@@ -145,7 +145,7 @@ class FactCompanyAnalysisRepository:
                 "has_swot": has_swot,
                 "has_okrs": has_okrs,
                 "has_competitors": has_competitors,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -190,7 +190,7 @@ class FactPersonAnalysisRepository:
         has_news_data: bool = False,
         has_photo: bool = False,
         has_voting_history: bool = False,
-        has_controversies: bool = False
+        has_controversies: bool = False,
     ) -> Optional[str]:
         """Record a person analysis in the fact table"""
         if not self._is_available():
@@ -225,7 +225,7 @@ class FactPersonAnalysisRepository:
                 "has_photo": has_photo,
                 "has_voting_history": has_voting_history,
                 "has_controversies": has_controversies,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -264,7 +264,7 @@ class FactNewsRepository:
         positive_count: int = 0,
         negative_count: int = 0,
         neutral_count: int = 0,
-        processing_time_ms: int = 0
+        processing_time_ms: int = 0,
     ) -> Optional[str]:
         """Record a news query in the fact table"""
         if not self._is_available():
@@ -293,7 +293,7 @@ class FactNewsRepository:
                 "negative_count": negative_count,
                 "neutral_count": neutral_count,
                 "processing_time_ms": processing_time_ms,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -329,7 +329,7 @@ class FactIndicatorQueryRepository:
         data_found: bool = False,
         data_freshness_days: Optional[int] = None,
         data_year: Optional[int] = None,
-        processing_time_ms: int = 0
+        processing_time_ms: int = 0,
     ) -> Optional[str]:
         """Record an indicator query in the fact table"""
         if not self._is_available():
@@ -357,7 +357,7 @@ class FactIndicatorQueryRepository:
                 "data_freshness_days": data_freshness_days,
                 "data_year": data_year,
                 "processing_time_ms": processing_time_ms,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -397,7 +397,7 @@ class FactApiCallRepository:
         is_error: bool = False,
         error_type: Optional[str] = None,
         error_message: Optional[str] = None,
-        cost_incurred: float = 0
+        cost_incurred: float = 0,
     ) -> Optional[str]:
         """Record an API call in the fact table"""
         if not self._is_available():
@@ -427,7 +427,7 @@ class FactApiCallRepository:
                 "error_type": error_type,
                 "error_message": error_message,
                 "cost_incurred": cost_incurred,
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -456,7 +456,7 @@ class AnalyticsQueryRepository:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         search_type: Optional[str] = None,
-        limit: int = 30
+        limit: int = 30,
     ) -> List[Dict[str, Any]]:
         """Get search statistics by date"""
         if not self._is_available():
@@ -494,10 +494,7 @@ class AnalyticsQueryRepository:
             return []
 
     async def get_company_analysis_summary(
-        self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        limit: int = 30
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 30
     ) -> List[Dict[str, Any]]:
         """Get company analysis summary"""
         if not self._is_available():
@@ -546,24 +543,40 @@ class AnalyticsQueryRepository:
             end_date_id = int(end_date.strftime("%Y%m%d"))
 
             # Get search counts
-            searches = self.client.table("fact_search").select(
-                "search_type", count="exact"
-            ).gte("date_id", start_date_id).lte("date_id", end_date_id).execute()
+            searches = (
+                self.client.table("fact_search")
+                .select("search_type", count="exact")
+                .gte("date_id", start_date_id)
+                .lte("date_id", end_date_id)
+                .execute()
+            )
 
             # Get API call stats
-            api_calls = self.client.table("fact_api_call").select(
-                "is_error", count="exact"
-            ).gte("date_id", start_date_id).lte("date_id", end_date_id).execute()
+            api_calls = (
+                self.client.table("fact_api_call")
+                .select("is_error", count="exact")
+                .gte("date_id", start_date_id)
+                .lte("date_id", end_date_id)
+                .execute()
+            )
 
             # Get company analyses
-            company_analyses = self.client.table("fact_company_analysis").select(
-                "analysis_type", count="exact"
-            ).gte("date_id", start_date_id).lte("date_id", end_date_id).execute()
+            company_analyses = (
+                self.client.table("fact_company_analysis")
+                .select("analysis_type", count="exact")
+                .gte("date_id", start_date_id)
+                .lte("date_id", end_date_id)
+                .execute()
+            )
 
             # Get person analyses
-            person_analyses = self.client.table("fact_person_analysis").select(
-                "person_type", count="exact"
-            ).gte("date_id", start_date_id).lte("date_id", end_date_id).execute()
+            person_analyses = (
+                self.client.table("fact_person_analysis")
+                .select("person_type", count="exact")
+                .gte("date_id", start_date_id)
+                .lte("date_id", end_date_id)
+                .execute()
+            )
 
             return {
                 "period_days": days,
@@ -572,7 +585,7 @@ class AnalyticsQueryRepository:
                 "total_searches": searches.count if searches else 0,
                 "total_api_calls": api_calls.count if api_calls else 0,
                 "total_company_analyses": company_analyses.count if company_analyses else 0,
-                "total_person_analyses": person_analyses.count if person_analyses else 0
+                "total_person_analyses": person_analyses.count if person_analyses else 0,
             }
 
         except Exception as e:
@@ -587,11 +600,12 @@ class AnalyticsQueryRepository:
         try:
             from datetime import timedelta
 
-            start_date_id = int((datetime.utcnow().date() - timedelta(days=days)).strftime("%Y%m%d"))
+            start_date_id = int(
+                (datetime.utcnow().date() - timedelta(days=days)).strftime("%Y%m%d")
+            )
 
             result = self.client.rpc(
-                "get_search_type_distribution",
-                {"start_date_id": start_date_id}
+                "get_search_type_distribution", {"start_date_id": start_date_id}
             ).execute()
 
             return result.data or []
@@ -599,9 +613,7 @@ class AnalyticsQueryRepository:
         except Exception:
             # Fallback: use raw query
             try:
-                result = self.client.table("fact_search").select(
-                    "search_type"
-                ).execute()
+                result = self.client.table("fact_search").select("search_type").execute()
 
                 if not result.data:
                     return []
@@ -626,11 +638,16 @@ class AnalyticsQueryRepository:
         try:
             from datetime import timedelta
 
-            start_date_id = int((datetime.utcnow().date() - timedelta(days=days)).strftime("%Y%m%d"))
+            start_date_id = int(
+                (datetime.utcnow().date() - timedelta(days=days)).strftime("%Y%m%d")
+            )
 
-            result = self.client.table("fact_search").select(
-                "time_id"
-            ).gte("date_id", start_date_id).execute()
+            result = (
+                self.client.table("fact_search")
+                .select("time_id")
+                .gte("date_id", start_date_id)
+                .execute()
+            )
 
             if not result.data:
                 return []

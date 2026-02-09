@@ -33,22 +33,16 @@ class TavilyClient(BaseScraper):
     SOURCE_COVERAGE = "Busca com contexto AI, extração de conteúdo"
     SOURCE_DOC_URL = "https://docs.tavily.com"
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        timeout: float = 60.0
-    ):
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 60.0):
         super().__init__(
             api_key=api_key or settings.tavily_api_key,
             base_url="https://api.tavily.com",
             rate_limit=60,  # ~1000/mês grátis
-            timeout=timeout
+            timeout=timeout,
         )
 
     def _get_headers(self) -> Dict[str, str]:
-        return {
-            "Content-Type": "application/json"
-        }
+        return {"Content-Type": "application/json"}
 
     async def search(
         self,
@@ -59,7 +53,7 @@ class TavilyClient(BaseScraper):
         max_results: int = 5,
         include_domains: Optional[List[str]] = None,
         exclude_domains: Optional[List[str]] = None,
-        topic: str = "general"
+        topic: str = "general",
     ) -> Dict[str, Any]:
         """
         Busca com AI
@@ -86,7 +80,7 @@ class TavilyClient(BaseScraper):
             "include_answer": include_answer,
             "include_raw_content": include_raw_content,
             "max_results": min(max_results, 10),
-            "topic": topic
+            "topic": topic,
         }
 
         if include_domains:
@@ -101,15 +95,10 @@ class TavilyClient(BaseScraper):
             "answer": result.get("answer"),
             "results": result.get("results", []),
             "follow_up_questions": result.get("follow_up_questions", []),
-            "response_time": result.get("response_time")
+            "response_time": result.get("response_time"),
         }
 
-    async def search_news(
-        self,
-        query: str,
-        max_results: int = 5,
-        days: int = 7
-    ) -> Dict[str, Any]:
+    async def search_news(self, query: str, max_results: int = 5, days: int = 7) -> Dict[str, Any]:
         """
         Busca de notícias recentes
 
@@ -130,14 +119,10 @@ class TavilyClient(BaseScraper):
             search_depth="basic",
             include_answer=True,
             max_results=max_results,
-            topic="news"
+            topic="news",
         )
 
-    async def research(
-        self,
-        query: str,
-        max_results: int = 10
-    ) -> Dict[str, Any]:
+    async def research(self, query: str, max_results: int = 10) -> Dict[str, Any]:
         """
         Pesquisa em profundidade
 
@@ -155,7 +140,7 @@ class TavilyClient(BaseScraper):
             search_depth="advanced",
             include_answer=True,
             include_raw_content=True,
-            max_results=max_results
+            max_results=max_results,
         )
 
     async def extract_content(self, urls: List[str]) -> Dict[str, Any]:
@@ -170,24 +155,22 @@ class TavilyClient(BaseScraper):
         """
         logger.info("tavily_extract", urls_count=len(urls))
 
-        result = await self.post("/extract", json={
-            "api_key": self.api_key,
-            "urls": urls[:5]  # Limite de 5 URLs
-        })
+        result = await self.post(
+            "/extract",
+            json={
+                "api_key": self.api_key,
+                "urls": urls[:5],  # Limite de 5 URLs
+            },
+        )
 
-        return {
-            "results": result.get("results", []),
-            "failed_urls": result.get("failed_urls", [])
-        }
+        return {"results": result.get("results", []), "failed_urls": result.get("failed_urls", [])}
 
     # ===========================================
     # MÉTODOS ESPECÍFICOS PARA EMPRESAS
     # ===========================================
 
     async def research_company(
-        self,
-        company_name: str,
-        aspects: Optional[List[str]] = None
+        self, company_name: str, aspects: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Pesquisa aprofundada sobre uma empresa
@@ -205,7 +188,7 @@ class TavilyClient(BaseScraper):
                 "produtos e serviços",
                 "mercado e concorrentes",
                 "notícias recentes",
-                "cultura organizacional"
+                "cultura organizacional",
             ]
 
         results = {}
@@ -213,10 +196,7 @@ class TavilyClient(BaseScraper):
         for aspect in aspects:
             query = f"{company_name} {aspect} Brasil"
             search_result = await self.search(
-                query=query,
-                search_depth="basic",
-                include_answer=True,
-                max_results=3
+                query=query, search_depth="basic", include_answer=True, max_results=3
             )
             results[aspect] = {
                 "answer": search_result.get("answer"),
@@ -224,24 +204,20 @@ class TavilyClient(BaseScraper):
                     {
                         "title": r.get("title"),
                         "url": r.get("url"),
-                        "content": r.get("content", "")[:500]
+                        "content": r.get("content", "")[:500],
                     }
                     for r in search_result.get("results", [])
-                ]
+                ],
             }
 
         # Consolidar resposta
         return {
             "company_name": company_name,
             "research": results,
-            "summary": await self._generate_summary(company_name, results)
+            "summary": await self._generate_summary(company_name, results),
         }
 
-    async def _generate_summary(
-        self,
-        company_name: str,
-        research: Dict
-    ) -> str:
+    async def _generate_summary(self, company_name: str, research: Dict) -> str:
         """Gera resumo da pesquisa (placeholder - usar Claude)"""
         parts = []
         for aspect, data in research.items():
@@ -249,11 +225,7 @@ class TavilyClient(BaseScraper):
                 parts.append(f"**{aspect.title()}**: {data['answer']}")
         return "\n\n".join(parts)
 
-    async def get_company_news(
-        self,
-        company_name: str,
-        days: int = 30
-    ) -> Dict[str, Any]:
+    async def get_company_news(self, company_name: str, days: int = 30) -> Dict[str, Any]:
         """
         Busca notícias recentes sobre uma empresa
 
@@ -264,11 +236,7 @@ class TavilyClient(BaseScraper):
         Returns:
             Notícias com análise
         """
-        result = await self.search_news(
-            query=f'"{company_name}" Brasil',
-            max_results=10,
-            days=days
-        )
+        result = await self.search_news(query=f'"{company_name}" Brasil', max_results=10, days=days)
 
         # Categorizar notícias
         news_items = []
@@ -276,7 +244,14 @@ class TavilyClient(BaseScraper):
             content = item.get("content", "").lower()
 
             # Detectar sentimento básico
-            positive_words = ["crescimento", "sucesso", "investimento", "expansão", "lucro", "inovação"]
+            positive_words = [
+                "crescimento",
+                "sucesso",
+                "investimento",
+                "expansão",
+                "lucro",
+                "inovação",
+            ]
             negative_words = ["crise", "demissão", "prejuízo", "processo", "escândalo", "queda"]
 
             sentiment = "neutral"
@@ -285,30 +260,28 @@ class TavilyClient(BaseScraper):
             elif any(word in content for word in negative_words):
                 sentiment = "negative"
 
-            news_items.append({
-                "title": item.get("title"),
-                "url": item.get("url"),
-                "content": item.get("content", "")[:300],
-                "published_date": item.get("published_date"),
-                "sentiment": sentiment
-            })
+            news_items.append(
+                {
+                    "title": item.get("title"),
+                    "url": item.get("url"),
+                    "content": item.get("content", "")[:300],
+                    "published_date": item.get("published_date"),
+                    "sentiment": sentiment,
+                }
+            )
 
         return {
             "company_name": company_name,
             "news": news_items,
             "summary": result.get("answer"),
-            "total_news": len(news_items)
+            "total_news": len(news_items),
         }
 
     # ===========================================
     # MÉTODOS ESPECÍFICOS PARA PESSOAS
     # ===========================================
 
-    async def research_person(
-        self,
-        name: str,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def research_person(self, name: str, context: Optional[str] = None) -> Dict[str, Any]:
         """
         Pesquisa sobre uma pessoa
 
@@ -331,7 +304,7 @@ class TavilyClient(BaseScraper):
             "context": context,
             "summary": result.get("answer"),
             "sources": result.get("results", []),
-            "follow_up": result.get("follow_up_questions", [])
+            "follow_up": result.get("follow_up_questions", []),
         }
 
     # ===========================================
@@ -339,10 +312,7 @@ class TavilyClient(BaseScraper):
     # ===========================================
 
     async def research_politician(
-        self,
-        name: str,
-        role: Optional[str] = None,
-        state: Optional[str] = None
+        self, name: str, role: Optional[str] = None, state: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Pesquisa sobre um político (foco em perfil pessoal, não político)
@@ -359,7 +329,7 @@ class TavilyClient(BaseScraper):
             f'"{name}" biografia história pessoal',
             f'"{name}" família educação formação',
             f'"{name}" carreira trajetória profissional',
-            f'"{name}" redes sociais Instagram Twitter'
+            f'"{name}" redes sociais Instagram Twitter',
         ]
 
         if role:
@@ -374,13 +344,13 @@ class TavilyClient(BaseScraper):
                 search_depth="basic",
                 include_answer=True,
                 max_results=3,
-                exclude_domains=["twitter.com", "facebook.com"]  # Evitar ruído de posts
+                exclude_domains=["twitter.com", "facebook.com"],  # Evitar ruído de posts
             )
 
             key = query.split('"')[-1].strip().split()[0] if '"' in query else "general"
             results[key] = {
                 "answer": search_result.get("answer"),
-                "sources": search_result.get("results", [])
+                "sources": search_result.get("results", []),
             }
 
         # Buscar notícias
@@ -395,18 +365,14 @@ class TavilyClient(BaseScraper):
             "state": state,
             "research": results,
             "news": news.get("results", []),
-            "news_summary": news.get("answer")
+            "news_summary": news.get("answer"),
         }
 
     # ===========================================
     # MÉTODOS DE MERCADO
     # ===========================================
 
-    async def get_market_trends(
-        self,
-        industry: str,
-        country: str = "Brasil"
-    ) -> Dict[str, Any]:
+    async def get_market_trends(self, industry: str, country: str = "Brasil") -> Dict[str, Any]:
         """
         Busca tendências de mercado
 
@@ -426,13 +392,10 @@ class TavilyClient(BaseScraper):
             "country": country,
             "trends": result.get("answer"),
             "sources": result.get("results", []),
-            "follow_up_questions": result.get("follow_up_questions", [])
+            "follow_up_questions": result.get("follow_up_questions", []),
         }
 
-    async def get_economic_scenario(
-        self,
-        sector: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def get_economic_scenario(self, sector: Optional[str] = None) -> Dict[str, Any]:
         """
         Busca cenário econômico brasileiro
 
@@ -452,5 +415,5 @@ class TavilyClient(BaseScraper):
             "sector": sector,
             "analysis": result.get("answer"),
             "sources": result.get("results", []),
-            "follow_up_questions": result.get("follow_up_questions", [])
+            "follow_up_questions": result.get("follow_up_questions", []),
         }

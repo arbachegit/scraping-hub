@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from config.settings import settings as app_settings
+
 from .auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     Token,
@@ -84,24 +86,27 @@ API para análise de inteligência empresarial focada no mercado brasileiro.
     version="2.0.0",
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS - Configuração segura via settings
-from config.settings import settings as app_settings
-
 # Determinar origens permitidas
 _allowed_origins = app_settings.parsed_allowed_origins
 if app_settings.is_development:
     # Em desenvolvimento, adicionar origens comuns de dev
-    _allowed_origins = list(set(_allowed_origins + [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
-    ]))
+    _allowed_origins = list(
+        set(
+            _allowed_origins
+            + [
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:8000",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:8000",
+            ]
+        )
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -132,6 +137,7 @@ app.include_router(news_router)
 # ROOT & HEALTH
 # ===========================================
 
+
 @app.get("/", include_in_schema=False)
 async def root():
     """Serve the frontend"""
@@ -142,7 +148,7 @@ async def root():
         "service": "IconsAI Scraping API",
         "version": "2.0.0",
         "status": "running",
-        "docs": "/docs"
+        "docs": "/docs",
     }
 
 
@@ -168,7 +174,7 @@ async def health():
         "version": "2.0.0",
         "apis": apis,
         "apis_configured": f"{configured}/{total}",
-        "ready": configured >= 3
+        "ready": configured >= 3,
     }
 
 
@@ -183,8 +189,8 @@ async def api_status(current_user: TokenData = Depends(get_current_user)):
             "companies": "/api/v2/company",
             "people": "/api/v2/person",
             "politicians": "/api/v2/politician",
-            "news": "/api/v2/news"
-        }
+            "news": "/api/v2/news",
+        },
     }
 
 
@@ -192,23 +198,17 @@ async def api_status(current_user: TokenData = Depends(get_current_user)):
 # AUTH
 # ===========================================
 
+
 @app.post("/auth/login", response_model=Token, tags=["Auth"])
 async def login(user_data: UserLogin):
     """Login endpoint"""
     user = await authenticate_user(user_data.email, user_data.password)
     if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Email ou senha incorretos"
-        )
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={
-            "sub": user["email"],
-            "user_id": user["id"],
-            "role": user["role"]
-        },
-        expires_delta=access_token_expires
+        data={"sub": user["email"], "user_id": user["id"], "role": user["role"]},
+        expires_delta=access_token_expires,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -217,22 +217,17 @@ async def login(user_data: UserLogin):
 async def get_me(current_user: TokenData = Depends(get_current_user)):
     """Get current user info"""
     from .auth import get_user_from_db
+
     user = await get_user_from_db(current_user.email)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario nao encontrado")
     return UserResponse(
-        id=user["id"],
-        email=user["email"],
-        name=user.get("name"),
-        role=user["role"]
+        id=user["id"], email=user["email"], name=user.get("name"), role=user["role"]
     )
 
 
 @app.put("/auth/me", response_model=Token, tags=["Auth"])
-async def update_me(
-    update_data: UserUpdate,
-    current_user: TokenData = Depends(get_current_user)
-):
+async def update_me(update_data: UserUpdate, current_user: TokenData = Depends(get_current_user)):
     """
     Update current user profile
 
@@ -243,8 +238,7 @@ async def update_me(
     updated_user = await update_user(current_user.email, update_data)
     if not updated_user:
         raise HTTPException(
-            status_code=400,
-            detail="Falha na atualizacao. Verifique os dados e senha atual."
+            status_code=400, detail="Falha na atualizacao. Verifique os dados e senha atual."
         )
 
     # Generate new token with updated info
@@ -253,9 +247,9 @@ async def update_me(
         data={
             "sub": updated_user["email"],
             "user_id": updated_user["id"],
-            "role": updated_user["role"]
+            "role": updated_user["role"],
         },
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -264,10 +258,10 @@ async def update_me(
 # LEGACY ENDPOINTS (v1 compatibility)
 # ===========================================
 
+
 @app.get("/empresa/search", tags=["Legacy"], deprecated=True)
 async def legacy_empresa_search(
-    name: str = None,
-    current_user: TokenData = Depends(get_current_user)
+    name: str = None, current_user: TokenData = Depends(get_current_user)
 ):
     """
     [DEPRECATED] Use /api/v2/company/search
@@ -278,22 +272,21 @@ async def legacy_empresa_search(
         raise HTTPException(status_code=400, detail="Nome é obrigatório")
 
     from src.services import CompanyIntelService
+
     async with CompanyIntelService() as service:
         result = await service.quick_lookup(name)
         return {"count": 1 if result else 0, "data": [result] if result else []}
 
 
 @app.get("/scrape", tags=["Legacy"], deprecated=True)
-async def legacy_scrape(
-    url: str,
-    current_user: TokenData = Depends(get_current_user)
-):
+async def legacy_scrape(url: str, current_user: TokenData = Depends(get_current_user)):
     """
     [DEPRECATED] Web scraping básico
 
     Use os novos endpoints de /api/v2/company para análise completa.
     """
     from src.scrapers import WebScraperClient
+
     async with WebScraperClient() as scraper:
         result = await scraper.scrape(url)
         return result
@@ -301,4 +294,5 @@ async def legacy_scrape(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -28,13 +28,33 @@ class RegionalIntelService:
 
     # Estados brasileiros para normalização
     ESTADOS = {
-        "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
-        "BA": "Bahia", "CE": "Ceará", "DF": "Distrito Federal", "ES": "Espírito Santo",
-        "GO": "Goiás", "MA": "Maranhão", "MT": "Mato Grosso", "MS": "Mato Grosso do Sul",
-        "MG": "Minas Gerais", "PA": "Pará", "PB": "Paraíba", "PR": "Paraná",
-        "PE": "Pernambuco", "PI": "Piauí", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte",
-        "RS": "Rio Grande do Sul", "RO": "Rondônia", "RR": "Roraima", "SC": "Santa Catarina",
-        "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins"
+        "AC": "Acre",
+        "AL": "Alagoas",
+        "AP": "Amapá",
+        "AM": "Amazonas",
+        "BA": "Bahia",
+        "CE": "Ceará",
+        "DF": "Distrito Federal",
+        "ES": "Espírito Santo",
+        "GO": "Goiás",
+        "MA": "Maranhão",
+        "MT": "Mato Grosso",
+        "MS": "Mato Grosso do Sul",
+        "MG": "Minas Gerais",
+        "PA": "Pará",
+        "PB": "Paraíba",
+        "PR": "Paraná",
+        "PE": "Pernambuco",
+        "PI": "Piauí",
+        "RJ": "Rio de Janeiro",
+        "RN": "Rio Grande do Norte",
+        "RS": "Rio Grande do Sul",
+        "RO": "Rondônia",
+        "RR": "Roraima",
+        "SC": "Santa Catarina",
+        "SP": "São Paulo",
+        "SE": "Sergipe",
+        "TO": "Tocantins",
     }
 
     def __init__(self):
@@ -42,8 +62,8 @@ class RegionalIntelService:
         self._supabase_client: Optional[httpx.AsyncClient] = None
 
         # Supabase fiscal database config
-        self.fiscal_supabase_url = getattr(settings, 'fiscal_supabase_url', None)
-        self.fiscal_supabase_key = getattr(settings, 'fiscal_supabase_key', None)
+        self.fiscal_supabase_url = getattr(settings, "fiscal_supabase_url", None)
+        self.fiscal_supabase_key = getattr(settings, "fiscal_supabase_key", None)
 
         # Log status de conexão
         if self.fiscal_supabase_url and self.fiscal_supabase_key:
@@ -104,10 +124,7 @@ class RegionalIntelService:
         return None
 
     async def get_regional_context(
-        self,
-        city: str,
-        state: Optional[str] = None,
-        codigo_ibge: Optional[int] = None
+        self, city: str, state: Optional[str] = None, codigo_ibge: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Obtém contexto regional completo para uma cidade
@@ -131,7 +148,7 @@ class RegionalIntelService:
             "fiscal": None,
             "rankings": {},
             "economic_profile": None,
-            "regional_analysis": None
+            "regional_analysis": None,
         }
 
         # Buscar código IBGE se não fornecido
@@ -184,8 +201,8 @@ class RegionalIntelService:
                 headers={
                     "apikey": self.fiscal_supabase_key,
                     "Authorization": f"Bearer {self.fiscal_supabase_key}",
-                    "Content-Type": "application/json"
-                }
+                    "Content-Type": "application/json",
+                },
             )
         return self._supabase_client
 
@@ -228,11 +245,12 @@ class RegionalIntelService:
                 "pib_per_capita": row.get("pib_per_capita"),
                 "pib_servicos": row.get("pib_servicos") or row.get("valor_adicionado_servicos"),
                 "pib_industria": row.get("pib_industria") or row.get("valor_adicionado_industria"),
-                "pib_agropecuaria": row.get("pib_agropecuaria") or row.get("valor_adicionado_agropecuaria"),
+                "pib_agropecuaria": row.get("pib_agropecuaria")
+                or row.get("valor_adicionado_agropecuaria"),
                 "ano": row.get("ano"),
                 "ranking_nacional": row.get("ranking_brasil") or row.get("ranking_nacional"),
                 "ranking_estadual": row.get("ranking_uf") or row.get("ranking_estadual"),
-                "source": "supabase_fiscal"
+                "source": "supabase_fiscal",
             }
 
         # Fallback: tentar tabela alternativa
@@ -242,7 +260,7 @@ class RegionalIntelService:
             return {
                 "pib_total": row.get("pib"),
                 "pib_per_capita": row.get("pib_per_capita"),
-                "source": "supabase_indicadores"
+                "source": "supabase_indicadores",
             }
 
         return {}
@@ -278,7 +296,7 @@ class RegionalIntelService:
                 "classificacao_2010": classificacao,
                 "ranking_nacional": row.get("ranking_brasil"),
                 "ranking_estadual": row.get("ranking_uf"),
-                "source": "supabase_fiscal"
+                "source": "supabase_fiscal",
             }
 
         # Fallback: tabela alternativa
@@ -286,10 +304,7 @@ class RegionalIntelService:
         if data and len(data) > 0:
             row = data[0]
             idhm = row.get("idhm")
-            return {
-                "idhm_2010": idhm,
-                "source": "supabase_indicadores"
-            }
+            return {"idhm_2010": idhm, "source": "supabase_indicadores"}
 
         return {}
 
@@ -307,17 +322,14 @@ class RegionalIntelService:
                 "densidade_demografica": row.get("densidade_demografica"),
                 "area_km2": row.get("area_km2") or row.get("area"),
                 "ano": row.get("ano"),
-                "source": "supabase_fiscal"
+                "source": "supabase_fiscal",
             }
 
         # Fallback: tabela alternativa
         data = await self._query_supabase("indicadores_municipais", {"codigo_ibge": codigo_ibge})
         if data and len(data) > 0:
             row = data[0]
-            return {
-                "populacao": row.get("populacao"),
-                "source": "supabase_indicadores"
-            }
+            return {"populacao": row.get("populacao"), "source": "supabase_indicadores"}
 
         return {}
 
@@ -328,7 +340,7 @@ class RegionalIntelService:
             "main_sector": "unknown",
             "development_level": "unknown",
             "growth_trend": "unknown",
-            "business_environment": "unknown"
+            "business_environment": "unknown",
         }
 
         pib = context.get("pib", {})
@@ -395,7 +407,7 @@ class RegionalIntelService:
             ranking = pib.get("ranking_nacional", "N/A")
 
             if pib_total:
-                pib_formatted = f"R$ {pib_total/1_000_000_000:.2f} bilhões"
+                pib_formatted = f"R$ {pib_total / 1_000_000_000:.2f} bilhões"
                 parts.append(f"\n**PIB Municipal:** {pib_formatted}")
                 parts.append(f"**PIB per capita:** R$ {pib_per_capita:,.2f}")
                 parts.append(f"**Ranking Nacional:** {ranking}º lugar")
@@ -417,27 +429,26 @@ class RegionalIntelService:
                 "muito_grande": "economia de grande porte",
                 "grande": "economia significativa",
                 "medio": "economia de médio porte",
-                "pequeno": "economia em desenvolvimento"
+                "pequeno": "economia em desenvolvimento",
             }
 
             sector_map = {
                 "servicos": "setor de serviços",
                 "industria": "setor industrial",
-                "agropecuaria": "setor agropecuário"
+                "agropecuaria": "setor agropecuário",
             }
 
             size_text = size_map.get(profile.get("economic_size", ""), "")
             sector_text = sector_map.get(profile.get("main_sector", ""), "")
 
             if size_text or sector_text:
-                parts.append(f"\n**Perfil:** {city} possui {size_text}, com predominância do {sector_text}.")
+                parts.append(
+                    f"\n**Perfil:** {city} possui {size_text}, com predominância do {sector_text}."
+                )
 
         return "\n".join(parts)
 
-    async def get_region_for_swot(
-        self,
-        company_address: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def get_region_for_swot(self, company_address: Dict[str, Any]) -> Dict[str, Any]:
         """
         Prepara dados regionais formatados para análise SWOT
 
@@ -458,20 +469,17 @@ class RegionalIntelService:
             "city": city,
             "state": state,
             "context_text": context.get("regional_analysis", ""),
-
             # Para SWOT - Oportunidades
             "opportunities": self._extract_opportunities(context),
-
             # Para SWOT - Ameaças
             "threats": self._extract_threats(context),
-
             # Dados brutos para Claude analisar
             "raw_data": {
                 "pib": context.get("pib"),
                 "idhm": context.get("idhm"),
                 "populacao": context.get("populacao"),
-                "economic_profile": context.get("economic_profile")
-            }
+                "economic_profile": context.get("economic_profile"),
+            },
         }
 
         return swot_data

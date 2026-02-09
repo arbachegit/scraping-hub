@@ -35,31 +35,19 @@ class SerperClient(BaseScraper):
     SOURCE_COVERAGE = "Resultados de busca Google, notícias, imagens"
     SOURCE_DOC_URL = "https://serper.dev/docs"
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        timeout: float = 30.0
-    ):
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 30.0):
         super().__init__(
             api_key=api_key or settings.serper_api_key,
             base_url="https://google.serper.dev",
             rate_limit=100,
-            timeout=timeout
+            timeout=timeout,
         )
 
     def _get_headers(self) -> Dict[str, str]:
-        return {
-            "X-API-KEY": self.api_key,
-            "Content-Type": "application/json"
-        }
+        return {"X-API-KEY": self.api_key, "Content-Type": "application/json"}
 
     async def search(
-        self,
-        query: str,
-        num: int = 10,
-        gl: str = "br",
-        hl: str = "pt-br",
-        page: int = 1
+        self, query: str, num: int = 10, gl: str = "br", hl: str = "pt-br", page: int = 1
     ) -> Dict[str, Any]:
         """
         Busca Google padrão
@@ -76,13 +64,9 @@ class SerperClient(BaseScraper):
         """
         logger.info("serper_search", query=query[:50])
 
-        result = await self.post("/search", json={
-            "q": query,
-            "num": min(num, 100),
-            "gl": gl,
-            "hl": hl,
-            "page": page
-        })
+        result = await self.post(
+            "/search", json={"q": query, "num": min(num, 100), "gl": gl, "hl": hl, "page": page}
+        )
 
         return {
             "query": query,
@@ -91,7 +75,7 @@ class SerperClient(BaseScraper):
             "answer_box": result.get("answerBox"),
             "related_searches": result.get("relatedSearches", []),
             "people_also_ask": result.get("peopleAlsoAsk", []),
-            "total_results": len(result.get("organic", []))
+            "total_results": len(result.get("organic", [])),
         }
 
     async def search_news(
@@ -100,7 +84,7 @@ class SerperClient(BaseScraper):
         num: int = 10,
         gl: str = "br",
         hl: str = "pt-br",
-        tbs: Optional[str] = None
+        tbs: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Busca de notícias
@@ -117,12 +101,7 @@ class SerperClient(BaseScraper):
         """
         logger.info("serper_news", query=query[:50])
 
-        payload = {
-            "q": query,
-            "num": min(num, 100),
-            "gl": gl,
-            "hl": hl
-        }
+        payload = {"q": query, "num": min(num, 100), "gl": gl, "hl": hl}
         if tbs:
             payload["tbs"] = tbs
 
@@ -131,63 +110,38 @@ class SerperClient(BaseScraper):
         return {
             "query": query,
             "news": result.get("news", []),
-            "total_results": len(result.get("news", []))
+            "total_results": len(result.get("news", [])),
         }
 
-    async def search_images(
-        self,
-        query: str,
-        num: int = 10,
-        gl: str = "br"
-    ) -> Dict[str, Any]:
+    async def search_images(self, query: str, num: int = 10, gl: str = "br") -> Dict[str, Any]:
         """Busca de imagens"""
         logger.info("serper_images", query=query[:50])
 
-        result = await self.post("/images", json={
-            "q": query,
-            "num": min(num, 100),
-            "gl": gl
-        })
+        result = await self.post("/images", json={"q": query, "num": min(num, 100), "gl": gl})
 
         return {
             "query": query,
             "images": result.get("images", []),
-            "total_results": len(result.get("images", []))
+            "total_results": len(result.get("images", [])),
         }
 
     async def search_places(
-        self,
-        query: str,
-        location: str = "Brazil",
-        gl: str = "br"
+        self, query: str, location: str = "Brazil", gl: str = "br"
     ) -> Dict[str, Any]:
         """Busca de lugares (Google Maps)"""
         logger.info("serper_places", query=query[:50])
 
-        result = await self.post("/places", json={
-            "q": query,
-            "location": location,
-            "gl": gl
-        })
+        result = await self.post("/places", json={"q": query, "location": location, "gl": gl})
 
         return {
             "query": query,
             "places": result.get("places", []),
-            "total_results": len(result.get("places", []))
+            "total_results": len(result.get("places", [])),
         }
 
-    async def autocomplete(
-        self,
-        query: str,
-        gl: str = "br",
-        hl: str = "pt-br"
-    ) -> List[str]:
+    async def autocomplete(self, query: str, gl: str = "br", hl: str = "pt-br") -> List[str]:
         """Google Autocomplete"""
-        result = await self.post("/autocomplete", json={
-            "q": query,
-            "gl": gl,
-            "hl": hl
-        })
+        result = await self.post("/autocomplete", json={"q": query, "gl": gl, "hl": hl})
 
         return result.get("suggestions", [])
 
@@ -209,7 +163,7 @@ class SerperClient(BaseScraper):
         results = await self.search(query, num=5)
 
         # Regex para CNPJ
-        cnpj_pattern = r'\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}'
+        cnpj_pattern = r"\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}"
 
         for item in results.get("organic", []):
             # Buscar no título e snippet
@@ -247,11 +201,19 @@ class SerperClient(BaseScraper):
         for item in results.get("organic", []):
             url = item.get("link", "")
             # Filtrar sites de consulta e priorizar domínios próprios
-            if not any(x in url for x in [
-                "cnpj.info", "consultacnpj", "empresascnpj",
-                "linkedin.com", "facebook.com", "instagram.com",
-                "wikipedia.org", "reclameaqui.com"
-            ]):
+            if not any(
+                x in url
+                for x in [
+                    "cnpj.info",
+                    "consultacnpj",
+                    "empresascnpj",
+                    "linkedin.com",
+                    "facebook.com",
+                    "instagram.com",
+                    "wikipedia.org",
+                    "reclameaqui.com",
+                ]
+            ):
                 return url
 
         return None
@@ -308,7 +270,7 @@ class SerperClient(BaseScraper):
             "founded": kg.get("founded") or kg.get("foundingDate"),
             "headquarters": kg.get("headquarters") or kg.get("address"),
             "employees": kg.get("employees") or kg.get("numberOfEmployees"),
-            "related_searches": main_results.get("related_searches", [])
+            "related_searches": main_results.get("related_searches", []),
         }
 
     # ===========================================
@@ -339,11 +301,7 @@ class SerperClient(BaseScraper):
 
         return None
 
-    async def find_person_info(
-        self,
-        name: str,
-        context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def find_person_info(self, name: str, context: Optional[str] = None) -> Dict[str, Any]:
         """
         Busca informações sobre uma pessoa
 
@@ -356,7 +314,7 @@ class SerperClient(BaseScraper):
         """
         query = f'"{name}"'
         if context:
-            query += f' {context}'
+            query += f" {context}"
 
         results = await self.search(query, num=10)
         news = await self.search_news(f'"{name}"', num=5)
@@ -367,7 +325,7 @@ class SerperClient(BaseScraper):
             "knowledge_graph": results.get("knowledge_graph"),
             "news": news.get("news", []),
             "linkedin": await self.find_person_linkedin(name),
-            "people_also_ask": results.get("people_also_ask", [])
+            "people_also_ask": results.get("people_also_ask", []),
         }
 
     # ===========================================
@@ -375,10 +333,7 @@ class SerperClient(BaseScraper):
     # ===========================================
 
     async def find_politician_info(
-        self,
-        name: str,
-        role: Optional[str] = None,
-        state: Optional[str] = None
+        self, name: str, role: Optional[str] = None, state: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Busca informações sobre um político
@@ -418,8 +373,8 @@ class SerperClient(BaseScraper):
             "social_media": {
                 "instagram": await self._find_social(name, "instagram.com"),
                 "twitter": await self._find_social(name, "twitter.com"),
-                "facebook": await self._find_social(name, "facebook.com")
-            }
+                "facebook": await self._find_social(name, "facebook.com"),
+            },
         }
 
     async def _find_social(self, name: str, domain: str) -> Optional[str]:

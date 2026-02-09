@@ -19,6 +19,7 @@ logger = structlog.get_logger()
 @dataclass
 class RateLimitConfig:
     """Configuracao de rate limit"""
+
     requests: int
     period: int  # segundos
     burst: Optional[int] = None
@@ -28,30 +29,31 @@ class RateLimitConfig:
 DEFAULT_LIMITS = {
     "serper": RateLimitConfig(
         requests=getattr(settings, "serper_rate_limit", 100),
-        period=getattr(settings, "rate_limit_period", 60)
+        period=getattr(settings, "rate_limit_period", 60),
     ),
     "tavily": RateLimitConfig(
         requests=getattr(settings, "tavily_rate_limit", 100),
-        period=getattr(settings, "rate_limit_period", 60)
+        period=getattr(settings, "rate_limit_period", 60),
     ),
     "perplexity": RateLimitConfig(
         requests=getattr(settings, "perplexity_rate_limit", 50),
-        period=getattr(settings, "rate_limit_period", 60)
+        period=getattr(settings, "rate_limit_period", 60),
     ),
     "apollo": RateLimitConfig(
         requests=getattr(settings, "apollo_rate_limit", 50),
-        period=getattr(settings, "rate_limit_period", 60)
+        period=getattr(settings, "rate_limit_period", 60),
     ),
     "brasilapi": RateLimitConfig(
         requests=200,  # BrasilAPI is free and generous
-        period=60
-    )
+        period=60,
+    ),
 }
 
 
 @dataclass
 class RateLimiterState:
     """Estado do rate limiter"""
+
     requests: deque = field(default_factory=deque)
     blocked_until: Optional[datetime] = None
 
@@ -68,7 +70,7 @@ class RateLimiter:
         self,
         provider: Optional[str] = None,
         requests: Optional[int] = None,
-        period: Optional[int] = None
+        period: Optional[int] = None,
     ):
         """
         Inicializa rate limiter
@@ -103,19 +105,12 @@ class RateLimiter:
             # Verificar se esta bloqueado
             if self._state.blocked_until and now < self._state.blocked_until:
                 wait_time = (self._state.blocked_until - now).total_seconds()
-                logger.warning(
-                    "rate_limited",
-                    provider=self.provider,
-                    wait_seconds=wait_time
-                )
+                logger.warning("rate_limited", provider=self.provider, wait_seconds=wait_time)
                 return False
 
             # Limpar requests antigas
             cutoff = now - timedelta(seconds=self.period)
-            while (
-                self._state.requests and
-                self._state.requests[0] < cutoff
-            ):
+            while self._state.requests and self._state.requests[0] < cutoff:
                 self._state.requests.popleft()
 
             # Verificar limite
@@ -131,7 +126,7 @@ class RateLimiter:
                     provider=self.provider,
                     current=len(self._state.requests),
                     max=self.max_requests,
-                    wait_seconds=wait_time
+                    wait_seconds=wait_time,
                 )
                 return False
 
@@ -151,18 +146,11 @@ class RateLimiter:
             async with self._lock:
                 if self._state.blocked_until:
                     now = datetime.utcnow()
-                    wait_time = max(
-                        0,
-                        (self._state.blocked_until - now).total_seconds()
-                    )
+                    wait_time = max(0, (self._state.blocked_until - now).total_seconds())
                 else:
                     wait_time = 1
 
-            logger.debug(
-                "rate_limit_waiting",
-                provider=self.provider,
-                seconds=wait_time
-            )
+            logger.debug("rate_limit_waiting", provider=self.provider, seconds=wait_time)
             await asyncio.sleep(wait_time + 0.1)
 
     def get_stats(self) -> Dict:
@@ -171,9 +159,7 @@ class RateLimiter:
         cutoff = now - timedelta(seconds=self.period)
 
         # Contar requests no periodo atual
-        current_requests = sum(
-            1 for r in self._state.requests if r >= cutoff
-        )
+        current_requests = sum(1 for r in self._state.requests if r >= cutoff)
 
         return {
             "provider": self.provider,
@@ -182,9 +168,8 @@ class RateLimiter:
             "current_requests": current_requests,
             "remaining": max(0, self.max_requests - current_requests),
             "is_blocked": (
-                self._state.blocked_until is not None and
-                now < self._state.blocked_until
-            )
+                self._state.blocked_until is not None and now < self._state.blocked_until
+            ),
         }
 
     def reset(self) -> None:

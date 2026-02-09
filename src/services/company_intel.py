@@ -51,6 +51,7 @@ class CompanyIntelService:
         # Repository para persistência
         try:
             from src.database import CompanyRepository, SearchHistoryRepository
+
             self.repository = CompanyRepository()
             self.search_history = SearchHistoryRepository()
         except Exception:
@@ -80,7 +81,7 @@ class CompanyIntelService:
             self.perplexity.close(),
             self.apollo.close(),
             self.web_scraper.close(),
-            self.ai_analyzer.close()
+            self.ai_analyzer.close(),
         )
 
     async def analyze_company(
@@ -89,7 +90,7 @@ class CompanyIntelService:
         cnpj: Optional[str] = None,
         analysis_type: str = "client",
         include_competitors: bool = True,
-        include_employees: bool = True
+        include_employees: bool = True,
     ) -> Dict[str, Any]:
         """
         Análise COMPLETA de uma empresa com múltiplas perspectivas
@@ -112,11 +113,7 @@ class CompanyIntelService:
             "company_name": name,
             "analysis_type": analysis_type,
             "status": "processing",
-            "data_quality": {
-                "sources_ok": [],
-                "sources_failed": [],
-                "warnings": []
-            }
+            "data_quality": {"sources_ok": [], "sources_failed": [], "warnings": []},
         }
 
         try:
@@ -135,10 +132,7 @@ class CompanyIntelService:
                 "company_search": self.serper.find_company_info(name),
             }
 
-            initial_results = await asyncio.gather(
-                *initial_tasks.values(),
-                return_exceptions=True
-            )
+            initial_results = await asyncio.gather(*initial_tasks.values(), return_exceptions=True)
 
             # Extrair CNPJ e website com rastreamento de qualidade
             if not cnpj and not isinstance(initial_results[0], Exception):
@@ -146,7 +140,9 @@ class CompanyIntelService:
                 result["data_quality"]["sources_ok"].append("serper_cnpj")
             elif isinstance(initial_results[0], Exception):
                 result["data_quality"]["sources_failed"].append("serper_cnpj")
-                result["data_quality"]["warnings"].append(f"Falha ao buscar CNPJ: {str(initial_results[0])[:100]}")
+                result["data_quality"]["warnings"].append(
+                    f"Falha ao buscar CNPJ: {str(initial_results[0])[:100]}"
+                )
 
             if not isinstance(initial_results[1], Exception):
                 search_data = initial_results[1]
@@ -154,13 +150,17 @@ class CompanyIntelService:
             else:
                 search_data = {}
                 result["data_quality"]["sources_failed"].append("serper_search")
-                result["data_quality"]["warnings"].append(f"Falha na busca Google: {str(initial_results[1])[:100]}")
+                result["data_quality"]["warnings"].append(
+                    f"Falha na busca Google: {str(initial_results[1])[:100]}"
+                )
             website_url = search_data.get("website")
 
             # 3. Segunda rodada: coletar dados detalhados + funcionários
             detail_tasks = {
                 "perplexity_full": self.perplexity.analyze_company(name, analysis_type="full"),
-                "perplexity_competitors": self.perplexity.find_competitors(name, search_data.get("industry")),
+                "perplexity_competitors": self.perplexity.find_competitors(
+                    name, search_data.get("industry")
+                ),
                 "tavily_news": self.tavily.get_company_news(name, days=30),
                 "tavily_research": self.tavily.research(f"empresa {name} Brasil produtos serviços"),
             }
@@ -169,10 +169,7 @@ class CompanyIntelService:
             if cnpj:
                 detail_tasks["cnpj_data"] = self._get_cnpj_data(cnpj)
 
-            detail_results = await asyncio.gather(
-                *detail_tasks.values(),
-                return_exceptions=True
-            )
+            detail_results = await asyncio.gather(*detail_tasks.values(), return_exceptions=True)
 
             # Mapear resultados com rastreamento de qualidade
             task_keys = list(detail_tasks.keys())
@@ -181,7 +178,9 @@ class CompanyIntelService:
                     logger.warning(f"company_intel_{key}_error", error=str(detail_results[i]))
                     result[key] = {}
                     result["data_quality"]["sources_failed"].append(key)
-                    result["data_quality"]["warnings"].append(f"{key}: {str(detail_results[i])[:100]}")
+                    result["data_quality"]["warnings"].append(
+                        f"{key}: {str(detail_results[i])[:100]}"
+                    )
                 else:
                     result[key] = detail_results[i]
                     result["data_quality"]["sources_ok"].append(key)
@@ -215,9 +214,8 @@ class CompanyIntelService:
             research_context = self._prepare_research_context(result)
 
             # Extrair conteúdo do website
-            website_content = (
-                website_data.get("full_content") or
-                website_data.get("content_summary", "")
+            website_content = website_data.get("full_content") or website_data.get(
+                "content_summary", ""
             )
 
             # Extrair notícias
@@ -230,17 +228,14 @@ class CompanyIntelService:
                 employees_data=employees_data,
                 news_data=news_data,
                 research_context=research_context,
-                sources=sources
+                sources=sources,
             )
             result["complete_analysis"] = complete_analysis
 
             # 9. CONCORRENTES COM MESMA PROFUNDIDADE
             logger.info("company_intel_competitors_deep", company=name)
             result["competitors"] = await self._analyze_competitors_deep(
-                name,
-                company_profile,
-                result.get("perplexity_competitors", {}),
-                sources
+                name, company_profile, result.get("perplexity_competitors", {}), sources
             )
 
             result["status"] = "completed"
@@ -248,7 +243,9 @@ class CompanyIntelService:
             result["sources_used"] = sources
 
             # Resumo de qualidade dos dados
-            total_sources = len(result["data_quality"]["sources_ok"]) + len(result["data_quality"]["sources_failed"])
+            total_sources = len(result["data_quality"]["sources_ok"]) + len(
+                result["data_quality"]["sources_failed"]
+            )
             ok_count = len(result["data_quality"]["sources_ok"])
             result["data_quality"]["completeness"] = f"{ok_count}/{total_sources} fontes"
             result["data_quality"]["quality_score"] = round(ok_count / max(total_sources, 1), 2)
@@ -257,7 +254,7 @@ class CompanyIntelService:
                 logger.warning(
                     "company_intel_incomplete",
                     company=name,
-                    failed_sources=result["data_quality"]["sources_failed"]
+                    failed_sources=result["data_quality"]["sources_failed"],
                 )
 
             # 10. Salvar no cache e DB
@@ -283,10 +280,11 @@ class CompanyIntelService:
                             "cnpj": cnpj,
                             "analysis_type": analysis_type,
                             "include_competitors": include_competitors,
-                            "include_employees": include_employees
+                            "include_employees": include_employees,
                         },
-                        results_count=1 + len(result.get("competitors", {}).get("competitors_analyzed", [])),
-                        credits_used=1
+                        results_count=1
+                        + len(result.get("competitors", {}).get("competitors_analyzed", [])),
+                        credits_used=1,
                     )
                 except Exception as e:
                     logger.warning("search_history_error", error=str(e))
@@ -299,10 +297,7 @@ class CompanyIntelService:
         return result
 
     async def _get_employees_apollo(
-        self,
-        company_name: str,
-        search_data: Dict,
-        website_data: Dict
+        self, company_name: str, search_data: Dict, website_data: Dict
     ) -> List[Dict[str, Any]]:
         """Busca funcionários via Apollo"""
         employees = []
@@ -314,17 +309,14 @@ class CompanyIntelService:
 
             # Buscar funcionários gerais
             company_employees = await self.apollo.get_company_employees(
-                organization_name=company_name,
-                domain=domain,
-                limit=20
+                organization_name=company_name, domain=domain, limit=20
             )
             if company_employees.get("employees"):
                 employees.extend(company_employees["employees"])
 
             # Buscar executivos
             executives = await self.apollo.get_executives(
-                organization_name=company_name,
-                domain=domain
+                organization_name=company_name, domain=domain
             )
             if executives.get("employees"):
                 # Adicionar sem duplicar
@@ -334,9 +326,7 @@ class CompanyIntelService:
                         employees.append(exec_data)
 
             # Buscar decision makers
-            decision_makers = await self.apollo.get_decision_makers(
-                organization_name=company_name
-            )
+            decision_makers = await self.apollo.get_decision_makers(organization_name=company_name)
             if decision_makers.get("employees"):
                 existing_ids = {e.get("id") for e in employees}
                 for dm in decision_makers.get("employees", []):
@@ -358,18 +348,19 @@ class CompanyIntelService:
         try:
             for title in ["CEO", "CFO", "CTO", "COO", "Diretor", "Fundador", "Head"]:
                 search = await self.serper.search(
-                    f'"{company_name}" {title} LinkedIn site:linkedin.com/in',
-                    num=3
+                    f'"{company_name}" {title} LinkedIn site:linkedin.com/in', num=3
                 )
                 for item in search.get("organic", []):
                     if "linkedin.com/in/" in item.get("link", ""):
                         name_parts = item.get("title", "").split(" - ")
-                        people.append({
-                            "name": name_parts[0].strip() if name_parts else "N/A",
-                            "linkedin_url": item.get("link"),
-                            "title": title,
-                            "snippet": item.get("snippet", "")
-                        })
+                        people.append(
+                            {
+                                "name": name_parts[0].strip() if name_parts else "N/A",
+                                "linkedin_url": item.get("link"),
+                                "title": title,
+                                "snippet": item.get("snippet", ""),
+                            }
+                        )
         except Exception as e:
             logger.warning("fallback_people_error", error=str(e))
         return people
@@ -439,23 +430,20 @@ class CompanyIntelService:
         cnpj_data = result.get("cnpj_data", {})
         if cnpj_data:
             cnpj_summary = f"""## DADOS CADASTRAIS (CNPJ)
-- Razão Social: {cnpj_data.get('razao_social', 'N/A')}
-- Nome Fantasia: {cnpj_data.get('nome_fantasia', 'N/A')}
-- CNPJ: {cnpj_data.get('cnpj', 'N/A')}
-- Situação: {cnpj_data.get('situacao_cadastral', 'N/A')}
-- Porte: {cnpj_data.get('porte', 'N/A')}
-- Capital Social: {cnpj_data.get('capital_social', 'N/A')}
-- Data Abertura: {cnpj_data.get('data_abertura', 'N/A')}
-- CNAE Principal: {cnpj_data.get('cnae_principal', {}).get('descricao', 'N/A')}"""
+- Razão Social: {cnpj_data.get("razao_social", "N/A")}
+- Nome Fantasia: {cnpj_data.get("nome_fantasia", "N/A")}
+- CNPJ: {cnpj_data.get("cnpj", "N/A")}
+- Situação: {cnpj_data.get("situacao_cadastral", "N/A")}
+- Porte: {cnpj_data.get("porte", "N/A")}
+- Capital Social: {cnpj_data.get("capital_social", "N/A")}
+- Data Abertura: {cnpj_data.get("data_abertura", "N/A")}
+- CNAE Principal: {cnpj_data.get("cnae_principal", {}).get("descricao", "N/A")}"""
             parts.append(cnpj_summary)
 
         return "\n\n".join(parts)
 
     async def _scrape_website_fully(
-        self,
-        name: str,
-        website_url: Optional[str],
-        search_data: Dict
+        self, name: str, website_url: Optional[str], search_data: Dict
     ) -> Dict[str, Any]:
         """Faz scraping completo do website"""
 
@@ -466,10 +454,19 @@ class CompanyIntelService:
                 website_search = await self.serper.search(f'"{name}" site oficial Brasil', num=5)
                 for item in website_search.get("organic", []):
                     link = item.get("link", "")
-                    if link and not any(x in link for x in [
-                        "linkedin", "facebook", "instagram", "twitter",
-                        "youtube", "google", "wikipedia", "reclameaqui"
-                    ]):
+                    if link and not any(
+                        x in link
+                        for x in [
+                            "linkedin",
+                            "facebook",
+                            "instagram",
+                            "twitter",
+                            "youtube",
+                            "google",
+                            "wikipedia",
+                            "reclameaqui",
+                        ]
+                    ):
                         website_url = link
                         break
             except Exception as e:
@@ -506,12 +503,7 @@ class CompanyIntelService:
             logger.warning("company_intel_website_error", url=website_url, error=str(e))
             return {}
 
-    def _consolidate_all_data(
-        self,
-        result: Dict,
-        name: str,
-        cnpj: Optional[str]
-    ) -> Dict[str, Any]:
+    def _consolidate_all_data(self, result: Dict, name: str, cnpj: Optional[str]) -> Dict[str, Any]:
         """
         Consolida TODOS os dados coletados
         Prioridade: Website > Perplexity > Serper > CNPJ
@@ -523,70 +515,66 @@ class CompanyIntelService:
         tavily_research = result.get("tavily_research", {}) or {}
 
         # Extrair conteúdo do site
-        website_content = website_data.get("full_content") or website_data.get("content_summary", "")
+        website_content = website_data.get("full_content") or website_data.get(
+            "content_summary", ""
+        )
         website_headings = website_data.get("headings", [])
         website_contact = website_data.get("contact_info", {}) or {}
 
         # Descrição combinada (Perplexity > Website > Serper)
         description = (
-            perplexity_full.get("analysis") or
-            tavily_research.get("answer") or
-            website_data.get("description") or
-            search_data.get("description") or
-            cnpj_data.get("cnae_principal", {}).get("descricao", "")
+            perplexity_full.get("analysis")
+            or tavily_research.get("answer")
+            or website_data.get("description")
+            or search_data.get("description")
+            or cnpj_data.get("cnae_principal", {}).get("descricao", "")
         )
 
         profile = {
             # Identificação
             "name": name,
-            "nome_fantasia": cnpj_data.get("nome_fantasia") or website_data.get("company_name") or name,
+            "nome_fantasia": cnpj_data.get("nome_fantasia")
+            or website_data.get("company_name")
+            or name,
             "razao_social": cnpj_data.get("razao_social"),
             "cnpj": cnpj or cnpj_data.get("cnpj") or website_contact.get("cnpj"),
-
             # Contato (prioriza website)
-            "website": website_data.get("url") or search_data.get("website") or cnpj_data.get("website"),
+            "website": website_data.get("url")
+            or search_data.get("website")
+            or cnpj_data.get("website"),
             "endereco": cnpj_data.get("endereco", {}),
             "telefone": (website_contact.get("phones") or [None])[0] or cnpj_data.get("telefone"),
             "email": (website_contact.get("emails") or [None])[0] or cnpj_data.get("email"),
-
             # Negócio - CONTEÚDO RICO
-            "industry": search_data.get("industry") or cnpj_data.get("cnae_principal", {}).get("descricao"),
+            "industry": search_data.get("industry")
+            or cnpj_data.get("cnae_principal", {}).get("descricao"),
             "description": description,
-
             # CONTEÚDO DO SITE - ESSENCIAL PARA ANÁLISE
             "website_content": website_content[:15000],  # Aumentado para mais contexto
             "website_headings": website_headings,
             "website_pages": website_data.get("important_pages", {}),
-
             # Dados adicionais
             "porte": cnpj_data.get("porte"),
             "capital_social": cnpj_data.get("capital_social"),
             "data_abertura": cnpj_data.get("data_abertura"),
             "situacao_cadastral": cnpj_data.get("situacao_cadastral"),
-
             # Social
             "linkedin_url": (
-                website_data.get("social_media", {}).get("linkedin") or
-                search_data.get("linkedin")
+                website_data.get("social_media", {}).get("linkedin") or search_data.get("linkedin")
             ),
             "social_media": website_data.get("social_media", {}),
-
             # Sócios
             "socios": cnpj_data.get("socios", []),
-
             # Pesquisa AI
             "perplexity_analysis": perplexity_full.get("analysis"),
             "tavily_insights": tavily_research.get("answer"),
             "knowledge_graph": search_data.get("knowledge_graph"),
-
             # Tecnologias
             "technologies": website_data.get("technologies", []),
-
             # Notícias
             "recent_news": result.get("tavily_news", {}).get("results", [])[:5],
-
             # Fontes
-            "sources": self._list_all_sources(result)
+            "sources": self._list_all_sources(result),
         }
 
         return profile
@@ -623,7 +611,7 @@ class CompanyIntelService:
         company_name: str,
         company_profile: Dict,
         perplexity_competitors: Dict,
-        main_company_sources: List[str]
+        main_company_sources: List[str],
     ) -> Dict[str, Any]:
         """
         Análise PROFUNDA de concorrentes - mesma profundidade da empresa principal
@@ -655,7 +643,7 @@ class CompanyIntelService:
                     "website": comp_info.get("website"),
                     "description": comp_info.get("description"),
                     "industry": comp_info.get("industry"),
-                    "linkedin": comp_info.get("linkedin")
+                    "linkedin": comp_info.get("linkedin"),
                 }
 
                 # 2. Scraping do website do concorrente
@@ -667,27 +655,29 @@ class CompanyIntelService:
                         website_data = await self.web_scraper.scrape_company_website(
                             comp_info["website"]
                         )
-                        website_content = (
-                            website_data.get("full_content") or
-                            website_data.get("content_summary", "")
+                        website_content = website_data.get("full_content") or website_data.get(
+                            "content_summary", ""
                         )
                         competitor_data["website_data"] = website_data
                     except Exception as e:
-                        logger.warning("competitor_website_error", competitor=comp_name, error=str(e))
+                        logger.warning(
+                            "competitor_website_error", competitor=comp_name, error=str(e)
+                        )
 
                 # 3. Pesquisa contextual do concorrente
                 research_context = ""
                 try:
                     perplexity_result = await self.perplexity.analyze_company(
-                        comp_name,
-                        analysis_type="brief"
+                        comp_name, analysis_type="brief"
                     )
                     research_context = perplexity_result.get("analysis", "")
                     if perplexity_result.get("citations"):
                         for c in perplexity_result["citations"][:3]:
                             competitor_sources.append(f"Perplexity: {c}")
                 except Exception as e:
-                    logger.warning("competitor_perplexity_error", competitor=comp_name, error=str(e))
+                    logger.warning(
+                        "competitor_perplexity_error", competitor=comp_name, error=str(e)
+                    )
 
                 # 4. Análise COMPLETA via Claude
                 competitor_analysis = await self.ai_analyzer.analyze_competitor_complete(
@@ -695,42 +685,40 @@ class CompanyIntelService:
                     website_content=website_content[:6000],
                     research_context=research_context[:4000],
                     main_company_name=company_name,
-                    sources=competitor_sources
+                    sources=competitor_sources,
                 )
 
-                competitors_deep.append({
-                    "basic_info": competitor_data,
-                    "deep_analysis": competitor_analysis,
-                    "sources": competitor_sources
-                })
+                competitors_deep.append(
+                    {
+                        "basic_info": competitor_data,
+                        "deep_analysis": competitor_analysis,
+                        "sources": competitor_sources,
+                    }
+                )
 
             except Exception as e:
                 logger.warning("competitor_deep_analysis_error", competitor=comp_name, error=str(e))
                 # Adicionar mesmo com erro, mas com análise básica
-                competitors_deep.append({
-                    "basic_info": {"name": comp_name, "error": str(e)},
-                    "deep_analysis": None,
-                    "sources": []
-                })
+                competitors_deep.append(
+                    {
+                        "basic_info": {"name": comp_name, "error": str(e)},
+                        "deep_analysis": None,
+                        "sources": [],
+                    }
+                )
 
         return {
             "perplexity_overview": perplexity_competitors.get("competitors_analysis"),
             "competitors_analyzed": competitors_deep,
-            "total_competitors": len(competitors_deep)
+            "total_competitors": len(competitors_deep),
         }
 
     async def _analyze_competitors_full(
-        self,
-        company_name: str,
-        company_profile: Dict,
-        perplexity_competitors: Dict
+        self, company_name: str, company_profile: Dict, perplexity_competitors: Dict
     ) -> Dict[str, Any]:
         """Análise de concorrentes (método legado - redireciona para deep)"""
         return await self._analyze_competitors_deep(
-            company_name,
-            company_profile,
-            perplexity_competitors,
-            []
+            company_name, company_profile, perplexity_competitors, []
         )
 
     def _extract_competitor_names(self, text: str) -> List[str]:
@@ -740,41 +728,36 @@ class CompanyIntelService:
         patterns = [
             r"(?:concorrentes?|competidores?):?\s*([^.]+)",
             r"(?:principais|maiores)\s+(?:concorrentes?|competidores?):\s*([^.]+)",
-            r"\d+\.\s*\*?\*?([A-Z][^:,\n*]+?)\*?\*?(?:\s*[-–:]|\s*\d|\n|$)"
+            r"\d+\.\s*\*?\*?([A-Z][^:,\n*]+?)\*?\*?(?:\s*[-–:]|\s*\d|\n|$)",
         ]
 
         names = []
         for pattern in patterns:
             matches = re.findall(pattern, text, re.IGNORECASE)
             for match in matches:
-                parts = re.split(r'[,;]|(?:\s+e\s+)', match)
+                parts = re.split(r"[,;]|(?:\s+e\s+)", match)
                 for part in parts:
-                    cleaned = part.strip().strip('.').strip('*')
+                    cleaned = part.strip().strip(".").strip("*")
                     if cleaned and 3 < len(cleaned) < 80:
                         names.append(cleaned)
 
         return list(dict.fromkeys(names))
 
-    async def _get_key_people(
-        self,
-        company_name: str,
-        company_profile: Dict
-    ) -> Dict[str, Any]:
+    async def _get_key_people(self, company_name: str, company_profile: Dict) -> Dict[str, Any]:
         """Busca pessoas-chave"""
         logger.info("company_intel_people", company=company_name)
 
         people = {
             "executives": [],
             "decision_makers": [],
-            "socios": company_profile.get("socios", [])
+            "socios": company_profile.get("socios", []),
         }
 
         try:
             domain = self._extract_domain(company_profile.get("website", ""))
 
             executives = await self.apollo.get_executives(
-                organization_name=company_name,
-                domain=domain
+                organization_name=company_name, domain=domain
             )
             people["executives"] = executives.get("employees", [])[:10]
 
@@ -789,11 +772,13 @@ class CompanyIntelService:
                     search = await self.serper.search(f'"{company_name}" {title} LinkedIn', num=3)
                     for item in search.get("organic", []):
                         if "linkedin.com/in/" in item.get("link", ""):
-                            people["executives"].append({
-                                "name": item.get("title", "").split(" - ")[0],
-                                "linkedin_url": item.get("link"),
-                                "title": title
-                            })
+                            people["executives"].append(
+                                {
+                                    "name": item.get("title", "").split(" - ")[0],
+                                    "linkedin_url": item.get("link"),
+                                    "title": title,
+                                }
+                            )
             except Exception:
                 pass
 
@@ -812,6 +797,7 @@ class CompanyIntelService:
         if not url:
             return None
         from urllib.parse import urlparse
+
         parsed = urlparse(url if url.startswith("http") else f"https://{url}")
         return parsed.netloc or url
 
@@ -840,14 +826,16 @@ class CompanyIntelService:
             "website_data": 0.20,
             "tavily_research": 0.10,
             "complete_analysis": 0.15,  # Análise multi-perspectiva
-            "employees": 0.10,           # Funcionários Apollo
-            "competitors": 0.10
+            "employees": 0.10,  # Funcionários Apollo
+            "competitors": 0.10,
         }
 
         for key, weight in weights.items():
             data = result.get(key)
             if data and not isinstance(data, Exception):
-                if (isinstance(data, dict) and not data.get("error")) or (isinstance(data, list) and len(data) > 0):
+                if (isinstance(data, dict) and not data.get("error")) or (
+                    isinstance(data, list) and len(data) > 0
+                ):
                     score += weight
 
         return round(min(score, 1.0), 2)
@@ -893,9 +881,7 @@ class CompanyIntelService:
             cnpj_data = await self._get_cnpj_data(cnpj) or {}
 
         # Construir descrição mínima
-        description = self._build_quick_description(
-            name, search_data, cnpj_data, perplexity_data
-        )
+        description = self._build_quick_description(name, search_data, cnpj_data, perplexity_data)
 
         # Montar resultado
         result = {
@@ -905,15 +891,13 @@ class CompanyIntelService:
             "nome_fantasia": cnpj_data.get("nome_fantasia") or name,
             "website": search_data.get("website"),
             "linkedin": search_data.get("linkedin"),
-            "industry": search_data.get("industry") or cnpj_data.get("cnae_principal", {}).get("descricao"),
-
+            "industry": search_data.get("industry")
+            or cnpj_data.get("cnae_principal", {}).get("descricao"),
             # DESCRIÇÃO - Sempre presente
             "description": description,
-
             # Análise Perplexity
             "analysis": perplexity_data.get("analysis"),
             "citations": perplexity_data.get("citations", []),
-
             # Dados complementares
             "endereco": cnpj_data.get("endereco"),
             "situacao_cadastral": cnpj_data.get("situacao_cadastral"),
@@ -921,8 +905,7 @@ class CompanyIntelService:
             "capital_social": cnpj_data.get("capital_social"),
             "data_abertura": cnpj_data.get("data_abertura"),
             "knowledge_graph": search_data.get("knowledge_graph"),
-
-            "sources": ["Perplexity AI", "Google Search"] + (["BrasilAPI"] if cnpj_data else [])
+            "sources": ["Perplexity AI", "Google Search"] + (["BrasilAPI"] if cnpj_data else []),
         }
 
         # Salvar no cache para uso posterior
@@ -936,11 +919,7 @@ class CompanyIntelService:
         return result
 
     def _build_quick_description(
-        self,
-        name: str,
-        search_data: Dict,
-        cnpj_data: Dict,
-        perplexity_data: Dict
+        self, name: str, search_data: Dict, cnpj_data: Dict, perplexity_data: Dict
     ) -> str:
         """
         Constrói descrição mínima da empresa
@@ -1025,11 +1004,7 @@ class CompanyIntelService:
 
         if use_full_analysis and not cached.get("full_analysis"):
             # Fazer análise completa primeiro
-            await self.analyze_company(
-                name,
-                include_competitors=True,
-                include_employees=True
-            )
+            await self.analyze_company(name, include_competitors=True, include_employees=True)
             cached = self._get_from_cache(name) or {}
 
         full_analysis = cached.get("full_analysis", {})
@@ -1055,7 +1030,7 @@ class CompanyIntelService:
             news_data=news_data,
             regional_data=regional_data,
             research_context=research_context,
-            sources=sources
+            sources=sources,
         )
 
         # Salvar SWOT no cache
@@ -1088,15 +1063,13 @@ class CompanyIntelService:
             logger.warning("regional_data_error", error=str(e))
             return {"available": False, "reason": str(e)}
 
-    async def get_okrs(
-        self,
-        name: str,
-        focus_areas: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+    async def get_okrs(self, name: str, focus_areas: Optional[List[str]] = None) -> Dict[str, Any]:
         """Gera OKRs baseados no SWOT completo"""
         company_data = await self.quick_lookup(name)
         swot = await self.get_swot(name)
-        return await self.ai_analyzer.generate_okrs(company_data, swot=swot, focus_areas=focus_areas)
+        return await self.ai_analyzer.generate_okrs(
+            company_data, swot=swot, focus_areas=focus_areas
+        )
 
     async def __aenter__(self):
         return self

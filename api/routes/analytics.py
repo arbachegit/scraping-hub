@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/v2/analytics", tags=["Analytics"])
 # SCHEMAS
 # ===========================================
 
+
 class DailyMetrics(BaseModel):
     period_days: int
     start_date: str
@@ -95,10 +96,10 @@ class DashboardResponse(BaseModel):
 # ENDPOINTS
 # ===========================================
 
+
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard(
-    days: int = Query(default=30, ge=1, le=365),
-    current_user: TokenData = Depends(get_current_user)
+    days: int = Query(default=30, ge=1, le=365), current_user: TokenData = Depends(get_current_user)
 ):
     """
     Dashboard de analytics consolidado
@@ -121,18 +122,20 @@ async def get_dashboard(
         source_quality = await repo.get_source_quality()
 
         return {
-            "metrics": metrics if metrics else {
+            "metrics": metrics
+            if metrics
+            else {
                 "period_days": days,
                 "start_date": (datetime.utcnow().date() - timedelta(days=days)).isoformat(),
                 "end_date": datetime.utcnow().date().isoformat(),
                 "total_searches": 0,
                 "total_api_calls": 0,
                 "total_company_analyses": 0,
-                "total_person_analyses": 0
+                "total_person_analyses": 0,
             },
             "search_distribution": search_distribution,
             "hourly_activity": hourly_activity,
-            "source_quality": source_quality
+            "source_quality": source_quality,
         }
 
     except Exception as e:
@@ -142,8 +145,7 @@ async def get_dashboard(
 
 @router.get("/metrics", response_model=DailyMetrics)
 async def get_metrics(
-    days: int = Query(default=30, ge=1, le=365),
-    current_user: TokenData = Depends(get_current_user)
+    days: int = Query(default=30, ge=1, le=365), current_user: TokenData = Depends(get_current_user)
 ):
     """
     Metricas gerais do sistema
@@ -164,7 +166,7 @@ async def get_metrics(
                 "total_searches": 0,
                 "total_api_calls": 0,
                 "total_company_analyses": 0,
-                "total_person_analyses": 0
+                "total_person_analyses": 0,
             }
 
         return metrics
@@ -180,7 +182,7 @@ async def get_searches_by_date(
     end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
     search_type: Optional[str] = Query(default=None),
     limit: int = Query(default=30, ge=1, le=100),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Pesquisas agregadas por dia
@@ -188,19 +190,13 @@ async def get_searches_by_date(
     Retorna estatisticas diarias de pesquisas com filtros opcionais.
     """
     logger.info(
-        "api_analytics_searches",
-        user=current_user.email,
-        start_date=start_date,
-        end_date=end_date
+        "api_analytics_searches", user=current_user.email, start_date=start_date, end_date=end_date
     )
 
     try:
         repo = AnalyticsQueryRepository()
         data = await repo.get_searches_by_date(
-            start_date=start_date,
-            end_date=end_date,
-            search_type=search_type,
-            limit=limit
+            start_date=start_date, end_date=end_date, search_type=search_type, limit=limit
         )
         return data
 
@@ -211,8 +207,7 @@ async def get_searches_by_date(
 
 @router.get("/sources", response_model=List[SourceQuality])
 async def get_source_quality(
-    limit: int = Query(default=20, ge=1, le=50),
-    current_user: TokenData = Depends(get_current_user)
+    limit: int = Query(default=20, ge=1, le=50), current_user: TokenData = Depends(get_current_user)
 ):
     """
     Qualidade das fontes de dados
@@ -236,7 +231,7 @@ async def get_company_analysis_summary(
     start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
     limit: int = Query(default=30, ge=1, le=100),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Resumo de analises de empresas
@@ -244,18 +239,13 @@ async def get_company_analysis_summary(
     Retorna estatisticas diarias de analises de empresas.
     """
     logger.info(
-        "api_analytics_companies",
-        user=current_user.email,
-        start_date=start_date,
-        end_date=end_date
+        "api_analytics_companies", user=current_user.email, start_date=start_date, end_date=end_date
     )
 
     try:
         repo = AnalyticsQueryRepository()
         data = await repo.get_company_analysis_summary(
-            start_date=start_date,
-            end_date=end_date,
-            limit=limit
+            start_date=start_date, end_date=end_date, limit=limit
         )
         return data
 
@@ -267,7 +257,7 @@ async def get_company_analysis_summary(
 @router.get("/users", response_model=List[UserUsage])
 async def get_user_usage(
     limit: int = Query(default=50, ge=1, le=100),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Uso por usuario
@@ -278,8 +268,7 @@ async def get_user_usage(
     # Check if user is admin
     if current_user.role != "admin":
         raise HTTPException(
-            status_code=403,
-            detail="Apenas administradores podem ver dados de todos os usuarios"
+            status_code=403, detail="Apenas administradores podem ver dados de todos os usuarios"
         )
 
     logger.info("api_analytics_users", user=current_user.email)
@@ -296,8 +285,7 @@ async def get_user_usage(
 
 @router.get("/search-types", response_model=List[SearchTypeDistribution])
 async def get_search_type_distribution(
-    days: int = Query(default=30, ge=1, le=365),
-    current_user: TokenData = Depends(get_current_user)
+    days: int = Query(default=30, ge=1, le=365), current_user: TokenData = Depends(get_current_user)
 ):
     """
     Distribuicao de tipos de pesquisa
@@ -318,8 +306,7 @@ async def get_search_type_distribution(
 
 @router.get("/activity/hourly", response_model=List[HourlyActivity])
 async def get_hourly_activity(
-    days: int = Query(default=7, ge=1, le=30),
-    current_user: TokenData = Depends(get_current_user)
+    days: int = Query(default=7, ge=1, le=30), current_user: TokenData = Depends(get_current_user)
 ):
     """
     Atividade por hora do dia

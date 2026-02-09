@@ -61,15 +61,20 @@ class EmpresaRepository:
                 "email": data.get("email"),
                 "porte": data.get("porte"),
                 "natureza_juridica": data.get("natureza_juridica"),
-                "situacao_cadastral": data.get("situacao_cadastral") or data.get("descricao_situacao_cadastral"),
+                "situacao_cadastral": data.get("situacao_cadastral")
+                or data.get("descricao_situacao_cadastral"),
                 "data_abertura": data.get("data_inicio_atividade") or data.get("data_abertura"),
                 "capital_social": data.get("capital_social"),
                 "setor": data.get("setor") or data.get("industry"),
                 "qtd_funcionarios": data.get("qtd_funcionarios") or data.get("employee_count"),
                 "palavras_chave": json.dumps(data.get("palavras_chave", []), ensure_ascii=False),
-                "raw_cnpj_data": json.dumps(data.get("raw_cnpj_data", {}), default=str, ensure_ascii=False),
-                "raw_search_data": json.dumps(data.get("raw_search_data", {}), default=str, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
+                "raw_cnpj_data": json.dumps(
+                    data.get("raw_cnpj_data", {}), default=str, ensure_ascii=False
+                ),
+                "raw_search_data": json.dumps(
+                    data.get("raw_search_data", {}), default=str, ensure_ascii=False
+                ),
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             # Remover campos None
@@ -77,15 +82,17 @@ class EmpresaRepository:
 
             # Upsert por CNPJ se disponivel
             if record.get("cnpj"):
-                result = self.client.table(self.TABLE_NAME).upsert(
-                    record,
-                    on_conflict="cnpj"
-                ).execute()
+                result = (
+                    self.client.table(self.TABLE_NAME).upsert(record, on_conflict="cnpj").execute()
+                )
             else:
                 # Buscar por nome se nao tem CNPJ
-                existing = self.client.table(self.TABLE_NAME).select("id").eq(
-                    "nome_fantasia", record.get("nome_fantasia")
-                ).execute()
+                existing = (
+                    self.client.table(self.TABLE_NAME)
+                    .select("id")
+                    .eq("nome_fantasia", record.get("nome_fantasia"))
+                    .execute()
+                )
 
                 if existing.data:
                     record["id"] = existing.data[0]["id"]
@@ -121,9 +128,12 @@ class EmpresaRepository:
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").ilike(
-                "nome_fantasia", f"%{nome}%"
-            ).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .ilike("nome_fantasia", f"%{nome}%")
+                .execute()
+            )
             return result.data[0] if result.data else None
         except Exception as e:
             logger.error("empresa_get_error", error=str(e))
@@ -153,10 +163,17 @@ class EmpresaRepository:
             return False
 
         try:
-            result = self.client.table(self.TABLE_NAME).update({
-                "palavras_chave": json.dumps(keywords, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
-            }).eq("id", empresa_id).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .update(
+                    {
+                        "palavras_chave": json.dumps(keywords, ensure_ascii=False),
+                        "updated_at": datetime.utcnow().isoformat(),
+                    }
+                )
+                .eq("id", empresa_id)
+                .execute()
+            )
 
             return bool(result.data)
         except Exception as e:
@@ -203,14 +220,17 @@ class PessoaRepository:
                 "estado": data.get("state") or data.get("estado"),
                 "cargo_atual": data.get("title") or data.get("cargo_atual"),
                 "empresa_atual_id": data.get("empresa_atual_id"),
-                "empresa_atual_nome": data.get("organization_name") or data.get("empresa_atual_nome"),
+                "empresa_atual_nome": data.get("organization_name")
+                or data.get("empresa_atual_nome"),
                 "senioridade": data.get("seniority") or data.get("senioridade"),
                 "departamento": data.get("departments") or data.get("departamento"),
                 "headline": data.get("headline"),
                 "skills": json.dumps(data.get("skills", []), ensure_ascii=False),
                 "fonte": data.get("fonte", "apollo"),  # apollo, perplexity, google
-                "raw_apollo_data": json.dumps(data.get("raw_apollo_data", data), default=str, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
+                "raw_apollo_data": json.dumps(
+                    data.get("raw_apollo_data", data), default=str, ensure_ascii=False
+                ),
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             # Remover campos None
@@ -218,14 +238,17 @@ class PessoaRepository:
 
             # Upsert por linkedin_url se disponivel
             if record.get("linkedin_url"):
-                result = self.client.table(self.TABLE_NAME).upsert(
-                    record,
-                    on_conflict="linkedin_url"
-                ).execute()
+                result = (
+                    self.client.table(self.TABLE_NAME)
+                    .upsert(record, on_conflict="linkedin_url")
+                    .execute()
+                )
             else:
                 # Buscar por nome + empresa
-                query = self.client.table(self.TABLE_NAME).select("id").eq(
-                    "nome_completo", record.get("nome_completo")
+                query = (
+                    self.client.table(self.TABLE_NAME)
+                    .select("id")
+                    .eq("nome_completo", record.get("nome_completo"))
                 )
                 if record.get("empresa_atual_nome"):
                     query = query.eq("empresa_atual_nome", record.get("empresa_atual_nome"))
@@ -253,9 +276,12 @@ class PessoaRepository:
             return []
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "empresa_atual_id", empresa_id
-            ).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("empresa_atual_id", empresa_id)
+                .execute()
+            )
             return result.data or []
         except Exception as e:
             logger.error("pessoa_list_error", error=str(e))
@@ -293,8 +319,9 @@ class AnaliseEmpresaRepository:
                 "empresa_id": empresa_id,
                 "tipo_analise": analise.get("tipo_analise", "completa"),
                 "versao_modelo": analise.get("metadata", {}).get("model"),
-                "tempo_processamento_segundos": analise.get("metadata", {}).get("processing_time_seconds"),
-
+                "tempo_processamento_segundos": analise.get("metadata", {}).get(
+                    "processing_time_seconds"
+                ),
                 # 11 Blocos
                 "bloco_1_empresa": blocks.get("1_empresa", {}).get("content"),
                 "bloco_2_pessoas": blocks.get("2_pessoas", {}).get("content"),
@@ -307,29 +334,40 @@ class AnaliseEmpresaRepository:
                 "bloco_9_visao_profissional": blocks.get("9_visao_profissional", {}).get("content"),
                 "bloco_10_visao_concorrente": blocks.get("10_visao_concorrente", {}).get("content"),
                 "bloco_11_visao_fornecedor": blocks.get("11_visao_fornecedor", {}).get("content"),
-
                 # Sintese
-                "hipotese_objetivo": json.dumps(synthesis.get("hypothesis_objective", {}), ensure_ascii=False),
-                "okrs_sugeridos": json.dumps(synthesis.get("suggested_okr", {}), ensure_ascii=False),
-
+                "hipotese_objetivo": json.dumps(
+                    synthesis.get("hypothesis_objective", {}), ensure_ascii=False
+                ),
+                "okrs_sugeridos": json.dumps(
+                    synthesis.get("suggested_okr", {}), ensure_ascii=False
+                ),
                 # SWOT
                 "swot_forcas": json.dumps(swot.get("strengths", []), ensure_ascii=False),
                 "swot_fraquezas": json.dumps(swot.get("weaknesses", []), ensure_ascii=False),
                 "swot_oportunidades": json.dumps(swot.get("opportunities", []), ensure_ascii=False),
                 "swot_ameacas": json.dumps(swot.get("threats", []), ensure_ascii=False),
                 "tows_estrategias": json.dumps(swot.get("tows_strategies", {}), ensure_ascii=False),
-
                 # Palavras-chave
                 "palavras_chave": json.dumps(analise.get("palavras_chave", []), ensure_ascii=False),
-                "palavras_chave_por_bloco": json.dumps(analise.get("palavras_chave_por_bloco", {}), ensure_ascii=False),
-
+                "palavras_chave_por_bloco": json.dumps(
+                    analise.get("palavras_chave_por_bloco", {}), ensure_ascii=False
+                ),
                 # Qualidade
                 "score_qualidade": analise.get("metadata", {}).get("data_quality_score"),
-                "fontes_utilizadas": json.dumps(analise.get("metadata", {}).get("sources_used", []), ensure_ascii=False),
-
+                "fontes_utilizadas": json.dumps(
+                    analise.get("metadata", {}).get("sources_used", []), ensure_ascii=False
+                ),
                 # Raw data
-                "raw_perplexity": json.dumps(analise.get("raw_data", {}).get("perplexity_research", {}), default=str, ensure_ascii=False),
-                "raw_tavily": json.dumps(analise.get("raw_data", {}).get("tavily_research", {}), default=str, ensure_ascii=False),
+                "raw_perplexity": json.dumps(
+                    analise.get("raw_data", {}).get("perplexity_research", {}),
+                    default=str,
+                    ensure_ascii=False,
+                ),
+                "raw_tavily": json.dumps(
+                    analise.get("raw_data", {}).get("tavily_research", {}),
+                    default=str,
+                    ensure_ascii=False,
+                ),
             }
 
             # Remover campos None
@@ -353,9 +391,14 @@ class AnaliseEmpresaRepository:
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "empresa_id", empresa_id
-            ).order("data_analise", desc=True).limit(1).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("empresa_id", empresa_id)
+                .order("data_analise", desc=True)
+                .limit(1)
+                .execute()
+            )
 
             return result.data[0] if result.data else None
         except Exception as e:
@@ -376,7 +419,9 @@ class EventoPessoaRepository:
     def _is_available(self) -> bool:
         return self.client is not None
 
-    async def save_emprego(self, pessoa_id: str, emprego: Dict[str, Any], empresa_id: Optional[str] = None) -> Optional[str]:
+    async def save_emprego(
+        self, pessoa_id: str, emprego: Dict[str, Any], empresa_id: Optional[str] = None
+    ) -> Optional[str]:
         """Salva evento de emprego"""
         return await self._save_evento(
             pessoa_id=pessoa_id,
@@ -388,7 +433,7 @@ class EventoPessoaRepository:
             atual=emprego.get("is_current", False),
             descricao=emprego.get("description"),
             empresa_id=empresa_id,
-            raw_data=emprego
+            raw_data=emprego,
         )
 
     async def save_educacao(self, pessoa_id: str, educacao: Dict[str, Any]) -> Optional[str]:
@@ -402,7 +447,7 @@ class EventoPessoaRepository:
             data_fim=educacao.get("end_date"),
             area_estudo=educacao.get("field_of_study") or educacao.get("area"),
             grau=educacao.get("degree_type"),
-            raw_data=educacao
+            raw_data=educacao,
         )
 
     async def save_certificacao(self, pessoa_id: str, cert: Dict[str, Any]) -> Optional[str]:
@@ -416,7 +461,7 @@ class EventoPessoaRepository:
             validade=cert.get("expiration_date"),
             credencial_id=cert.get("credential_id"),
             url_credencial=cert.get("credential_url"),
-            raw_data=cert
+            raw_data=cert,
         )
 
     async def _save_evento(
@@ -435,7 +480,7 @@ class EventoPessoaRepository:
         credencial_id: Optional[str] = None,
         url_credencial: Optional[str] = None,
         validade: Optional[str] = None,
-        raw_data: Optional[Dict] = None
+        raw_data: Optional[Dict] = None,
     ) -> Optional[str]:
         """Salva evento generico"""
         if not self._is_available():
@@ -457,7 +502,7 @@ class EventoPessoaRepository:
                 "credencial_id": credencial_id,
                 "url_credencial": url_credencial,
                 "validade": self._parse_date(validade),
-                "raw_data": json.dumps(raw_data or {}, default=str, ensure_ascii=False)
+                "raw_data": json.dumps(raw_data or {}, default=str, ensure_ascii=False),
             }
 
             # Remover campos None
@@ -479,15 +524,19 @@ class EventoPessoaRepository:
             return {"empregos": [], "educacao": [], "certificacoes": []}
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "pessoa_id", pessoa_id
-            ).order("data_inicio", desc=True).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("pessoa_id", pessoa_id)
+                .order("data_inicio", desc=True)
+                .execute()
+            )
 
             portfolio: Dict[str, List[Dict]] = {
                 "empregos": [],
                 "educacao": [],
                 "certificacoes": [],
-                "outros": []
+                "outros": [],
             }
 
             for evento in result.data or []:
@@ -515,6 +564,7 @@ class EventoPessoaRepository:
         for fmt in ["%Y-%m-%d", "%Y-%m", "%Y", "%d/%m/%Y", "%m/%Y"]:
             try:
                 from datetime import datetime
+
                 dt = datetime.strptime(str(date_str), fmt)
                 return dt.strftime("%Y-%m-%d")
             except ValueError:
@@ -545,7 +595,7 @@ class ConcorrenteRepository:
         stamp_justificativa: str,
         tipo_concorrencia: str = "direto",
         fonte_descoberta: str = "perplexity",
-        query_utilizada: Optional[str] = None
+        query_utilizada: Optional[str] = None,
     ) -> Optional[str]:
         """Salva relacao de concorrencia"""
         if not self._is_available():
@@ -562,16 +612,19 @@ class ConcorrenteRepository:
                 "stamp_justificativa": stamp_justificativa,
                 "fonte_descoberta": fonte_descoberta,
                 "query_utilizada": query_utilizada,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
-            result = self.client.table(self.TABLE_NAME).upsert(
-                record,
-                on_conflict="empresa_id,concorrente_id"
-            ).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .upsert(record, on_conflict="empresa_id,concorrente_id")
+                .execute()
+            )
 
             if result.data:
-                logger.info("concorrente_saved", empresa_id=empresa_id, concorrente_id=concorrente_id)
+                logger.info(
+                    "concorrente_saved", empresa_id=empresa_id, concorrente_id=concorrente_id
+                )
                 return result.data[0].get("id")
 
         except Exception as e:
@@ -585,9 +638,12 @@ class ConcorrenteRepository:
             return []
 
         try:
-            result = self.client.table(self.TABLE_NAME).select(
-                "*, concorrente:concorrente_id(id, nome_fantasia, cnpj, setor, website)"
-            ).eq("empresa_id", empresa_id).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*, concorrente:concorrente_id(id, nome_fantasia, cnpj, setor, website)")
+                .eq("empresa_id", empresa_id)
+                .execute()
+            )
 
             return result.data or []
         except Exception as e:
@@ -618,7 +674,7 @@ class BuscaRepository:
         tempo_processamento_ms: Optional[int] = None,
         apis_chamadas: Optional[List[str]] = None,
         status: str = "completed",
-        erro: Optional[str] = None
+        erro: Optional[str] = None,
     ) -> Optional[str]:
         """Registra busca no historico"""
         if not self._is_available():
@@ -634,7 +690,7 @@ class BuscaRepository:
                 "tempo_processamento_ms": tempo_processamento_ms,
                 "apis_chamadas": json.dumps(apis_chamadas or [], ensure_ascii=False),
                 "status": status,
-                "erro": erro
+                "erro": erro,
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()

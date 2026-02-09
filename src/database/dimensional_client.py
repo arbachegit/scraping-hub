@@ -58,9 +58,7 @@ class DimensionalClient:
         return self.client is not None
 
     async def ensure_user_dimension(
-        self,
-        user_email: str,
-        plan_type: str = "free"
+        self, user_email: str, plan_type: str = "free"
     ) -> Optional[str]:
         """
         Ensure user exists in dim_user and return user_sk.
@@ -71,11 +69,14 @@ class DimensionalClient:
 
         try:
             # Check if user already exists
-            result = self.client.table("dim_user").select("user_sk").eq(
-                "user_email", user_email
-            ).eq(
-                "is_current", True
-            ).limit(1).execute()
+            result = (
+                self.client.table("dim_user")
+                .select("user_sk")
+                .eq("user_email", user_email)
+                .eq("is_current", True)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]["user_sk"]
@@ -86,7 +87,7 @@ class DimensionalClient:
                 "plan_type": plan_type,
                 "first_access_date": datetime.utcnow().date().isoformat(),
                 "is_current": True,
-                "valid_from": datetime.utcnow().isoformat()
+                "valid_from": datetime.utcnow().isoformat(),
             }
 
             result = self.client.table("dim_user").insert(new_user).execute()
@@ -101,9 +102,7 @@ class DimensionalClient:
         return None
 
     async def ensure_company_dimension(
-        self,
-        company_id: str,
-        company_data: Optional[dict] = None
+        self, company_id: str, company_data: Optional[dict] = None
     ) -> Optional[str]:
         """
         Ensure company exists in dim_company and return company_sk.
@@ -114,20 +113,27 @@ class DimensionalClient:
 
         try:
             # Check if company already exists in dimension
-            result = self.client.table("dim_company").select("company_sk").eq(
-                "company_id", company_id
-            ).eq(
-                "is_current", True
-            ).limit(1).execute()
+            result = (
+                self.client.table("dim_company")
+                .select("company_sk")
+                .eq("company_id", company_id)
+                .eq("is_current", True)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]["company_sk"]
 
             # Fetch from companies table if no data provided
             if company_data is None:
-                company_result = self.client.table("companies").select("*").eq(
-                    "id", company_id
-                ).limit(1).execute()
+                company_result = (
+                    self.client.table("companies")
+                    .select("*")
+                    .eq("id", company_id)
+                    .limit(1)
+                    .execute()
+                )
 
                 if not company_result.data:
                     logger.warning("company_not_found", company_id=company_id)
@@ -148,7 +154,7 @@ class DimensionalClient:
                 "revenue_range": company_data.get("revenue_range"),
                 "website": company_data.get("website"),
                 "is_current": True,
-                "valid_from": datetime.utcnow().isoformat()
+                "valid_from": datetime.utcnow().isoformat(),
             }
 
             result = self.client.table("dim_company").insert(dim_record).execute()
@@ -163,9 +169,7 @@ class DimensionalClient:
         return None
 
     async def ensure_person_dimension(
-        self,
-        person_id: str,
-        person_data: Optional[dict] = None
+        self, person_id: str, person_data: Optional[dict] = None
     ) -> Optional[str]:
         """
         Ensure person exists in dim_person and return person_sk.
@@ -176,20 +180,23 @@ class DimensionalClient:
 
         try:
             # Check if person already exists in dimension
-            result = self.client.table("dim_person").select("person_sk").eq(
-                "person_id", person_id
-            ).eq(
-                "is_current", True
-            ).limit(1).execute()
+            result = (
+                self.client.table("dim_person")
+                .select("person_sk")
+                .eq("person_id", person_id)
+                .eq("is_current", True)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]["person_sk"]
 
             # Fetch from people table if no data provided
             if person_data is None:
-                person_result = self.client.table("people").select("*").eq(
-                    "id", person_id
-                ).limit(1).execute()
+                person_result = (
+                    self.client.table("people").select("*").eq("id", person_id).limit(1).execute()
+                )
 
                 if not person_result.data:
                     logger.warning("person_not_found", person_id=person_id)
@@ -210,7 +217,7 @@ class DimensionalClient:
                 "political_party": person_data.get("political_party"),
                 "political_role": person_data.get("political_role"),
                 "is_current": True,
-                "valid_from": datetime.utcnow().isoformat()
+                "valid_from": datetime.utcnow().isoformat(),
             }
 
             result = self.client.table("dim_person").insert(dim_record).execute()
@@ -230,9 +237,13 @@ class DimensionalClient:
             return None
 
         try:
-            result = self.client.table("dim_data_source").select("source_sk").eq(
-                "source_code", source_code
-            ).limit(1).execute()
+            result = (
+                self.client.table("dim_data_source")
+                .select("source_sk")
+                .eq("source_code", source_code)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]["source_sk"]
@@ -250,9 +261,13 @@ class DimensionalClient:
             return None
 
         try:
-            result = self.client.table("dim_municipality").select("municipality_sk").eq(
-                "ibge_code", ibge_code
-            ).limit(1).execute()
+            result = (
+                self.client.table("dim_municipality")
+                .select("municipality_sk")
+                .eq("ibge_code", ibge_code)
+                .limit(1)
+                .execute()
+            )
 
             if result.data:
                 return result.data[0]["municipality_sk"]
@@ -262,11 +277,7 @@ class DimensionalClient:
 
         return None
 
-    async def update_company_dimension_scd2(
-        self,
-        company_id: str,
-        new_data: dict
-    ) -> Optional[str]:
+    async def update_company_dimension_scd2(self, company_id: str, new_data: dict) -> Optional[str]:
         """
         Update company dimension using SCD Type 2.
         Closes current record and creates new one with updated data.
@@ -278,14 +289,9 @@ class DimensionalClient:
             now = datetime.utcnow().isoformat()
 
             # Close current record
-            self.client.table("dim_company").update({
-                "is_current": False,
-                "valid_to": now
-            }).eq(
+            self.client.table("dim_company").update({"is_current": False, "valid_to": now}).eq(
                 "company_id", company_id
-            ).eq(
-                "is_current", True
-            ).execute()
+            ).eq("is_current", True).execute()
 
             # Create new current record
             dim_record = {
@@ -300,7 +306,7 @@ class DimensionalClient:
                 "revenue_range": new_data.get("revenue_range"),
                 "website": new_data.get("website"),
                 "is_current": True,
-                "valid_from": now
+                "valid_from": now,
             }
 
             result = self.client.table("dim_company").insert(dim_record).execute()
@@ -314,11 +320,7 @@ class DimensionalClient:
 
         return None
 
-    async def update_person_dimension_scd2(
-        self,
-        person_id: str,
-        new_data: dict
-    ) -> Optional[str]:
+    async def update_person_dimension_scd2(self, person_id: str, new_data: dict) -> Optional[str]:
         """
         Update person dimension using SCD Type 2.
         """
@@ -329,14 +331,9 @@ class DimensionalClient:
             now = datetime.utcnow().isoformat()
 
             # Close current record
-            self.client.table("dim_person").update({
-                "is_current": False,
-                "valid_to": now
-            }).eq(
+            self.client.table("dim_person").update({"is_current": False, "valid_to": now}).eq(
                 "person_id", person_id
-            ).eq(
-                "is_current", True
-            ).execute()
+            ).eq("is_current", True).execute()
 
             # Create new current record
             dim_record = {
@@ -351,7 +348,7 @@ class DimensionalClient:
                 "political_party": new_data.get("political_party"),
                 "political_role": new_data.get("political_role"),
                 "is_current": True,
-                "valid_from": now
+                "valid_from": now,
             }
 
             result = self.client.table("dim_person").insert(dim_record).execute()

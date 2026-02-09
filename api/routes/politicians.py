@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/v2/politician", tags=["Politicians"])
 # SCHEMAS
 # ===========================================
 
+
 class PoliticianAnalyzeRequest(BaseModel):
     name: str
     role: Optional[str] = None  # prefeito, senador, deputado, etc
@@ -41,6 +42,7 @@ class MonitorRequest(BaseModel):
 
 class PoliticianImportRequest(BaseModel):
     """Schema para importar político de banco de dados externo"""
+
     name: str
     role: Optional[str] = None
     state: Optional[str] = None
@@ -66,6 +68,7 @@ class PoliticianImportRequest(BaseModel):
 
 class PoliticianBulkImportRequest(BaseModel):
     """Schema para importar múltiplos políticos"""
+
     politicians: List[PoliticianImportRequest]
 
 
@@ -73,10 +76,10 @@ class PoliticianBulkImportRequest(BaseModel):
 # ENDPOINTS
 # ===========================================
 
+
 @router.post("/analyze")
 async def analyze_politician(
-    request: PoliticianAnalyzeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: PoliticianAnalyzeRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Análise de perfil pessoal de político
@@ -89,19 +92,12 @@ async def analyze_politician(
 
     Não analisamos posições políticas ou votações.
     """
-    logger.info(
-        "api_politician_analyze",
-        user=current_user.email,
-        politician=request.name
-    )
+    logger.info("api_politician_analyze", user=current_user.email, politician=request.name)
 
     try:
         async with PoliticianIntelService() as service:
             result = await service.analyze_politician(
-                name=request.name,
-                role=request.role,
-                state=request.state,
-                focus=request.focus
+                name=request.name, role=request.role, state=request.state, focus=request.focus
             )
             return result
 
@@ -112,24 +108,16 @@ async def analyze_politician(
 
 @router.post("/quick")
 async def quick_lookup(
-    request: QuickLookupRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: QuickLookupRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Busca rápida de político (dados básicos)
     """
-    logger.info(
-        "api_politician_quick",
-        user=current_user.email,
-        politician=request.name
-    )
+    logger.info("api_politician_quick", user=current_user.email, politician=request.name)
 
     try:
         async with PoliticianIntelService() as service:
-            result = await service.quick_lookup(
-                name=request.name,
-                role=request.role
-            )
+            result = await service.quick_lookup(name=request.name, role=request.role)
             return result
 
     except Exception as e:
@@ -141,44 +129,34 @@ async def quick_lookup(
 async def search_politician(
     name: str = Query(..., description="Nome do político"),
     role: Optional[str] = Query(None, description="Cargo"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca político por nome
     """
-    return await quick_lookup(
-        QuickLookupRequest(name=name, role=role),
-        current_user
-    )
+    return await quick_lookup(QuickLookupRequest(name=name, role=role), current_user)
 
 
 # ===========================================
 # PROFILE SECTIONS
 # ===========================================
 
+
 @router.get("/{name}/perception")
 async def get_public_perception(
     name: str,
     role: Optional[str] = Query(None, description="Cargo"),
     days: int = Query(30, le=90, description="Dias para análise"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Analisa percepção pública de um político
     """
-    logger.info(
-        "api_politician_perception",
-        user=current_user.email,
-        politician=name
-    )
+    logger.info("api_politician_perception", user=current_user.email, politician=name)
 
     try:
         async with PoliticianIntelService() as service:
-            result = await service.get_public_perception(
-                name=name,
-                role=role,
-                days=days
-            )
+            result = await service.get_public_perception(name=name, role=role, days=days)
             return result
 
     except Exception as e:
@@ -190,23 +168,16 @@ async def get_public_perception(
 async def get_personal_history(
     name: str,
     role: Optional[str] = Query(None, description="Cargo"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca histórico pessoal (não político)
     """
-    logger.info(
-        "api_politician_history",
-        user=current_user.email,
-        politician=name
-    )
+    logger.info("api_politician_history", user=current_user.email, politician=name)
 
     try:
         async with PoliticianIntelService() as service:
-            result = await service.get_personal_history(
-                name=name,
-                role=role
-            )
+            result = await service.get_personal_history(name=name, role=role)
             return result
 
     except Exception as e:
@@ -218,23 +189,16 @@ async def get_personal_history(
 async def get_media_presence(
     name: str,
     role: Optional[str] = Query(None, description="Cargo"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Analisa presença na mídia
     """
-    logger.info(
-        "api_politician_media",
-        user=current_user.email,
-        politician=name
-    )
+    logger.info("api_politician_media", user=current_user.email, politician=name)
 
     try:
         async with PoliticianIntelService() as service:
-            result = await service.get_media_presence(
-                name=name,
-                role=role
-            )
+            result = await service.get_media_presence(name=name, role=role)
             return result
 
     except Exception as e:
@@ -246,31 +210,24 @@ async def get_media_presence(
 # SEARCH & MONITOR
 # ===========================================
 
+
 @router.get("/list")
 async def search_politicians(
     role: Optional[str] = Query(None, description="Cargo"),
     state: Optional[str] = Query(None, description="Estado (UF)"),
     party: Optional[str] = Query(None, description="Partido"),
     limit: int = Query(10, le=30),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca políticos por critérios
     """
-    logger.info(
-        "api_politicians_search",
-        user=current_user.email,
-        role=role,
-        state=state
-    )
+    logger.info("api_politicians_search", user=current_user.email, role=role, state=state)
 
     try:
         async with PoliticianIntelService() as service:
             result = await service.search_politicians(
-                role=role,
-                state=state,
-                party=party,
-                limit=limit
+                role=role, state=state, party=party, limit=limit
             )
             return result
 
@@ -281,8 +238,7 @@ async def search_politicians(
 
 @router.post("/monitor")
 async def monitor_politician(
-    request: MonitorRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: MonitorRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Monitora político para alertas de notícias
@@ -291,18 +247,12 @@ async def monitor_politician(
     - polêmica, escândalo, denúncia
     - investigação, crítica, protesto
     """
-    logger.info(
-        "api_politician_monitor",
-        user=current_user.email,
-        politician=request.name
-    )
+    logger.info("api_politician_monitor", user=current_user.email, politician=request.name)
 
     try:
         async with PoliticianIntelService() as service:
             result = await service.monitor_politician(
-                name=request.name,
-                role=request.role,
-                alert_keywords=request.alert_keywords
+                name=request.name, role=request.role, alert_keywords=request.alert_keywords
             )
             return result
 
@@ -315,10 +265,10 @@ async def monitor_politician(
 # DATABASE OPERATIONS
 # ===========================================
 
+
 @router.post("/db/import")
 async def import_politician(
-    request: PoliticianImportRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: PoliticianImportRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Importa dados de político de banco de dados externo
@@ -326,11 +276,7 @@ async def import_politician(
     Use este endpoint para alimentar o sistema com dados de políticos
     que você já possui. Os dados serão usados para enriquecer análises.
     """
-    logger.info(
-        "api_politician_import",
-        user=current_user.email,
-        politician=request.name
-    )
+    logger.info("api_politician_import", user=current_user.email, politician=request.name)
 
     supabase = get_supabase()
     if not supabase:
@@ -363,23 +309,23 @@ async def import_politician(
             "email": request.email,
             "phone": request.phone,
             # Raw data
-            "raw_data": json.dumps({
-                **request.model_dump(),
-                "additional_data": request.additional_data or {}
-            }, ensure_ascii=False, default=str),
+            "raw_data": json.dumps(
+                {**request.model_dump(), "additional_data": request.additional_data or {}},
+                ensure_ascii=False,
+                default=str,
+            ),
             "imported_by": current_user.email,
             "imported_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
 
         # Remover campos None
         record = {k: v for k, v in record.items() if v is not None}
 
         # Upsert no banco
-        result = supabase.table("people").upsert(
-            record,
-            on_conflict="full_name,person_type"
-        ).execute()
+        result = (
+            supabase.table("people").upsert(record, on_conflict="full_name,person_type").execute()
+        )
 
         if result.data:
             logger.info("politician_imported", name=request.name, id=result.data[0].get("id"))
@@ -387,7 +333,7 @@ async def import_politician(
                 "status": "success",
                 "message": f"Político '{request.name}' importado com sucesso",
                 "id": result.data[0].get("id"),
-                "data": result.data[0]
+                "data": result.data[0],
             }
 
         raise HTTPException(status_code=500, detail="Failed to import politician")
@@ -399,8 +345,7 @@ async def import_politician(
 
 @router.post("/db/import-bulk")
 async def import_politicians_bulk(
-    request: PoliticianBulkImportRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: PoliticianBulkImportRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Importa múltiplos políticos de uma vez
@@ -408,9 +353,7 @@ async def import_politicians_bulk(
     Ideal para importar listas grandes de políticos.
     """
     logger.info(
-        "api_politician_import_bulk",
-        user=current_user.email,
-        count=len(request.politicians)
+        "api_politician_import_bulk", user=current_user.email, count=len(request.politicians)
     )
 
     supabase = get_supabase()
@@ -441,23 +384,23 @@ async def import_politicians_bulk(
                 "website": pol.website,
                 "email": pol.email,
                 "phone": pol.phone,
-                "raw_data": json.dumps({
-                    **pol.model_dump(),
-                    "additional_data": pol.additional_data or {}
-                }, ensure_ascii=False, default=str),
+                "raw_data": json.dumps(
+                    {**pol.model_dump(), "additional_data": pol.additional_data or {}},
+                    ensure_ascii=False,
+                    default=str,
+                ),
                 "imported_by": current_user.email,
                 "imported_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
             # Remover campos None
             record = {k: v for k, v in record.items() if v is not None}
             records.append(record)
 
         # Bulk upsert
-        result = supabase.table("people").upsert(
-            records,
-            on_conflict="full_name,person_type"
-        ).execute()
+        result = (
+            supabase.table("people").upsert(records, on_conflict="full_name,person_type").execute()
+        )
 
         imported_count = len(result.data) if result.data else 0
         logger.info("politicians_bulk_imported", count=imported_count)
@@ -466,7 +409,7 @@ async def import_politicians_bulk(
             "status": "success",
             "message": f"{imported_count} políticos importados com sucesso",
             "imported_count": imported_count,
-            "requested_count": len(request.politicians)
+            "requested_count": len(request.politicians),
         }
 
     except Exception as e:
@@ -481,17 +424,14 @@ async def list_politicians_from_db(
     party: Optional[str] = Query(None, description="Filtrar por partido"),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Lista políticos do banco de dados
 
     Use para ver os políticos que foram importados.
     """
-    logger.info(
-        "api_politician_db_list",
-        user=current_user.email
-    )
+    logger.info("api_politician_db_list", user=current_user.email)
 
     supabase = get_supabase()
     if not supabase:
@@ -514,7 +454,7 @@ async def list_politicians_from_db(
             "politicians": result.data or [],
             "count": len(result.data) if result.data else 0,
             "offset": offset,
-            "limit": limit
+            "limit": limit,
         }
 
     except Exception as e:
@@ -524,8 +464,7 @@ async def list_politicians_from_db(
 
 @router.get("/db/{politician_id}")
 async def get_politician_from_db(
-    politician_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    politician_id: str, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Busca político específico do banco de dados pelo ID
@@ -551,8 +490,7 @@ async def get_politician_from_db(
 
 @router.post("/db/{politician_id}/enrich")
 async def enrich_politician_from_db(
-    politician_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    politician_id: str, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Enriquece político do banco com análise AI
@@ -560,11 +498,7 @@ async def enrich_politician_from_db(
     Pega os dados existentes do banco e executa a análise completa,
     combinando os dados que você importou com pesquisas em tempo real.
     """
-    logger.info(
-        "api_politician_enrich",
-        user=current_user.email,
-        id=politician_id
-    )
+    logger.info("api_politician_enrich", user=current_user.email, id=politician_id)
 
     supabase = get_supabase()
     if not supabase:
@@ -585,7 +519,7 @@ async def enrich_politician_from_db(
                 name=db_data.get("full_name"),
                 role=db_data.get("political_role"),
                 state=db_data.get("state"),
-                focus="personal"
+                focus="personal",
             )
 
         # Combinar dados do banco com análise
@@ -597,9 +531,11 @@ async def enrich_politician_from_db(
         from datetime import datetime
 
         update_data = {
-            "last_analysis": json.dumps(result.get("ai_analysis", {}), ensure_ascii=False, default=str),
+            "last_analysis": json.dumps(
+                result.get("ai_analysis", {}), ensure_ascii=False, default=str
+            ),
             "last_enriched_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
 
         supabase.table("people").update(update_data).eq("id", politician_id).execute()
@@ -607,7 +543,7 @@ async def enrich_politician_from_db(
         return {
             "status": "success",
             "politician": result,
-            "message": f"Análise enriquecida para '{db_data.get('full_name')}'"
+            "message": f"Análise enriquecida para '{db_data.get('full_name')}'",
         }
 
     except HTTPException:
@@ -619,8 +555,7 @@ async def enrich_politician_from_db(
 
 @router.delete("/db/{politician_id}")
 async def delete_politician_from_db(
-    politician_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    politician_id: str, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Remove político do banco de dados
@@ -635,11 +570,7 @@ async def delete_politician_from_db(
         if not result.data:
             raise HTTPException(status_code=404, detail="Politician not found")
 
-        return {
-            "status": "success",
-            "message": "Politician deleted",
-            "id": politician_id
-        }
+        return {"status": "success", "message": "Politician deleted", "id": politician_id}
 
     except HTTPException:
         raise

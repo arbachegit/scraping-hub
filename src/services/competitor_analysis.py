@@ -40,7 +40,7 @@ class CompetitorAnalysisService:
             self.tavily.close(),
             self.perplexity.close(),
             self.web_scraper.close(),
-            self.ai_analyzer.close()
+            self.ai_analyzer.close(),
         )
 
     async def identify_competitors(
@@ -48,7 +48,7 @@ class CompetitorAnalysisService:
         company_name: str,
         industry: Optional[str] = None,
         location: str = "Brasil",
-        max_competitors: int = 5
+        max_competitors: int = 5,
     ) -> Dict[str, Any]:
         """
         Identifica concorrentes de uma empresa
@@ -62,16 +62,12 @@ class CompetitorAnalysisService:
         Returns:
             Lista de concorrentes identificados
         """
-        logger.info(
-            "competitor_identify",
-            company=company_name,
-            industry=industry
-        )
+        logger.info("competitor_identify", company=company_name, industry=industry)
 
         # Buscar concorrentes via múltiplas fontes
         tasks = [
             self.perplexity.find_competitors(company_name, industry),
-            self._search_competitors_google(company_name, industry, location)
+            self._search_competitors_google(company_name, industry, location),
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -102,13 +98,15 @@ class CompetitorAnalysisService:
         for comp in competitors_list:
             try:
                 info = await self.serper.find_company_info(comp)
-                competitors_data.append({
-                    "name": comp,
-                    "website": info.get("website"),
-                    "description": info.get("description"),
-                    "industry": info.get("industry"),
-                    "linkedin": await self.serper.find_company_linkedin(comp)
-                })
+                competitors_data.append(
+                    {
+                        "name": comp,
+                        "website": info.get("website"),
+                        "description": info.get("description"),
+                        "industry": info.get("industry"),
+                        "linkedin": await self.serper.find_company_linkedin(comp),
+                    }
+                )
             except Exception as e:
                 logger.warning("competitor_info_error", competitor=comp, error=str(e))
                 competitors_data.append({"name": comp})
@@ -118,14 +116,11 @@ class CompetitorAnalysisService:
             "industry": industry,
             "competitors": competitors_data,
             "total_found": len(competitors_data),
-            "sources": ["Perplexity AI", "Google Search"]
+            "sources": ["Perplexity AI", "Google Search"],
         }
 
     async def _search_competitors_google(
-        self,
-        company_name: str,
-        industry: Optional[str],
-        location: str
+        self, company_name: str, industry: Optional[str], location: str
     ) -> List[str]:
         """Busca concorrentes via Google"""
         queries = [
@@ -144,9 +139,7 @@ class CompetitorAnalysisService:
 
                 # Extrair nomes de empresas dos resultados
                 for item in results.get("organic", []):
-                    names = self._extract_company_names_from_snippet(
-                        item.get("snippet", "")
-                    )
+                    names = self._extract_company_names_from_snippet(item.get("snippet", ""))
                     competitors.update(names)
 
                 # Do knowledge graph
@@ -179,9 +172,9 @@ class CompetitorAnalysisService:
             matches = re.findall(pattern, text, re.IGNORECASE)
             for match in matches:
                 # Dividir por vírgulas e "e"
-                parts = re.split(r'[,;]|\s+e\s+', match)
+                parts = re.split(r"[,;]|\s+e\s+", match)
                 for part in parts:
-                    cleaned = part.strip().strip('.')
+                    cleaned = part.strip().strip(".")
                     if 2 < len(cleaned) < 50:
                         names.append(cleaned)
 
@@ -194,15 +187,23 @@ class CompetitorAnalysisService:
         names = []
 
         # Padrão para nomes de empresas (capitalização e palavras comuns)
-        pattern = r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:S\.?A\.?|Ltda\.?|Inc\.?|Corp\.?))?)\b'
+        pattern = r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:S\.?A\.?|Ltda\.?|Inc\.?|Corp\.?))?)\b"
 
         matches = re.findall(pattern, snippet)
         for match in matches:
             if len(match) > 3 and len(match) < 50:
                 # Filtrar palavras comuns que não são empresas
                 common_words = {
-                    "Brasil", "Brazil", "São Paulo", "Rio Janeiro",
-                    "Este", "Esta", "Esse", "Essa", "Como", "Para"
+                    "Brasil",
+                    "Brazil",
+                    "São Paulo",
+                    "Rio Janeiro",
+                    "Este",
+                    "Esta",
+                    "Esse",
+                    "Essa",
+                    "Como",
+                    "Para",
                 }
                 if match not in common_words:
                     names.append(match)
@@ -210,10 +211,7 @@ class CompetitorAnalysisService:
         return names
 
     async def compare_companies(
-        self,
-        company1: str,
-        company2: str,
-        aspects: Optional[List[str]] = None
+        self, company1: str, company2: str, aspects: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Compara duas empresas
@@ -234,22 +232,18 @@ class CompetitorAnalysisService:
                 "produtos e serviços",
                 "presença de mercado",
                 "tecnologia e inovação",
-                "cultura e employer branding"
+                "cultura e employer branding",
             ]
 
         # Coletar dados de ambas
         data1, data2 = await asyncio.gather(
-            self.serper.find_company_info(company1),
-            self.serper.find_company_info(company2)
+            self.serper.find_company_info(company1), self.serper.find_company_info(company2)
         )
 
         # Pesquisar comparação direta
         comparison_query = f"comparação {company1} vs {company2}"
         comparison_research = await self.tavily.search(
-            comparison_query,
-            search_depth="advanced",
-            include_answer=True,
-            max_results=5
+            comparison_query, search_depth="advanced", include_answer=True, max_results=5
         )
 
         # Análise por aspecto
@@ -259,35 +253,25 @@ class CompetitorAnalysisService:
             result = await self.tavily.search(query, max_results=3)
             aspect_analysis[aspect] = {
                 "answer": result.get("answer"),
-                "sources": [r.get("url") for r in result.get("results", [])]
+                "sources": [r.get("url") for r in result.get("results", [])],
             }
 
         # Gerar análise comparativa com AI
         ai_comparison = await self.ai_analyzer.analyze_competitors(
-            {"name": company1, **data1},
-            [{"name": company2, **data2}]
+            {"name": company1, **data1}, [{"name": company2, **data2}]
         )
 
         return {
-            "company1": {
-                "name": company1,
-                "data": data1
-            },
-            "company2": {
-                "name": company2,
-                "data": data2
-            },
+            "company1": {"name": company1, "data": data1},
+            "company2": {"name": company2, "data": data2},
             "comparison_summary": comparison_research.get("answer"),
             "aspect_analysis": aspect_analysis,
             "ai_analysis": ai_comparison,
-            "sources": comparison_research.get("results", [])
+            "sources": comparison_research.get("results", []),
         }
 
     async def analyze_competitive_landscape(
-        self,
-        industry: str,
-        location: str = "Brasil",
-        depth: str = "standard"
+        self, industry: str, location: str = "Brasil", depth: str = "standard"
     ) -> Dict[str, Any]:
         """
         Analisa o cenário competitivo de um setor
@@ -310,8 +294,8 @@ class CompetitorAnalysisService:
                 "market share",
                 "tendências",
                 "barreiras de entrada",
-                "fatores de sucesso"
-            ]
+                "fatores de sucesso",
+            ],
         )
 
         # Buscar principais empresas
@@ -320,9 +304,7 @@ class CompetitorAnalysisService:
 
         # Notícias do setor
         sector_news = await self.tavily.search_news(
-            f"{industry} {location}",
-            max_results=10 if depth != "quick" else 5,
-            days=30
+            f"{industry} {location}", max_results=10 if depth != "quick" else 5, days=30
         )
 
         # Tendências
@@ -335,11 +317,11 @@ class CompetitorAnalysisService:
             "top_companies": self._extract_companies_from_search(top_companies),
             "market_structure": {
                 "analysis": market_research.get("analysis"),
-                "citations": market_research.get("citations", [])
+                "citations": market_research.get("citations", []),
             },
             "recent_news": sector_news.get("results", []),
             "trends": trends,
-            "competitive_dynamics": self._analyze_dynamics(market_research)
+            "competitive_dynamics": self._analyze_dynamics(market_research),
         }
 
     def _extract_companies_from_search(self, search_results: Dict) -> List[Dict]:
@@ -354,11 +336,9 @@ class CompetitorAnalysisService:
             names = self._extract_company_names_from_snippet(f"{title} {snippet}")
 
             for name in names[:1]:  # Pegar apenas o primeiro de cada resultado
-                companies.append({
-                    "name": name,
-                    "source": item.get("link"),
-                    "context": snippet[:200]
-                })
+                companies.append(
+                    {"name": name, "source": item.get("link"), "context": snippet[:200]}
+                )
 
         return companies[:10]
 
@@ -371,20 +351,20 @@ class CompetitorAnalysisService:
                 analysis,
                 ["intensa", "alta competição", "acirrada"],
                 ["moderada", "estável"],
-                ["baixa", "poucos players"]
+                ["baixa", "poucos players"],
             ),
             "entry_barriers": self._classify_from_text(
                 analysis,
                 ["barreiras altas", "difícil entrada", "regulamentação"],
                 ["barreiras moderadas"],
-                ["baixas barreiras", "fácil entrada"]
+                ["baixas barreiras", "fácil entrada"],
             ),
             "market_maturity": self._classify_from_text(
                 analysis,
                 ["maduro", "consolidado", "saturado"],
                 ["crescimento", "expansão"],
-                ["emergente", "nascente", "novo"]
-            )
+                ["emergente", "nascente", "novo"],
+            ),
         }
 
     def _classify_from_text(
@@ -392,7 +372,7 @@ class CompetitorAnalysisService:
         text: str,
         high_keywords: List[str],
         medium_keywords: List[str],
-        low_keywords: List[str]
+        low_keywords: List[str],
     ) -> str:
         """Classifica baseado em keywords no texto"""
         text_lower = text.lower()
@@ -412,9 +392,7 @@ class CompetitorAnalysisService:
         return "unknown"
 
     async def monitor_competitor(
-        self,
-        competitor_name: str,
-        track_aspects: Optional[List[str]] = None
+        self, competitor_name: str, track_aspects: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Monitora atividades de um concorrente
@@ -429,13 +407,7 @@ class CompetitorAnalysisService:
         logger.info("competitor_monitor", competitor=competitor_name)
 
         if track_aspects is None:
-            track_aspects = [
-                "notícias",
-                "lançamentos",
-                "contratações",
-                "parcerias",
-                "financeiro"
-            ]
+            track_aspects = ["notícias", "lançamentos", "contratações", "parcerias", "financeiro"]
 
         results = {}
 
@@ -452,7 +424,7 @@ class CompetitorAnalysisService:
             search = await self.serper.search_news(query, num=5, tbs="qdr:w")
             results[aspect] = {
                 "updates": search.get("news", []),
-                "count": len(search.get("news", []))
+                "count": len(search.get("news", [])),
             }
 
         # Detectar mudanças no site (se disponível)
@@ -463,7 +435,7 @@ class CompetitorAnalysisService:
                 results["website_snapshot"] = {
                     "url": website,
                     "title": site_data.get("company_name"),
-                    "description": site_data.get("description")
+                    "description": site_data.get("description"),
                 }
         except Exception:
             pass
@@ -473,7 +445,7 @@ class CompetitorAnalysisService:
             "monitoring_date": "now",
             "tracked_aspects": track_aspects,
             "updates": results,
-            "alert_level": self._calculate_alert_level(results)
+            "alert_level": self._calculate_alert_level(results),
         }
 
     def _calculate_alert_level(self, results: Dict) -> str:
@@ -492,10 +464,7 @@ class CompetitorAnalysisService:
         return "low"
 
     async def get_market_share_estimate(
-        self,
-        industry: str,
-        companies: List[str],
-        location: str = "Brasil"
+        self, industry: str, companies: List[str], location: str = "Brasil"
     ) -> Dict[str, Any]:
         """
         Estima market share de empresas em um setor
@@ -513,8 +482,7 @@ class CompetitorAnalysisService:
         # Pesquisar market share
         query = f"market share {industry} {location} {' '.join(companies)}"
         research = await self.perplexity.research(
-            query,
-            focus_areas=["market share", "participação de mercado", "liderança"]
+            query, focus_areas=["market share", "participação de mercado", "liderança"]
         )
 
         # Buscar dados específicos
@@ -529,7 +497,7 @@ class CompetitorAnalysisService:
             "market_share_analysis": research.get("answer"),
             "market_data": market_data.get("answer"),
             "sources": research.get("citations", []) + market_data.get("results", []),
-            "disclaimer": "Estimativas baseadas em dados públicos disponíveis"
+            "disclaimer": "Estimativas baseadas em dados públicos disponíveis",
         }
 
     async def __aenter__(self):

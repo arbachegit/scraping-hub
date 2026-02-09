@@ -45,6 +45,7 @@ class PoliticianIntelService:
         # Repository para persistência
         try:
             from src.database import PoliticianRepository, SearchHistoryRepository
+
             self.repository = PoliticianRepository()
             self.search_history = SearchHistoryRepository()
         except Exception:
@@ -57,7 +58,7 @@ class PoliticianIntelService:
             self.serper.close(),
             self.tavily.close(),
             self.perplexity.close(),
-            self.ai_analyzer.close()
+            self.ai_analyzer.close(),
         )
 
     async def analyze_politician(
@@ -65,7 +66,7 @@ class PoliticianIntelService:
         name: str,
         role: Optional[str] = None,
         state: Optional[str] = None,
-        focus: str = "personal"
+        focus: str = "personal",
     ) -> Dict[str, Any]:
         """
         Análise COMPLETA e PROFUNDA de perfil pessoal de um político
@@ -86,13 +87,7 @@ class PoliticianIntelService:
         Returns:
             Perfil completo com análise profunda
         """
-        logger.info(
-            "politician_intel_analyze_v2",
-            name=name,
-            role=role,
-            state=state,
-            focus=focus
-        )
+        logger.info("politician_intel_analyze_v2", name=name, role=role, state=state, focus=focus)
 
         result = {
             "name": name,
@@ -100,7 +95,7 @@ class PoliticianIntelService:
             "state": state,
             "focus": focus,
             "status": "processing",
-            "sources_used": []
+            "sources_used": [],
         }
 
         try:
@@ -119,29 +114,38 @@ class PoliticianIntelService:
             tasks = {
                 # Buscas Google via Serper
                 "serper_info": self.serper.find_politician_info(name, role, state),
-                "serper_bio": self.serper.search(f'{base_query} biografia história pessoal família', num=10),
-                "serper_career": self.serper.search(f'{base_query} carreira formação profissão antes política', num=10),
-                "serper_news": self.serper.search_news(f'{base_query}', num=15),
-                "serper_social": self.serper.search(f'{base_query} Instagram Twitter Facebook site:instagram.com OR site:twitter.com OR site:facebook.com', num=10),
-                "serper_interviews": self.serper.search(f'{base_query} entrevista podcast programa', num=8),
-
+                "serper_bio": self.serper.search(
+                    f"{base_query} biografia história pessoal família", num=10
+                ),
+                "serper_career": self.serper.search(
+                    f"{base_query} carreira formação profissão antes política", num=10
+                ),
+                "serper_news": self.serper.search_news(f"{base_query}", num=15),
+                "serper_social": self.serper.search(
+                    f"{base_query} Instagram Twitter Facebook site:instagram.com OR site:twitter.com OR site:facebook.com",
+                    num=10,
+                ),
+                "serper_interviews": self.serper.search(
+                    f"{base_query} entrevista podcast programa", num=8
+                ),
                 # Pesquisa profunda Perplexity
                 "perplexity_profile": self.perplexity.research_politician(name, role, state, focus),
                 "perplexity_bio": self.perplexity.research(
-                    f"Descreva a biografia completa de {name}" +
-                    (f" ({role})" if role else "") +
-                    (f" de {state}" if state else "") +
-                    ". Inclua: nascimento, família, infância, formação acadêmica, carreira profissional ANTES da política, vida pessoal, hobbies e interesses."
+                    f"Descreva a biografia completa de {name}"
+                    + (f" ({role})" if role else "")
+                    + (f" de {state}" if state else "")
+                    + ". Inclua: nascimento, família, infância, formação acadêmica, carreira profissional ANTES da política, vida pessoal, hobbies e interesses."
                 ),
                 "perplexity_perception": self.perplexity.research(
-                    f"Qual é a percepção pública atual sobre {name}" +
-                    (f" ({role})" if role else "") +
-                    "? Analise: imagem pública, pontos positivos e negativos na visão da população, controvérsias conhecidas, estilo de comunicação."
+                    f"Qual é a percepção pública atual sobre {name}"
+                    + (f" ({role})" if role else "")
+                    + "? Analise: imagem pública, pontos positivos e negativos na visão da população, controvérsias conhecidas, estilo de comunicação."
                 ),
-
                 # Pesquisa Tavily
                 "tavily_research": self.tavily.research_politician(name, role, state),
-                "tavily_news": self.tavily.search(f'{base_query} notícias recentes', search_depth="advanced"),
+                "tavily_news": self.tavily.search(
+                    f"{base_query} notícias recentes", search_depth="advanced"
+                ),
             }
 
             # Executar TUDO em paralelo
@@ -152,7 +156,9 @@ class PoliticianIntelService:
             collected_data: Dict[str, Any] = {}
             for i, task_name in enumerate(task_names):
                 if isinstance(task_results[i], Exception):
-                    logger.warning(f"politician_intel_{task_name}_error", error=str(task_results[i]))
+                    logger.warning(
+                        f"politician_intel_{task_name}_error", error=str(task_results[i])
+                    )
                     collected_data[task_name] = {}
                 else:
                     collected_data[task_name] = task_results[i]
@@ -186,9 +192,7 @@ class PoliticianIntelService:
 
             # Análise profunda
             ai_analysis = await self.ai_analyzer.analyze_politician_deep(
-                politician_data=profile,
-                rich_context=full_context,
-                focus=focus
+                politician_data=profile, rich_context=full_context, focus=focus
             )
 
             result["ai_analysis"] = ai_analysis
@@ -225,7 +229,7 @@ class PoliticianIntelService:
                         "state": state,
                         "personal_summary": result.get("personal_summary"),
                         **profile,
-                        **social_media
+                        **social_media,
                     }
 
                     # Salvar político
@@ -247,7 +251,7 @@ class PoliticianIntelService:
                         search_type="politician_analysis",
                         query={"name": name, "role": role, "state": state, "focus": focus},
                         results_count=1,
-                        result_ids=[result.get("politician_id")]
+                        result_ids=[result.get("politician_id")],
                     )
 
         except Exception as e:
@@ -258,11 +262,7 @@ class PoliticianIntelService:
         return result
 
     def _consolidate_basic_profile(
-        self,
-        data: Dict[str, Any],
-        name: str,
-        role: Optional[str],
-        state: Optional[str]
+        self, data: Dict[str, Any], name: str, role: Optional[str], state: Optional[str]
     ) -> Dict[str, Any]:
         """Consolida dados básicos do perfil"""
 
@@ -285,10 +285,7 @@ class PoliticianIntelService:
         }
 
     async def _extract_social_media(
-        self,
-        data: Dict[str, Any],
-        name: str,
-        role: Optional[str]
+        self, data: Dict[str, Any], name: str, role: Optional[str]
     ) -> Dict[str, Any]:
         """Extrai perfis de redes sociais dos resultados"""
 
@@ -300,7 +297,7 @@ class PoliticianIntelService:
             "twitter": ["twitter.com", "x.com"],
             "facebook": ["facebook.com"],
             "youtube": ["youtube.com"],
-            "tiktok": ["tiktok.com"]
+            "tiktok": ["tiktok.com"],
         }
 
         for item in serper_social.get("organic", []):
@@ -312,18 +309,14 @@ class PoliticianIntelService:
                             social[platform] = {
                                 "url": item.get("link"),
                                 "title": item.get("title"),
-                                "snippet": item.get("snippet")
+                                "snippet": item.get("snippet"),
                             }
                             break
 
         return social
 
     def _prepare_full_context(
-        self,
-        data: Dict[str, Any],
-        name: str,
-        role: Optional[str],
-        state: Optional[str]
+        self, data: Dict[str, Any], name: str, role: Optional[str], state: Optional[str]
     ) -> str:
         """
         Prepara contexto COMPLETO e RICO para análise profunda
@@ -347,7 +340,13 @@ class PoliticianIntelService:
         perplexity_bio = data.get("perplexity_bio", {})
         perplexity_perception = data.get("perplexity_perception", {})
 
-        if any([perplexity_profile.get("profile"), perplexity_bio.get("answer"), perplexity_perception.get("answer")]):
+        if any(
+            [
+                perplexity_profile.get("profile"),
+                perplexity_bio.get("answer"),
+                perplexity_perception.get("answer"),
+            ]
+        ):
             context_parts.append("\n## PESQUISA PERPLEXITY (Fonte principal)")
 
             if perplexity_profile.get("profile"):
@@ -361,13 +360,15 @@ class PoliticianIntelService:
 
             # Citations
             all_citations = (
-                perplexity_profile.get("citations", []) +
-                perplexity_bio.get("citations", []) +
-                perplexity_perception.get("citations", [])
+                perplexity_profile.get("citations", [])
+                + perplexity_bio.get("citations", [])
+                + perplexity_perception.get("citations", [])
             )
             if all_citations:
                 unique_citations = list(set(all_citations))[:15]
-                context_parts.append("### Fontes citadas\n" + "\n".join(f"- {c}" for c in unique_citations))
+                context_parts.append(
+                    "### Fontes citadas\n" + "\n".join(f"- {c}" for c in unique_citations)
+                )
 
         # ============================================
         # DADOS SERPER - Knowledge Graph
@@ -379,12 +380,12 @@ class PoliticianIntelService:
         if kg:
             kg_section = f"""
 ## KNOWLEDGE GRAPH (Google)
-- **Nome:** {kg.get('title', 'N/A')}
-- **Descrição:** {kg.get('description', 'N/A')}
-- **Nascimento:** {kg.get('born', 'N/A')}
-- **Partido:** {kg.get('party', 'N/A')}
-- **Cargo:** {kg.get('office', 'N/A')}
-- **Educação:** {kg.get('education', 'N/A')}
+- **Nome:** {kg.get("title", "N/A")}
+- **Descrição:** {kg.get("description", "N/A")}
+- **Nascimento:** {kg.get("born", "N/A")}
+- **Partido:** {kg.get("party", "N/A")}
+- **Cargo:** {kg.get("office", "N/A")}
+- **Educação:** {kg.get("education", "N/A")}
 """
             if kg.get("attributes"):
                 kg_section += "\n### Atributos adicionais:\n"
@@ -423,7 +424,7 @@ class PoliticianIntelService:
             context_parts.append("\n## ENTREVISTAS E APARIÇÕES")
             for item in interview_results[:5]:
                 context_parts.append(f"- **{item.get('title', '')}:** {item.get('link', '')}")
-                if item.get('snippet'):
+                if item.get("snippet"):
                     context_parts.append(f"  {item.get('snippet', '')}")
 
         # Redes sociais encontradas
@@ -480,10 +481,7 @@ class PoliticianIntelService:
         return full_context[:25000]
 
     async def get_public_perception(
-        self,
-        name: str,
-        role: Optional[str] = None,
-        days: int = 30
+        self, name: str, role: Optional[str] = None, days: int = 30
     ) -> Dict[str, Any]:
         """
         Analisa percepção pública com análise AI
@@ -500,12 +498,14 @@ class PoliticianIntelService:
 
         # Buscar notícias e percepção em paralelo
         tasks = {
-            "tavily_news": self.tavily.search_news(f'"{name}"' + (f" {role}" if role else ""), max_results=20, days=days),
+            "tavily_news": self.tavily.search_news(
+                f'"{name}"' + (f" {role}" if role else ""), max_results=20, days=days
+            ),
             "perplexity_perception": self.perplexity.research(
                 f"Qual é a percepção pública atual sobre {name} {'(' + role + ')' if role else ''}? "
                 "Analise: imagem pública positiva e negativa, controvérsias recentes, tendências de opinião."
             ),
-            "serper_news": self.serper.search_news(f'"{name}"', num=15)
+            "serper_news": self.serper.search_news(f'"{name}"', num=15),
         }
 
         task_names = list(tasks.keys())
@@ -517,10 +517,9 @@ class PoliticianIntelService:
 
         # Análise de sentimento das notícias
         sentiments = {"positive": 0, "negative": 0, "neutral": 0}
-        all_news = (
-            collected.get("tavily_news", {}).get("results", []) +
-            collected.get("serper_news", {}).get("news", [])
-        )
+        all_news = collected.get("tavily_news", {}).get("results", []) + collected.get(
+            "serper_news", {}
+        ).get("news", [])
 
         for item in all_news:
             content = item.get("content", "") or item.get("snippet", "")
@@ -531,7 +530,7 @@ class PoliticianIntelService:
         context = f"""## Percepção Pública - {name}
 
 ### Pesquisa Perplexity
-{collected.get('perplexity_perception', {}).get('answer', 'N/A')}
+{collected.get("perplexity_perception", {}).get("answer", "N/A")}
 
 ### Notícias ({len(all_news)} encontradas)
 Sentimentos: {sentiments}
@@ -545,10 +544,7 @@ Amostra de notícias:
 
         # Análise AI
         ai_analysis = await self.ai_analyzer.analyze_perception_deep(
-            name=name,
-            role=role,
-            context=context,
-            sentiments=sentiments
+            name=name, role=role, context=context, sentiments=sentiments
         )
 
         return {
@@ -560,7 +556,7 @@ Amostra de notícias:
             "perception_analysis": collected.get("perplexity_perception", {}).get("answer"),
             "ai_analysis": ai_analysis,
             "sample_news": all_news[:8],
-            "citations": collected.get("perplexity_perception", {}).get("citations", [])
+            "citations": collected.get("perplexity_perception", {}).get("citations", []),
         }
 
     def _analyze_sentiment(self, text: str) -> str:
@@ -568,15 +564,36 @@ Amostra de notícias:
         text_lower = text.lower()
 
         positive_words = [
-            "sucesso", "aprovação", "conquista", "vitória", "elogio",
-            "popular", "apoio", "reconhecimento", "destaque", "positivo",
-            "avanço", "melhoria", "crescimento"
+            "sucesso",
+            "aprovação",
+            "conquista",
+            "vitória",
+            "elogio",
+            "popular",
+            "apoio",
+            "reconhecimento",
+            "destaque",
+            "positivo",
+            "avanço",
+            "melhoria",
+            "crescimento",
         ]
 
         negative_words = [
-            "crise", "crítica", "polêmica", "escândalo", "denúncia",
-            "investigação", "rejeição", "protesto", "negativo", "problema",
-            "falha", "erro", "corrupção", "acusação"
+            "crise",
+            "crítica",
+            "polêmica",
+            "escândalo",
+            "denúncia",
+            "investigação",
+            "rejeição",
+            "protesto",
+            "negativo",
+            "problema",
+            "falha",
+            "erro",
+            "corrupção",
+            "acusação",
         ]
 
         positive_count = sum(1 for word in positive_words if word in text_lower)
@@ -588,11 +605,7 @@ Amostra de notícias:
             return "negative"
         return "neutral"
 
-    async def quick_lookup(
-        self,
-        name: str,
-        role: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def quick_lookup(self, name: str, role: Optional[str] = None) -> Dict[str, Any]:
         """
         Busca rápida de político - AINDA com análise AI
 
@@ -616,7 +629,7 @@ Amostra de notícias:
                 "carreira antes da política, família, idade, cidade natal."
             ),
             "tavily": self.tavily.search(search_query, search_depth="basic"),
-            "news": self.serper.search_news(f'"{name}"', num=5)
+            "news": self.serper.search_news(f'"{name}"', num=5),
         }
 
         task_names = list(tasks.keys())
@@ -649,10 +662,10 @@ Amostra de notícias:
 
         if kg:
             context_parts.append(f"""## Knowledge Graph
-- Descrição: {kg.get('description', 'N/A')}
-- Nascimento: {kg.get('born', 'N/A')}
-- Partido: {kg.get('party', 'N/A')}
-- Educação: {kg.get('education', 'N/A')}""")
+- Descrição: {kg.get("description", "N/A")}
+- Nascimento: {kg.get("born", "N/A")}
+- Partido: {kg.get("party", "N/A")}
+- Educação: {kg.get("education", "N/A")}""")
 
         tavily_answer = collected.get("tavily", {}).get("answer", "")
         if tavily_answer:
@@ -664,15 +677,15 @@ Amostra de notícias:
         ai_analysis = {}
         if quick_context:
             ai_analysis = await self.ai_analyzer.analyze_politician_quick(
-                name=name,
-                role=role,
-                context=quick_context
+                name=name, role=role, context=quick_context
             )
 
         return {
             "name": name,
             "role": role,
-            "description": kg.get("description") or perplexity_answer[:500] if perplexity_answer else None,
+            "description": kg.get("description") or perplexity_answer[:500]
+            if perplexity_answer
+            else None,
             "social_media": social_media,
             "knowledge_graph": kg,
             "research_summary": perplexity_answer,
@@ -681,14 +694,10 @@ Amostra de notícias:
             "key_facts": ai_analysis.get("key_facts", []),
             "recent_news": collected.get("news", {}).get("news", [])[:5],
             "citations": collected.get("perplexity", {}).get("citations", []),
-            "sources": ["Serper", "Perplexity", "Tavily"]
+            "sources": ["Serper", "Perplexity", "Tavily"],
         }
 
-    async def get_personal_history(
-        self,
-        name: str,
-        role: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def get_personal_history(self, name: str, role: Optional[str] = None) -> Dict[str, Any]:
         """
         Busca histórico pessoal (não político) com análise profunda
         """
@@ -704,9 +713,15 @@ Amostra de notícias:
                 "hobbies e interesses, curiosidades pessoais. "
                 "NÃO inclua informações sobre posições políticas ou mandatos."
             ),
-            "serper_bio": self.serper.search(f'"{name}" biografia nascimento família formação', num=10),
-            "serper_education": self.serper.search(f'"{name}" formação educação universidade escola', num=5),
-            "serper_career": self.serper.search(f'"{name}" carreira profissional antes política trabalhou empresa', num=5)
+            "serper_bio": self.serper.search(
+                f'"{name}" biografia nascimento família formação', num=10
+            ),
+            "serper_education": self.serper.search(
+                f'"{name}" formação educação universidade escola', num=5
+            ),
+            "serper_career": self.serper.search(
+                f'"{name}" carreira profissional antes política trabalhou empresa', num=5
+            ),
         }
 
         task_names = list(tasks.keys())
@@ -718,7 +733,7 @@ Amostra de notícias:
 
         # Contexto para análise
         context = f"""## Biografia Perplexity
-{collected.get('perplexity_bio', {}).get('answer', 'N/A')}
+{collected.get("perplexity_bio", {}).get("answer", "N/A")}
 
 ## Resultados de Busca - Biografia
 """
@@ -735,9 +750,7 @@ Amostra de notícias:
 
         # Análise AI
         ai_analysis = await self.ai_analyzer.analyze_biography_deep(
-            name=name,
-            role=role,
-            context=context
+            name=name, role=role, context=context
         )
 
         return {
@@ -748,23 +761,24 @@ Amostra de notícias:
             "structured_bio": ai_analysis.get("structured_biography", {}),
             "education_sources": collected.get("serper_education", {}).get("organic", []),
             "career_sources": collected.get("serper_career", {}).get("organic", []),
-            "citations": collected.get("perplexity_bio", {}).get("citations", [])
+            "citations": collected.get("perplexity_bio", {}).get("citations", []),
         }
 
-    async def get_media_presence(
-        self,
-        name: str,
-        role: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def get_media_presence(self, name: str, role: Optional[str] = None) -> Dict[str, Any]:
         """Analisa presença na mídia com análise AI"""
         logger.info("politician_intel_media_v2", name=name)
 
         # Buscar em paralelo
         tasks = {
-            "social_search": self.serper.search(f'"{name}" Instagram Twitter Facebook site:instagram.com OR site:twitter.com OR site:facebook.com', num=15),
+            "social_search": self.serper.search(
+                f'"{name}" Instagram Twitter Facebook site:instagram.com OR site:twitter.com OR site:facebook.com',
+                num=15,
+            ),
             "news": self.serper.search_news(f'"{name}"', num=20),
-            "interviews": self.serper.search(f'"{name}" entrevista podcast programa televisão', num=10),
-            "youtube": self.serper.search(f'"{name}" site:youtube.com', num=8)
+            "interviews": self.serper.search(
+                f'"{name}" entrevista podcast programa televisão', num=10
+            ),
+            "youtube": self.serper.search(f'"{name}" site:youtube.com', num=8),
         }
 
         task_names = list(tasks.keys())
@@ -781,7 +795,7 @@ Amostra de notícias:
             "twitter": ["twitter.com", "x.com"],
             "facebook": ["facebook.com"],
             "youtube": ["youtube.com"],
-            "tiktok": ["tiktok.com"]
+            "tiktok": ["tiktok.com"],
         }
 
         for item in collected.get("social_search", {}).get("organic", []):
@@ -793,7 +807,7 @@ Amostra de notícias:
                             social_media[platform] = {
                                 "url": item.get("link"),
                                 "title": item.get("title"),
-                                "snippet": item.get("snippet")
+                                "snippet": item.get("snippet"),
                             }
                             break
 
@@ -803,10 +817,10 @@ Amostra de notícias:
             "social_platforms_found": list(social_media.keys()),
             "media_mentions": {
                 "count": len(collected.get("news", {}).get("news", [])),
-                "recent": collected.get("news", {}).get("news", [])[:10]
+                "recent": collected.get("news", {}).get("news", [])[:10],
             },
             "interviews": collected.get("interviews", {}).get("organic", []),
-            "youtube_presence": collected.get("youtube", {}).get("organic", [])
+            "youtube_presence": collected.get("youtube", {}).get("organic", []),
         }
 
     async def search_politicians(
@@ -814,7 +828,7 @@ Amostra de notícias:
         role: Optional[str] = None,
         state: Optional[str] = None,
         party: Optional[str] = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> Dict[str, Any]:
         """Busca políticos por critérios"""
         logger.info("politician_intel_search", role=role, state=state)
@@ -840,17 +854,16 @@ Amostra de notícias:
             snippet = item.get("snippet", "")
 
             import re
-            name_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)'
+
+            name_pattern = r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)"
             matches = re.findall(name_pattern, title + " " + snippet)
 
             for found_name in matches:
                 if found_name not in seen_names and len(found_name) > 5:
                     seen_names.add(found_name)
-                    politicians.append({
-                        "name": found_name,
-                        "source": item.get("link"),
-                        "context": snippet[:200]
-                    })
+                    politicians.append(
+                        {"name": found_name, "source": item.get("link"), "context": snippet[:200]}
+                    )
                     if len(politicians) >= limit:
                         break
             if len(politicians) >= limit:
@@ -859,22 +872,25 @@ Amostra de notícias:
         return {
             "search_criteria": {"role": role, "state": state, "party": party},
             "politicians": politicians,
-            "total": len(politicians)
+            "total": len(politicians),
         }
 
     async def monitor_politician(
-        self,
-        name: str,
-        role: Optional[str] = None,
-        alert_keywords: Optional[List[str]] = None
+        self, name: str, role: Optional[str] = None, alert_keywords: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Monitora político para alertas"""
         logger.info("politician_intel_monitor", name=name)
 
         if alert_keywords is None:
             alert_keywords = [
-                "polêmica", "escândalo", "denúncia", "investigação",
-                "crítica", "protesto", "processo", "corrupção"
+                "polêmica",
+                "escândalo",
+                "denúncia",
+                "investigação",
+                "crítica",
+                "protesto",
+                "processo",
+                "corrupção",
             ]
 
         news = await self.serper.search_news(f'"{name}"', num=20, tbs="qdr:d")
@@ -884,15 +900,19 @@ Amostra de notícias:
             text = (item.get("title", "") + " " + item.get("snippet", "")).lower()
             for keyword in alert_keywords:
                 if keyword.lower() in text:
-                    alerts.append({
-                        "keyword": keyword,
-                        "news": {
-                            "title": item.get("title"),
-                            "link": item.get("link"),
-                            "source": item.get("source")
-                        },
-                        "severity": "high" if keyword in ["escândalo", "denúncia", "investigação", "corrupção"] else "medium"
-                    })
+                    alerts.append(
+                        {
+                            "keyword": keyword,
+                            "news": {
+                                "title": item.get("title"),
+                                "link": item.get("link"),
+                                "source": item.get("source"),
+                            },
+                            "severity": "high"
+                            if keyword in ["escândalo", "denúncia", "investigação", "corrupção"]
+                            else "medium",
+                        }
+                    )
                     break
 
         return {
@@ -902,7 +922,7 @@ Amostra de notícias:
             "news_count": len(news.get("news", [])),
             "alerts": alerts,
             "alert_count": len(alerts),
-            "has_critical_alerts": any(a.get("severity") == "high" for a in alerts)
+            "has_critical_alerts": any(a.get("severity") == "high" for a in alerts),
         }
 
     async def __aenter__(self):

@@ -13,8 +13,7 @@ from src.services import EmpresaService, GovernoService, LinkedInService
 
 # Configurar logging
 logging.basicConfig(
-    format="%(message)s",
-    level=getattr(logging, settings.log_level.upper(), logging.INFO)
+    format="%(message)s", level=getattr(logging, settings.log_level.upper(), logging.INFO)
 )
 
 structlog.configure(
@@ -28,7 +27,7 @@ structlog.configure(
         structlog.processors.UnicodeDecoder(),
         structlog.dev.ConsoleRenderer()
         if settings.log_format != "json"
-        else structlog.processors.JSONRenderer()
+        else structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -45,9 +44,7 @@ async def demo_empresa_enrichment():
 
     async with EmpresaService() as service:
         empresa = await service.enrich_company(
-            name="Iconsai",
-            website="https://iconsai.ai",
-            sources=["coresignal", "proxycurl"]
+            name="Iconsai", website="https://iconsai.ai", sources=["coresignal", "proxycurl"]
         )
 
         logger.info(
@@ -55,7 +52,7 @@ async def demo_empresa_enrichment():
             nome=empresa.nome_fantasia,
             setor=empresa.setor,
             funcionarios=empresa.num_funcionarios,
-            fontes=empresa.fontes
+            fontes=empresa.fontes,
         )
 
         return empresa
@@ -67,16 +64,9 @@ async def demo_linkedin_profile():
 
     async with LinkedInService() as service:
         # Buscar profissionais
-        profissionais = await service.search_professionals(
-            title="CEO",
-            location="Brazil",
-            limit=5
-        )
+        profissionais = await service.search_professionals(title="CEO", location="Brazil", limit=5)
 
-        logger.info(
-            "demo_linkedin_result",
-            count=len(profissionais)
-        )
+        logger.info("demo_linkedin_result", count=len(profissionais))
 
         return profissionais
 
@@ -88,37 +78,30 @@ async def demo_governo_scrape():
     async with GovernoService() as service:
         # Mapear URLs do portal de transparencia
         urls = await service.map_portal_urls(
-            url="https://portaldatransparencia.gov.br",
-            search_term="licitacao"
+            url="https://portaldatransparencia.gov.br", search_term="licitacao"
         )
 
-        logger.info(
-            "demo_governo_result",
-            urls_found=len(urls)
-        )
+        logger.info("demo_governo_result", urls_found=len(urls))
 
         return urls
 
 
 async def health_check() -> dict:
     """Verifica saude dos servicos"""
-    status = {
-        "status": "healthy",
-        "services": {}
-    }
+    status = {"status": "healthy", "services": {}}
 
     # Verificar configs
     services_config = [
         ("coresignal", bool(settings.coresignal_api_key)),
         ("proxycurl", bool(settings.proxycurl_api_key)),
         ("firecrawl", bool(settings.firecrawl_api_key)),
-        ("supabase", bool(settings.supabase_url and settings.supabase_service_key))
+        ("supabase", bool(settings.supabase_url and settings.supabase_service_key)),
     ]
 
     for service, configured in services_config:
         status["services"][service] = {
             "configured": configured,
-            "status": "ready" if configured else "not_configured"
+            "status": "ready" if configured else "not_configured",
         }
 
     # Status geral
@@ -133,21 +116,14 @@ async def health_check() -> dict:
 
 async def main():
     """Funcao principal"""
-    logger.info(
-        "iconsai_scraping_start",
-        environment=settings.environment,
-        version="0.1.0"
-    )
+    logger.info("iconsai_scraping_start", environment=settings.environment, version="0.1.0")
 
     # Health check
     health = await health_check()
     logger.info("health_check", **health)
 
     if health["status"] == "not_configured":
-        logger.warning(
-            "services_not_configured",
-            message="Configure API keys in .env file"
-        )
+        logger.warning("services_not_configured", message="Configure API keys in .env file")
         return
 
     # Executar demos se em desenvolvimento

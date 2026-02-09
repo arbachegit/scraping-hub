@@ -50,20 +50,22 @@ class CompanyRepository:
                 "description": company_data.get("description"),
                 "linkedin_url": company_data.get("linkedin_url"),
                 "raw_data": json.dumps(company_data, default=str, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             # Upsert by name or CNPJ
             if company_data.get("cnpj"):
-                result = self.client.table(self.TABLE_NAME).upsert(
-                    record,
-                    on_conflict="cnpj"
-                ).execute()
+                result = (
+                    self.client.table(self.TABLE_NAME).upsert(record, on_conflict="cnpj").execute()
+                )
             else:
                 # Try to find existing by name
-                existing = self.client.table(self.TABLE_NAME).select("id").eq(
-                    "name", record["name"]
-                ).execute()
+                existing = (
+                    self.client.table(self.TABLE_NAME)
+                    .select("id")
+                    .eq("name", record["name"])
+                    .execute()
+                )
 
                 if existing.data:
                     record["id"] = existing.data[0]["id"]
@@ -80,10 +82,7 @@ class CompanyRepository:
         return None
 
     async def get_company(
-        self,
-        name: Optional[str] = None,
-        cnpj: Optional[str] = None,
-        max_age_hours: int = 24
+        self, name: Optional[str] = None, cnpj: Optional[str] = None, max_age_hours: int = 24
     ) -> Optional[Dict[str, Any]]:
         """
         Get company from database
@@ -128,10 +127,7 @@ class CompanyRepository:
         return None
 
     async def save_analysis(
-        self,
-        company_id: str,
-        analysis_type: str,
-        analysis_data: Dict[str, Any]
+        self, company_id: str, analysis_type: str, analysis_data: Dict[str, Any]
     ) -> bool:
         """Save company analysis (SWOT, OKRs, etc)"""
         if not self._is_available():
@@ -141,12 +137,20 @@ class CompanyRepository:
             record = {
                 "company_id": company_id,
                 "analysis_type": analysis_type,
-                "swot": json.dumps(analysis_data.get("swot_analysis"), default=str) if analysis_data.get("swot_analysis") else None,
-                "okrs": json.dumps(analysis_data.get("suggested_okrs"), default=str) if analysis_data.get("suggested_okrs") else None,
-                "competitors": json.dumps(analysis_data.get("competitors"), default=str) if analysis_data.get("competitors") else None,
-                "key_people": json.dumps(analysis_data.get("key_people"), default=str) if analysis_data.get("key_people") else None,
+                "swot": json.dumps(analysis_data.get("swot_analysis"), default=str)
+                if analysis_data.get("swot_analysis")
+                else None,
+                "okrs": json.dumps(analysis_data.get("suggested_okrs"), default=str)
+                if analysis_data.get("suggested_okrs")
+                else None,
+                "competitors": json.dumps(analysis_data.get("competitors"), default=str)
+                if analysis_data.get("competitors")
+                else None,
+                "key_people": json.dumps(analysis_data.get("key_people"), default=str)
+                if analysis_data.get("key_people")
+                else None,
                 "raw_analysis": json.dumps(analysis_data, default=str, ensure_ascii=False),
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             self.client.table(self.ANALYSIS_TABLE).insert(record).execute()
@@ -158,23 +162,22 @@ class CompanyRepository:
             return False
 
     async def get_latest_analysis(
-        self,
-        company_id: str,
-        analysis_type: str = "client",
-        max_age_hours: int = 48
+        self, company_id: str, analysis_type: str = "client", max_age_hours: int = 48
     ) -> Optional[Dict[str, Any]]:
         """Get latest analysis for company"""
         if not self._is_available():
             return None
 
         try:
-            result = self.client.table(self.ANALYSIS_TABLE).select("*").eq(
-                "company_id", company_id
-            ).eq(
-                "analysis_type", analysis_type
-            ).order(
-                "created_at", desc=True
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.ANALYSIS_TABLE)
+                .select("*")
+                .eq("company_id", company_id)
+                .eq("analysis_type", analysis_type)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
 
             if not result.data:
                 return None
@@ -235,18 +238,20 @@ class PeopleRepository:
                 "photo_url": person_data.get("photo_url"),
                 "bio": person_data.get("professional_summary") or person_data.get("bio"),
                 "raw_data": json.dumps(person_data, default=str, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             # Remove None values
             record = {k: v for k, v in record.items() if v is not None}
 
             # Try to find existing by name
-            existing = self.client.table(self.TABLE_NAME).select("id").eq(
-                "full_name", record["full_name"]
-            ).eq(
-                "person_type", record.get("person_type", "professional")
-            ).execute()
+            existing = (
+                self.client.table(self.TABLE_NAME)
+                .select("id")
+                .eq("full_name", record["full_name"])
+                .eq("person_type", record.get("person_type", "professional"))
+                .execute()
+            )
 
             if existing.data:
                 record["id"] = existing.data[0]["id"]
@@ -263,21 +268,21 @@ class PeopleRepository:
         return None
 
     async def get_person(
-        self,
-        name: str,
-        person_type: str = "professional",
-        max_age_hours: int = 48
+        self, name: str, person_type: str = "professional", max_age_hours: int = 48
     ) -> Optional[Dict[str, Any]]:
         """Get person from database"""
         if not self._is_available():
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").ilike(
-                "full_name", f"%{name}%"
-            ).eq(
-                "person_type", person_type
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .ilike("full_name", f"%{name}%")
+                .eq("person_type", person_type)
+                .limit(1)
+                .execute()
+            )
 
             if not result.data:
                 return None
@@ -302,10 +307,7 @@ class PeopleRepository:
         return None
 
     async def save_analysis(
-        self,
-        person_id: str,
-        analysis_data: Dict[str, Any],
-        company_id: Optional[str] = None
+        self, person_id: str, analysis_data: Dict[str, Any], company_id: Optional[str] = None
     ) -> bool:
         """Save person analysis"""
         if not self._is_available():
@@ -316,14 +318,22 @@ class PeopleRepository:
                 "person_id": person_id,
                 "company_id": company_id,
                 "analysis_type": "profile",
-                "strengths": json.dumps(analysis_data.get("strengths"), default=str) if analysis_data.get("strengths") else None,
-                "skills": json.dumps(analysis_data.get("skills_assessment"), default=str) if analysis_data.get("skills_assessment") else None,
-                "career_history": json.dumps(analysis_data.get("career_analysis"), default=str) if analysis_data.get("career_analysis") else None,
+                "strengths": json.dumps(analysis_data.get("strengths"), default=str)
+                if analysis_data.get("strengths")
+                else None,
+                "skills": json.dumps(analysis_data.get("skills_assessment"), default=str)
+                if analysis_data.get("skills_assessment")
+                else None,
+                "career_history": json.dumps(analysis_data.get("career_analysis"), default=str)
+                if analysis_data.get("career_analysis")
+                else None,
                 "fit_analysis": analysis_data.get("professional_summary"),
                 "confidence_score": analysis_data.get("confidence_score"),
-                "sources": json.dumps(analysis_data.get("sources_used"), default=str) if analysis_data.get("sources_used") else None,
+                "sources": json.dumps(analysis_data.get("sources_used"), default=str)
+                if analysis_data.get("sources_used")
+                else None,
                 "raw_data": json.dumps(analysis_data, default=str, ensure_ascii=False),
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             # Remove None values
@@ -338,20 +348,21 @@ class PeopleRepository:
             return False
 
     async def get_latest_analysis(
-        self,
-        person_id: str,
-        max_age_hours: int = 48
+        self, person_id: str, max_age_hours: int = 48
     ) -> Optional[Dict[str, Any]]:
         """Get latest analysis for person"""
         if not self._is_available():
             return None
 
         try:
-            result = self.client.table(self.ANALYSIS_TABLE).select("*").eq(
-                "person_id", person_id
-            ).order(
-                "created_at", desc=True
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.ANALYSIS_TABLE)
+                .select("*")
+                .eq("person_id", person_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
 
             if not result.data:
                 return None
@@ -395,8 +406,10 @@ class PoliticianRepository:
             record = {
                 "full_name": politician_data.get("name") or politician_data.get("full_name"),
                 "person_type": "politician",
-                "political_role": politician_data.get("role") or politician_data.get("political_role"),
-                "political_party": politician_data.get("party") or politician_data.get("political_party"),
+                "political_role": politician_data.get("role")
+                or politician_data.get("political_role"),
+                "political_party": politician_data.get("party")
+                or politician_data.get("political_party"),
                 "state": politician_data.get("state"),
                 "city": politician_data.get("city"),
                 "linkedin_url": politician_data.get("linkedin_url"),
@@ -406,20 +419,23 @@ class PoliticianRepository:
                 "email": politician_data.get("email"),
                 "phone": politician_data.get("phone"),
                 "photo_url": politician_data.get("image") or politician_data.get("photo_url"),
-                "bio": politician_data.get("personal_summary") or politician_data.get("description"),
+                "bio": politician_data.get("personal_summary")
+                or politician_data.get("description"),
                 "raw_data": json.dumps(politician_data, default=str, ensure_ascii=False),
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }
 
             # Remove None values
             record = {k: v for k, v in record.items() if v is not None}
 
             # Try to find existing
-            existing = self.client.table(self.TABLE_NAME).select("id").eq(
-                "full_name", record["full_name"]
-            ).eq(
-                "person_type", "politician"
-            ).execute()
+            existing = (
+                self.client.table(self.TABLE_NAME)
+                .select("id")
+                .eq("full_name", record["full_name"])
+                .eq("person_type", "politician")
+                .execute()
+            )
 
             if existing.data:
                 record["id"] = existing.data[0]["id"]
@@ -435,21 +451,20 @@ class PoliticianRepository:
 
         return None
 
-    async def get_politician(
-        self,
-        name: str,
-        max_age_hours: int = 48
-    ) -> Optional[Dict[str, Any]]:
+    async def get_politician(self, name: str, max_age_hours: int = 48) -> Optional[Dict[str, Any]]:
         """Get politician from database"""
         if not self._is_available():
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").ilike(
-                "full_name", f"%{name}%"
-            ).eq(
-                "person_type", "politician"
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .ilike("full_name", f"%{name}%")
+                .eq("person_type", "politician")
+                .limit(1)
+                .execute()
+            )
 
             if not result.data:
                 return None
@@ -472,11 +487,7 @@ class PoliticianRepository:
 
         return None
 
-    async def save_analysis(
-        self,
-        politician_id: str,
-        analysis_data: Dict[str, Any]
-    ) -> bool:
+    async def save_analysis(self, politician_id: str, analysis_data: Dict[str, Any]) -> bool:
         """Save politician analysis"""
         if not self._is_available():
             return False
@@ -485,14 +496,22 @@ class PoliticianRepository:
             record = {
                 "person_id": politician_id,
                 "analysis_type": "politician_profile",
-                "public_perception": json.dumps(analysis_data.get("public_perception"), default=str) if analysis_data.get("public_perception") else None,
-                "controversies": json.dumps(analysis_data.get("controversies"), default=str) if analysis_data.get("controversies") else None,
-                "strengths": json.dumps(analysis_data.get("key_characteristics"), default=str) if analysis_data.get("key_characteristics") else None,
+                "public_perception": json.dumps(analysis_data.get("public_perception"), default=str)
+                if analysis_data.get("public_perception")
+                else None,
+                "controversies": json.dumps(analysis_data.get("controversies"), default=str)
+                if analysis_data.get("controversies")
+                else None,
+                "strengths": json.dumps(analysis_data.get("key_characteristics"), default=str)
+                if analysis_data.get("key_characteristics")
+                else None,
                 "fit_analysis": analysis_data.get("personal_summary"),
                 "confidence_score": analysis_data.get("confidence_score"),
-                "sources": json.dumps(analysis_data.get("sources_used"), default=str) if analysis_data.get("sources_used") else None,
+                "sources": json.dumps(analysis_data.get("sources_used"), default=str)
+                if analysis_data.get("sources_used")
+                else None,
                 "raw_data": json.dumps(analysis_data, default=str, ensure_ascii=False),
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             record = {k: v for k, v in record.items() if v is not None}
@@ -525,7 +544,7 @@ class SearchHistoryRepository:
         query: Dict[str, Any],
         user_email: Optional[str] = None,
         results_count: int = 0,
-        result_ids: Optional[list] = None
+        result_ids: Optional[list] = None,
     ) -> Optional[str]:
         """Save a search to history"""
         if not self._is_available():
@@ -539,7 +558,7 @@ class SearchHistoryRepository:
                 "results_count": results_count,
                 "result_ids": json.dumps(result_ids) if result_ids else None,
                 "status": "completed",
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             result = self.client.table(self.TABLE_NAME).insert(record).execute()
@@ -554,19 +573,14 @@ class SearchHistoryRepository:
         return None
 
     async def get_user_searches(
-        self,
-        user_email: str,
-        search_type: Optional[str] = None,
-        limit: int = 50
+        self, user_email: str, search_type: Optional[str] = None, limit: int = 50
     ) -> list:
         """Get user's search history"""
         if not self._is_available():
             return []
 
         try:
-            query = self.client.table(self.TABLE_NAME).select("*").eq(
-                "user_email", user_email
-            )
+            query = self.client.table(self.TABLE_NAME).select("*").eq("user_email", user_email)
 
             if search_type:
                 query = query.eq("search_type", search_type)
@@ -594,11 +608,7 @@ class SearchRepository:
         return self.client is not None
 
     async def cache_search(
-        self,
-        search_type: str,
-        query: str,
-        result: Dict[str, Any],
-        ttl_hours: int = 24
+        self, search_type: str, query: str, result: Dict[str, Any], ttl_hours: int = 24
     ) -> bool:
         """Cache a search result"""
         if not self._is_available():
@@ -610,12 +620,11 @@ class SearchRepository:
                 "query": query.lower().strip(),
                 "result": json.dumps(result, default=str, ensure_ascii=False),
                 "expires_at": (datetime.utcnow() + timedelta(hours=ttl_hours)).isoformat(),
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             self.client.table(self.TABLE_NAME).upsert(
-                record,
-                on_conflict="search_type,query"
+                record, on_conflict="search_type,query"
             ).execute()
 
             return True
@@ -624,21 +633,20 @@ class SearchRepository:
             logger.error("cache_save_error", error=str(e))
             return False
 
-    async def get_cached_search(
-        self,
-        search_type: str,
-        query: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_cached_search(self, search_type: str, query: str) -> Optional[Dict[str, Any]]:
         """Get cached search result if not expired"""
         if not self._is_available():
             return None
 
         try:
-            result = self.client.table(self.TABLE_NAME).select("*").eq(
-                "search_type", search_type
-            ).eq(
-                "query", query.lower().strip()
-            ).limit(1).execute()
+            result = (
+                self.client.table(self.TABLE_NAME)
+                .select("*")
+                .eq("search_type", search_type)
+                .eq("query", query.lower().strip())
+                .limit(1)
+                .execute()
+            )
 
             if not result.data:
                 return None

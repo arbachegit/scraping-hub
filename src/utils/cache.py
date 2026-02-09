@@ -16,33 +16,19 @@ from config.settings import settings
 logger = structlog.get_logger()
 
 # Cache global
-_cache = TTLCache(
-    maxsize=settings.cache_max_size,
-    ttl=settings.cache_ttl
-)
+_cache = TTLCache(maxsize=settings.cache_max_size, ttl=settings.cache_ttl)
 
 # Estatisticas
-_stats = {
-    "hits": 0,
-    "misses": 0,
-    "sets": 0
-}
+_stats = {"hits": 0, "misses": 0, "sets": 0}
 
 
 def _make_key(*args, **kwargs) -> str:
     """Gera chave de cache a partir dos argumentos"""
-    key_data = json.dumps(
-        {"args": args, "kwargs": kwargs},
-        sort_keys=True,
-        default=str
-    )
+    key_data = json.dumps({"args": args, "kwargs": kwargs}, sort_keys=True, default=str)
     return hashlib.md5(key_data.encode()).hexdigest()
 
 
-def cache_result(
-    ttl: Optional[int] = None,
-    prefix: str = ""
-) -> Callable:
+def cache_result(ttl: Optional[int] = None, prefix: str = "") -> Callable:
     """
     Decorator para cachear resultado de funcao
 
@@ -55,6 +41,7 @@ def cache_result(
         async def get_empresa(cnpj: str):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -81,6 +68,7 @@ def cache_result(
             return result
 
         return wrapper
+
     return decorator
 
 
@@ -124,7 +112,7 @@ def get_cache_stats() -> dict:
         "hit_rate": round(hit_rate, 2),
         "current_size": len(_cache),
         "max_size": _cache.maxsize,
-        "ttl": _cache.ttl
+        "ttl": _cache.ttl,
     }
 
 

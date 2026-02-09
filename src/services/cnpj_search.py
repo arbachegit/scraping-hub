@@ -5,7 +5,7 @@ Busca de empresas por nome com validação na Receita Federal
 
 import asyncio
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import structlog
 
@@ -26,9 +26,7 @@ class CNPJSearchService:
     """
 
     # Regex para extrair CNPJ (com ou sem formatação)
-    CNPJ_PATTERN = re.compile(
-        r'(\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2})'
-    )
+    CNPJ_PATTERN = re.compile(r"(\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2})")
 
     def __init__(self):
         self.serper = SerperClient()
@@ -36,16 +34,9 @@ class CNPJSearchService:
 
     async def close(self):
         """Fecha os clientes"""
-        await asyncio.gather(
-            self.serper.close(),
-            self.brasil_api.close()
-        )
+        await asyncio.gather(self.serper.close(), self.brasil_api.close())
 
-    async def search_by_name(
-        self,
-        company_name: str,
-        max_results: int = 5
-    ) -> Dict[str, Any]:
+    async def search_by_name(self, company_name: str, max_results: int = 5) -> Dict[str, Any]:
         """
         Busca empresas por nome e retorna opções com dados da Receita.
 
@@ -67,28 +58,24 @@ class CNPJSearchService:
                 "query": company_name,
                 "found": 0,
                 "companies": [],
-                "message": "Nenhum CNPJ encontrado. Tente refinar a busca."
+                "message": "Nenhum CNPJ encontrado. Tente refinar a busca.",
             }
 
         # 2. Validar cada CNPJ na Receita Federal
-        companies = await self._validate_cnpjs(cnpjs_found[:max_results * 2])
+        companies = await self._validate_cnpjs(cnpjs_found[: max_results * 2])
 
         # 3. Filtrar por relevância (nome similar)
-        relevant_companies = self._filter_by_relevance(
-            companies, company_name, max_results
-        )
+        relevant_companies = self._filter_by_relevance(companies, company_name, max_results)
 
         logger.info(
-            "cnpj_search_complete",
-            company_name=company_name,
-            found=len(relevant_companies)
+            "cnpj_search_complete", company_name=company_name, found=len(relevant_companies)
         )
 
         return {
             "query": company_name,
             "found": len(relevant_companies),
             "companies": relevant_companies,
-            "message": self._get_result_message(len(relevant_companies))
+            "message": self._get_result_message(len(relevant_companies)),
         }
 
     async def _search_cnpjs_google(self, company_name: str) -> List[str]:
@@ -98,7 +85,7 @@ class CNPJSearchService:
         queries = [
             f'"{company_name}" CNPJ site:cnpj.info OR site:consultacnpj.com OR site:cnpja.com.br',
             f'"{company_name}" CNPJ Receita Federal',
-            f'{company_name} empresa CNPJ Brasil'
+            f"{company_name} empresa CNPJ Brasil",
         ]
 
         cnpjs = set()
@@ -114,7 +101,7 @@ class CNPJSearchService:
 
                     for cnpj in found:
                         # Normalizar CNPJ (apenas dígitos)
-                        cnpj_clean = re.sub(r'\D', '', cnpj)
+                        cnpj_clean = re.sub(r"\D", "", cnpj)
                         if len(cnpj_clean) == 14:
                             cnpjs.add(cnpj_clean)
 
@@ -124,7 +111,7 @@ class CNPJSearchService:
                     kg_text = str(kg)
                     found = self.CNPJ_PATTERN.findall(kg_text)
                     for cnpj in found:
-                        cnpj_clean = re.sub(r'\D', '', cnpj)
+                        cnpj_clean = re.sub(r"\D", "", cnpj)
                         if len(cnpj_clean) == 14:
                             cnpjs.add(cnpj_clean)
 
@@ -145,12 +132,12 @@ class CNPJSearchService:
 
         # Buscar em paralelo (máximo 5 por vez para não sobrecarregar)
         for i in range(0, len(cnpjs), 5):
-            batch = cnpjs[i:i+5]
+            batch = cnpjs[i : i + 5]
 
             tasks = [self.brasil_api.get_cnpj(cnpj) for cnpj in batch]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for cnpj, result in zip(batch, results):
+            for cnpj, result in zip(batch, results, strict=False):
                 if isinstance(result, Exception):
                     logger.warning("cnpj_validation_error", cnpj=cnpj[:8], error=str(result))
                     continue
@@ -161,10 +148,7 @@ class CNPJSearchService:
         return companies
 
     def _filter_by_relevance(
-        self,
-        companies: List[Dict],
-        search_name: str,
-        max_results: int
+        self, companies: List[Dict], search_name: str, max_results: int
     ) -> List[Dict[str, Any]]:
         """Filtra e ordena empresas por relevância ao nome buscado"""
 
@@ -200,10 +184,7 @@ class CNPJSearchService:
             if company.get("situacao_cadastral") != "ATIVA":
                 score -= 50
 
-            scored_companies.append({
-                **company,
-                "_relevance_score": score
-            })
+            scored_companies.append({**company, "_relevance_score": score})
 
         # Ordenar por relevância e retornar top N
         scored_companies.sort(key=lambda x: x["_relevance_score"], reverse=True)
@@ -227,7 +208,7 @@ class CNPJSearchService:
                 endereco.get("numero", ""),
                 endereco.get("bairro", ""),
                 endereco.get("municipio", ""),
-                endereco.get("uf", "")
+                endereco.get("uf", ""),
             ]
             endereco_str = ", ".join(p for p in parts if p)
 
@@ -241,12 +222,12 @@ class CNPJSearchService:
             "endereco": endereco_str,
             "atividade_principal": company.get("cnae_principal", {}).get("descricao"),
             "capital_social": company.get("capital_social"),
-            "socios": [s.get("nome") for s in company.get("socios", [])[:3]]
+            "socios": [s.get("nome") for s in company.get("socios", [])[:3]],
         }
 
     def _format_cnpj(self, cnpj: str) -> str:
         """Formata CNPJ para exibição: XX.XXX.XXX/XXXX-XX"""
-        cnpj_clean = re.sub(r'\D', '', cnpj)
+        cnpj_clean = re.sub(r"\D", "", cnpj)
         if len(cnpj_clean) == 14:
             return f"{cnpj_clean[:2]}.{cnpj_clean[2:5]}.{cnpj_clean[5:8]}/{cnpj_clean[8:12]}-{cnpj_clean[12:]}"
         return cnpj
@@ -273,15 +254,12 @@ class CNPJSearchService:
         result = await self.brasil_api.get_cnpj(cnpj)
 
         if not result:
-            return {
-                "error": True,
-                "message": "CNPJ não encontrado na Receita Federal"
-            }
+            return {"error": True, "message": "CNPJ não encontrado na Receita Federal"}
 
         return {
             "error": False,
             "company": self._format_company_for_display(result),
-            "raw_data": result
+            "raw_data": result,
         }
 
     async def __aenter__(self):

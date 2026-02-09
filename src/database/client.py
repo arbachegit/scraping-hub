@@ -29,10 +29,7 @@ def get_supabase() -> Optional[Client]:
         return None
 
     try:
-        _supabase_client = create_client(
-            settings.supabase_url,
-            settings.supabase_service_key
-        )
+        _supabase_client = create_client(settings.supabase_url, settings.supabase_service_key)
         logger.info("supabase_connected")
         return _supabase_client
     except Exception as e:

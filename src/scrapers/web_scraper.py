@@ -48,11 +48,7 @@ class WebScraperClient:
         self._registered_urls: set = set()
 
         # Estatísticas
-        self.stats = {
-            "requests": 0,
-            "success": 0,
-            "errors": 0
-        }
+        self.stats = {"requests": 0, "success": 0, "errors": 0}
 
     async def _register_source_usage(self, url: str) -> None:
         """
@@ -69,10 +65,7 @@ class WebScraperClient:
             from src.database.fontes_repository import registrar_fonte_scraping
 
             await registrar_fonte_scraping(
-                nome=f"Website - {domain}",
-                site=domain,
-                url=url,
-                cobertura="Conteúdo HTML extraído"
+                nome=f"Website - {domain}", site=domain, url=url, cobertura="Conteúdo HTML extraído"
             )
 
             self._registered_urls.add(domain)
@@ -92,8 +85,8 @@ class WebScraperClient:
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept-Encoding": "gzip, deflate, br"
-                }
+                    "Accept-Encoding": "gzip, deflate, br",
+                },
             )
         return self._client
 
@@ -164,15 +157,12 @@ class WebScraperClient:
             "metadata": metadata,
             "content": content,
             "links": links,
-            "structured_data": structured_data
+            "structured_data": structured_data,
         }
 
     def _extract_metadata(self, soup: BeautifulSoup, url: str) -> Dict[str, Any]:
         """Extrai metadados da página"""
-        metadata = {
-            "url": url,
-            "domain": urlparse(url).netloc
-        }
+        metadata = {"url": url, "domain": urlparse(url).netloc}
 
         # Título
         title_tag = soup.find("title")
@@ -222,16 +212,18 @@ class WebScraperClient:
     def _extract_content(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """Extrai conteúdo principal da página"""
         # Remover elementos não desejados
-        for element in soup.find_all(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+        for element in soup.find_all(
+            ["script", "style", "nav", "header", "footer", "aside", "noscript"]
+        ):
             element.decompose()
 
         # Tentar encontrar conteúdo principal
         main_content = (
-            soup.find("main") or
-            soup.find("article") or
-            soup.find("div", class_=re.compile(r"content|main|body", re.I)) or
-            soup.find("div", id=re.compile(r"content|main|body", re.I)) or
-            soup.body
+            soup.find("main")
+            or soup.find("article")
+            or soup.find("div", class_=re.compile(r"content|main|body", re.I))
+            or soup.find("div", id=re.compile(r"content|main|body", re.I))
+            or soup.body
         )
 
         if not main_content:
@@ -247,10 +239,7 @@ class WebScraperClient:
         # Extrair headings
         headings = []
         for h in main_content.find_all(["h1", "h2", "h3"]):
-            headings.append({
-                "level": int(h.name[1]),
-                "text": h.get_text(strip=True)
-            })
+            headings.append({"level": int(h.name[1]), "text": h.get_text(strip=True)})
 
         # Extrair parágrafos
         paragraphs = [
@@ -271,7 +260,7 @@ class WebScraperClient:
             "headings": headings,
             "paragraphs": paragraphs[:20],
             "lists": lists[:10],
-            "word_count": len(text.split())
+            "word_count": len(text.split()),
         }
 
     def _extract_links(self, soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
@@ -288,7 +277,7 @@ class WebScraperClient:
             "facebook": r"facebook\.com",
             "instagram": r"instagram\.com",
             "youtube": r"youtube\.com",
-            "github": r"github\.com"
+            "github": r"github\.com",
         }
 
         for a in soup.find_all("a", href=True):
@@ -319,7 +308,7 @@ class WebScraperClient:
         return {
             "internal": list(internal_links)[:50],
             "external": list(external_links)[:50],
-            "social": social_links
+            "social": social_links,
         }
 
     def _extract_structured_data(self, soup: BeautifulSoup) -> List[Dict]:
@@ -328,6 +317,7 @@ class WebScraperClient:
 
         # JSON-LD
         import json
+
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 if script.string:
@@ -369,7 +359,7 @@ class WebScraperClient:
             "products": None,
             "services": None,
             "team": None,
-            "careers": None
+            "careers": None,
         }
 
         for link in links.get("internal", []):
@@ -389,7 +379,7 @@ class WebScraperClient:
             "important_pages": important_pages,
             "contact_info": self._extract_contact_info(content.get("text", "")),
             "technologies": self._detect_technologies(result),
-            "metadata": metadata
+            "metadata": metadata,
         }
 
     def _get_page_synonym(self, page_type: str) -> str:
@@ -400,7 +390,7 @@ class WebScraperClient:
             "products": "produtos",
             "services": "servicos",
             "team": "equipe",
-            "careers": "carreiras"
+            "careers": "carreiras",
         }
         return synonyms.get(page_type, page_type)
 
@@ -513,8 +503,9 @@ class WebScraperClient:
             **self.stats,
             "success_rate": (
                 (self.stats["success"] / self.stats["requests"] * 100)
-                if self.stats["requests"] > 0 else 0
-            )
+                if self.stats["requests"] > 0
+                else 0
+            ),
         }
 
     async def __aenter__(self):

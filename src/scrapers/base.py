@@ -16,9 +16,9 @@ import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.utils.circuit_breaker import (
+    CircuitBreaker,
     CircuitBreakerRegistry,
     CircuitOpenError,
-    CircuitBreaker,
 )
 
 logger = structlog.get_logger()
@@ -45,15 +45,9 @@ class BaseScraper(ABC):
     # Configuração do Circuit Breaker - sobrescrever se necessário
     CIRCUIT_FAILURE_THRESHOLD: int = 5  # Falhas para abrir
     CIRCUIT_SUCCESS_THRESHOLD: int = 2  # Sucessos para fechar
-    CIRCUIT_TIMEOUT: float = 60.0       # Segundos até tentar novamente
+    CIRCUIT_TIMEOUT: float = 60.0  # Segundos até tentar novamente
 
-    def __init__(
-        self,
-        api_key: str,
-        base_url: str,
-        rate_limit: int = 100,
-        timeout: float = 30.0
-    ):
+    def __init__(self, api_key: str, base_url: str, rate_limit: int = 100, timeout: float = 30.0):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.rate_limit = rate_limit
@@ -66,7 +60,7 @@ class BaseScraper(ABC):
             name=self.SOURCE_NAME,
             failure_threshold=self.CIRCUIT_FAILURE_THRESHOLD,
             success_threshold=self.CIRCUIT_SUCCESS_THRESHOLD,
-            timeout=self.CIRCUIT_TIMEOUT
+            timeout=self.CIRCUIT_TIMEOUT,
         )
 
         # Metricas
@@ -75,7 +69,7 @@ class BaseScraper(ABC):
             "success": 0,
             "errors": 0,
             "circuit_open_rejections": 0,
-            "last_request": None
+            "last_request": None,
         }
 
     @property
@@ -83,9 +77,7 @@ class BaseScraper(ABC):
         """Lazy client initialization"""
         if self._client is None:
             self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                timeout=self.timeout,
-                headers=self._get_headers()
+                base_url=self.base_url, timeout=self.timeout, headers=self._get_headers()
             )
         return self._client
 
@@ -113,30 +105,20 @@ class BaseScraper(ABC):
                 nome=self.SOURCE_NAME,
                 provedor=self.SOURCE_PROVIDER,
                 url=full_url,
-                cobertura=self.SOURCE_COVERAGE
+                cobertura=self.SOURCE_COVERAGE,
             )
 
             self._source_registered = True
             logger.debug(
-                "source_registered",
-                source=self.SOURCE_NAME,
-                provider=self.SOURCE_PROVIDER
+                "source_registered", source=self.SOURCE_NAME, provider=self.SOURCE_PROVIDER
             )
 
         except Exception as e:
             # Não falhar a requisição por erro no registro
-            logger.warning(
-                "source_registration_failed",
-                source=self.SOURCE_NAME,
-                error=str(e)
-            )
+            logger.warning("source_registration_failed", source=self.SOURCE_NAME, error=str(e))
 
     async def _request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Optional[Dict] = None,
-        json: Optional[Dict] = None
+        self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
         Executa request com Circuit Breaker e retry automático.
@@ -155,11 +137,7 @@ class BaseScraper(ABC):
         if not self._circuit_breaker.can_execute():
             self.stats["circuit_open_rejections"] += 1
             retry_after = self._circuit_breaker.get_retry_after()
-            logger.warning(
-                "circuit_breaker_open",
-                source=self.SOURCE_NAME,
-                retry_after=retry_after
-            )
+            logger.warning("circuit_breaker_open", source=self.SOURCE_NAME, retry_after=retry_after)
             raise CircuitOpenError(self.SOURCE_NAME, retry_after)
 
         self.stats["requests"] += 1
@@ -190,7 +168,7 @@ class BaseScraper(ABC):
                 status=e.response.status_code,
                 endpoint=endpoint,
                 source=self.SOURCE_NAME,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -199,10 +177,7 @@ class BaseScraper(ABC):
             self._circuit_breaker.record_failure()
             self.stats["errors"] += 1
             logger.error(
-                "connection_error",
-                endpoint=endpoint,
-                source=self.SOURCE_NAME,
-                error=str(e)
+                "connection_error", endpoint=endpoint, source=self.SOURCE_NAME, error=str(e)
             )
             raise
 
@@ -210,42 +185,22 @@ class BaseScraper(ABC):
             # Outros erros também contam como falha
             self._circuit_breaker.record_failure()
             self.stats["errors"] += 1
-            logger.error(
-                "request_error",
-                endpoint=endpoint,
-                source=self.SOURCE_NAME,
-                error=str(e)
-            )
+            logger.error("request_error", endpoint=endpoint, source=self.SOURCE_NAME, error=str(e))
             raise
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _execute_request(
-        self,
-        method: str,
-        endpoint: str,
-        params: Optional[Dict] = None,
-        json: Optional[Dict] = None
+        self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None
     ) -> httpx.Response:
         """Executa request HTTP com retry automático."""
-        return await self.client.request(
-            method=method,
-            url=endpoint,
-            params=params,
-            json=json
-        )
+        return await self.client.request(method=method, url=endpoint, params=params, json=json)
 
     async def get(self, endpoint: str, params: Optional[Dict] = None) -> Dict:
         """GET request"""
         return await self._request("GET", endpoint, params=params)
 
     async def post(
-        self,
-        endpoint: str,
-        json: Optional[Dict] = None,
-        params: Optional[Dict] = None
+        self, endpoint: str, json: Optional[Dict] = None, params: Optional[Dict] = None
     ) -> Dict:
         """POST request"""
         return await self._request("POST", endpoint, params=params, json=json)
@@ -262,9 +217,10 @@ class BaseScraper(ABC):
             **self.stats,
             "success_rate": (
                 (self.stats["success"] / self.stats["requests"] * 100)
-                if self.stats["requests"] > 0 else 0
+                if self.stats["requests"] > 0
+                else 0
             ),
-            "circuit_breaker": self._circuit_breaker.get_stats()
+            "circuit_breaker": self._circuit_breaker.get_stats(),
         }
 
     @property

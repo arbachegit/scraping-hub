@@ -34,8 +34,9 @@ logger = structlog.get_logger()
 
 class CircuitState(Enum):
     """Estados do Circuit Breaker."""
-    CLOSED = "closed"      # Normal - requisições passam
-    OPEN = "open"          # Falhas demais - requisições bloqueadas
+
+    CLOSED = "closed"  # Normal - requisições passam
+    OPEN = "open"  # Falhas demais - requisições bloqueadas
     HALF_OPEN = "half_open"  # Testando recuperação
 
 
@@ -46,8 +47,7 @@ class CircuitOpenError(Exception):
         self.name = name
         self.retry_after = retry_after
         super().__init__(
-            f"Circuit breaker '{name}' is OPEN. "
-            f"Retry after {retry_after:.1f} seconds."
+            f"Circuit breaker '{name}' is OPEN. Retry after {retry_after:.1f} seconds."
         )
 
 
@@ -62,6 +62,7 @@ class CircuitBreaker:
         success_threshold: Sucessos necessários em HALF_OPEN para fechar
         timeout: Segundos para tentar novamente após OPEN
     """
+
     name: str
     failure_threshold: int = 5
     success_threshold: int = 2
@@ -149,7 +150,7 @@ class CircuitBreaker:
             "success_count": self._success_count,
             "failure_threshold": self.failure_threshold,
             "timeout": self.timeout,
-            "retry_after": self.get_retry_after() if self.is_open else 0
+            "retry_after": self.get_retry_after() if self.is_open else 0,
         }
 
     def _should_attempt_reset(self) -> bool:
@@ -173,7 +174,7 @@ class CircuitBreaker:
             "circuit_breaker_transition",
             name=self.name,
             from_state=old_state.value,
-            to_state=new_state.value
+            to_state=new_state.value,
         )
 
 
@@ -183,6 +184,7 @@ class CircuitBreakerRegistry:
 
     Permite gerenciar múltiplos circuitos por nome.
     """
+
     _breakers: Dict[str, CircuitBreaker] = {}
 
     @classmethod
@@ -191,7 +193,7 @@ class CircuitBreakerRegistry:
         name: str,
         failure_threshold: int = 5,
         success_threshold: int = 2,
-        timeout: float = 60.0
+        timeout: float = 60.0,
     ) -> CircuitBreaker:
         """
         Obtém ou cria um Circuit Breaker.
@@ -210,7 +212,7 @@ class CircuitBreakerRegistry:
                 name=name,
                 failure_threshold=failure_threshold,
                 success_threshold=success_threshold,
-                timeout=timeout
+                timeout=timeout,
             )
         return cls._breakers[name]
 
@@ -222,10 +224,7 @@ class CircuitBreakerRegistry:
     @classmethod
     def get_all_stats(cls) -> Dict[str, Dict]:
         """Retorna estatísticas de todos os circuitos."""
-        return {
-            name: breaker.get_stats()
-            for name, breaker in cls._breakers.items()
-        }
+        return {name: breaker.get_stats() for name, breaker in cls._breakers.items()}
 
     @classmethod
     def reset_all(cls) -> None:

@@ -32,31 +32,19 @@ class PerplexityClient(BaseScraper):
     SOURCE_COVERAGE = "Pesquisa com AI, respostas com citações"
     SOURCE_DOC_URL = "https://docs.perplexity.ai"
 
-    MODELS = {
-        "sonar": "sonar",
-        "sonar-pro": "sonar-pro",
-        "sonar-reasoning": "sonar-reasoning"
-    }
+    MODELS = {"sonar": "sonar", "sonar-pro": "sonar-pro", "sonar-reasoning": "sonar-reasoning"}
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        model: str = "sonar",
-        timeout: float = 60.0
-    ):
+    def __init__(self, api_key: Optional[str] = None, model: str = "sonar", timeout: float = 60.0):
         super().__init__(
             api_key=api_key or settings.perplexity_api_key,
             base_url="https://api.perplexity.ai",
             rate_limit=50,
-            timeout=timeout
+            timeout=timeout,
         )
         self.model = self.MODELS.get(model, model)
 
     def _get_headers(self) -> Dict[str, str]:
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
     async def chat(
         self,
@@ -66,7 +54,7 @@ class PerplexityClient(BaseScraper):
         max_tokens: int = 1024,
         return_citations: bool = True,
         search_domain_filter: Optional[List[str]] = None,
-        search_recency_filter: Optional[str] = None
+        search_recency_filter: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Chat com pesquisa em tempo real
@@ -88,22 +76,16 @@ class PerplexityClient(BaseScraper):
         messages = []
 
         if system_prompt:
-            messages.append({
-                "role": "system",
-                "content": system_prompt
-            })
+            messages.append({"role": "system", "content": system_prompt})
 
-        messages.append({
-            "role": "user",
-            "content": query
-        })
+        messages.append({"role": "user", "content": query})
 
         payload = {
             "model": self.model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "return_citations": return_citations
+            "return_citations": return_citations,
         }
 
         if search_domain_filter:
@@ -125,14 +107,11 @@ class PerplexityClient(BaseScraper):
             "answer": message.get("content", ""),
             "citations": result.get("citations", []),
             "model": result.get("model"),
-            "usage": result.get("usage", {})
+            "usage": result.get("usage", {}),
         }
 
     async def research(
-        self,
-        topic: str,
-        depth: str = "detailed",
-        focus_areas: Optional[List[str]] = None
+        self, topic: str, depth: str = "detailed", focus_areas: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Pesquisa em profundidade sobre um tópico
@@ -148,11 +127,11 @@ class PerplexityClient(BaseScraper):
         depth_prompts = {
             "brief": "Forneça uma visão geral concisa",
             "detailed": "Forneça uma análise detalhada com exemplos",
-            "comprehensive": "Forneça uma análise abrangente e aprofundada com múltiplas perspectivas"
+            "comprehensive": "Forneça uma análise abrangente e aprofundada com múltiplas perspectivas",
         }
 
         system_prompt = f"""Você é um pesquisador especializado em inteligência de mercado brasileiro.
-{depth_prompts.get(depth, depth_prompts['detailed'])}.
+{depth_prompts.get(depth, depth_prompts["detailed"])}.
 Sempre cite fontes confiáveis e foque em informações recentes e relevantes para o Brasil.
 Responda em português brasileiro."""
 
@@ -160,10 +139,7 @@ Responda em português brasileiro."""
             system_prompt += f"\n\nÁreas de foco: {', '.join(focus_areas)}"
 
         return await self.chat(
-            query=topic,
-            system_prompt=system_prompt,
-            temperature=0.3,
-            max_tokens=2048
+            query=topic, system_prompt=system_prompt, temperature=0.3, max_tokens=2048
         )
 
     # ===========================================
@@ -171,9 +147,7 @@ Responda em português brasileiro."""
     # ===========================================
 
     async def analyze_company(
-        self,
-        company_name: str,
-        analysis_type: str = "full"
+        self, company_name: str, analysis_type: str = "full"
     ) -> Dict[str, Any]:
         """
         Análise completa de uma empresa
@@ -195,7 +169,6 @@ Responda em português brasileiro."""
 6. Notícias recentes relevantes
 
 Forneça informações atualizadas e cite fontes.""",
-
             "swot": f"""Faça uma análise SWOT detalhada da empresa {company_name} no Brasil:
 - Forças (Strengths): vantagens competitivas
 - Fraquezas (Weaknesses): pontos a melhorar
@@ -203,20 +176,18 @@ Forneça informações atualizadas e cite fontes.""",
 - Ameaças (Threats): riscos e desafios
 
 Baseie sua análise em dados e notícias recentes.""",
-
             "competitors": f"""Identifique e analise os principais concorrentes da empresa {company_name} no Brasil:
 1. Liste os 3-5 principais concorrentes
 2. Compare posicionamento e market share
 3. Analise diferenciais de cada um
 4. Identifique vantagens competitivas
 5. Tendências de competição no setor""",
-
             "market": f"""Analise o mercado e setor de atuação da empresa {company_name} no Brasil:
 1. Tamanho e crescimento do mercado
 2. Principais tendências
 3. Regulamentação relevante
 4. Barreiras de entrada
-5. Perspectivas para os próximos anos"""
+5. Perspectivas para os próximos anos""",
         }
 
         system_prompt = """Você é um analista de inteligência competitiva especializado no mercado brasileiro.
@@ -229,20 +200,18 @@ Responda em português brasileiro com formatação clara."""
             system_prompt=system_prompt,
             temperature=0.3,
             max_tokens=2048,
-            search_recency_filter="month"
+            search_recency_filter="month",
         )
 
         return {
             "company_name": company_name,
             "analysis_type": analysis_type,
             "analysis": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     async def find_competitors(
-        self,
-        company_name: str,
-        industry: Optional[str] = None
+        self, company_name: str, industry: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Encontra concorrentes de uma empresa
@@ -273,20 +242,18 @@ NÃO inclua categorias genéricas, apenas nomes de empresas brasileiras reais.""
             query=query,
             system_prompt="Você é um analista de mercado. Liste APENAS nomes de empresas reais brasileiras, nunca categorias ou descrições genéricas. Use o formato numerado com negrito para os nomes.",
             temperature=0.1,
-            max_tokens=1024
+            max_tokens=1024,
         )
 
         return {
             "company_name": company_name,
             "industry": industry,
             "competitors_analysis": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     async def suggest_okrs(
-        self,
-        company_name: str,
-        context: Optional[str] = None
+        self, company_name: str, context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Sugere OKRs para uma empresa
@@ -311,13 +278,13 @@ Para cada objetivo, inclua 2-3 resultados-chave mensuráveis."""
 Sugira objetivos ambiciosos mas alcançáveis, com KRs específicos e mensuráveis.
 Considere o cenário econômico brasileiro atual.""",
             temperature=0.4,
-            max_tokens=1500
+            max_tokens=1500,
         )
 
         return {
             "company_name": company_name,
             "okrs": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     # ===========================================
@@ -325,10 +292,7 @@ Considere o cenário econômico brasileiro atual.""",
     # ===========================================
 
     async def research_person(
-        self,
-        name: str,
-        context: Optional[str] = None,
-        focus: str = "professional"
+        self, name: str, context: Optional[str] = None, focus: str = "professional"
     ) -> Dict[str, Any]:
         """
         Pesquisa sobre uma pessoa
@@ -344,7 +308,7 @@ Considere o cenário econômico brasileiro atual.""",
         focus_prompts = {
             "professional": "carreira profissional, experiências e realizações",
             "academic": "formação acadêmica, publicações e pesquisas",
-            "public": "presença pública, aparições na mídia e redes sociais"
+            "public": "presença pública, aparições na mídia e redes sociais",
         }
 
         query = f"Quem é {name}"
@@ -358,7 +322,7 @@ Considere o cenário econômico brasileiro atual.""",
 Evite especulações e foque em fatos documentados.
 Responda em português brasileiro.""",
             temperature=0.2,
-            max_tokens=1024
+            max_tokens=1024,
         )
 
         return {
@@ -366,14 +330,11 @@ Responda em português brasileiro.""",
             "context": context,
             "focus": focus,
             "profile": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     async def analyze_fit(
-        self,
-        person_name: str,
-        company_name: str,
-        role: Optional[str] = None
+        self, person_name: str, company_name: str, role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Analisa fit de uma pessoa com uma empresa
@@ -406,7 +367,7 @@ Forneça uma análise objetiva com pontuação de 1-10 para cada aspecto."""
 Forneça uma análise equilibrada considerando múltiplas perspectivas.
 Base sua análise em informações públicas disponíveis.""",
             temperature=0.3,
-            max_tokens=1500
+            max_tokens=1500,
         )
 
         return {
@@ -414,7 +375,7 @@ Base sua análise em informações públicas disponíveis.""",
             "company_name": company_name,
             "role": role,
             "fit_analysis": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     # ===========================================
@@ -426,7 +387,7 @@ Base sua análise em informações públicas disponíveis.""",
         name: str,
         role: Optional[str] = None,
         state: Optional[str] = None,
-        focus: str = "personal"
+        focus: str = "personal",
     ) -> Dict[str, Any]:
         """
         Pesquisa sobre um político (foco em perfil pessoal)
@@ -443,7 +404,7 @@ Base sua análise em informações públicas disponíveis.""",
         focus_prompts = {
             "personal": "história pessoal, família, formação e trajetória de vida",
             "career": "carreira política, cargos ocupados e principais realizações",
-            "public_perception": "percepção pública, presença nas redes sociais e imagem"
+            "public_perception": "percepção pública, presença nas redes sociais e imagem",
         }
 
         query = f"Forneça informações sobre {name}"
@@ -467,8 +428,8 @@ Responda em português brasileiro.""",
                 "camara.leg.br",
                 "senado.leg.br",
                 "wikipedia.org",
-                "politicos.org.br"
-            ]
+                "politicos.org.br",
+            ],
         )
 
         return {
@@ -477,7 +438,7 @@ Responda em português brasileiro.""",
             "state": state,
             "focus": focus,
             "profile": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }
 
     # ===========================================
@@ -485,9 +446,7 @@ Responda em português brasileiro.""",
     # ===========================================
 
     async def analyze_market(
-        self,
-        industry: str,
-        aspects: Optional[List[str]] = None
+        self, industry: str, aspects: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Análise de mercado/setor
@@ -505,11 +464,11 @@ Responda em português brasileiro.""",
                 "principais players",
                 "tendências",
                 "desafios e oportunidades",
-                "perspectivas"
+                "perspectivas",
             ]
 
         query = f"""Faça uma análise do mercado de {industry} no Brasil.
-Cubra os seguintes aspectos: {', '.join(aspects)}.
+Cubra os seguintes aspectos: {", ".join(aspects)}.
 Inclua dados e estatísticas quando disponíveis."""
 
         result = await self.chat(
@@ -519,12 +478,12 @@ Forneça análises baseadas em dados e tendências recentes.
 Cite fontes e estatísticas quando disponíveis.""",
             temperature=0.3,
             max_tokens=2048,
-            search_recency_filter="month"
+            search_recency_filter="month",
         )
 
         return {
             "industry": industry,
             "aspects": aspects,
             "analysis": result.get("answer"),
-            "citations": result.get("citations", [])
+            "citations": result.get("citations", []),
         }

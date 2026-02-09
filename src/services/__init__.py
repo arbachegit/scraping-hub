@@ -29,5 +29,5 @@ __all__ = [
     "NewsMonitorService",
     "PeopleIntelService",
     "PoliticianIntelService",
-    "RegionalIntelService"
+    "RegionalIntelService",
 ]

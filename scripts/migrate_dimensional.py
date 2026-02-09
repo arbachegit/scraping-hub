@@ -20,8 +20,8 @@ def load_env():
     with open(env_file) as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
                 value = value.strip().strip('"').strip("'")
                 if key.strip() not in os.environ:
                     os.environ[key.strip()] = value
@@ -45,8 +45,8 @@ def get_database_url():
 def copy_to_clipboard(text: str) -> bool:
     """Copia para clipboard (macOS)"""
     try:
-        p = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-        p.communicate(text.encode('utf-8'))
+        p = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+        p.communicate(text.encode("utf-8"))
         return p.returncode == 0
     except Exception:
         return False
@@ -93,6 +93,7 @@ def execute_sql(database_url: str, sql: str) -> bool:
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Migra schema dimensional")
     parser.add_argument("--url", help="DATABASE_URL")
     parser.add_argument("--copy", action="store_true", help="Copia SQL para clipboard")
@@ -117,7 +118,9 @@ def main():
     if not database_url:
         print("\nDATABASE_URL nao encontrada!")
         print("\nAdicione ao .env:")
-        print("  DATABASE_URL=postgresql://postgres.[ref]:[pass]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres")
+        print(
+            "  DATABASE_URL=postgresql://postgres.[ref]:[pass]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+        )
         print("\nOu use: python scripts/migrate_dimensional.py --copy")
         sys.exit(1)
 

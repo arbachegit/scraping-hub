@@ -13,5 +13,5 @@ __all__ = [
     "companies_router",
     "people_router",
     "politicians_router",
-    "news_router"
+    "news_router",
 ]

@@ -13,6 +13,12 @@ from .dimensional_repository import (
     FactPersonAnalysisRepository,
     FactSearchRepository,
 )
+from .fontes_repository import (
+    FontesDadosRepository,
+    get_fontes_repository,
+    registrar_fonte_api,
+    registrar_fonte_scraping,
+)
 from .repository import (
     CompanyRepository,
     PeopleRepository,
@@ -27,12 +33,6 @@ from .star_repository import (
     EmpresaRepository,
     EventoPessoaRepository,
     PessoaRepository,
-)
-from .fontes_repository import (
-    FontesDadosRepository,
-    get_fontes_repository,
-    registrar_fonte_api,
-    registrar_fonte_scraping,
 )
 
 __all__ = [

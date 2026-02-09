@@ -36,9 +36,9 @@ MOCK_CNPJ_DATA = {
         {
             "nome_socio": "DAVID VELEZ OSORNO",
             "qualificacao_socio": "Sócio-Administrador",
-            "data_entrada_sociedade": "2013-05-06"
+            "data_entrada_sociedade": "2013-05-06",
         }
-    ]
+    ],
 }
 
 MOCK_CEP_DATA = {
@@ -47,10 +47,7 @@ MOCK_CEP_DATA = {
     "neighborhood": "Pinheiros",
     "city": "São Paulo",
     "state": "SP",
-    "location": {
-        "type": "Point",
-        "coordinates": {"latitude": -23.5678, "longitude": -46.6789}
-    }
+    "location": {"type": "Point", "coordinates": {"latitude": -23.5678, "longitude": -46.6789}},
 }
 
 MOCK_SERPER_SEARCH = {
@@ -58,13 +55,13 @@ MOCK_SERPER_SEARCH = {
         {
             "title": "Nubank - Conta Digital e Cartão de Crédito",
             "link": "https://nubank.com.br",
-            "snippet": "O Nubank é o maior banco digital do Brasil..."
+            "snippet": "O Nubank é o maior banco digital do Brasil...",
         },
         {
             "title": "Nubank - LinkedIn",
             "link": "https://linkedin.com/company/nubank",
-            "snippet": "Nubank | 10.000+ funcionários"
-        }
+            "snippet": "Nubank | 10.000+ funcionários",
+        },
     ],
     "knowledgeGraph": {
         "title": "Nubank",
@@ -72,15 +69,10 @@ MOCK_SERPER_SEARCH = {
         "description": "Banco digital brasileiro",
         "website": "https://nubank.com.br",
         "founded": "2013",
-        "headquarters": "São Paulo, Brasil"
+        "headquarters": "São Paulo, Brasil",
     },
-    "relatedSearches": [
-        {"query": "nubank cartão"},
-        {"query": "nubank conta"}
-    ],
-    "peopleAlsoAsk": [
-        {"question": "Qual é o CNPJ do Nubank?"}
-    ]
+    "relatedSearches": [{"query": "nubank cartão"}, {"query": "nubank conta"}],
+    "peopleAlsoAsk": [{"question": "Qual é o CNPJ do Nubank?"}],
 }
 
 MOCK_SERPER_NEWS = {
@@ -90,7 +82,7 @@ MOCK_SERPER_NEWS = {
             "link": "https://exame.com/nubank-100mi",
             "source": "Exame",
             "date": "2024-01-15",
-            "snippet": "O banco digital brasileiro..."
+            "snippet": "O banco digital brasileiro...",
         }
     ]
 }
@@ -101,10 +93,10 @@ MOCK_TAVILY_SEARCH = {
             "title": "Nubank - Fintech Brasileira",
             "url": "https://nubank.com.br",
             "content": "Nubank é uma fintech brasileira fundada em 2013...",
-            "score": 0.95
+            "score": 0.95,
         }
     ],
-    "answer": "O Nubank é o maior banco digital da América Latina."
+    "answer": "O Nubank é o maior banco digital da América Latina.",
 }
 
 MOCK_PERPLEXITY_RESPONSE = {
@@ -117,11 +109,8 @@ MOCK_PERPLEXITY_RESPONSE = {
             }
         }
     ],
-    "citations": [
-        "https://nubank.com.br/sobre-nos",
-        "https://wikipedia.org/wiki/Nubank"
-    ],
-    "usage": {}
+    "citations": ["https://nubank.com.br/sobre-nos", "https://wikipedia.org/wiki/Nubank"],
+    "usage": {},
 }
 
 MOCK_APOLLO_PERSON = {
@@ -131,12 +120,9 @@ MOCK_APOLLO_PERSON = {
         "last_name": "Vélez",
         "name": "David Vélez",
         "title": "CEO",
-        "organization": {
-            "name": "Nubank",
-            "website_url": "https://nubank.com.br"
-        },
+        "organization": {"name": "Nubank", "website_url": "https://nubank.com.br"},
         "email": "david@nubank.com.br",
-        "linkedin_url": "https://linkedin.com/in/davidvelez"
+        "linkedin_url": "https://linkedin.com/in/davidvelez",
     }
 }
 
@@ -148,7 +134,7 @@ MOCK_APOLLO_ORGANIZATION = {
         "linkedin_url": "https://linkedin.com/company/nubank",
         "estimated_num_employees": 10000,
         "industry": "Financial Services",
-        "founded_year": 2013
+        "founded_year": 2013,
     }
 }
 
@@ -156,6 +142,7 @@ MOCK_APOLLO_ORGANIZATION = {
 # ===========================================
 # FIXTURES
 # ===========================================
+
 
 @pytest.fixture
 def mock_httpx_client():
@@ -183,6 +170,7 @@ def mock_settings():
 def brasil_api_client():
     """Fixture para BrasilAPIClient"""
     from src.scrapers import BrasilAPIClient
+
     return BrasilAPIClient()
 
 
@@ -190,6 +178,7 @@ def brasil_api_client():
 def serper_client(mock_settings):
     """Fixture para SerperClient"""
     from src.scrapers import SerperClient
+
     return SerperClient(api_key="test_key")
 
 
@@ -197,6 +186,7 @@ def serper_client(mock_settings):
 def tavily_client(mock_settings):
     """Fixture para TavilyClient"""
     from src.scrapers import TavilyClient
+
     return TavilyClient(api_key="test_key")
 
 
@@ -204,6 +194,7 @@ def tavily_client(mock_settings):
 def perplexity_client(mock_settings):
     """Fixture para PerplexityClient"""
     from src.scrapers import PerplexityClient
+
     return PerplexityClient(api_key="test_key")
 
 
@@ -211,12 +202,14 @@ def perplexity_client(mock_settings):
 def apollo_client(mock_settings):
     """Fixture para ApolloClient"""
     from src.scrapers import ApolloClient
+
     return ApolloClient(api_key="test_key")
 
 
 # ===========================================
 # API TEST FIXTURES
 # ===========================================
+
 
 @pytest.fixture
 def mock_jwt_token():

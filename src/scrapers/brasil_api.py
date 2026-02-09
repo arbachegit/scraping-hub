@@ -39,14 +39,11 @@ class BrasilAPIClient(BaseScraper):
             api_key="",
             base_url="https://brasilapi.com.br/api",
             rate_limit=60,  # Sem limite oficial, mas ser conservador
-            timeout=timeout
+            timeout=timeout,
         )
 
     def _get_headers(self) -> Dict[str, str]:
-        return {
-            "Accept": "application/json",
-            "User-Agent": "ScrapingHub/2.0"
-        }
+        return {"Accept": "application/json", "User-Agent": "ScrapingHub/2.0"}
 
     async def get_cnpj(self, cnpj: str) -> Dict[str, Any]:
         """
@@ -84,7 +81,7 @@ class BrasilAPIClient(BaseScraper):
         porte_map = {
             "MICRO EMPRESA": "micro",
             "EMPRESA DE PEQUENO PORTE": "pequena",
-            "DEMAIS": "media_grande"
+            "DEMAIS": "media_grande",
         }
 
         return {
@@ -96,14 +93,12 @@ class BrasilAPIClient(BaseScraper):
             "data_abertura": data.get("data_inicio_atividade"),
             "capital_social": data.get("capital_social"),
             "porte": porte_map.get(data.get("porte", ""), data.get("porte")),
-
             # Atividade
             "cnae_principal": {
                 "codigo": data.get("cnae_fiscal"),
-                "descricao": data.get("cnae_fiscal_descricao")
+                "descricao": data.get("cnae_fiscal_descricao"),
             },
             "cnaes_secundarios": data.get("cnaes_secundarios", []),
-
             # Endereço
             "endereco": {
                 "logradouro": data.get("logradouro"),
@@ -112,25 +107,22 @@ class BrasilAPIClient(BaseScraper):
                 "bairro": data.get("bairro"),
                 "cep": data.get("cep"),
                 "municipio": data.get("municipio"),
-                "uf": data.get("uf")
+                "uf": data.get("uf"),
             },
-
             # Contato
             "telefone": data.get("ddd_telefone_1"),
             "email": data.get("email"),
-
             # Sócios
             "socios": [
                 {
                     "nome": s.get("nome_socio"),
                     "qualificacao": s.get("qualificacao_socio"),
-                    "data_entrada": s.get("data_entrada_sociedade")
+                    "data_entrada": s.get("data_entrada_sociedade"),
                 }
                 for s in data.get("qsa", [])
             ],
-
             # Dados originais
-            "raw_data": data
+            "raw_data": data,
         }
 
     async def get_cep(self, cep: str) -> Dict[str, Any]:
@@ -157,7 +149,7 @@ class BrasilAPIClient(BaseScraper):
                 "cidade": result.get("city"),
                 "estado": result.get("state"),
                 "location": result.get("location", {}),
-                "raw_data": result
+                "raw_data": result,
             }
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -194,6 +186,6 @@ class BrasilAPIClient(BaseScraper):
         """
         logger.warning(
             "brasil_api_name_search_not_supported",
-            message="Use SerperClient para buscar CNPJ por nome da empresa"
+            message="Use SerperClient para buscar CNPJ por nome da empresa",
         )
         return None

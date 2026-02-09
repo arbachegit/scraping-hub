@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v2/person", tags=["People"])
 # SCHEMAS
 # ===========================================
 
+
 class PersonAnalyzeRequest(BaseModel):
     name: str
     company: Optional[str] = None
@@ -49,10 +50,10 @@ class QuickLookupRequest(BaseModel):
 # ENDPOINTS
 # ===========================================
 
+
 @router.post("/analyze")
 async def analyze_person(
-    request: PersonAnalyzeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: PersonAnalyzeRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Análise completa de pessoa
@@ -63,11 +64,7 @@ async def analyze_person(
     - Habilidades identificadas
     - Análise AI
     """
-    logger.info(
-        "api_person_analyze",
-        user=current_user.email,
-        person=request.name
-    )
+    logger.info("api_person_analyze", user=current_user.email, person=request.name)
 
     try:
         async with PeopleIntelService() as service:
@@ -76,7 +73,7 @@ async def analyze_person(
                 company=request.company,
                 role=request.role,
                 linkedin_url=request.linkedin_url,
-                analysis_type=request.analysis_type
+                analysis_type=request.analysis_type,
             )
             return result
 
@@ -87,24 +84,16 @@ async def analyze_person(
 
 @router.post("/quick")
 async def quick_lookup(
-    request: QuickLookupRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: QuickLookupRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Busca rápida de pessoa (dados básicos)
     """
-    logger.info(
-        "api_person_quick",
-        user=current_user.email,
-        person=request.name
-    )
+    logger.info("api_person_quick", user=current_user.email, person=request.name)
 
     try:
         async with PeopleIntelService() as service:
-            result = await service.quick_lookup(
-                name=request.name,
-                company=request.company
-            )
+            result = await service.quick_lookup(name=request.name, company=request.company)
             return result
 
     except Exception as e:
@@ -116,25 +105,22 @@ async def quick_lookup(
 async def search_person(
     name: str = Query(..., description="Nome da pessoa"),
     company: Optional[str] = Query(None, description="Empresa"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca pessoa por nome
     """
-    return await quick_lookup(
-        QuickLookupRequest(name=name, company=company),
-        current_user
-    )
+    return await quick_lookup(QuickLookupRequest(name=name, company=company), current_user)
 
 
 # ===========================================
 # FIT ANALYSIS
 # ===========================================
 
+
 @router.post("/fit-analysis")
 async def analyze_fit(
-    request: FitAnalysisRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: FitAnalysisRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Analisa fit cultural entre pessoa e empresa
@@ -143,7 +129,7 @@ async def analyze_fit(
         "api_person_fit",
         user=current_user.email,
         person=request.person_name,
-        company=request.company_name
+        company=request.company_name,
     )
 
     try:
@@ -151,7 +137,7 @@ async def analyze_fit(
             result = await service.analyze_fit(
                 person_name=request.person_name,
                 company_name=request.company_name,
-                role=request.role
+                role=request.role,
             )
             return result
 
@@ -162,8 +148,7 @@ async def analyze_fit(
 
 @router.post("/compare-candidates")
 async def compare_candidates(
-    request: CompareCandidatesRequest,
-    current_user: TokenData = Depends(get_current_user)
+    request: CompareCandidatesRequest, current_user: TokenData = Depends(get_current_user)
 ):
     """
     Compara múltiplos candidatos para uma vaga
@@ -172,27 +157,19 @@ async def compare_candidates(
         "api_person_compare",
         user=current_user.email,
         candidates=request.candidates,
-        company=request.company_name
+        company=request.company_name,
     )
 
     if len(request.candidates) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Mínimo de 2 candidatos para comparação"
-        )
+        raise HTTPException(status_code=400, detail="Mínimo de 2 candidatos para comparação")
 
     if len(request.candidates) > 5:
-        raise HTTPException(
-            status_code=400,
-            detail="Máximo de 5 candidatos por comparação"
-        )
+        raise HTTPException(status_code=400, detail="Máximo de 5 candidatos por comparação")
 
     try:
         async with PeopleIntelService() as service:
             result = await service.compare_candidates(
-                candidates=request.candidates,
-                company_name=request.company_name,
-                role=request.role
+                candidates=request.candidates, company_name=request.company_name, role=request.role
             )
             return result
 
@@ -205,27 +182,21 @@ async def compare_candidates(
 # CAREER
 # ===========================================
 
+
 @router.get("/career/{name}")
 async def get_career_history(
     name: str,
     linkedin_url: Optional[str] = Query(None, description="URL do LinkedIn"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca histórico de carreira
     """
-    logger.info(
-        "api_person_career",
-        user=current_user.email,
-        person=name
-    )
+    logger.info("api_person_career", user=current_user.email, person=name)
 
     try:
         async with PeopleIntelService() as service:
-            result = await service.get_career_history(
-                name=name,
-                linkedin_url=linkedin_url
-            )
+            result = await service.get_career_history(name=name, linkedin_url=linkedin_url)
             return result
 
     except Exception as e:
@@ -237,22 +208,19 @@ async def get_career_history(
 # EMPLOYEES SEARCH
 # ===========================================
 
+
 @router.get("/employees")
 async def search_employees(
     company: str = Query(..., description="Nome da empresa"),
     seniority: Optional[str] = Query(None, description="c_suite, director, manager, senior"),
     title: Optional[str] = Query(None, description="Cargo específico"),
     limit: int = Query(25, le=100),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca funcionários de uma empresa
     """
-    logger.info(
-        "api_employees_search",
-        user=current_user.email,
-        company=company
-    )
+    logger.info("api_employees_search", user=current_user.email, company=company)
 
     try:
         filters = {}
@@ -263,9 +231,7 @@ async def search_employees(
 
         async with PeopleIntelService() as service:
             result = await service.search_employees(
-                company_name=company,
-                filters=filters,
-                limit=limit
+                company_name=company, filters=filters, limit=limit
             )
             return result
 
@@ -278,24 +244,19 @@ async def search_employees(
 async def get_decision_makers(
     company: str = Query(..., description="Nome da empresa"),
     departments: Optional[str] = Query(None, description="Departamentos (separados por vírgula)"),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
     Busca tomadores de decisão de uma empresa
     """
-    logger.info(
-        "api_dm_search",
-        user=current_user.email,
-        company=company
-    )
+    logger.info("api_dm_search", user=current_user.email, company=company)
 
     try:
         dept_list = departments.split(",") if departments else None
 
         async with PeopleIntelService() as service:
             result = await service.search_decision_makers(
-                company_name=company,
-                departments=dept_list
+                company_name=company, departments=dept_list
             )
             return result
 

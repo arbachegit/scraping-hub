@@ -3,12 +3,12 @@ IconsAI Scraping v2.0 - Tests for Services
 Testes básicos para os serviços de inteligência
 """
 
-
 import pytest
 
 # ===========================================
 # AI ANALYZER TESTS
 # ===========================================
+
 
 class TestAIAnalyzer:
     """Testes para AIAnalyzer service"""
@@ -47,6 +47,7 @@ class TestAIAnalyzer:
 # COMPANY INTEL TESTS
 # ===========================================
 
+
 class TestCompanyIntelService:
     """Testes para CompanyIntelService"""
 
@@ -69,6 +70,7 @@ class TestCompanyIntelService:
 # ===========================================
 # PEOPLE INTEL TESTS
 # ===========================================
+
 
 class TestPeopleIntelService:
     """Testes para PeopleIntelService"""
@@ -93,6 +95,7 @@ class TestPeopleIntelService:
 # POLITICIAN INTEL TESTS
 # ===========================================
 
+
 class TestPoliticianIntelService:
     """Testes para PoliticianIntelService"""
 
@@ -116,6 +119,7 @@ class TestPoliticianIntelService:
 # NEWS MONITOR TESTS
 # ===========================================
 
+
 class TestNewsMonitorService:
     """Testes para NewsMonitorService"""
 
@@ -138,6 +142,7 @@ class TestNewsMonitorService:
 # ===========================================
 # COMPETITOR ANALYSIS TESTS
 # ===========================================
+
 
 class TestCompetitorAnalysisService:
     """Testes para CompetitorAnalysisService"""

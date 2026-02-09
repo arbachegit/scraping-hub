@@ -39,6 +39,7 @@ class NewsMonitorService:
         # Repository para persistência
         try:
             from src.database import SearchHistoryRepository, SearchRepository
+
             self.search_history = SearchHistoryRepository()
             self.cache_repository = SearchRepository()
         except Exception:
@@ -51,7 +52,7 @@ class NewsMonitorService:
             self.serper.close(),
             self.tavily.close(),
             self.perplexity.close(),
-            self.ai_analyzer.close()
+            self.ai_analyzer.close(),
         )
 
     async def search_news(
@@ -61,7 +62,7 @@ class NewsMonitorService:
         max_results: int = 20,
         sources: Optional[List[str]] = None,
         sentiment_filter: Optional[str] = None,
-        include_ai_analysis: bool = True
+        include_ai_analysis: bool = True,
     ) -> Dict[str, Any]:
         """
         Busca notícias por query COM ANÁLISE AI CONSOLIDADA
@@ -86,7 +87,7 @@ class NewsMonitorService:
             self.perplexity.research(
                 f"Quais são as principais notícias e desenvolvimentos recentes sobre '{query}'? "
                 "Forneça um resumo consolidado das informações mais relevantes."
-            )
+            ),
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -124,10 +125,7 @@ class NewsMonitorService:
             unique_news = [n for n in unique_news if n.get("sentiment") == sentiment_filter]
 
         # Ordenar por data
-        unique_news.sort(
-            key=lambda x: x.get("published_at", ""),
-            reverse=True
-        )
+        unique_news.sort(key=lambda x: x.get("published_at", ""), reverse=True)
 
         final_news = unique_news[:max_results]
 
@@ -143,9 +141,7 @@ class NewsMonitorService:
         if include_ai_analysis and final_news:
             try:
                 ai_consolidated = await self.ai_analyzer.consolidate_news_insights(
-                    news_data=final_news,
-                    topic=query,
-                    context=perplexity_summary
+                    news_data=final_news, topic=query, context=perplexity_summary
                 )
             except Exception as e:
                 logger.warning("news_ai_consolidation_error", error=str(e))
@@ -157,7 +153,7 @@ class NewsMonitorService:
             "perplexity_summary": perplexity_summary,
             "ai_consolidated_analysis": ai_consolidated,
             "sentiment_distribution": self._calculate_sentiment_distribution(unique_news),
-            "sources": perplexity_citations
+            "sources": perplexity_citations,
         }
 
         # Salvar no banco de dados
@@ -166,7 +162,7 @@ class NewsMonitorService:
                 await self.search_history.save_search(
                     search_type="news_search",
                     query={"query": query, "days": days, "max_results": max_results},
-                    results_count=len(final_news)
+                    results_count=len(final_news),
                 )
 
         # Cache de resultado
@@ -176,7 +172,7 @@ class NewsMonitorService:
                     search_type="news",
                     query=query,
                     result=result,
-                    ttl_hours=2  # Notícias expiram em 2 horas
+                    ttl_hours=2,  # Notícias expiram em 2 horas
                 )
 
         return result
@@ -202,7 +198,7 @@ class NewsMonitorService:
                 "content": item.get("snippet"),
                 "published_at": item.get("date"),
                 "image_url": item.get("imageUrl"),
-                "data_source": "serper"
+                "data_source": "serper",
             }
         elif source == "tavily":
             return {
@@ -212,13 +208,14 @@ class NewsMonitorService:
                 "content": item.get("content"),
                 "published_at": item.get("published_date"),
                 "relevance_score": item.get("score"),
-                "data_source": "tavily"
+                "data_source": "tavily",
             }
         return item
 
     def _extract_domain(self, url: str) -> str:
         """Extrai domínio de URL"""
         from urllib.parse import urlparse
+
         try:
             return urlparse(url).netloc.replace("www.", "")
         except Exception:
@@ -229,15 +226,37 @@ class NewsMonitorService:
         text_lower = text.lower()
 
         positive_words = [
-            "crescimento", "sucesso", "lucro", "expansão", "inovação",
-            "investimento", "alta", "aumento", "ganho", "melhora",
-            "positivo", "otimismo", "recorde", "conquista"
+            "crescimento",
+            "sucesso",
+            "lucro",
+            "expansão",
+            "inovação",
+            "investimento",
+            "alta",
+            "aumento",
+            "ganho",
+            "melhora",
+            "positivo",
+            "otimismo",
+            "recorde",
+            "conquista",
         ]
 
         negative_words = [
-            "crise", "queda", "prejuízo", "demissão", "problema",
-            "escândalo", "processo", "falência", "perda", "redução",
-            "negativo", "pessimismo", "risco", "preocupação"
+            "crise",
+            "queda",
+            "prejuízo",
+            "demissão",
+            "problema",
+            "escândalo",
+            "processo",
+            "falência",
+            "perda",
+            "redução",
+            "negativo",
+            "pessimismo",
+            "risco",
+            "preocupação",
         ]
 
         positive_count = sum(1 for word in positive_words if word in text_lower)
@@ -258,10 +277,7 @@ class NewsMonitorService:
         return distribution
 
     async def get_company_news(
-        self,
-        company_name: str,
-        days: int = 30,
-        include_analysis: bool = True
+        self, company_name: str, days: int = 30, include_analysis: bool = True
     ) -> Dict[str, Any]:
         """
         Busca notícias sobre uma empresa
@@ -284,7 +300,7 @@ class NewsMonitorService:
             "news": news.get("news", []),
             "total": news.get("total", 0),
             "sentiment_distribution": news.get("sentiment_distribution"),
-            "summary": news.get("summary")
+            "summary": news.get("summary"),
         }
 
         # Análise AI se solicitado
@@ -294,19 +310,11 @@ class NewsMonitorService:
 
         return result
 
-    async def _analyze_news_batch(
-        self,
-        entity_name: str,
-        news_items: List[Dict]
-    ) -> Dict[str, Any]:
+    async def _analyze_news_batch(self, entity_name: str, news_items: List[Dict]) -> Dict[str, Any]:
         """Analisa um conjunto de notícias"""
         # Preparar resumo das notícias
         news_summary = [
-            {
-                "title": n.get("title"),
-                "sentiment": n.get("sentiment"),
-                "source": n.get("source")
-            }
+            {"title": n.get("title"), "sentiment": n.get("sentiment"), "source": n.get("source")}
             for n in news_items[:10]
         ]
 
@@ -321,8 +329,7 @@ Notícias:
 
         try:
             analysis = await self.ai_analyzer._call_claude(
-                prompt,
-                system="Você é um analista de mídia. Responda de forma concisa e objetiva."
+                prompt, system="Você é um analista de mídia. Responda de forma concisa e objetiva."
             )
             return {"ai_analysis": analysis}
         except Exception as e:
@@ -330,10 +337,7 @@ Notícias:
             return {"ai_analysis": None}
 
     async def get_sector_news(
-        self,
-        sector: str,
-        days: int = 7,
-        country: str = "Brasil"
+        self, sector: str, days: int = 7, country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
         Busca notícias de um setor
@@ -360,13 +364,11 @@ Notícias:
             "news": news.get("news", []),
             "total": news.get("total", 0),
             "market_context": context.get("analysis"),
-            "sentiment_distribution": news.get("sentiment_distribution")
+            "sentiment_distribution": news.get("sentiment_distribution"),
         }
 
     async def get_economic_scenario(
-        self,
-        aspects: Optional[List[str]] = None,
-        country: str = "Brasil"
+        self, aspects: Optional[List[str]] = None, country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
         Busca cenário econômico atual COM ANÁLISE AI PROFUNDA
@@ -386,7 +388,7 @@ Notícias:
                 "taxa de juros SELIC",
                 "PIB crescimento",
                 "câmbio dólar",
-                "emprego desemprego"
+                "emprego desemprego",
             ]
 
         # Coletar dados de todas as fontes em paralelo
@@ -395,13 +397,13 @@ Notícias:
                 f"Faça uma análise COMPLETA do cenário econômico do {country} em {datetime.utcnow().strftime('%B %Y')}. "
                 f"Inclua: inflação atual e projeções, taxa SELIC e perspectivas, PIB e crescimento, "
                 f"câmbio e tendências, mercado de trabalho. Qual é a perspectiva para os próximos meses?",
-                depth="detailed"
+                depth="detailed",
             ),
             "tavily_economy": self.tavily.search(
                 f"cenário econômico {country} {datetime.utcnow().strftime('%Y')}",
                 search_depth="advanced",
                 include_answer=True,
-                max_results=10
+                max_results=10,
             ),
             "serper_news": self.serper.search_news(f"economia {country}", num=15, tbs="qdr:w"),
         }
@@ -412,7 +414,7 @@ Notícias:
                 f"{aspect} {country} {datetime.utcnow().strftime('%B %Y')}",
                 search_depth="basic",
                 include_answer=True,
-                max_results=3
+                max_results=3,
             )
 
         task_names = list(tasks.keys())
@@ -429,7 +431,7 @@ Notícias:
             data = collected.get(key, {})
             aspects_data[aspect] = {
                 "summary": data.get("answer", "Dados não disponíveis"),
-                "sources": [r.get("url") for r in data.get("results", [])]
+                "sources": [r.get("url") for r in data.get("results", [])],
             }
 
         # Coletar todas as notícias
@@ -448,10 +450,10 @@ Notícias:
 
         if all_news or perplexity_overview.get("answer"):
             context = f"""## Análise Perplexity
-{perplexity_overview.get('answer', '')}
+{perplexity_overview.get("answer", "")}
 
 ## Análise Tavily
-{collected.get('tavily_economy', {}).get('answer', '')}
+{collected.get("tavily_economy", {}).get("answer", "")}
 
 ## Aspectos Econômicos
 """
@@ -460,9 +462,7 @@ Notícias:
 
             try:
                 ai_analysis = await self.ai_analyzer.consolidate_news_insights(
-                    news_data=all_news[:15],
-                    topic=f"cenário econômico {country}",
-                    context=context
+                    news_data=all_news[:15], topic=f"cenário econômico {country}", context=context
                 )
             except Exception as e:
                 logger.warning("economic_ai_error", error=str(e))
@@ -475,13 +475,11 @@ Notícias:
             "aspects": aspects_data,
             "recent_news": all_news[:15],
             "sentiment": self._calculate_sentiment_distribution(all_news),
-            "sources": perplexity_overview.get("citations", [])
+            "sources": perplexity_overview.get("citations", []),
         }
 
     async def get_trending_topics(
-        self,
-        category: Optional[str] = None,
-        country: str = "Brasil"
+        self, category: Optional[str] = None, country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
         Busca tópicos em alta com análise AI
@@ -505,8 +503,8 @@ Notícias:
             self.perplexity.research(
                 f"Quais são as principais tendências e assuntos em alta no setor de {cat} no {country} hoje? "
                 f"Liste os 5-10 tópicos mais relevantes do momento.",
-                depth="detailed"
-            )
+                depth="detailed",
+            ),
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -541,7 +539,7 @@ Notícias:
                 analysis_prompt = f"Com base nestas manchetes recentes, quais são os principais assuntos em alta?\n{titles}"
                 ai_result = await self.ai_analyzer._call_claude(
                     analysis_prompt,
-                    system="Você é um analista de tendências. Identifique os principais temas em destaque."
+                    system="Você é um analista de tendências. Identifique os principais temas em destaque.",
                 )
                 trends_analysis = ai_result
             except Exception as e:
@@ -554,7 +552,7 @@ Notícias:
             "trending_topics": topics[:15],
             "recent_news": unique_news[:15],
             "ai_analysis": ai_trends.get("answer"),
-            "sources": ai_trends.get("citations", []) + trends_data.get("sources", [])
+            "sources": ai_trends.get("citations", []) + trends_data.get("sources", []),
         }
 
     def _extract_trending_topics(self, news_items: List[Dict]) -> List[str]:
@@ -564,16 +562,38 @@ Notícias:
 
         # Palavras para ignorar
         stopwords = {
-            "de", "da", "do", "em", "para", "com", "que", "uma", "um",
-            "os", "as", "por", "no", "na", "se", "não", "mais", "seu",
-            "sua", "como", "sobre", "após", "entre", "ser", "está"
+            "de",
+            "da",
+            "do",
+            "em",
+            "para",
+            "com",
+            "que",
+            "uma",
+            "um",
+            "os",
+            "as",
+            "por",
+            "no",
+            "na",
+            "se",
+            "não",
+            "mais",
+            "seu",
+            "sua",
+            "como",
+            "sobre",
+            "após",
+            "entre",
+            "ser",
+            "está",
         }
 
         words = []
         for item in news_items:
             title = item.get("title", "")
             # Extrair palavras significativas
-            title_words = re.findall(r'\b[A-Za-zÀ-ú]{4,}\b', title)
+            title_words = re.findall(r"\b[A-Za-zÀ-ú]{4,}\b", title)
             words.extend([w.lower() for w in title_words if w.lower() not in stopwords])
 
         # Contar frequência
@@ -584,7 +604,7 @@ Notícias:
         self,
         entity_name: str,
         entity_type: str = "company",
-        alert_keywords: Optional[List[str]] = None
+        alert_keywords: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Monitora uma entidade para alertas
@@ -614,11 +634,13 @@ Notícias:
             text = (item.get("title", "") + " " + item.get("content", "")).lower()
             for keyword in alert_keywords:
                 if keyword.lower() in text:
-                    alerts.append({
-                        "keyword": keyword,
-                        "news_item": item,
-                        "severity": "high" if item.get("sentiment") == "negative" else "medium"
-                    })
+                    alerts.append(
+                        {
+                            "keyword": keyword,
+                            "news_item": item,
+                            "severity": "high" if item.get("sentiment") == "negative" else "medium",
+                        }
+                    )
                     break
 
         return {
@@ -629,13 +651,11 @@ Notícias:
             "alerts": alerts,
             "alert_count": len(alerts),
             "has_critical_alerts": any(a.get("severity") == "high" for a in alerts),
-            "sentiment_distribution": news.get("sentiment_distribution")
+            "sentiment_distribution": news.get("sentiment_distribution"),
         }
 
     async def get_daily_briefing(
-        self,
-        topics: List[str],
-        country: str = "Brasil"
+        self, topics: List[str], country: str = "Brasil"
     ) -> Dict[str, Any]:
         """
         Gera briefing diário de notícias
@@ -649,11 +669,7 @@ Notícias:
         """
         logger.info("news_briefing", topics=topics)
 
-        briefing = {
-            "date": datetime.utcnow().date().isoformat(),
-            "country": country,
-            "topics": {}
-        }
+        briefing = {"date": datetime.utcnow().date().isoformat(), "country": country, "topics": {}}
 
         # Buscar notícias para cada tópico
         for topic in topics:
@@ -661,16 +677,13 @@ Notícias:
             briefing["topics"][topic] = {
                 "top_news": news.get("news", [])[:5],
                 "summary": news.get("summary"),
-                "sentiment": news.get("sentiment_distribution")
+                "sentiment": news.get("sentiment_distribution"),
             }
 
         # Visão geral do dia
         overview_query = f"principais notícias {country} hoje"
         overview = await self.tavily.search(
-            overview_query,
-            search_depth="basic",
-            include_answer=True,
-            max_results=5
+            overview_query, search_depth="basic", include_answer=True, max_results=5
         )
 
         briefing["day_overview"] = overview.get("answer")

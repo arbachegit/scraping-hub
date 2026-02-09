@@ -14,6 +14,7 @@ from api.main import app
 # FIXTURES
 # ===========================================
 
+
 @pytest.fixture
 def client():
     """Cliente de teste para a API"""
@@ -24,11 +25,7 @@ def client():
 def mock_auth():
     """Mock da autenticação"""
     with patch("api.auth.get_current_user") as mock:
-        mock.return_value = MagicMock(
-            email="test@test.com",
-            user_id="1",
-            role="admin"
-        )
+        mock.return_value = MagicMock(email="test@test.com", user_id="1", role="admin")
         yield mock
 
 
@@ -42,6 +39,7 @@ def auth_headers():
 # ===========================================
 # HEALTH & ROOT TESTS
 # ===========================================
+
 
 class TestHealthEndpoints:
     """Testes para endpoints de saúde"""
@@ -70,6 +68,7 @@ class TestHealthEndpoints:
 # AUTH TESTS
 # ===========================================
 
+
 class TestAuthEndpoints:
     """Testes para endpoints de autenticação"""
 
@@ -80,13 +79,12 @@ class TestAuthEndpoints:
                 "id": "1",
                 "email": "admin@iconsai.ai",
                 "name": "Admin",
-                "role": "admin"
+                "role": "admin",
             }
 
-            response = client.post("/auth/login", json={
-                "email": "admin@iconsai.ai",
-                "password": "admin123"
-            })
+            response = client.post(
+                "/auth/login", json={"email": "admin@iconsai.ai", "password": "admin123"}
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -98,29 +96,20 @@ class TestAuthEndpoints:
         with patch("api.main.authenticate_user") as mock_auth:
             mock_auth.return_value = None
 
-            response = client.post("/auth/login", json={
-                "email": "wrong@test.com",
-                "password": "wrongpassword"
-            })
+            response = client.post(
+                "/auth/login", json={"email": "wrong@test.com", "password": "wrongpassword"}
+            )
 
             assert response.status_code == 401
 
     def test_get_me_authenticated(self, client, mock_auth):
         """Testa obter usuário atual"""
-        mock_user = {
-            "id": "1",
-            "email": "test@test.com",
-            "name": "Test User",
-            "role": "admin"
-        }
+        mock_user = {"id": "1", "email": "test@test.com", "name": "Test User", "role": "admin"}
 
         with patch("api.auth.get_user_from_db", new_callable=AsyncMock) as mock_get_user:
             mock_get_user.return_value = mock_user
 
-            response = client.get(
-                "/auth/me",
-                headers={"Authorization": "Bearer test_token"}
-            )
+            response = client.get("/auth/me", headers={"Authorization": "Bearer test_token"})
 
             # O mock_auth já configura o usuário
             assert response.status_code == 200 or response.status_code == 401
@@ -129,6 +118,7 @@ class TestAuthEndpoints:
 # ===========================================
 # COMPANY ENDPOINTS TESTS
 # ===========================================
+
 
 class TestCompanyEndpoints:
     """Testes para endpoints de empresas"""
@@ -143,21 +133,16 @@ class TestCompanyEndpoints:
             service.analyze_company.return_value = {
                 "company": {"name": "Nubank"},
                 "swot": {"strengths": ["Inovação"]},
-                "okrs": {"objectives": []}
+                "okrs": {"objectives": []},
             }
-            service.quick_lookup.return_value = {
-                "cnpj": "19131243000197",
-                "razao_social": "NUBANK"
-            }
+            service.quick_lookup.return_value = {"cnpj": "19131243000197", "razao_social": "NUBANK"}
             service.get_swot.return_value = {
                 "strengths": ["Inovação"],
                 "weaknesses": [],
                 "opportunities": [],
-                "threats": []
+                "threats": [],
             }
-            service.get_okrs.return_value = {
-                "objectives": []
-            }
+            service.get_okrs.return_value = {"objectives": []}
 
             yield service
 
@@ -166,7 +151,7 @@ class TestCompanyEndpoints:
         response = client.post(
             "/api/v2/company/analyze",
             json={"name": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         # Pode falhar por auth em teste, verificar estrutura
@@ -177,7 +162,7 @@ class TestCompanyEndpoints:
         response = client.post(
             "/api/v2/company/quick",
             json={"name": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -187,7 +172,7 @@ class TestCompanyEndpoints:
         response = client.post(
             "/api/v2/company/swot",
             json={"name": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -197,7 +182,7 @@ class TestCompanyEndpoints:
         response = client.post(
             "/api/v2/company/okrs",
             json={"name": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -205,8 +190,7 @@ class TestCompanyEndpoints:
     def test_search_company(self, client, mock_auth, mock_company_service):
         """Testa busca de empresa"""
         response = client.get(
-            "/api/v2/company/search?name=Nubank",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/company/search?name=Nubank", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -215,6 +199,7 @@ class TestCompanyEndpoints:
 # ===========================================
 # PEOPLE ENDPOINTS TESTS
 # ===========================================
+
 
 class TestPeopleEndpoints:
     """Testes para endpoints de pessoas"""
@@ -228,25 +213,18 @@ class TestPeopleEndpoints:
 
             service.analyze_person.return_value = {
                 "name": "João Silva",
-                "profile": {"summary": "Profissional experiente"}
+                "profile": {"summary": "Profissional experiente"},
             }
             service.quick_lookup.return_value = {
                 "name": "João Silva",
-                "linkedin": "https://linkedin.com/in/joaosilva"
+                "linkedin": "https://linkedin.com/in/joaosilva",
             }
-            service.analyze_fit.return_value = {
-                "fit_score": 0.85,
-                "analysis": "Boa adequação"
-            }
-            service.search_employees.return_value = {
-                "people": [{"name": "João Silva"}]
-            }
+            service.analyze_fit.return_value = {"fit_score": 0.85, "analysis": "Boa adequação"}
+            service.search_employees.return_value = {"people": [{"name": "João Silva"}]}
             service.search_decision_makers.return_value = {
                 "people": [{"name": "CEO", "title": "CEO"}]
             }
-            service.compare_candidates.return_value = {
-                "ranking": []
-            }
+            service.compare_candidates.return_value = {"ranking": []}
 
             yield service
 
@@ -255,7 +233,7 @@ class TestPeopleEndpoints:
         response = client.post(
             "/api/v2/person/analyze",
             json={"name": "João Silva", "company": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -265,7 +243,7 @@ class TestPeopleEndpoints:
         response = client.post(
             "/api/v2/person/quick",
             json={"name": "João Silva"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -275,7 +253,7 @@ class TestPeopleEndpoints:
         response = client.post(
             "/api/v2/person/fit-analysis",
             json={"person_name": "João Silva", "company_name": "Nubank"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -287,9 +265,9 @@ class TestPeopleEndpoints:
             json={
                 "candidates": ["João"],  # Menos de 2
                 "company_name": "Nubank",
-                "role": "Engenheiro"
+                "role": "Engenheiro",
             },
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         # Deve retornar 400 por validação ou 401 por auth
@@ -302,9 +280,9 @@ class TestPeopleEndpoints:
             json={
                 "candidates": ["A", "B", "C", "D", "E", "F"],  # Mais de 5
                 "company_name": "Nubank",
-                "role": "Engenheiro"
+                "role": "Engenheiro",
             },
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [400, 401, 422]
@@ -313,7 +291,7 @@ class TestPeopleEndpoints:
         """Testa busca de funcionários"""
         response = client.get(
             "/api/v2/person/employees?company=Nubank",
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401]
@@ -322,7 +300,7 @@ class TestPeopleEndpoints:
         """Testa busca de tomadores de decisão"""
         response = client.get(
             "/api/v2/person/decision-makers?company=Nubank",
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401]
@@ -331,6 +309,7 @@ class TestPeopleEndpoints:
 # ===========================================
 # POLITICIAN ENDPOINTS TESTS
 # ===========================================
+
 
 class TestPoliticianEndpoints:
     """Testes para endpoints de políticos"""
@@ -344,24 +323,12 @@ class TestPoliticianEndpoints:
 
             service.analyze_politician.return_value = {
                 "name": "João da Silva",
-                "profile": {"summary": "Político experiente"}
+                "profile": {"summary": "Político experiente"},
             }
-            service.quick_lookup.return_value = {
-                "name": "João da Silva",
-                "role": "prefeito"
-            }
-            service.get_public_perception.return_value = {
-                "sentiment": "positive",
-                "mentions": []
-            }
-            service.get_personal_history.return_value = {
-                "education": [],
-                "career": []
-            }
-            service.get_media_presence.return_value = {
-                "social_media": {},
-                "news_mentions": []
-            }
+            service.quick_lookup.return_value = {"name": "João da Silva", "role": "prefeito"}
+            service.get_public_perception.return_value = {"sentiment": "positive", "mentions": []}
+            service.get_personal_history.return_value = {"education": [], "career": []}
+            service.get_media_presence.return_value = {"social_media": {}, "news_mentions": []}
 
             yield service
 
@@ -370,7 +337,7 @@ class TestPoliticianEndpoints:
         response = client.post(
             "/api/v2/politician/analyze",
             json={"name": "João da Silva", "role": "prefeito"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -380,7 +347,7 @@ class TestPoliticianEndpoints:
         response = client.post(
             "/api/v2/politician/quick",
             json={"name": "João da Silva"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -388,8 +355,7 @@ class TestPoliticianEndpoints:
     def test_search_politician(self, client, mock_auth, mock_politician_service):
         """Testa busca de político"""
         response = client.get(
-            "/api/v2/politician/search?name=João",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/politician/search?name=João", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -397,8 +363,7 @@ class TestPoliticianEndpoints:
     def test_get_perception(self, client, mock_auth, mock_politician_service):
         """Testa percepção pública"""
         response = client.get(
-            "/api/v2/politician/João/perception",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/politician/João/perception", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -406,8 +371,7 @@ class TestPoliticianEndpoints:
     def test_get_history(self, client, mock_auth, mock_politician_service):
         """Testa histórico pessoal"""
         response = client.get(
-            "/api/v2/politician/João/history",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/politician/João/history", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -415,8 +379,7 @@ class TestPoliticianEndpoints:
     def test_get_media(self, client, mock_auth, mock_politician_service):
         """Testa presença na mídia"""
         response = client.get(
-            "/api/v2/politician/João/media",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/politician/João/media", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -425,6 +388,7 @@ class TestPoliticianEndpoints:
 # ===========================================
 # NEWS ENDPOINTS TESTS
 # ===========================================
+
 
 class TestNewsEndpoints:
     """Testes para endpoints de notícias"""
@@ -436,33 +400,19 @@ class TestNewsEndpoints:
             service = AsyncMock()
             mock.return_value.__aenter__.return_value = service
 
-            service.search_news.return_value = {
-                "news": [{"title": "Notícia teste"}],
-                "total": 1
-            }
-            service.get_company_news.return_value = {
-                "company": "Nubank",
-                "news": []
-            }
-            service.get_sector_news.return_value = {
-                "sector": "fintech",
-                "news": []
-            }
+            service.search_news.return_value = {"news": [{"title": "Notícia teste"}], "total": 1}
+            service.get_company_news.return_value = {"company": "Nubank", "news": []}
+            service.get_sector_news.return_value = {"sector": "fintech", "news": []}
             service.get_economic_scenario.return_value = {
                 "indicators": {},
-                "analysis": "Cenário estável"
+                "analysis": "Cenário estável",
             }
-            service.get_trending_topics.return_value = {
-                "topics": ["economia", "tecnologia"]
-            }
+            service.get_trending_topics.return_value = {"topics": ["economia", "tecnologia"]}
             service.get_daily_briefing.return_value = {
                 "date": "2024-01-15",
-                "briefing": "Resumo do dia"
+                "briefing": "Resumo do dia",
             }
-            service.monitor_entity.return_value = {
-                "entity": "Nubank",
-                "alerts": []
-            }
+            service.monitor_entity.return_value = {"entity": "Nubank", "alerts": []}
 
             yield service
 
@@ -471,7 +421,7 @@ class TestNewsEndpoints:
         response = client.post(
             "/api/v2/news/search",
             json={"query": "economia Brasil"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -479,8 +429,7 @@ class TestNewsEndpoints:
     def test_search_news_get(self, client, mock_auth, mock_news_service):
         """Testa busca de notícias (GET)"""
         response = client.get(
-            "/api/v2/news/search?q=economia",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/news/search?q=economia", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -488,8 +437,7 @@ class TestNewsEndpoints:
     def test_get_company_news(self, client, mock_auth, mock_news_service):
         """Testa notícias de empresa"""
         response = client.get(
-            "/api/v2/news/company/Nubank",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/news/company/Nubank", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -497,8 +445,7 @@ class TestNewsEndpoints:
     def test_get_sector_news(self, client, mock_auth, mock_news_service):
         """Testa notícias de setor"""
         response = client.get(
-            "/api/v2/news/sector/fintech",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/news/sector/fintech", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -506,18 +453,14 @@ class TestNewsEndpoints:
     def test_get_economic_scenario(self, client, mock_auth, mock_news_service):
         """Testa cenário econômico"""
         response = client.get(
-            "/api/v2/news/economic",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/news/economic", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
 
     def test_get_trends(self, client, mock_auth, mock_news_service):
         """Testa tópicos em alta"""
-        response = client.get(
-            "/api/v2/news/trends",
-            headers={"Authorization": "Bearer test_token"}
-        )
+        response = client.get("/api/v2/news/trends", headers={"Authorization": "Bearer test_token"})
 
         assert response.status_code in [200, 401]
 
@@ -526,7 +469,7 @@ class TestNewsEndpoints:
         response = client.post(
             "/api/v2/news/briefing",
             json={"topics": ["economia", "tecnologia"]},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -534,8 +477,7 @@ class TestNewsEndpoints:
     def test_daily_briefing_get(self, client, mock_auth, mock_news_service):
         """Testa briefing diário padrão (GET)"""
         response = client.get(
-            "/api/v2/news/briefing",
-            headers={"Authorization": "Bearer test_token"}
+            "/api/v2/news/briefing", headers={"Authorization": "Bearer test_token"}
         )
 
         assert response.status_code in [200, 401]
@@ -545,7 +487,7 @@ class TestNewsEndpoints:
         response = client.post(
             "/api/v2/news/briefing",
             json={"topics": [f"topic{i}" for i in range(15)]},  # Mais de 10
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [400, 401, 422]
@@ -555,7 +497,7 @@ class TestNewsEndpoints:
         response = client.post(
             "/api/v2/news/monitor",
             json={"entity_name": "Nubank", "entity_type": "company"},
-            headers={"Authorization": "Bearer test_token"}
+            headers={"Authorization": "Bearer test_token"},
         )
 
         assert response.status_code in [200, 401, 422]
@@ -564,6 +506,7 @@ class TestNewsEndpoints:
 # ===========================================
 # LEGACY ENDPOINTS TESTS
 # ===========================================
+
 
 class TestLegacyEndpoints:
     """Testes para endpoints legados (deprecated)"""
@@ -580,8 +523,7 @@ class TestLegacyEndpoints:
     def test_legacy_empresa_search(self, client, mock_auth, mock_company_service):
         """Testa endpoint legado de busca de empresa"""
         response = client.get(
-            "/empresa/search?name=Nubank",
-            headers={"Authorization": "Bearer test_token"}
+            "/empresa/search?name=Nubank", headers={"Authorization": "Bearer test_token"}
         )
 
         # O endpoint pode retornar 200, 401 (auth) ou 500 (serviço não mockado corretamente)
@@ -589,10 +531,7 @@ class TestLegacyEndpoints:
 
     def test_legacy_empresa_search_no_name(self, client, mock_auth):
         """Testa endpoint legado sem nome"""
-        response = client.get(
-            "/empresa/search",
-            headers={"Authorization": "Bearer test_token"}
-        )
+        response = client.get("/empresa/search", headers={"Authorization": "Bearer test_token"})
 
         # Deve retornar 400 ou 422 por falta de parâmetro ou 401 por auth
         assert response.status_code in [400, 401, 422]
@@ -601,6 +540,7 @@ class TestLegacyEndpoints:
 # ===========================================
 # ERROR HANDLING TESTS
 # ===========================================
+
 
 class TestErrorHandling:
     """Testes para tratamento de erros"""
