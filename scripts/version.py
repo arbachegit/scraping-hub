@@ -84,7 +84,7 @@ def update_changelog(version: str, change_type: str) -> None:
         content = f"# Changelog\n{entry}"
 
     CHANGELOG_FILE.write_text(content)
-    print(f"📝 CHANGELOG.md atualizado")
+    print("📝 CHANGELOG.md atualizado")
 
 
 def cmd_show() -> None:
@@ -134,7 +134,7 @@ def cmd_set(version_str: str) -> None:
     """Define uma versão específica."""
     parts = version_str.split(".")
     if len(parts) != 3:
-        print(f"❌ Formato inválido. Use: MAJOR.DEPLOY.YEAR (ex: 2.1.2026)")
+        print("❌ Formato inválido. Use: MAJOR.DEPLOY.YEAR (ex: 2.1.2026)")
         sys.exit(1)
 
     try:
@@ -142,7 +142,7 @@ def cmd_set(version_str: str) -> None:
         deploy_count = int(parts[1])
         year = int(parts[2])
     except ValueError:
-        print(f"❌ Valores devem ser numéricos")
+        print("❌ Valores devem ser numéricos")
         sys.exit(1)
 
     version = write_version(major, deploy_count, year)

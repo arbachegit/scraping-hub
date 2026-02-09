@@ -408,7 +408,7 @@ class CompanyAnalysisService:
             # Formato: Nome Completo - Cargo
             rf"([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:,]\s*({cargos}[^\n\[\]]*?)(?:\[|\n|$)",
             # Formato: **Nome Completo** - Cargo
-            rf"\*\*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\*\*\s*[-–:]\s*([^\n\[\]]+?)(?:\[|\n|$)",
+            r"\*\*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\*\*\s*[-–:]\s*([^\n\[\]]+?)(?:\[|\n|$)",
             # Formato: - Nome Completo - Cargo
             rf"[-•]\s*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:]\s*({cargos}[^\n\[\]]*?)(?:\[|\n|$)",
             # Formato: Cargo: Nome
