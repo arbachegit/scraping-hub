@@ -51,6 +51,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Increment version
+        run: |
+          python scripts/version.py --deploy
+          echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add VERSION CHANGELOG.md package.json 2>/dev/null || true
+          git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]" || echo "No changes to commit"
+          git push
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master
@@ -59,13 +80,13 @@ jobs:
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
-            cd /opt/scraping-hub
+            cd /opt/iconsai-scraping
             git pull origin main
 
             # Backend Python
             source venv/bin/activate
             pip install -r requirements.txt
-            sudo systemctl restart scraping-hub
+            sudo systemctl restart iconsai-scraping
 
             # Frontend Next.js
             cd frontend
@@ -93,7 +114,7 @@ jobs:
             pm2 save
 
             # Atualizar nginx se necessario
-            cd /opt/scraping-hub
-            sudo cp deploy/nginx.conf /etc/nginx/sites-available/scraping-hub
-            sudo ln -sf /etc/nginx/sites-available/scraping-hub /etc/nginx/sites-enabled/
+            cd /opt/iconsai-scraping
+            sudo cp deploy/nginx.conf /etc/nginx/sites-available/iconsai-scraping
+            sudo ln -sf /etc/nginx/sites-available/iconsai-scraping /etc/nginx/sites-enabled/
             sudo nginx -t && sudo systemctl reload nginx
