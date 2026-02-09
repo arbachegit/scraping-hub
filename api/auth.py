@@ -125,8 +125,8 @@ _LEGACY_USERS_DB = {
     "arbache@gmail.com": {
         "id": 1,
         "email": "arbache@gmail.com",
-        # bcrypt hash for migration - generate new hash on first DB insert
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.4qtOxwOT3cWvGi",
+        # bcrypt hash for "admin123" - for development/testing
+        "password_hash": "$2b$12$ne84FJ3BdgHPGhNnDQOC3OUZBQHbnStaDalq17VBnQXeX1/4.ZDMm",
         "name": "Fernando Arbache",
         "role": "admin"
     }
