@@ -87,13 +87,28 @@ API para análise de inteligência empresarial focada no mercado brasileiro.
     redoc_url="/redoc"
 )
 
-# CORS
+# CORS - Configuração segura via settings
+from config.settings import settings as app_settings
+
+# Determinar origens permitidas
+_allowed_origins = app_settings.parsed_allowed_origins
+if app_settings.is_development:
+    # Em desenvolvimento, adicionar origens comuns de dev
+    _allowed_origins = list(set(_allowed_origins + [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
 
 # Static files
@@ -180,7 +195,7 @@ async def api_status(current_user: TokenData = Depends(get_current_user)):
 @app.post("/auth/login", response_model=Token, tags=["Auth"])
 async def login(user_data: UserLogin):
     """Login endpoint"""
-    user = authenticate_user(user_data.email, user_data.password)
+    user = await authenticate_user(user_data.email, user_data.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -201,14 +216,14 @@ async def login(user_data: UserLogin):
 @app.get("/auth/me", response_model=UserResponse, tags=["Auth"])
 async def get_me(current_user: TokenData = Depends(get_current_user)):
     """Get current user info"""
-    from .auth import USERS_DB
-    user = USERS_DB.get(current_user.email)
+    from .auth import get_user_from_db
+    user = await get_user_from_db(current_user.email)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario nao encontrado")
     return UserResponse(
         id=user["id"],
         email=user["email"],
-        name=user["name"],
+        name=user.get("name"),
         role=user["role"]
     )
 
@@ -225,7 +240,7 @@ async def update_me(
     - email: Update email (must be unique)
     - current_password + new_password: Change password
     """
-    updated_user = update_user(current_user.email, update_data)
+    updated_user = await update_user(current_user.email, update_data)
     if not updated_user:
         raise HTTPException(
             status_code=400,

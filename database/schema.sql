@@ -93,3 +93,64 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO user_credits (user_id, total_credits)
 SELECT id, 10000 FROM users WHERE email = 'admin@iconsai.ai'
 ON CONFLICT (user_id) DO NOTHING;
+
+-- ===========================================
+-- Fontes de Dados - Rastreabilidade (OBRIGATÓRIO)
+-- Conforme CLAUDE.md: ALWAYS registrar fontes de dados
+-- ===========================================
+
+CREATE TABLE IF NOT EXISTS fontes_dados (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identificação
+    nome VARCHAR(255) NOT NULL,
+    categoria VARCHAR(50) NOT NULL,  -- 'api', 'scraping', 'manual', 'fiscal'
+
+    -- Origem
+    fonte_primaria VARCHAR(255) NOT NULL,  -- Ex: "Serper.dev", "BrasilAPI"
+    url TEXT NOT NULL,
+    documentacao_url TEXT,
+
+    -- Rastreamento
+    data_primeira_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_ultima_atualizacao TIMESTAMP,
+    periodicidade VARCHAR(50),  -- 'tempo_real', 'diario', 'sob_demanda'
+
+    -- Metadados
+    formato VARCHAR(50) DEFAULT 'JSON',  -- 'JSON', 'HTML', 'XML', 'CSV'
+    autenticacao_requerida BOOLEAN DEFAULT true,
+    api_key_necessaria BOOLEAN DEFAULT true,
+
+    -- Qualidade
+    confiabilidade VARCHAR(20) DEFAULT 'alta',  -- 'alta', 'media', 'baixa'
+    cobertura TEXT,  -- Ex: "empresas brasileiras", "CNPJs"
+    observacoes TEXT,
+
+    -- Audit
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Constraints
+    UNIQUE(nome, categoria)
+);
+
+-- Índices para fontes_dados
+CREATE INDEX IF NOT EXISTS idx_fontes_categoria ON fontes_dados(categoria);
+CREATE INDEX IF NOT EXISTS idx_fontes_fonte ON fontes_dados(fonte_primaria);
+CREATE INDEX IF NOT EXISTS idx_fontes_confiabilidade ON fontes_dados(confiabilidade);
+
+-- Inserir fontes de dados usadas no projeto
+INSERT INTO fontes_dados (nome, categoria, fonte_primaria, url, documentacao_url, formato, autenticacao_requerida, api_key_necessaria, confiabilidade, cobertura, periodicidade)
+VALUES
+    ('BrasilAPI - CNPJ', 'api', 'BrasilAPI', 'https://brasilapi.com.br/api/cnpj/v1', 'https://brasilapi.com.br/docs', 'JSON', false, false, 'alta', 'CNPJs de empresas brasileiras', 'tempo_real'),
+    ('BrasilAPI - CEP', 'api', 'BrasilAPI', 'https://brasilapi.com.br/api/cep/v2', 'https://brasilapi.com.br/docs', 'JSON', false, false, 'alta', 'CEPs brasileiros', 'tempo_real'),
+    ('BrasilAPI - Bancos', 'api', 'BrasilAPI', 'https://brasilapi.com.br/api/banks/v1', 'https://brasilapi.com.br/docs', 'JSON', false, false, 'alta', 'Instituições financeiras brasileiras', 'sob_demanda'),
+    ('Serper - Google Search', 'api', 'Serper.dev', 'https://google.serper.dev/search', 'https://serper.dev/docs', 'JSON', true, true, 'alta', 'Resultados de busca Google', 'tempo_real'),
+    ('Serper - Google News', 'api', 'Serper.dev', 'https://google.serper.dev/news', 'https://serper.dev/docs', 'JSON', true, true, 'alta', 'Notícias via Google News', 'tempo_real'),
+    ('Serper - Google Images', 'api', 'Serper.dev', 'https://google.serper.dev/images', 'https://serper.dev/docs', 'JSON', true, true, 'alta', 'Imagens via Google Images', 'tempo_real'),
+    ('Tavily - AI Search', 'api', 'Tavily', 'https://api.tavily.com/search', 'https://docs.tavily.com', 'JSON', true, true, 'alta', 'Busca com contexto AI', 'tempo_real'),
+    ('Apollo - People Search', 'api', 'Apollo.io', 'https://api.apollo.io/v1/mixed_people/search', 'https://apolloio.github.io/apollo-api-docs', 'JSON', true, true, 'media', 'Profissionais e contatos B2B', 'tempo_real'),
+    ('Apollo - Organizations', 'api', 'Apollo.io', 'https://api.apollo.io/v1/mixed_companies/search', 'https://apolloio.github.io/apollo-api-docs', 'JSON', true, true, 'media', 'Empresas e organizações B2B', 'tempo_real'),
+    ('Perplexity - Research', 'api', 'Perplexity AI', 'https://api.perplexity.ai/chat/completions', 'https://docs.perplexity.ai', 'JSON', true, true, 'alta', 'Pesquisa com AI avançada', 'tempo_real'),
+    ('Anthropic - Claude', 'api', 'Anthropic', 'https://api.anthropic.com/v1/messages', 'https://docs.anthropic.com', 'JSON', true, true, 'alta', 'Análise e geração de texto com AI', 'tempo_real')
+ON CONFLICT (nome, categoria) DO NOTHING;

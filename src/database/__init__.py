@@ -28,6 +28,12 @@ from .star_repository import (
     EventoPessoaRepository,
     PessoaRepository,
 )
+from .fontes_repository import (
+    FontesDadosRepository,
+    get_fontes_repository,
+    registrar_fonte_api,
+    registrar_fonte_scraping,
+)
 
 __all__ = [
     # Client
@@ -58,4 +64,9 @@ __all__ = [
     "EventoPessoaRepository",
     "ConcorrenteRepository",
     "BuscaRepository",
+    # Fontes de dados (rastreabilidade)
+    "FontesDadosRepository",
+    "get_fontes_repository",
+    "registrar_fonte_api",
+    "registrar_fonte_scraping",
 ]

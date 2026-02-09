@@ -107,12 +107,16 @@ class TestAuthEndpoints:
 
     def test_get_me_authenticated(self, client, mock_auth):
         """Testa obter usuário atual"""
-        with patch("api.auth.USERS_DB", {"test@test.com": {
+        mock_user = {
             "id": "1",
             "email": "test@test.com",
             "name": "Test User",
             "role": "admin"
-        }}):
+        }
+
+        with patch("api.auth.get_user_from_db", new_callable=AsyncMock) as mock_get_user:
+            mock_get_user.return_value = mock_user
+
             response = client.get(
                 "/auth/me",
                 headers={"Authorization": "Bearer test_token"}

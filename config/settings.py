@@ -108,6 +108,14 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480
 
     # ===========================================
+    # CORS - Origens Permitidas
+    # ===========================================
+
+    # Lista de origens separadas por vírgula
+    # Ex: "http://localhost:3000,https://app.iconsai.dev"
+    allowed_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+
+    # ===========================================
     # Web Scraping
     # ===========================================
 
@@ -163,6 +171,13 @@ class Settings(BaseSettings):
     def has_fiscal_supabase(self) -> bool:
         """Verifica se Supabase Fiscal está configurado"""
         return bool(self.fiscal_supabase_url and self.fiscal_supabase_key)
+
+    @property
+    def parsed_allowed_origins(self) -> list:
+        """Retorna lista de origens permitidas para CORS"""
+        if not self.allowed_origins:
+            return ["http://localhost:3000"]
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
 
 @lru_cache()
