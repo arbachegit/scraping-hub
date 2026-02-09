@@ -158,36 +158,52 @@ LOGIN_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IconsAI Scraping - Login</title>
+    <title>Iconsai Scraping - Login</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-container { background: rgba(255,255,255,0.95); padding: 40px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
-        .logo { text-align: center; margin-bottom: 30px; }
-        .logo h1 { color: #1a1a2e; font-size: 28px; }
-        .logo p { color: #666; font-size: 14px; margin-top: 5px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; color: #333; font-weight: 500; margin-bottom: 8px; }
-        .form-group input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
-        .form-group input:focus { outline: none; border-color: #0f3460; }
-        .btn-login { width: 100%; padding: 14px; background: linear-gradient(135deg, #0f3460, #1a1a2e); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,52,96,0.4); }
-        .error-message { background: #fee; color: #c00; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e1a; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; position: relative; overflow: hidden; }
+        .bg-effects { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(circle at 30% 20%, rgba(0,255,255,0.08) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(59,130,246,0.08) 0%, transparent 40%); }
+        .login-card { position: relative; width: 100%; max-width: 28rem; background: rgba(15,22,41,0.9); backdrop-filter: blur(12px); border-radius: 1rem; border: 1px solid rgba(6,182,212,0.2); box-shadow: 0 0 50px rgba(0,255,255,0.1); overflow: hidden; }
+        .card-header { background: linear-gradient(to right, rgba(6,182,212,0.1), rgba(59,130,246,0.1), rgba(168,85,247,0.1)); padding: 2rem; border-bottom: 1px solid rgba(6,182,212,0.1); text-align: center; }
+        .logo { height: 4rem; width: auto; margin-bottom: 1rem; }
+        .title { font-size: 1.75rem; font-weight: 700; background: linear-gradient(to right, #22d3ee, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: rgba(6,182,212,0.6); margin-top: 0.5rem; font-size: 0.875rem; }
+        .card-content { padding: 2rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #cbd5e1; margin-bottom: 0.5rem; }
+        .form-input { width: 100%; height: 3rem; padding: 0 1rem; border-radius: 0.75rem; background: #1a2332; border: 1px solid rgba(6,182,212,0.3); color: #fff; font-size: 1rem; }
+        .form-input::placeholder { color: #64748b; }
+        .form-input:focus { outline: none; border-color: #22d3ee; box-shadow: 0 0 0 3px rgba(6,182,212,0.2); }
+        .error-message { display: none; margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; font-size: 0.875rem; }
         .error-message.show { display: block; }
-        .links { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
-        .links a { color: #0f3460; text-decoration: none; margin: 0 10px; }
+        .btn-primary { width: 100%; height: 3rem; border-radius: 0.75rem; background: linear-gradient(to right, #06b6d4, #3b82f6); color: #fff; font-weight: 600; font-size: 1rem; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { box-shadow: 0 0 30px rgba(0,255,255,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .links { display: flex; justify-content: center; padding-top: 1rem; gap: 1rem; }
+        .link { color: #22d3ee; text-decoration: none; font-size: 0.875rem; }
+        .link:hover { color: #67e8f9; }
+        .card-footer { padding: 0 2rem 1.5rem; text-align: center; }
+        .footer-text { font-size: 0.75rem; color: #64748b; }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="logo"><h1>IconsAI Scraping</h1><p>Business Intelligence Brasil</p></div>
-        <div class="error-message" id="errorMessage"></div>
-        <form id="loginForm">
-            <div class="form-group"><label>Email</label><input type="email" id="email" required placeholder="seu@email.com"></div>
-            <div class="form-group"><label>Senha</label><input type="password" id="password" required placeholder="Sua senha"></div>
-            <button type="submit" class="btn-login" id="btnLogin">Entrar</button>
-        </form>
-        <div class="links"><a href="/docs">API Docs</a><a href="/redoc">ReDoc</a></div>
+    <div class="bg-effects"></div>
+    <div class="login-card">
+        <div class="card-header">
+            <img src="/static/images/iconsai-logo.png" alt="Iconsai" class="logo" onerror="this.style.display='none'">
+            <h1 class="title">Scraping Hub</h1>
+            <p class="subtitle">Business Intelligence Brasil</p>
+        </div>
+        <div class="card-content">
+            <div class="error-message" id="errorMessage"></div>
+            <form id="loginForm">
+                <div class="form-group"><label class="form-label">Email</label><input type="email" id="email" class="form-input" required placeholder="seu@email.com"></div>
+                <div class="form-group"><label class="form-label">Senha</label><input type="password" id="password" class="form-input" required placeholder="********"></div>
+                <button type="submit" class="btn-primary" id="btnLogin">Entrar</button>
+            </form>
+            <div class="links"><a href="/docs" class="link">API Docs</a><a href="/redoc" class="link">ReDoc</a></div>
+        </div>
+        <div class="card-footer"><p class="footer-text">Iconsai - Todos os direitos reservados</p></div>
     </div>
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -200,7 +216,7 @@ LOGIN_HTML = """<!DOCTYPE html>
                 const data = await r.json();
                 if (r.ok) { localStorage.setItem('token', data.access_token); window.location.href = '/dashboard.html'; }
                 else { err.textContent = data.detail || 'Email ou senha incorretos'; err.classList.add('show'); }
-            } catch (e) { err.textContent = 'Erro de conexão'; err.classList.add('show'); }
+            } catch (e) { err.textContent = 'Erro de conexao'; err.classList.add('show'); }
             finally { btn.disabled = false; btn.textContent = 'Entrar'; }
         });
     </script>
@@ -224,41 +240,59 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IconsAI Scraping - Dashboard</title>
+    <title>Iconsai Scraping - Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 24px; }
-        .btn-logout { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }
-        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .card h3 { color: #1a1a2e; margin-bottom: 16px; }
-        .card p { color: #666; font-size: 14px; margin-bottom: 16px; }
-        .card a { display: inline-block; background: #0f3460; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; }
-        .search-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .search-form { display: flex; gap: 10px; margin-bottom: 20px; }
-        .search-form input { flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; }
-        .search-form button { padding: 12px 24px; background: #0f3460; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        .results { margin-top: 20px; }
-        .result-item { padding: 16px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px; }
-        .result-item h4 { color: #1a1a2e; }
-        .result-item p { color: #666; font-size: 14px; margin-top: 4px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e1a; min-height: 100vh; color: #fff; }
+        .header { background: rgba(15,22,41,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(6,182,212,0.1); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .header-logo { height: 2.5rem; width: auto; }
+        .header h1 { font-size: 1.25rem; font-weight: 700; background: linear-gradient(to right, #22d3ee, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .user-email { color: #94a3b8; font-size: 0.875rem; }
+        .btn-logout { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .card { background: rgba(15,22,41,0.8); border: 1px solid rgba(6,182,212,0.2); border-radius: 1rem; padding: 1.5rem; }
+        .card h3 { color: #fff; font-size: 1.125rem; margin-bottom: 0.75rem; }
+        .card p { color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem; }
+        .card-link { display: inline-block; background: linear-gradient(to right, #06b6d4, #3b82f6); color: #fff; padding: 0.625rem 1.25rem; border-radius: 0.5rem; text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+        .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .status-healthy { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
+        .search-section { background: rgba(15,22,41,0.8); border: 1px solid rgba(6,182,212,0.2); border-radius: 1rem; padding: 1.5rem; }
+        .search-section h3 { color: #fff; font-size: 1.125rem; margin-bottom: 1rem; }
+        .search-form { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        .search-input { flex: 1; padding: 0.75rem 1rem; background: #1a2332; border: 1px solid rgba(6,182,212,0.3); border-radius: 0.5rem; color: #fff; font-size: 1rem; }
+        .search-input:focus { outline: none; border-color: #22d3ee; }
+        .search-btn { padding: 0.75rem 1.5rem; background: linear-gradient(to right, #06b6d4, #3b82f6); color: #fff; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
+        .result-item { padding: 1rem; background: rgba(26,35,50,0.5); border: 1px solid rgba(6,182,212,0.1); border-radius: 0.5rem; margin-bottom: 0.75rem; }
+        .result-item h4 { color: #fff; font-size: 1rem; margin-bottom: 0.5rem; }
+        .result-item p { color: #94a3b8; font-size: 0.875rem; margin: 0.25rem 0; }
+        .result-item strong { color: #22d3ee; }
+        .api-count { font-size: 2rem; font-weight: 700; background: linear-gradient(to right, #22d3ee, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     </style>
 </head>
 <body>
-    <div class="header"><h1>IconsAI Scraping</h1><div><span id="userEmail">-</span> <button class="btn-logout" onclick="logout()">Sair</button></div></div>
+    <div class="header">
+        <div class="header-left">
+            <img src="/static/images/iconsai-logo.png" alt="Iconsai" class="header-logo" onerror="this.style.display='none'">
+            <h1>Scraping Hub</h1>
+        </div>
+        <div class="header-right">
+            <span class="user-email" id="userEmail">-</span>
+            <button class="btn-logout" onclick="logout()">Sair</button>
+        </div>
+    </div>
     <div class="container">
         <div class="cards">
-            <div class="card"><h3>API Status</h3><p id="apiStatus">Verificando...</p></div>
-            <div class="card"><h3>Documentacao</h3><p>Explore os endpoints</p><a href="/docs">Swagger UI</a></div>
-            <div class="card"><h3>Endpoints</h3><p>Empresas, Pessoas, Politicos</p><a href="/redoc">ReDoc</a></div>
+            <div class="card"><h3>API Status</h3><span class="api-count" id="apiCount">-</span><p id="apiStatus">Verificando...</p></div>
+            <div class="card"><h3>Documentacao</h3><p>Explore todos os endpoints</p><a href="/docs" class="card-link">Swagger UI</a></div>
+            <div class="card"><h3>Endpoints</h3><p>Empresas, Pessoas, Politicos</p><a href="/redoc" class="card-link">ReDoc</a></div>
         </div>
         <div class="search-section">
             <h3>Buscar Empresa por Nome (CNPJ)</h3>
-            <div class="search-form"><input type="text" id="companyName" placeholder="Ex: Natura, Magazine Luiza"><button onclick="searchCNPJ()">Buscar</button></div>
-            <div class="results" id="results"></div>
+            <div class="search-form"><input type="text" id="companyName" class="search-input" placeholder="Ex: Natura, Magazine Luiza"><button onclick="searchCNPJ()" class="search-btn">Buscar</button></div>
+            <div id="results"></div>
         </div>
     </div>
     <script>
@@ -266,16 +300,16 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         if (!token) window.location.href = '/';
         async function fetchAuth(url, opt={}) { return fetch(url, {...opt, headers: {...opt.headers, 'Authorization': 'Bearer '+token}}); }
         async function loadUser() { try { const r = await fetchAuth('/auth/me'); if (r.ok) { const u = await r.json(); document.getElementById('userEmail').textContent = u.email; } else if (r.status === 401) logout(); } catch(e){} }
-        async function loadStatus() { try { const r = await fetch('/health'); const d = await r.json(); document.getElementById('apiStatus').textContent = d.apis_configured + ' APIs - ' + d.status; } catch(e){} }
+        async function loadStatus() { try { const r = await fetch('/health'); const d = await r.json(); document.getElementById('apiCount').textContent = d.apis_configured; document.getElementById('apiStatus').textContent = d.ready ? 'Sistema operacional' : 'Sistema degradado'; } catch(e){} }
         async function searchCNPJ() {
             const name = document.getElementById('companyName').value; if (!name) return;
-            document.getElementById('results').innerHTML = '<p>Buscando...</p>';
+            document.getElementById('results').innerHTML = '<p style="color:#94a3b8">Buscando...</p>';
             try {
                 const r = await fetchAuth('/api/v2/company/cnpj/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ company_name: name, max_results: 5 }) });
                 const d = await r.json();
                 if (d.companies && d.companies.length > 0) { document.getElementById('results').innerHTML = d.companies.map(c => '<div class="result-item"><h4>'+(c.razao_social||c.nome_fantasia||'N/A')+'</h4><p><strong>CNPJ:</strong> '+c.cnpj+'</p></div>').join(''); }
-                else { document.getElementById('results').innerHTML = '<p>Nenhuma empresa encontrada</p>'; }
-            } catch(e) { document.getElementById('results').innerHTML = '<p>Erro na busca</p>'; }
+                else { document.getElementById('results').innerHTML = '<div class="result-item"><p>Nenhuma empresa encontrada</p></div>'; }
+            } catch(e) { document.getElementById('results').innerHTML = '<div class="result-item"><p>Erro na busca</p></div>'; }
         }
         function logout() { localStorage.removeItem('token'); window.location.href = '/'; }
         loadUser(); loadStatus();
