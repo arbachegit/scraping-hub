@@ -10,7 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.auth import TokenData, get_current_user
-from src.services import CompanyAnalysisService, CompanyIntelService, CompetitorAnalysisService
+from src.services import (
+    CNPJSearchService,
+    CompanyAnalysisService,
+    CompanyIntelService,
+    CompetitorAnalysisService
+)
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v2/company", tags=["Companies"])
@@ -48,8 +53,83 @@ class CompanyAnalyzeCompleteRequest(BaseModel):
     cnpj: Optional[str] = None
 
 
+class CNPJSearchRequest(BaseModel):
+    company_name: str
+    max_results: int = 5
+
+
 # ===========================================
-# ENDPOINTS
+# ENDPOINTS - CNPJ SEARCH
+# ===========================================
+
+@router.post("/cnpj/search")
+async def search_cnpj_by_name(
+    request: CNPJSearchRequest,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Busca CNPJ por nome da empresa.
+
+    Fluxo:
+    1. Busca no Google por CNPJs relacionados ao nome
+    2. Valida cada CNPJ na Receita Federal (BrasilAPI)
+    3. Retorna lista de empresas ordenadas por relevância
+
+    Use para descobrir o CNPJ quando só tem o nome da empresa.
+    """
+    logger.info(
+        "api_cnpj_search",
+        user=current_user.email,
+        company_name=request.company_name
+    )
+
+    try:
+        async with CNPJSearchService() as service:
+            result = await service.search_by_name(
+                company_name=request.company_name,
+                max_results=request.max_results
+            )
+            return result
+
+    except Exception as e:
+        logger.error("api_cnpj_search_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cnpj/{cnpj}")
+async def get_company_by_cnpj(
+    cnpj: str,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Busca dados de empresa diretamente pelo CNPJ.
+
+    Valida na Receita Federal e retorna dados completos.
+    """
+    logger.info(
+        "api_cnpj_get",
+        user=current_user.email,
+        cnpj=cnpj[:8] + "..."  # Log parcial por segurança
+    )
+
+    try:
+        async with CNPJSearchService() as service:
+            result = await service.get_company_by_cnpj(cnpj)
+
+            if result.get("error"):
+                raise HTTPException(status_code=404, detail=result["message"])
+
+            return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("api_cnpj_get_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===========================================
+# ENDPOINTS - COMPANY ANALYSIS
 # ===========================================
 
 @router.post("/analyze-complete")

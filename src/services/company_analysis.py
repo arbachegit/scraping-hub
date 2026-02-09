@@ -1136,7 +1136,7 @@ class CompanyAnalysisService:
             logger.info("searching_competitors", query=query)
 
             # Buscar no Perplexity
-            perplexity_result = await self.perplexity.search(
+            perplexity_result = await self.perplexity.chat(
                 f"Liste 5 empresas brasileiras concorrentes ou similares a {company_name}. {query}. Retorne apenas os nomes das empresas."
             )
 
