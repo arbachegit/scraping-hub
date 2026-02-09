@@ -143,25 +143,145 @@ app.include_router(news_router)
 @app.get("/", include_in_schema=False)
 async def root():
     """Serve the frontend login page"""
+    from fastapi.responses import HTMLResponse
+
     index_file = static_path / "index.html"
-    logger.debug("root_request", index_file=str(index_file), exists=index_file.exists())
     if index_file.exists():
         return FileResponse(str(index_file), media_type="text/html")
-    return {
-        "service": "IconsAI Scraping API",
-        "version": "2.0.0",
-        "status": "running",
-        "docs": "/docs",
-    }
+
+    # Fallback: embedded login page
+    return HTMLResponse(content=LOGIN_HTML, status_code=200)
+
+
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IconsAI Scraping - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-container { background: rgba(255,255,255,0.95); padding: 40px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo h1 { color: #1a1a2e; font-size: 28px; }
+        .logo p { color: #666; font-size: 14px; margin-top: 5px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; color: #333; font-weight: 500; margin-bottom: 8px; }
+        .form-group input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; }
+        .form-group input:focus { outline: none; border-color: #0f3460; }
+        .btn-login { width: 100%; padding: 14px; background: linear-gradient(135deg, #0f3460, #1a1a2e); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,52,96,0.4); }
+        .error-message { background: #fee; color: #c00; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .error-message.show { display: block; }
+        .links { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        .links a { color: #0f3460; text-decoration: none; margin: 0 10px; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo"><h1>IconsAI Scraping</h1><p>Business Intelligence Brasil</p></div>
+        <div class="error-message" id="errorMessage"></div>
+        <form id="loginForm">
+            <div class="form-group"><label>Email</label><input type="email" id="email" required placeholder="seu@email.com"></div>
+            <div class="form-group"><label>Senha</label><input type="password" id="password" required placeholder="Sua senha"></div>
+            <button type="submit" class="btn-login" id="btnLogin">Entrar</button>
+        </form>
+        <div class="links"><a href="/docs">API Docs</a><a href="/redoc">ReDoc</a></div>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnLogin');
+            const err = document.getElementById('errorMessage');
+            btn.disabled = true; btn.textContent = 'Entrando...'; err.classList.remove('show');
+            try {
+                const r = await fetch('/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }) });
+                const data = await r.json();
+                if (r.ok) { localStorage.setItem('token', data.access_token); window.location.href = '/dashboard.html'; }
+                else { err.textContent = data.detail || 'Email ou senha incorretos'; err.classList.add('show'); }
+            } catch (e) { err.textContent = 'Erro de conexão'; err.classList.add('show'); }
+            finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+        });
+    </script>
+</body>
+</html>"""
 
 
 @app.get("/dashboard.html", include_in_schema=False)
 async def dashboard():
     """Serve the dashboard page"""
+    from fastapi.responses import HTMLResponse
+
     dashboard_file = static_path / "dashboard.html"
     if dashboard_file.exists():
         return FileResponse(str(dashboard_file), media_type="text/html")
-    raise HTTPException(status_code=404, detail="Dashboard not found")
+    return HTMLResponse(content=DASHBOARD_HTML, status_code=200)
+
+
+DASHBOARD_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IconsAI Scraping - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .btn-logout { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card h3 { color: #1a1a2e; margin-bottom: 16px; }
+        .card p { color: #666; font-size: 14px; margin-bottom: 16px; }
+        .card a { display: inline-block; background: #0f3460; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; }
+        .search-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .search-form { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-form input { flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; }
+        .search-form button { padding: 12px 24px; background: #0f3460; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .results { margin-top: 20px; }
+        .result-item { padding: 16px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px; }
+        .result-item h4 { color: #1a1a2e; }
+        .result-item p { color: #666; font-size: 14px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>IconsAI Scraping</h1><div><span id="userEmail">-</span> <button class="btn-logout" onclick="logout()">Sair</button></div></div>
+    <div class="container">
+        <div class="cards">
+            <div class="card"><h3>API Status</h3><p id="apiStatus">Verificando...</p></div>
+            <div class="card"><h3>Documentacao</h3><p>Explore os endpoints</p><a href="/docs">Swagger UI</a></div>
+            <div class="card"><h3>Endpoints</h3><p>Empresas, Pessoas, Politicos</p><a href="/redoc">ReDoc</a></div>
+        </div>
+        <div class="search-section">
+            <h3>Buscar Empresa por Nome (CNPJ)</h3>
+            <div class="search-form"><input type="text" id="companyName" placeholder="Ex: Natura, Magazine Luiza"><button onclick="searchCNPJ()">Buscar</button></div>
+            <div class="results" id="results"></div>
+        </div>
+    </div>
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/';
+        async function fetchAuth(url, opt={}) { return fetch(url, {...opt, headers: {...opt.headers, 'Authorization': 'Bearer '+token}}); }
+        async function loadUser() { try { const r = await fetchAuth('/auth/me'); if (r.ok) { const u = await r.json(); document.getElementById('userEmail').textContent = u.email; } else if (r.status === 401) logout(); } catch(e){} }
+        async function loadStatus() { try { const r = await fetch('/health'); const d = await r.json(); document.getElementById('apiStatus').textContent = d.apis_configured + ' APIs - ' + d.status; } catch(e){} }
+        async function searchCNPJ() {
+            const name = document.getElementById('companyName').value; if (!name) return;
+            document.getElementById('results').innerHTML = '<p>Buscando...</p>';
+            try {
+                const r = await fetchAuth('/api/v2/company/cnpj/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ company_name: name, max_results: 5 }) });
+                const d = await r.json();
+                if (d.companies && d.companies.length > 0) { document.getElementById('results').innerHTML = d.companies.map(c => '<div class="result-item"><h4>'+(c.razao_social||c.nome_fantasia||'N/A')+'</h4><p><strong>CNPJ:</strong> '+c.cnpj+'</p></div>').join(''); }
+                else { document.getElementById('results').innerHTML = '<p>Nenhuma empresa encontrada</p>'; }
+            } catch(e) { document.getElementById('results').innerHTML = '<p>Erro na busca</p>'; }
+        }
+        function logout() { localStorage.removeItem('token'); window.location.href = '/'; }
+        loadUser(); loadStatus();
+    </script>
+</body>
+</html>"""
 
 
 @app.get("/health")
