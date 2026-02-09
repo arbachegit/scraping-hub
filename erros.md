@@ -30,23 +30,22 @@
 
 ---
 
-## 2. ERRO CRÍTICO - DASHBOARD CARDS
+## 2. ~~ERRO CRÍTICO - DASHBOARD CARDS~~ (CORRIGIDO)
 
 **Arquivo:** `static/dashboard.html`
-**Linhas:** 299-374
+**Status:** CORRIGIDO em 09/02/2026
 
-**Problema:** Todos os cards são links `<a>` que redirecionam para documentação Swagger ao invés de páginas funcionais.
+**Problema original:** Todos os cards eram links `<a>` que redirecionavam para documentação Swagger.
 
-| Card | Link Atual (ERRADO) | Comportamento |
-|------|---------------------|---------------|
-| Empresas | `/docs#/Companies` | Redireciona para Swagger |
-| Pessoas | `/docs#/People` | Redireciona para Swagger |
-| Políticos | `/docs#/Politicians` | Redireciona para Swagger |
-| Notícias | `/docs#/News` | Redireciona para Swagger |
-| Analytics | `/docs#/Analytics` | Redireciona para Swagger |
-| Documentação | `/docs` | Redireciona para Swagger |
-
-**Resultado:** Sistema não tem interface de uso - apenas links para documentação API.
+**Solução aplicada:**
+- Cards agora abrem seções funcionais na mesma página
+- Cada seção tem formulários para interagir com a API
+- Empresas: busca CNPJ + análise completa
+- Pessoas: análise de perfil profissional
+- Políticos: análise + percepção pública
+- Notícias: busca + cenário econômico
+- Analytics: métricas do sistema
+- Documentação: mantido como link para /docs (correto)
 
 ---
 
@@ -164,7 +163,7 @@ if static_path.exists():
 
 ## PENDÊNCIAS
 
-1. **Cards do dashboard** - Ainda redirecionam para /docs (aguardando decisão)
+1. ~~**Cards do dashboard**~~ - CORRIGIDO (agora abrem seções funcionais)
 2. **HTML embutido em Python** - LOGIN_HTML e DASHBOARD_HTML em api/main.py
 3. **Arquivos desincronizados** - static/dashboard.html vs DASHBOARD_HTML
 
