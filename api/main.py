@@ -116,8 +116,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
 
-# Static files
-static_path = Path(__file__).parent.parent / "static"
+# Static files - resolve absolute path
+static_path = Path(__file__).resolve().parent.parent / "static"
+logger.info("static_path", path=str(static_path), exists=static_path.exists())
+
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
@@ -140,16 +142,26 @@ app.include_router(news_router)
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """Serve the frontend"""
+    """Serve the frontend login page"""
     index_file = static_path / "index.html"
+    logger.debug("root_request", index_file=str(index_file), exists=index_file.exists())
     if index_file.exists():
-        return FileResponse(str(index_file))
+        return FileResponse(str(index_file), media_type="text/html")
     return {
         "service": "IconsAI Scraping API",
         "version": "2.0.0",
         "status": "running",
         "docs": "/docs",
     }
+
+
+@app.get("/dashboard.html", include_in_schema=False)
+async def dashboard():
+    """Serve the dashboard page"""
+    dashboard_file = static_path / "dashboard.html"
+    if dashboard_file.exists():
+        return FileResponse(str(dashboard_file), media_type="text/html")
+    raise HTTPException(status_code=404, detail="Dashboard not found")
 
 
 @app.get("/health")
