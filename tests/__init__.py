@@ -1,3 +1,0 @@
-"""
-IconsAI Scraping - Tests
-"""
