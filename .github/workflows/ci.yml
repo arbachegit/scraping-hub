@@ -89,33 +89,5 @@ jobs:
             pip install -r requirements.txt
             sudo systemctl restart iconsai-scraping
 
-            # Frontend Next.js
-            cd frontend
-
-            # Instalar Node.js via nvm se nao existir
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            if ! command -v node &> /dev/null; then
-              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-              \. "$NVM_DIR/nvm.sh"
-              nvm install 20
-              nvm use 20
-            fi
-
-            # Instalar pm2 se nao existir
-            if ! command -v pm2 &> /dev/null; then
-              npm install -g pm2
-            fi
-
-            # Build e deploy do frontend
-            npm install
-            npm run build
-            pm2 delete iconsai-frontend 2>/dev/null || true
-            pm2 start npm --name "iconsai-frontend" -- start
-            pm2 save
-
-            # Atualizar nginx se necessario
-            cd /opt/iconsai-scraping
-            sudo cp deploy/nginx.conf /etc/nginx/sites-available/iconsai-scraping
-            sudo ln -sf /etc/nginx/sites-available/iconsai-scraping /etc/nginx/sites-enabled/
-            sudo nginx -t && sudo systemctl reload nginx
+            # Verificar status
+            sudo systemctl status iconsai-scraping --no-pager || true
