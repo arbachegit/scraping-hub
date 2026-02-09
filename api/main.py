@@ -28,6 +28,7 @@ from .auth import (
     update_user,
 )
 from .routes import (
+    admin_router,
     analytics_router,
     companies_router,
     news_router,
@@ -128,6 +129,7 @@ if static_path.exists():
 # INCLUDE ROUTERS
 # ===========================================
 
+app.include_router(admin_router)
 app.include_router(analytics_router)
 app.include_router(companies_router)
 app.include_router(people_router)
@@ -233,6 +235,18 @@ async def dashboard():
     if dashboard_file.exists():
         return FileResponse(str(dashboard_file), media_type="text/html")
     return HTMLResponse(content=DASHBOARD_HTML, status_code=200)
+
+
+@app.get("/admin.html", include_in_schema=False)
+async def admin_page():
+    """Serve the admin page"""
+    admin_file = static_path / "admin.html"
+    if admin_file.exists():
+        return FileResponse(str(admin_file), media_type="text/html")
+    # Return 404 if file doesn't exist
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=404, content={"detail": "Admin page not found"})
 
 
 DASHBOARD_HTML = """<!DOCTYPE html>
@@ -373,7 +387,12 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["email"], "user_id": user["id"], "role": user["role"]},
+        data={
+            "sub": user["email"],
+            "user_id": user["id"],
+            "role": user["role"],
+            "permissions": user.get("permissions", []),
+        },
         expires_delta=access_token_expires,
     )
     return {"access_token": access_token, "token_type": "bearer"}
@@ -414,6 +433,7 @@ async def update_me(update_data: UserUpdate, current_user: TokenData = Depends(g
             "sub": updated_user["email"],
             "user_id": updated_user["id"],
             "role": updated_user["role"],
+            "permissions": updated_user.get("permissions", []),
         },
         expires_delta=access_token_expires,
     )

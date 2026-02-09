@@ -40,6 +40,7 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
     role: Optional[str] = None
+    permissions: Optional[list] = None
 
 
 class UserLogin(BaseModel):
@@ -128,7 +129,8 @@ _LEGACY_USERS_DB = {
         # bcrypt hash for "admin123" - for development/testing
         "password_hash": "$2b$12$ne84FJ3BdgHPGhNnDQOC3OUZBQHbnStaDalq17VBnQXeX1/4.ZDMm",
         "name": "Fernando Arbache",
-        "role": "admin",
+        "role": "super_admin",
+        "permissions": ["empresas", "pessoas", "politicos", "noticias"],
     }
 }
 
@@ -179,9 +181,10 @@ async def get_current_user(
         email: str = payload.get("sub")
         user_id: int = payload.get("user_id")
         role: str = payload.get("role")
+        permissions: list = payload.get("permissions", [])
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email, user_id=user_id, role=role)
+        token_data = TokenData(email=email, user_id=user_id, role=role, permissions=permissions)
     except JWTError:
         raise credentials_exception
     return token_data
