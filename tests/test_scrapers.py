@@ -598,3 +598,191 @@ class TestWebScraperClient:
         assert any("99999" in p for p in result["phones"])
         # CNPJ é retornado no formato original
         assert "12.345.678/0001-90" in result["cnpj"]
+
+
+# ===========================================
+# CIRCUIT BREAKER TESTS
+# ===========================================
+
+class TestCircuitBreaker:
+    """Testes para o Circuit Breaker"""
+
+    def test_circuit_breaker_initial_state(self):
+        """Testa estado inicial do Circuit Breaker"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+
+        breaker = CircuitBreaker(
+            name="test_breaker",
+            failure_threshold=3,
+            timeout=10.0
+        )
+
+        assert breaker.state == CircuitState.CLOSED
+        assert breaker.is_closed
+        assert not breaker.is_open
+        assert breaker.can_execute()
+
+    def test_circuit_breaker_opens_after_failures(self):
+        """Testa que o circuito abre após falhas consecutivas"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+
+        breaker = CircuitBreaker(
+            name="test_open",
+            failure_threshold=3,
+            timeout=60.0
+        )
+
+        # Registrar falhas
+        breaker.record_failure()
+        assert breaker.state == CircuitState.CLOSED
+
+        breaker.record_failure()
+        assert breaker.state == CircuitState.CLOSED
+
+        breaker.record_failure()  # Terceira falha - deve abrir
+        assert breaker.state == CircuitState.OPEN
+        assert breaker.is_open
+        assert not breaker.can_execute()
+
+    def test_circuit_breaker_success_resets_failures(self):
+        """Testa que sucesso reseta contador de falhas"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+
+        breaker = CircuitBreaker(
+            name="test_reset",
+            failure_threshold=3,
+            timeout=60.0
+        )
+
+        # Duas falhas
+        breaker.record_failure()
+        breaker.record_failure()
+        assert breaker._failure_count == 2
+
+        # Sucesso reseta
+        breaker.record_success()
+        assert breaker._failure_count == 0
+        assert breaker.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_half_open_on_timeout(self):
+        """Testa transição para HALF_OPEN após timeout"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+        import time
+
+        breaker = CircuitBreaker(
+            name="test_half_open",
+            failure_threshold=1,
+            timeout=0.1  # 100ms
+        )
+
+        # Abrir circuito
+        breaker.record_failure()
+        assert breaker.state == CircuitState.OPEN
+
+        # Esperar timeout
+        time.sleep(0.15)
+
+        # Deve estar em HALF_OPEN
+        assert breaker.state == CircuitState.HALF_OPEN
+        assert breaker.can_execute()
+
+    def test_circuit_breaker_closes_after_success_in_half_open(self):
+        """Testa que circuito fecha após sucesso em HALF_OPEN"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+        import time
+
+        breaker = CircuitBreaker(
+            name="test_close",
+            failure_threshold=1,
+            success_threshold=2,
+            timeout=0.1
+        )
+
+        # Abrir e esperar timeout
+        breaker.record_failure()
+        time.sleep(0.15)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Primeiro sucesso
+        breaker.record_success()
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Segundo sucesso - deve fechar
+        breaker.record_success()
+        assert breaker.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_reopens_on_failure_in_half_open(self):
+        """Testa que falha em HALF_OPEN reabre o circuito"""
+        from src.utils.circuit_breaker import CircuitBreaker, CircuitState
+        import time
+
+        breaker = CircuitBreaker(
+            name="test_reopen",
+            failure_threshold=1,
+            timeout=0.1
+        )
+
+        # Abrir e esperar timeout
+        breaker.record_failure()
+        time.sleep(0.15)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Falha em HALF_OPEN reabre
+        breaker.record_failure()
+        assert breaker.state == CircuitState.OPEN
+
+    def test_circuit_breaker_stats(self):
+        """Testa estatísticas do Circuit Breaker"""
+        from src.utils.circuit_breaker import CircuitBreaker
+
+        breaker = CircuitBreaker(
+            name="test_stats",
+            failure_threshold=5,
+            timeout=60.0
+        )
+
+        breaker.record_failure()
+        breaker.record_failure()
+
+        stats = breaker.get_stats()
+
+        assert stats["name"] == "test_stats"
+        assert stats["state"] == "closed"
+        assert stats["failure_count"] == 2
+        assert stats["failure_threshold"] == 5
+
+    def test_circuit_breaker_registry(self):
+        """Testa registry global de Circuit Breakers"""
+        from src.utils.circuit_breaker import CircuitBreakerRegistry
+
+        # Limpar registry
+        CircuitBreakerRegistry._breakers.clear()
+
+        # Criar novo
+        breaker1 = CircuitBreakerRegistry.get_or_create("service_a")
+        breaker2 = CircuitBreakerRegistry.get_or_create("service_b")
+
+        # Deve retornar mesmo objeto
+        breaker1_again = CircuitBreakerRegistry.get_or_create("service_a")
+        assert breaker1 is breaker1_again
+
+        # Stats de todos
+        all_stats = CircuitBreakerRegistry.get_all_stats()
+        assert "service_a" in all_stats
+        assert "service_b" in all_stats
+
+    def test_scraper_has_circuit_breaker(self):
+        """Testa que scrapers têm Circuit Breaker integrado"""
+        from src.scrapers import SerperClient
+
+        client = SerperClient(api_key="test_key")
+
+        # Deve ter circuit breaker
+        assert hasattr(client, "_circuit_breaker")
+        assert hasattr(client, "circuit_breaker")
+        assert hasattr(client, "reset_circuit_breaker")
+
+        # Stats devem incluir circuit breaker
+        stats = client.get_stats()
+        assert "circuit_breaker" in stats
+        assert stats["circuit_breaker"]["name"] == "Serper - Google Search"

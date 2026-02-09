@@ -2,7 +2,9 @@
 Base Scraper Client
 Classe base para todos os clientes de scraping
 
-Inclui registro automático de fontes de dados conforme CLAUDE.md.
+Inclui:
+- Registro automático de fontes de dados conforme CLAUDE.md
+- Circuit Breaker para proteção contra falhas em cascata
 """
 
 from abc import ABC, abstractmethod
@@ -13,6 +15,12 @@ import httpx
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.utils.circuit_breaker import (
+    CircuitBreakerRegistry,
+    CircuitOpenError,
+    CircuitBreaker,
+)
+
 logger = structlog.get_logger()
 
 
@@ -22,6 +30,7 @@ class BaseScraper(ABC):
 
     Inclui:
     - Retry automático com backoff exponencial
+    - Circuit Breaker para proteção contra falhas em cascata
     - Métricas de uso
     - Registro automático de fontes de dados (CLAUDE.md compliance)
     """
@@ -32,6 +41,11 @@ class BaseScraper(ABC):
     SOURCE_CATEGORY: str = "api"
     SOURCE_COVERAGE: str = ""
     SOURCE_DOC_URL: Optional[str] = None
+
+    # Configuração do Circuit Breaker - sobrescrever se necessário
+    CIRCUIT_FAILURE_THRESHOLD: int = 5  # Falhas para abrir
+    CIRCUIT_SUCCESS_THRESHOLD: int = 2  # Sucessos para fechar
+    CIRCUIT_TIMEOUT: float = 60.0       # Segundos até tentar novamente
 
     def __init__(
         self,
@@ -47,11 +61,20 @@ class BaseScraper(ABC):
         self._client: Optional[httpx.AsyncClient] = None
         self._source_registered: bool = False
 
+        # Inicializar Circuit Breaker
+        self._circuit_breaker = CircuitBreakerRegistry.get_or_create(
+            name=self.SOURCE_NAME,
+            failure_threshold=self.CIRCUIT_FAILURE_THRESHOLD,
+            success_threshold=self.CIRCUIT_SUCCESS_THRESHOLD,
+            timeout=self.CIRCUIT_TIMEOUT
+        )
+
         # Metricas
         self.stats: Dict[str, Any] = {
             "requests": 0,
             "success": 0,
             "errors": 0,
+            "circuit_open_rejections": 0,
             "last_request": None
         }
 
@@ -108,10 +131,6 @@ class BaseScraper(ABC):
                 error=str(e)
             )
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
     async def _request(
         self,
         method: str,
@@ -119,18 +138,39 @@ class BaseScraper(ABC):
         params: Optional[Dict] = None,
         json: Optional[Dict] = None
     ) -> Dict[str, Any]:
-        """Executa request com retry automatico"""
+        """
+        Executa request com Circuit Breaker e retry automático.
+
+        O Circuit Breaker protege contra falhas em cascata:
+        - Se muitas requisições falharem, o circuito abre
+        - Requisições subsequentes falham imediatamente (fail fast)
+        - Após timeout, tenta novamente (half-open)
+        - Se sucesso, fecha o circuito
+
+        Raises:
+            CircuitOpenError: Se o circuito estiver aberto
+            httpx.HTTPStatusError: Se a requisição HTTP falhar
+        """
+        # Verificar Circuit Breaker
+        if not self._circuit_breaker.can_execute():
+            self.stats["circuit_open_rejections"] += 1
+            retry_after = self._circuit_breaker.get_retry_after()
+            logger.warning(
+                "circuit_breaker_open",
+                source=self.SOURCE_NAME,
+                retry_after=retry_after
+            )
+            raise CircuitOpenError(self.SOURCE_NAME, retry_after)
+
         self.stats["requests"] += 1
         self.stats["last_request"] = datetime.utcnow().isoformat()
 
         try:
-            response = await self.client.request(
-                method=method,
-                url=endpoint,
-                params=params,
-                json=json
-            )
+            response = await self._execute_request(method, endpoint, params, json)
             response.raise_for_status()
+
+            # Sucesso - registrar no circuit breaker
+            self._circuit_breaker.record_success()
             self.stats["success"] += 1
 
             # Registrar uso da fonte após sucesso
@@ -139,19 +179,63 @@ class BaseScraper(ABC):
             return response.json()
 
         except httpx.HTTPStatusError as e:
+            # Erros 4xx não devem abrir o circuito (são erros do cliente)
+            # Erros 5xx e timeout devem abrir
+            if e.response.status_code >= 500:
+                self._circuit_breaker.record_failure()
+
             self.stats["errors"] += 1
             logger.error(
                 "http_error",
                 status=e.response.status_code,
                 endpoint=endpoint,
+                source=self.SOURCE_NAME,
+                error=str(e)
+            )
+            raise
+
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            # Timeout e erros de conexão devem abrir o circuito
+            self._circuit_breaker.record_failure()
+            self.stats["errors"] += 1
+            logger.error(
+                "connection_error",
+                endpoint=endpoint,
+                source=self.SOURCE_NAME,
                 error=str(e)
             )
             raise
 
         except Exception as e:
+            # Outros erros também contam como falha
+            self._circuit_breaker.record_failure()
             self.stats["errors"] += 1
-            logger.error("request_error", endpoint=endpoint, error=str(e))
+            logger.error(
+                "request_error",
+                endpoint=endpoint,
+                source=self.SOURCE_NAME,
+                error=str(e)
+            )
             raise
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
+    async def _execute_request(
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict] = None,
+        json: Optional[Dict] = None
+    ) -> httpx.Response:
+        """Executa request HTTP com retry automático."""
+        return await self.client.request(
+            method=method,
+            url=endpoint,
+            params=params,
+            json=json
+        )
 
     async def get(self, endpoint: str, params: Optional[Dict] = None) -> Dict:
         """GET request"""
@@ -173,14 +257,24 @@ class BaseScraper(ABC):
             self._client = None
 
     def get_stats(self) -> Dict[str, Any]:
-        """Retorna estatisticas de uso"""
+        """Retorna estatísticas de uso incluindo Circuit Breaker."""
         return {
             **self.stats,
             "success_rate": (
                 (self.stats["success"] / self.stats["requests"] * 100)
                 if self.stats["requests"] > 0 else 0
-            )
+            ),
+            "circuit_breaker": self._circuit_breaker.get_stats()
         }
+
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Acesso ao Circuit Breaker para controle manual."""
+        return self._circuit_breaker
+
+    def reset_circuit_breaker(self) -> None:
+        """Reset manual do Circuit Breaker."""
+        self._circuit_breaker.reset()
 
     async def __aenter__(self):
         return self
