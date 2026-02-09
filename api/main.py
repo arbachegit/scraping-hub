@@ -6,13 +6,13 @@ from datetime import timedelta
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from config.settings import settings
 from api.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     Token,
     UserLogin,
     UserResponse,
@@ -21,9 +21,8 @@ from api.auth import (
     create_access_token,
     get_current_user,
     update_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from fastapi import Depends
+from config.settings import settings
 
 logger = structlog.get_logger()
 
