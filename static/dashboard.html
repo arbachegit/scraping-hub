@@ -60,22 +60,6 @@
             font-size: 0.875rem;
         }
 
-        .btn-logout {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.5);
-        }
-
         .btn-admin {
             background: rgba(6, 182, 212, 0.1);
             border: 1px solid rgba(6, 182, 212, 0.3);
@@ -94,11 +78,34 @@
             box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
         }
 
+        .btn-logout {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
         /* Container */
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #d1d5db;
+            margin-bottom: 2rem;
         }
 
         /* Cards Grid */
@@ -111,52 +118,115 @@
 
         .card {
             background: rgba(15, 22, 41, 0.8);
-            border: 1px solid rgba(6, 182, 212, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 1rem;
             padding: 1.5rem;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: block;
         }
 
         .card:hover {
-            border-color: rgba(6, 182, 212, 0.4);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.05);
+            border-color: #22d3ee;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 40px rgba(0, 255, 255, 0.15);
         }
 
-        .card h3 {
-            color: #fff;
-            font-size: 1.125rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .card p {
-            color: #94a3b8;
-            font-size: 0.875rem;
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
             margin-bottom: 1rem;
         }
 
-        .card-link {
-            display: inline-block;
-            background: linear-gradient(to right, #06b6d4, #3b82f6);
-            color: #fff;
-            padding: 0.625rem 1.25rem;
-            border-radius: 0.5rem;
-            text-decoration: none;
-            font-weight: 500;
+        .card-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .card-icon.red { background: rgba(239, 68, 68, 0.1); }
+        .card-icon.red svg { color: #f87171; stroke: #f87171; }
+
+        .card-icon.orange { background: rgba(249, 115, 22, 0.1); }
+        .card-icon.orange svg { color: #fb923c; stroke: #fb923c; }
+
+        .card-icon.blue { background: rgba(59, 130, 246, 0.1); }
+        .card-icon.blue svg { color: #60a5fa; stroke: #60a5fa; }
+
+        .card-icon.green { background: rgba(34, 197, 94, 0.1); }
+        .card-icon.green svg { color: #4ade80; stroke: #4ade80; }
+
+        .card-icon.purple { background: rgba(168, 85, 247, 0.1); }
+        .card-icon.purple svg { color: #a78bfa; stroke: #a78bfa; }
+
+        .card-icon.cyan { background: rgba(6, 182, 212, 0.1); }
+        .card-icon.cyan svg { color: #22d3ee; stroke: #22d3ee; }
+
+        .card-icon.gray { background: rgba(148, 163, 184, 0.1); }
+        .card-icon.gray svg { color: #94a3b8; stroke: #94a3b8; }
+
+        .card h3 {
+            color: #d1d5db;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .card p {
+            color: rgba(148, 163, 184, 0.8);
             font-size: 0.875rem;
-            transition: all 0.2s;
+            line-height: 1.5;
         }
 
-        .card-link:hover {
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        /* Status Section */
+        .status-section {
+            background: rgba(15, 22, 41, 0.8);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        /* Status Badge */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #22d3ee, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-label {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
         .status-badge {
             display: inline-block;
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: 600;
+            margin-top: 0.5rem;
         }
 
         .status-healthy {
@@ -171,119 +241,6 @@
             color: #facc15;
         }
 
-        /* Search Section */
-        .search-section {
-            background: rgba(15, 22, 41, 0.8);
-            border: 1px solid rgba(6, 182, 212, 0.2);
-            border-radius: 1rem;
-            padding: 1.5rem;
-        }
-
-        .search-section h3 {
-            color: #fff;
-            font-size: 1.125rem;
-            margin-bottom: 1rem;
-        }
-
-        .search-form {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .search-input {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            background: #1a2332;
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            border-radius: 0.5rem;
-            color: #fff;
-            font-size: 1rem;
-        }
-
-        .search-input::placeholder {
-            color: #64748b;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #22d3ee;
-            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
-        }
-
-        .search-btn {
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(to right, #06b6d4, #3b82f6);
-            color: #fff;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .search-btn:hover {
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-        }
-
-        /* Results */
-        .results {
-            margin-top: 1rem;
-        }
-
-        .result-item {
-            padding: 1rem;
-            background: rgba(26, 35, 50, 0.5);
-            border: 1px solid rgba(6, 182, 212, 0.1);
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-            transition: all 0.2s;
-        }
-
-        .result-item:hover {
-            border-color: rgba(6, 182, 212, 0.3);
-            background: rgba(6, 182, 212, 0.05);
-        }
-
-        .result-item h4 {
-            color: #fff;
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .result-item p {
-            color: #94a3b8;
-            font-size: 0.875rem;
-            margin: 0.25rem 0;
-        }
-
-        .result-item strong {
-            color: #22d3ee;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #94a3b8;
-        }
-
-        /* API Status Card */
-        .api-status {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .api-count {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #22d3ee, #60a5fa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
         /* Responsive */
         @media (max-width: 640px) {
             .header {
@@ -292,12 +249,12 @@
                 gap: 1rem;
             }
 
-            .search-form {
-                flex-direction: column;
-            }
-
             .container {
                 padding: 1rem;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -316,34 +273,105 @@
     </div>
 
     <div class="container">
-        <div class="cards">
-            <div class="card">
-                <h3>API Status</h3>
-                <div class="api-status">
-                    <span class="api-count" id="apiCount">-</span>
-                    <span class="status-badge status-healthy" id="statusBadge">-</span>
+        <!-- Status Section -->
+        <div class="status-section">
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-value" id="apiCount">-</div>
+                    <div class="status-label">APIs Configuradas</div>
                 </div>
-                <p id="apiStatus">Verificando...</p>
-            </div>
-            <div class="card">
-                <h3>Documentacao</h3>
-                <p>Explore todos os endpoints da API com Swagger UI</p>
-                <a href="/docs" target="_blank" class="card-link">Abrir Swagger</a>
-            </div>
-            <div class="card">
-                <h3>Endpoints</h3>
-                <p>Empresas, Pessoas, Politicos, Noticias</p>
-                <a href="/redoc" target="_blank" class="card-link">Ver ReDoc</a>
+                <div class="status-item">
+                    <div class="status-value">v2.0</div>
+                    <div class="status-label">Versao</div>
+                </div>
+                <div class="status-item">
+                    <span class="status-badge status-healthy" id="statusBadge">-</span>
+                    <div class="status-label" id="apiStatus">Verificando...</div>
+                </div>
             </div>
         </div>
 
-        <div class="search-section">
-            <h3>Buscar Empresa por Nome (CNPJ)</h3>
-            <div class="search-form">
-                <input type="text" id="companyName" class="search-input" placeholder="Ex: Natura, Magazine Luiza, Petrobras">
-                <button onclick="searchCNPJ()" class="search-btn">Buscar</button>
-            </div>
-            <div class="results" id="results"></div>
+        <h2 class="page-title">Modulos de Inteligencia</h2>
+
+        <!-- Main Cards Grid -->
+        <div class="cards">
+            <!-- Empresas -->
+            <a href="/docs#/Companies" class="card">
+                <div class="card-header">
+                    <div class="card-icon red">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <h3>Empresas</h3>
+                </div>
+                <p>Analise empresas, gere relatorios SWOT, OKRs e inteligencia competitiva. Busca por CNPJ.</p>
+            </a>
+
+            <!-- Pessoas -->
+            <a href="/docs#/People" class="card">
+                <div class="card-header">
+                    <div class="card-icon orange">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <h3>Pessoas</h3>
+                </div>
+                <p>Pesquise perfis profissionais, analise talentos e faca comparacao de candidatos.</p>
+            </a>
+
+            <!-- Politicos -->
+            <a href="/docs#/Politicians" class="card">
+                <div class="card-header">
+                    <div class="card-icon blue">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                        </svg>
+                    </div>
+                    <h3>Politicos</h3>
+                </div>
+                <p>Pesquise perfis de politicos, percepcao publica e presenca em midias sociais.</p>
+            </a>
+
+            <!-- Noticias -->
+            <a href="/docs#/News" class="card">
+                <div class="card-header">
+                    <div class="card-icon green">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                    </div>
+                    <h3>Noticias</h3>
+                </div>
+                <p>Monitore noticias, tendencias e cenario economico do mercado brasileiro.</p>
+            </a>
+
+            <!-- Analytics -->
+            <a href="/docs#/Analytics" class="card">
+                <div class="card-header">
+                    <div class="card-icon cyan">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <h3>Analytics</h3>
+                </div>
+                <p>Visualize metricas de uso, qualidade de dados e performance do sistema.</p>
+            </a>
+
+            <!-- Documentacao -->
+            <a href="/docs" class="card">
+                <div class="card-header">
+                    <div class="card-icon purple">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </div>
+                    <h3>Documentacao</h3>
+                </div>
+                <p>Explore todos os endpoints da API com Swagger UI interativo.</p>
+            </a>
         </div>
     </div>
 
@@ -387,43 +415,6 @@
                 document.getElementById('apiStatus').textContent = 'Erro ao carregar';
             }
         }
-
-        async function searchCNPJ() {
-            const name = document.getElementById('companyName').value;
-            if (!name) return;
-
-            const results = document.getElementById('results');
-            results.innerHTML = '<div class="loading">Buscando...</div>';
-
-            try {
-                const r = await fetchWithAuth('/api/v2/company/cnpj/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ company_name: name, max_results: 5 })
-                });
-                const data = await r.json();
-
-                if (data.companies && data.companies.length > 0) {
-                    results.innerHTML = data.companies.map(c => `
-                        <div class="result-item">
-                            <h4>${c.razao_social || c.nome_fantasia || 'N/A'}</h4>
-                            <p><strong>CNPJ:</strong> ${c.cnpj}</p>
-                            <p><strong>Situacao:</strong> ${c.situacao_cadastral || 'N/A'}</p>
-                            ${c.municipio ? `<p><strong>Cidade:</strong> ${c.municipio}/${c.uf}</p>` : ''}
-                        </div>
-                    `).join('');
-                } else {
-                    results.innerHTML = '<div class="result-item"><p>Nenhuma empresa encontrada</p></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<div class="result-item"><p>Erro na busca. Tente novamente.</p></div>';
-            }
-        }
-
-        // Enter key to search
-        document.getElementById('companyName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') searchCNPJ();
-        });
 
         function logout() {
             localStorage.removeItem('token');

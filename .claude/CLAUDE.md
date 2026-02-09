@@ -1,683 +1,713 @@
-# IconsAI Scraping - Web Scraping System
+# scraping-hub - Sistema de Web Scraping
 
-## 🚨 AVISOS CRÍTICOS - PROJETO PROBLEMÁTICO
+**VERSÃO: 2.0.0 - ULTRA-STRICT**  
+**DATA: 08/02/2026**  
+**STATUS: PROJETO TRAVADO - AUTOMAÇÃO OBRIGATÓRIA**
 
-### Principais Problemas Conhecidos
-1. **Scrapers quebram frequentemente** → Sites mudam estrutura HTML
-2. **Erros silenciosos** → Scraper falha mas não avisa adequadamente
-3. **Falta retry logic** → Uma falha = scraping inteiro falha
-4. **Logs insuficientes** → Difícil debugar quando quebra
-5. **Código duplicado** → Lógica repetida entre scrapers
+---
 
-### ANTES DE QUALQUER ALTERAÇÃO
+## 🚨 REGRAS IMUTÁVEIS (NUNCA VIOLAR)
 
-```markdown
-1. ✅ LER completamente o código existente
-2. ✅ RODAR testes antes de mudar qualquer coisa
-3. ✅ CRIAR questionário de validação
-4. ✅ PERGUNTAR sobre impactos em outros scrapers
-5. ✅ NUNCA mudar código que não foi solicitado
+### REGRA 0: PROIBIÇÃO ABSOLUTA DE MUDANÇAS NÃO SOLICITADAS
+
+```
+❌ NUNCA MUDAR CÓDIGO QUE NÃO FOI EXPLICITAMENTE PEDIDO
+❌ NUNCA "MELHORAR" CÓDIGO SEM AUTORIZAÇÃO
+❌ NUNCA "REFATORAR" SEM ORDEM DIRETA
+❌ NUNCA "OTIMIZAR" SEM PERMISSÃO
+❌ NUNCA ADICIONAR FEATURES NÃO PEDIDAS
+❌ NUNCA SUGERIR MUDANÇAS - APENAS EXECUTAR ORDENS
+```
+
+**PENALIDADE:** Se Claude modificar QUALQUER arquivo não solicitado, o trabalho é REJEITADO e deve ser revertido completamente.
+
+---
+
+### REGRA 1: EXECUÇÃO LITERAL DE COMANDOS
+
+**Claude deve:**
+- ✅ Executar EXATAMENTE o que foi pedido
+- ✅ Não interpretar, não inferir, não assumir
+- ✅ Se houver QUALQUER ambiguidade → PARAR e perguntar
+- ✅ Confirmar entendimento ANTES de executar
+
+**Formato obrigatório de resposta:**
+```
+Entendi que você quer:
+1. [ação específica 1]
+2. [ação específica 2]
+3. [ação específica 3]
+
+Arquivos que serão modificados:
+- arquivo1.py (linha X-Y)
+- arquivo2.py (adicionar função Z)
+
+CONFIRMAÇÃO NECESSÁRIA: Prosseguir? (sim/não)
 ```
 
 ---
 
-## 📁 ESTRUTURA DO PROJETO
+### REGRA 2: AUTOMAÇÃO OBRIGATÓRIA - ZERO INTERVENÇÃO MANUAL
 
+**TUDO deve ser automatizado:**
+
+```python
+# ❌ NUNCA fazer manualmente
+# ❌ NUNCA pedir para usuário fazer algo
+# ❌ NUNCA deixar tarefas para depois
+
+# ✅ SEMPRE criar scripts de automação
+# ✅ SEMPRE usar DigitalOcean API
+# ✅ SEMPRE criar CRON jobs
+# ✅ SEMPRE criar webhooks
+# ✅ SEMPRE criar monitoramento automático
 ```
-iconsai-scraping/
-├── src/
-│   ├── scrapers/           # Scrapers individuais
-│   │   ├── base.py         # BaseScaper (NUNCA MUDAR sem consultar)
-│   │   ├── siconfi.py      # SICONFI scraper
-│   │   ├── tce.py          # TCE scraper
-│   │   └── ...
-│   ├── services/
-│   │   ├── parser.py       # HTML parsing
-│   │   ├── validator.py    # Data validation
-│   │   └── storage.py      # DB operations
-│   ├── database/
-│   │   ├── schema.sql      # Database schema
-│   │   └── models.py       # SQLAlchemy models
-│   └── utils/
-│       ├── retry.py        # Retry logic
-│       └── logger.py       # Logging config
-├── api/
-│   ├── main.py             # FastAPI app
-│   └── routes/             # API endpoints
-├── tests/
-│   ├── test_scrapers.py
-│   └── test_api.py
-├── config/
-│   └── settings.py         # Configurações
-└── requirements.txt
-```
+
+**Exemplos proibidos:**
+- ❌ "Você pode executar esse comando manualmente"
+- ❌ "Depois você configura o CRON"
+- ❌ "Faça login no servidor e..."
+- ❌ "Manualmente, ajuste o arquivo X"
+
+**Exemplos obrigatórios:**
+- ✅ "Criando script de deploy automático"
+- ✅ "Configurando CRON via DigitalOcean API"
+- ✅ "Implementando webhook de monitoramento"
+- ✅ "Deploy automático via GitHub Actions"
 
 ---
 
-## 🎯 STACK & COMANDOS
+### REGRA 3: ACESSO OBRIGATÓRIO AO DIGITALOCEAN
 
-### Stack
-- **Python 3.11+**
-- **FastAPI** (async API)
-- **BeautifulSoup4** (HTML parsing)
-- **httpx** (async HTTP client)
-- **SQLAlchemy** (ORM)
-- **Pydantic** (validation)
-- **pytest** (testing)
+**Claude DEVE ter acesso à infraestrutura:**
 
-### Comandos Principais
 ```bash
-# Development
-uvicorn api.main:app --reload     # Run API dev
-python -m src.scrapers.siconfi    # Run scraper direto
+# Servidor DigitalOcean
+IP: 161.35.128.174
+Port: 5678 (n8n)
+SSH: Acesso obrigatório via API
+```
 
-# Testing
-pytest                            # Run all tests
-pytest tests/test_scrapers.py     # Test específico
-pytest --cov                      # Com coverage
-pytest -v -s                      # Verbose com print
+**Automações obrigatórias via DigitalOcean:**
+1. ✅ Deploy automático via API
+2. ✅ CRON configuration via API
+3. ✅ Monitoring setup via API
+4. ✅ Log collection automático
+5. ✅ Health checks automáticos
+6. ✅ Restart automático em falhas
+7. ✅ Backup automático
 
-# Linting
-ruff check .                      # Check errors
-ruff format .                     # Format code
-mypy src/                         # Type checking
+**Se Claude não conseguir acessar DigitalOcean:**
+```
+PARAR IMEDIATAMENTE
+REPORTAR: "Acesso DigitalOcean necessário para automação"
+SOLICITAR: Credenciais API / SSH keys
+NÃO PROSSEGUIR com soluções manuais
 ```
 
 ---
 
-## 🚨 REGRAS CRÍTICAS - SCRAPING
+### REGRA 4: DOCUMENTAÇÃO PROIBIDA (APENAS CÓDIGO)
 
-### 1. NUNCA Hardcode Seletores CSS
-```python
-# ❌ ERRADO - Quebrará quando site mudar
-def scrape_bad():
-    soup = BeautifulSoup(html, 'html.parser')
-    data = soup.select_one('#content > div.main > table > tr:nth-child(2)').text
-    return data
+```
+❌ NUNCA escrever documentação longa
+❌ NUNCA criar READMEs extensos
+❌ NUNCA explicar "como funciona"
 
-# ✅ CORRETO - Usar seletores robustos + fallback
-def scrape_good():
-    soup = BeautifulSoup(html, 'html.parser')
-    
-    # Tentar múltiplas estratégias
-    selectors = [
-        ('id', 'data-table'),
-        ('class', 'fiscal-data'),
-        ('data-testid', 'main-table'),
-    ]
-    
-    for selector_type, selector_value in selectors:
-        if selector_type == 'id':
-            element = soup.find(id=selector_value)
-        elif selector_type == 'class':
-            element = soup.find(class_=selector_value)
-        elif selector_type == 'data-testid':
-            element = soup.find(attrs={'data-testid': selector_value})
-        
-        if element:
-            return element.text.strip()
-    
-    raise ScrapingError("Nenhum seletor encontrou dados")
+✅ APENAS código auto-documentado
+✅ APENAS docstrings curtas
+✅ APENAS comentários essenciais
 ```
 
-### 2. SEMPRE Implementar Retry Logic
+**Formato permitido de comentário:**
 ```python
-# ✅ OBRIGATÓRIO em todos os scrapers
-from tenacity import retry, stop_after_attempt, wait_exponential
+# O QUÊ (não POR QUÊ)
+def scrape_siconfi(codigo_ibge: str):
+    """Scrape SICONFI para município."""  # ← Máximo permitido
+    pass
+```
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=4, max=10),
-    reraise=True
-)
-async def fetch_with_retry(url: str) -> str:
+**Formato PROIBIDO:**
+```python
+# ❌ NUNCA fazer isso:
+def scrape_siconfi(codigo_ibge: str):
     """
-    Faz requisição com retry automático.
+    Esta função realiza o scraping do portal SICONFI.
     
-    Tentativas: 3
-    Backoff: exponencial (4s, 8s, 10s)
+    O SICONFI é o Sistema de Informações Contábeis...
+    Utilizamos BeautifulSoup porque...
+    O retry é necessário pois...
+    
+    Args:
+        codigo_ibge: Código IBGE de 7 dígitos que representa...
+    
+    Returns:
+        Um dicionário contendo os dados fiscais...
+    
+    Examples:
+        >>> scrape_siconfi('3550308')
+        {'rcl': 1000000, ...}
+    
+    Notes:
+        - Lembre-se de configurar...
+        - É importante que...
     """
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(url)
-        response.raise_for_status()
-        return response.text
-```
-
-### 3. SEMPRE Logar Operações Importantes
-```python
-import logging
-from datetime import datetime
-
-logger = logging.getLogger(__name__)
-
-async def scrape_siconfi(codigo_ibge: str, exercicio: int):
-    """Scrape SICONFI data for município."""
-    
-    logger.info(
-        f"Iniciando scraping SICONFI",
-        extra={
-            'codigo_ibge': codigo_ibge,
-            'exercicio': exercicio,
-            'timestamp': datetime.utcnow().isoformat()
-        }
-    )
-    
-    try:
-        url = build_url(codigo_ibge, exercicio)
-        logger.debug(f"URL construída: {url}")
-        
-        html = await fetch_with_retry(url)
-        logger.debug(f"HTML recebido: {len(html)} bytes")
-        
-        data = parse_html(html)
-        logger.info(
-            f"Scraping concluído com sucesso",
-            extra={
-                'codigo_ibge': codigo_ibge,
-                'records_found': len(data)
-            }
-        )
-        
-        return data
-        
-    except Exception as e:
-        logger.error(
-            f"Erro no scraping SICONFI",
-            extra={
-                'codigo_ibge': codigo_ibge,
-                'exercicio': exercicio,
-                'error': str(e),
-                'error_type': type(e).__name__
-            },
-            exc_info=True
-        )
-        raise
-```
-
-### 4. SEMPRE Validar Dados Extraídos
-```python
-from pydantic import BaseModel, Field, validator
-from typing import Optional
-
-class FiscalData(BaseModel):
-    """Dados fiscais validados."""
-    
-    codigo_ibge: str = Field(..., regex=r'^\d{7}$')
-    exercicio: int = Field(..., ge=2015, le=2030)
-    rcl: float = Field(..., gt=0)
-    despesa_pessoal: float = Field(..., ge=0)
-    fonte_url: str = Field(..., min_length=10)
-    data_coleta: datetime
-    
-    @validator('rcl')
-    def rcl_must_be_reasonable(cls, v):
-        """RCL não pode ser absurdamente alta/baixa."""
-        if v > 100_000_000_000:  # 100 bilhões
-            raise ValueError('RCL parece incorreta (muito alta)')
-        if v < 1_000:  # 1 mil
-            raise ValueError('RCL parece incorreta (muito baixa)')
-        return v
-    
-    class Config:
-        frozen = True
-
-# Uso no scraper
-def parse_and_validate(html: str, codigo_ibge: str) -> FiscalData:
-    """Parse HTML e valida dados."""
-    raw_data = extract_data_from_html(html)
-    
-    try:
-        validated = FiscalData(
-            codigo_ibge=codigo_ibge,
-            exercicio=raw_data['ano'],
-            rcl=float(raw_data['rcl'].replace('.', '').replace(',', '.')),
-            despesa_pessoal=float(raw_data['dp'].replace('.', '').replace(',', '.')),
-            fonte_url=raw_data['source_url'],
-            data_coleta=datetime.utcnow()
-        )
-        return validated
-    except ValidationError as e:
-        logger.error(f"Validation failed for {codigo_ibge}: {e}")
-        raise
-```
-
-### 5. SEMPRE Registrar Fonte dos Dados
-```python
-async def scrape_and_save(codigo_ibge: str):
-    """Scrape e salva com registro de fonte."""
-    
-    # 1. Scrape
-    data = await scrape_siconfi(codigo_ibge)
-    
-    # 2. Salvar dados
-    await db.save_fiscal_data(data)
-    
-    # 3. OBRIGATÓRIO: Registrar fonte
-    await db.execute(
-        """
-        INSERT INTO fontes_dados (
-            nome,
-            categoria,
-            fonte_primaria,
-            url,
-            data_primeira_coleta,
-            formato,
-            observacoes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (nome, categoria) DO UPDATE
-        SET data_ultima_atualizacao = NOW()
-        """,
-        'SICONFI - RREO',
-        'fiscal',
-        'Tesouro Nacional',
-        f'https://siconfi.tesouro.gov.br/siconfi/pages/public/consulta_finbra_municipios.jsf?codigo_ibge={codigo_ibge}',
-        datetime.utcnow(),
-        'HTML',
-        f'Scraping automático para município {codigo_ibge}'
-    )
+    pass
 ```
 
 ---
 
-## 🏗️ PADRÕES DE CÓDIGO
+### REGRA 5: IMUTABILIDADE DO BASE.PY
 
-### BaseScaper (TEMPLATE OBRIGATÓRIO)
+**O arquivo `src/scrapers/base.py` é SAGRADO:**
 
-```python
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List
-import httpx
-import logging
+```
+🔒 NUNCA modificar base.py sem ordem EXPLÍCITA
+🔒 NUNCA "melhorar" base.py
+🔒 NUNCA "otimizar" base.py
+🔒 NUNCA adicionar features a base.py
 
-class BaseScraper(ABC):
-    """
-    Base class para todos os scrapers.
-    
-    NUNCA MUDAR sem consultar - todos os scrapers herdam daqui.
-    """
-    
-    def __init__(self, base_url: str, timeout: int = 30):
-        self.base_url = base_url
-        self.timeout = timeout
-        self.logger = logging.getLogger(self.__class__.__name__)
-        
-    @abstractmethod
-    async def scrape(self, *args, **kwargs) -> List[Dict[str, Any]]:
-        """
-        Método principal de scraping.
-        
-        Deve ser implementado por cada scraper específico.
-        """
-        pass
-    
-    @abstractmethod
-    def parse_html(self, html: str) -> List[Dict[str, Any]]:
-        """
-        Parse HTML para dados estruturados.
-        
-        Deve ser implementado por cada scraper específico.
-        """
-        pass
-    
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
-    async def fetch(self, url: str) -> str:
-        """Fetch URL com retry automático."""
-        self.logger.info(f"Fetching: {url}")
-        
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            return response.text
-    
-    async def scrape_and_save(self, *args, **kwargs):
-        """
-        Scrape e salva no banco com registro de fonte.
-        
-        Template method - pode ser sobrescrito se necessário.
-        """
-        try:
-            # 1. Scrape
-            data = await self.scrape(*args, **kwargs)
-            
-            # 2. Validate
-            validated_data = [self.validate(item) for item in data]
-            
-            # 3. Save
-            await self.save_to_db(validated_data)
-            
-            # 4. Register source
-            await self.register_data_source(*args, **kwargs)
-            
-            self.logger.info(f"Successfully scraped {len(validated_data)} records")
-            
-        except Exception as e:
-            self.logger.error(f"Scraping failed: {e}", exc_info=True)
-            raise
-    
-    @abstractmethod
-    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida um registro de dados."""
-        pass
-    
-    @abstractmethod
-    async def save_to_db(self, data: List[Dict[str, Any]]):
-        """Salva dados no banco."""
-        pass
-    
-    @abstractmethod
-    async def register_data_source(self, *args, **kwargs):
-        """Registra fonte dos dados na tabela fontes_dados."""
-        pass
+✅ APENAS criar NOVOS scrapers que HERDAM de BaseScraper
+✅ APENAS modificar base.py se comando for:
+   "Modifique o arquivo base.py adicionando [X]"
 ```
 
-### Exemplo de Scraper Específico
+**Conteúdo atual do base.py (IMUTÁVEL):**
+- Retry automático (tenacity)
+- Logging estruturado (structlog)
+- Métricas de uso
+- Async HTTP client (httpx)
+- Context manager
 
+**Se precisar de nova funcionalidade:**
 ```python
+# ✅ CERTO - Criar em NOVO arquivo
+# src/scrapers/advanced_base.py
 from .base import BaseScraper
-from bs4 import BeautifulSoup
-from pydantic import BaseModel
 
-class SiconfiRREOScraper(BaseScraper):
-    """Scraper para RREO do SICONFI."""
-    
-    def __init__(self):
-        super().__init__(
-            base_url='https://siconfi.tesouro.gov.br',
-            timeout=60  # RREO pode ser lento
-        )
-    
-    async def scrape(self, codigo_ibge: str, exercicio: int) -> List[Dict]:
-        """
-        Scrape RREO data.
-        
-        Args:
-            codigo_ibge: Código IBGE 7 dígitos
-            exercicio: Ano fiscal
-            
-        Returns:
-            Lista de registros RREO
-        """
-        url = self._build_url(codigo_ibge, exercicio)
-        html = await self.fetch(url)
-        return self.parse_html(html)
-    
-    def parse_html(self, html: str) -> List[Dict]:
-        """Parse HTML do SICONFI."""
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        # IMPORTANTE: Usar múltiplas estratégias de seleção
-        table = (
-            soup.find('table', {'id': 'rreo-table'}) or
-            soup.find('table', class_='table-rreo') or
-            soup.find('table', attrs={'data-type': 'fiscal'})
-        )
-        
-        if not table:
-            raise ScrapingError("Tabela RREO não encontrada - site pode ter mudado")
-        
-        rows = table.find_all('tr')[1:]  # Skip header
-        
-        data = []
-        for row in rows:
-            cols = row.find_all('td')
-            if len(cols) >= 3:
-                data.append({
-                    'rubrica': cols[0].text.strip(),
-                    'valor_previsto': self._parse_currency(cols[1].text),
-                    'valor_realizado': self._parse_currency(cols[2].text),
-                })
-        
-        return data
-    
-    def validate(self, data: Dict) -> Dict:
-        """Valida registro RREO."""
-        # Usar Pydantic para validação
-        class RREORecord(BaseModel):
-            rubrica: str
-            valor_previsto: float
-            valor_realizado: float
-        
-        return RREORecord(**data).dict()
-    
-    async def save_to_db(self, data: List[Dict]):
-        """Salva RREO no banco."""
-        query = """
-            INSERT INTO rreo_data (rubrica, valor_previsto, valor_realizado)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (rubrica) DO UPDATE
-            SET valor_realizado = EXCLUDED.valor_realizado
-        """
-        
-        for record in data:
-            await db.execute(
-                query,
-                record['rubrica'],
-                record['valor_previsto'],
-                record['valor_realizado']
-            )
-    
-    async def register_data_source(self, codigo_ibge: str, exercicio: int):
-        """Registra fonte SICONFI."""
-        await db.execute(
-            """
-            INSERT INTO fontes_dados (nome, categoria, fonte_primaria, url, data_primeira_coleta)
-            VALUES ($1, $2, $3, $4, NOW())
-            ON CONFLICT DO NOTHING
-            """,
-            'SICONFI RREO',
-            'fiscal',
-            'Tesouro Nacional',
-            self._build_url(codigo_ibge, exercicio)
-        )
-    
-    def _build_url(self, codigo_ibge: str, exercicio: int) -> str:
-        """Constrói URL do SICONFI."""
-        return f"{self.base_url}/siconfi/pages/public/consulta_rreo.jsf?codigo_ibge={codigo_ibge}&exercicio={exercicio}"
-    
-    def _parse_currency(self, text: str) -> float:
-        """Parse valor monetário brasileiro."""
-        # Remove R$, pontos de milhar, troca vírgula por ponto
-        clean = text.replace('R$', '').replace('.', '').replace(',', '.').strip()
-        return float(clean)
+class AdvancedBaseScraper(BaseScraper):
+    # Nova funcionalidade aqui
+    pass
+```
+
+```python
+# ❌ ERRADO - Modificar base.py
+# src/scrapers/base.py
+class BaseScraper:
+    # Adicionar nova funcionalidade ← PROIBIDO
+    pass
 ```
 
 ---
 
-## 🧪 TESTES (OBRIGATÓRIO)
+### REGRA 6: SCRAPERS SÃO WRITE-ONLY
 
-### Testes de Scraper
+**Scrapers existentes NÃO podem ser modificados:**
+
+```
+🔒 apollo.py         - IMUTÁVEL
+🔒 brasil_api.py     - IMUTÁVEL
+🔒 perplexity.py     - IMUTÁVEL
+🔒 serper.py         - IMUTÁVEL
+🔒 tavily.py         - IMUTÁVEL
+🔒 web_scraper.py    - IMUTÁVEL
+```
+
+**Único caso permitido para modificação:**
+```
+"Corrija o BUG na linha X do arquivo Y"
+"Adicione o parâmetro Z à função W do arquivo V"
+```
+
+**Para novas features:**
+```python
+# ✅ Criar NOVO scraper
+# src/scrapers/siconfi_v2.py
+from .base import BaseScraper
+
+class SiconfiV2Scraper(BaseScraper):
+    # Nova implementação
+    pass
+```
+
+---
+
+### REGRA 7: TESTES SÃO OBRIGATÓRIOS E AUTOMÁTICOS
+
+**TODA mudança de código DEVE ter teste automático:**
 
 ```python
-# tests/test_scrapers.py
+# ❌ NUNCA aceitar código sem testes
+# ❌ NUNCA deixar "adicionar testes depois"
+# ❌ NUNCA testes manuais
+
+# ✅ SEMPRE criar testes junto com código
+# ✅ SEMPRE rodar testes antes de commitar
+# ✅ SEMPRE CI/CD com testes automáticos
+```
+
+**Estrutura obrigatória:**
+```
+CRIAR código → CRIAR teste → RODAR teste → COMMITAR
+```
+
+**Formato de teste obrigatório:**
+```python
+# tests/scrapers/test_novo_scraper.py
 import pytest
-from src.scrapers.siconfi import SiconfiRREOScraper
-
-@pytest.fixture
-def mock_html():
-    """HTML de exemplo do SICONFI."""
-    return """
-    <table id="rreo-table">
-        <tr><th>Rubrica</th><th>Previsto</th><th>Realizado</th></tr>
-        <tr>
-            <td>Receita Tributária</td>
-            <td>R$ 1.000.000,00</td>
-            <td>R$ 950.000,00</td>
-        </tr>
-    </table>
-    """
-
-def test_parse_html(mock_html):
-    """Testa parsing do HTML."""
-    scraper = SiconfiRREOScraper()
-    data = scraper.parse_html(mock_html)
-    
-    assert len(data) == 1
-    assert data[0]['rubrica'] == 'Receita Tributária'
-    assert data[0]['valor_previsto'] == 1_000_000.0
-    assert data[0]['valor_realizado'] == 950_000.0
-
-def test_parse_currency():
-    """Testa conversão de moeda."""
-    scraper = SiconfiRREOScraper()
-    
-    assert scraper._parse_currency('R$ 1.000,00') == 1000.0
-    assert scraper._parse_currency('R$ 1.234.567,89') == 1234567.89
+from src.scrapers.novo_scraper import NovoScraper
 
 @pytest.mark.asyncio
-async def test_scrape_with_invalid_codigo_ibge():
-    """Testa erro com código IBGE inválido."""
-    scraper = SiconfiRREOScraper()
-    
-    with pytest.raises(ValidationError):
-        await scraper.scrape('123', 2024)  # Código curto demais
+async def test_scraper_success():
+    scraper = NovoScraper()
+    result = await scraper.scrape()
+    assert result is not None
+    assert len(result) > 0
+
+@pytest.mark.asyncio
+async def test_scraper_validation():
+    scraper = NovoScraper()
+    data = {"field": "value"}
+    validated = scraper.validate(data)
+    assert validated["field"] == "value"
+
+# MÍNIMO: 2 testes por scraper
+# IDEAL: 5+ testes (happy path + edge cases)
 ```
 
 ---
 
-## ⚠️ TROUBLESHOOTING
+### REGRA 8: REGISTRO DE FONTES OBRIGATÓRIO
 
-### Problema: Scraper não encontra dados
-
-```python
-# DEBUG: Adicionar logs detalhados
-soup = BeautifulSoup(html, 'html.parser')
-
-# Salvar HTML para análise
-with open(f'debug_{codigo_ibge}.html', 'w') as f:
-    f.write(html)
-
-# Listar todos os seletores possíveis
-logger.debug("Tables found:", [t.get('id') for t in soup.find_all('table')])
-logger.debug("Tables with class:", [t.get('class') for t in soup.find_all('table')])
-```
-
-### Problema: Dados extraídos estão incorretos
+**TODO scraping DEVE registrar fonte:**
 
 ```python
-# VALIDAR os dados imediatamente após parsing
-def parse_html(self, html: str):
-    data = extract_data(html)
+async def register_data_source(self, **kwargs):
+    """
+    OBRIGATÓRIO para compliance ISO 27001/27701.
     
-    # Sanity checks
-    for record in data:
-        assert 'rubrica' in record, "Missing rubrica"
-        assert isinstance(record['valor'], (int, float)), "Valor not numeric"
-        assert record['valor'] >= 0, "Valor negativo"
+    Deve ser chamado SEMPRE após scraping.
+    """
+    from database import get_db_client
     
-    return data
+    db = get_db_client()
+    
+    await db.execute("""
+        INSERT INTO fontes_dados (
+            nome, categoria, fonte_primaria, url, 
+            data_primeira_coleta, periodicidade, 
+            formato, confiabilidade
+        )
+        VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
+        ON CONFLICT (nome) DO UPDATE
+        SET data_ultima_atualizacao = NOW()
+    """,
+        'Nome da Fonte',      # OBRIGATÓRIO
+        'categoria',          # OBRIGATÓRIO
+        'Fonte Primária',     # OBRIGATÓRIO
+        'https://url.com',    # OBRIGATÓRIO
+        'periodicidade',      # OBRIGATÓRIO
+        'formato',            # OBRIGATÓRIO
+        'confiabilidade'      # OBRIGATÓRIO
+    )
 ```
 
-### Problema: Site mudou estrutura
-
-```python
-# 1. Salvar HTML atual
-# 2. Comparar com HTML anterior (se tiver)
-# 3. Identificar o que mudou
-# 4. Atualizar seletores CSS
-# 5. Adicionar fallback para estrutura antiga (compatibilidade)
-
-def find_table_robust(soup):
-    """Tenta múltiplas estratégias."""
-    strategies = [
-        lambda: soup.find('table', id='rreo-table'),  # Nova estrutura
-        lambda: soup.find('table', class_='fiscal-data'),  # Estrutura antiga
-        lambda: soup.find('table', attrs={'data-report': 'rreo'}),  # Fallback
-    ]
-    
-    for strategy in strategies:
-        try:
-            table = strategy()
-            if table:
-                return table
-        except Exception as e:
-            logger.debug(f"Strategy failed: {e}")
-    
-    raise ScrapingError("Table not found with any strategy")
-```
+**Penalidade:** Scraper sem registro de fonte = REJEITADO
 
 ---
 
-## 🚀 MELHORIAS PRIORITÁRIAS
+## 🤖 AUTOMAÇÃO OBRIGATÓRIA
 
-### 1. Implementar Circuit Breaker
-```python
-# TODO: Adicionar circuit breaker para evitar bombardear site que está fora
-from circuitbreaker import circuit
+### DigitalOcean API - Acesso Necessário
 
-@circuit(failure_threshold=5, recovery_timeout=60)
-async def fetch_with_circuit_breaker(url: str):
-    """Fetch com circuit breaker."""
-    async with httpx.AsyncClient() as client:
-        return await client.get(url)
+**Servidor:**
+```
+IP: 161.35.128.174
+Porta n8n: 5678
+SSH: Via API Token
+DigitalOcean API: Obrigatório
 ```
 
-### 2. Adicionar Cache de HTML
-```python
-# TODO: Cachear HTML por X horas para evitar scraping desnecessário
-import aiofiles
-from pathlib import Path
+**Automações obrigatórias:**
 
-async def fetch_with_cache(url: str, cache_hours: int = 6):
-    """Fetch com cache em disco."""
-    cache_file = Path(f'cache/{hashlib.md5(url.encode()).hexdigest()}.html')
+#### 1. Deploy Automático
+
+```python
+# scripts/deploy_to_digitalocean.py
+"""
+Deploy automático via DigitalOcean API.
+
+NUNCA fazer deploy manual.
+NUNCA pedir para usuário fazer SSH.
+SEMPRE usar este script.
+"""
+
+import digitalocean
+import subprocess
+
+def deploy_scraper(scraper_name: str):
+    """
+    Deploy automático de scraper.
     
-    if cache_file.exists():
-        age_hours = (datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)).total_seconds() / 3600
+    Passos:
+    1. Build Docker image
+    2. Push to registry
+    3. Deploy via API
+    4. Configure CRON via API
+    5. Setup monitoring via API
+    """
+    # 1. Build
+    subprocess.run([
+        "docker", "build", 
+        "-t", f"scraping-hub/{scraper_name}:latest",
+        "."
+    ])
+    
+    # 2. Push
+    subprocess.run([
+        "docker", "push",
+        f"scraping-hub/{scraper_name}:latest"
+    ])
+    
+    # 3. Deploy via DigitalOcean API
+    manager = digitalocean.Manager(token=DIGITALOCEAN_TOKEN)
+    droplet = manager.get_droplet(DROPLET_ID)
+    
+    # Execute deployment commands via API
+    droplet.run_command([
+        "docker", "pull", f"scraping-hub/{scraper_name}:latest",
+        "&&",
+        "docker", "run", "-d", f"scraping-hub/{scraper_name}:latest"
+    ])
+    
+    # 4. Configure CRON via API (not manual!)
+    configure_cron_via_api(scraper_name)
+    
+    # 5. Setup monitoring
+    setup_monitoring_via_api(scraper_name)
+
+def configure_cron_via_api(scraper_name: str):
+    """Configure CRON job via DigitalOcean API."""
+    # IMPLEMENTAR: API call to configure CRON
+    pass
+
+def setup_monitoring_via_api(scraper_name: str):
+    """Setup monitoring via DigitalOcean API."""
+    # IMPLEMENTAR: API call to setup monitoring
+    pass
+
+if __name__ == "__main__":
+    # NUNCA rodar manualmente
+    # SEMPRE via CI/CD
+    pass
+```
+
+#### 2. CRON Automático
+
+```python
+# scripts/setup_cron_jobs.py
+"""
+Configuração automática de CRON jobs via API.
+
+NUNCA editar crontab manualmente.
+NUNCA SSH no servidor para configurar.
+SEMPRE usar este script.
+"""
+
+from digitalocean import Manager
+
+CRON_JOBS = {
+    "siconfi_daily": {
+        "schedule": "0 2 * * *",  # 2h da manhã
+        "command": "python src/scrapers/siconfi.py",
+        "description": "Import diário SICONFI"
+    },
+    "cleanup_old_data": {
+        "schedule": "0 1 1 * *",  # 1º dia do mês, 1h
+        "command": "python scripts/cleanup.py",
+        "description": "Limpeza de dados > 90 dias"
+    }
+}
+
+def setup_all_crons():
+    """Setup TODOS os CRON jobs via API."""
+    manager = Manager(token=DIGITALOCEAN_TOKEN)
+    droplet = manager.get_droplet(DROPLET_ID)
+    
+    for job_name, config in CRON_JOBS.items():
+        # Remove existing
+        droplet.run_command(f"crontab -l | grep -v '{job_name}' | crontab -")
         
-        if age_hours < cache_hours:
-            async with aiofiles.open(cache_file, 'r') as f:
-                return await f.read()
-    
-    # Cache miss - fetch
-    html = await fetch(url)
-    
-    # Salvar cache
-    cache_file.parent.mkdir(exist_ok=True)
-    async with aiofiles.open(cache_file, 'w') as f:
-        await f.write(html)
-    
-    return html
+        # Add new
+        cron_line = f"{config['schedule']} {config['command']} # {job_name}"
+        droplet.run_command(f"(crontab -l; echo '{cron_line}') | crontab -")
+
+if __name__ == "__main__":
+    setup_all_crons()
 ```
 
-### 3. Melhorar Logs Estruturados
+#### 3. Monitoramento Automático
+
 ```python
-# TODO: Usar structlog para logs JSON estruturados
-import structlog
+# scripts/setup_monitoring.py
+"""
+Monitoramento automático via n8n webhooks.
 
-logger = structlog.get_logger()
+NUNCA verificar manualmente.
+NUNCA logs manuais.
+SEMPRE monitoramento automático.
+"""
 
-logger.info(
-    "scraping_started",
-    codigo_ibge=codigo_ibge,
-    exercicio=exercicio,
-    scraper=self.__class__.__name__
-)
+import requests
+
+N8N_WEBHOOK = "http://161.35.128.174:5678/webhook/scraping-monitor"
+
+def send_alert(scraper: str, status: str, error: str = None):
+    """Envia alerta para n8n."""
+    payload = {
+        "scraper": scraper,
+        "status": status,
+        "error": error,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    requests.post(N8N_WEBHOOK, json=payload)
+
+def setup_health_checks():
+    """Configura health checks automáticos."""
+    # Verificar cada 5 minutos
+    # Enviar alerta se falhar
+    # Auto-restart se necessário
+    pass
+
+if __name__ == "__main__":
+    setup_health_checks()
 ```
 
 ---
 
-## 📋 CHECKLIST ANTES DE COMMIT
+## 📁 ESTRUTURA IMUTÁVEL DO PROJETO
 
-```markdown
-- [ ] Código segue padrão BaseScraper
-- [ ] Implementa retry logic
-- [ ] Logs estruturados adicionados
-- [ ] Validação Pydantic implementada
-- [ ] Fonte de dados registrada em fontes_dados
-- [ ] Testes unitários criados
-- [ ] Testes passam (pytest)
-- [ ] Type hints completos (mypy passa)
-- [ ] Linter OK (ruff check)
-- [ ] Formatado (ruff format)
-- [ ] Documentação atualizada
-- [ ] HTML de exemplo salvo (para debugging futuro)
+```
+scraping-hub/
+├── .claude/
+│   └── CLAUDE.md                    🔒 IMUTÁVEL (este arquivo)
+├── src/
+│   ├── scrapers/
+│   │   ├── base.py                  🔒 IMUTÁVEL (salvo ordem explícita)
+│   │   ├── apollo.py                🔒 IMUTÁVEL
+│   │   ├── brasil_api.py            🔒 IMUTÁVEL
+│   │   ├── perplexity.py            🔒 IMUTÁVEL
+│   │   ├── serper.py                🔒 IMUTÁVEL
+│   │   ├── tavily.py                🔒 IMUTÁVEL
+│   │   └── web_scraper.py           🔒 IMUTÁVEL
+│   ├── database/                    ✅ Modificável (com ordem)
+│   ├── models/                      ✅ Modificável (com ordem)
+│   └── services/                    ✅ Modificável (com ordem)
+├── scripts/                         ✅ CRIAR automações aqui
+│   ├── deploy_to_digitalocean.py    
+│   ├── setup_cron_jobs.py
+│   └── setup_monitoring.py
+├── tests/                           ✅ SEMPRE criar testes
+└── .github/workflows/               ✅ CI/CD automático
+    └── deploy.yml
 ```
 
 ---
 
-**Última atualização:** 08/02/2026
-**Versão:** 1.0.0
-**Status:** PROJETO PROBLEMÁTICO - CUIDADO EXTRA NECESSÁRIO
+## 🚫 ANTI-PADRÕES PROIBIDOS
+
+### 1. "Melhorias" Não Solicitadas
+
+```python
+# ❌ NUNCA fazer:
+# "Vou aproveitar e melhorar o logging aqui"
+# "Vou refatorar esta função para ficar mais limpa"
+# "Vou adicionar type hints para melhorar"
+
+# ✅ SEMPRE:
+# Executar APENAS o solicitado
+# Se vir oportunidade de melhoria → IGNORAR
+# Se código estiver ruim → IGNORAR (a não ser que seja pedido para corrigir)
+```
+
+### 2. Soluções Manuais
+
+```
+❌ "Execute este comando no servidor"
+❌ "Configure manualmente o CRON"
+❌ "Faça SSH e edite o arquivo X"
+❌ "Depois você adiciona..."
+
+✅ "Criando script de automação..."
+✅ "Configurando via DigitalOcean API..."
+✅ "Deploy automático configurado"
+✅ "Monitoramento automático ativo"
+```
+
+### 3. Documentação Excessiva
+
+```
+❌ README de 500 linhas
+❌ Explicações de "como funciona"
+❌ Tutoriais passo-a-passo
+❌ Diagramas de arquitetura
+
+✅ Código auto-documentado
+✅ Docstrings de 1 linha
+✅ Scripts de automação
+✅ Testes automáticos
+```
+
+### 4. Perguntas Desnecessárias
+
+```
+❌ "Você quer que eu adicione testes?"  (SIM, sempre)
+❌ "Devo criar documentação?"           (NÃO, nunca)
+❌ "Prefere fazer X ou Y?"              (Decida e execute)
+❌ "Como você quer que eu faça?"        (Automação total)
+
+✅ Apenas executar com automação máxima
+✅ Perguntar APENAS se houver ambiguidade REAL
+```
+
+---
+
+## ✅ WORKFLOW OBRIGATÓRIO
+
+### Para QUALQUER mudança de código:
+
+```
+1. CONFIRMAÇÃO
+   ├─ Entendi: [listar ações]
+   ├─ Arquivos: [listar modificações]
+   └─ Prosseguir? (aguardar SIM)
+
+2. EXECUÇÃO (somente após SIM)
+   ├─ Modificar APENAS arquivos listados
+   ├─ Modificar APENAS linhas mencionadas
+   └─ NÃO tocar em nada mais
+
+3. TESTES AUTOMÁTICOS
+   ├─ Criar testes (se código novo)
+   ├─ Rodar todos os testes
+   └─ FALHOU? → Reverter tudo
+
+4. AUTOMAÇÃO
+   ├─ Criar scripts de deploy
+   ├─ Configurar CRON via API
+   └─ Setup monitoramento via API
+
+5. COMMIT
+   ├─ Git add (APENAS arquivos modificados)
+   ├─ Git commit (mensagem descritiva)
+   └─ Git push (CI/CD automático)
+```
+
+---
+
+## 🔐 CREDENCIAIS NECESSÁRIAS
+
+**Claude PRECISA ter acesso a:**
+
+```bash
+# DigitalOcean
+DIGITALOCEAN_TOKEN=dop_v1_xxxxx
+DROPLET_ID=xxxxx
+
+# n8n
+N8N_URL=http://161.35.128.174:5678
+N8N_WEBHOOK_URL=http://161.35.128.174:5678/webhook/scraping-monitor
+
+# Supabase
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_KEY=xxxxx
+
+# GitHub (CI/CD)
+GITHUB_TOKEN=ghp_xxxxx
+```
+
+**Se NÃO tiver acesso:**
+```
+PARAR
+SOLICITAR credenciais
+NÃO prosseguir com soluções manuais
+```
+
+---
+
+## 📊 MÉTRICAS DE SUCESSO
+
+**Este projeto é considerado BOM se:**
+
+- ✅ 0% de mudanças não solicitadas
+- ✅ 100% de automação (zero manual)
+- ✅ 100% de testes (todo código testado)
+- ✅ 0% de documentação desnecessária
+- ✅ Deploy automático funcionando
+- ✅ CRON via API configurado
+- ✅ Monitoramento automático ativo
+
+**Este projeto FALHA se:**
+
+- ❌ Código modificado sem ordem
+- ❌ Tarefa manual sugerida
+- ❌ Teste não criado
+- ❌ README extenso criado
+- ❌ "Melhorias" não pedidas
+- ❌ Deploy manual necessário
+
+---
+
+## 🎯 PRINCÍPIOS IMUTÁVEIS
+
+```
+1. LITERAL     - Executar exatamente o pedido
+2. ZERO MANUAL - Tudo deve ser automatizado
+3. IMUTÁVEL    - base.py e scrapers existentes são sagrados
+4. TESTADO     - Todo código tem teste automático
+5. SUCINTO     - Sem documentação excessiva
+6. API-FIRST   - DigitalOcean API obrigatória
+7. CI/CD       - Deploy automático sempre
+```
+
+---
+
+## 🚀 COMANDOS RÁPIDOS
+
+```bash
+# Deploy automático
+python scripts/deploy_to_digitalocean.py
+
+# Configurar CRON via API
+python scripts/setup_cron_jobs.py
+
+# Setup monitoramento
+python scripts/setup_monitoring.py
+
+# Rodar testes
+pytest tests/ -v
+
+# ❌ NUNCA fazer manualmente:
+ssh user@161.35.128.174
+crontab -e
+nano arquivo.py
+```
+
+---
+
+## 📝 CHANGELOG
+
+**v2.0.0 (08/02/2026) - ULTRA-STRICT**
+- ✅ Proibição absoluta de mudanças não solicitadas
+- ✅ Automação obrigatória via DigitalOcean API
+- ✅ Imutabilidade de base.py e scrapers existentes
+- ✅ Testes automáticos obrigatórios
+- ✅ Documentação mínima
+- ✅ CI/CD automático obrigatório
+
+---
+
+**ESTE DOCUMENTO É IMUTÁVEL**  
+**VIOLAÇÕES SERÃO REJEITADAS**  
+**AUTOMAÇÃO É LEI**
