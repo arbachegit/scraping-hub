@@ -1,1 +1,1 @@
-"""Scraping Hub API"""
+"""IconsAI Scraping API"""

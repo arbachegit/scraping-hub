@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Tests for Services
+IconsAI Scraping v2.0 - Tests for Services
 Testes básicos para os serviços de inteligência
 """
 

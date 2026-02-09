@@ -1,219 +1,152 @@
-# Scraping Intelligence Hub
+# IconsAI Scraping Hub
 
-Sistema de scraping inteligente utilizando Coresignal, Proxycurl e Firecrawl para coleta de dados de empresas, LinkedIn e governo.
+Sistema de Business Intelligence Brasil com analise de empresas em 11 blocos tematicos, busca de pessoas e identificacao de concorrentes.
 
-## Servicos Integrados
+## Stack Tecnologico
 
-| Servico | Uso | Documentacao |
-|---------|-----|--------------|
-| **Coresignal** | Dados de empresas e LinkedIn | https://coresignal.com/docs |
-| **Proxycurl** | API LinkedIn (perfis, empresas) | https://nubela.co/proxycurl |
-| **Firecrawl** | Web scraping estruturado | https://firecrawl.dev/docs |
+| Componente | Tecnologia |
+|------------|------------|
+| **Backend Python** | FastAPI, Anthropic Claude, Pydantic |
+| **Backend Node.js** | Express, Supabase |
+| **Frontend** | Next.js 14, React 18, TypeScript, Tailwind |
+| **Banco de Dados** | Supabase (PostgreSQL) |
+| **APIs Integradas** | Serper, Apollo, Perplexity, Tavily, BrasilAPI |
 
 ## Estrutura do Projeto
 
 ```
-scraping-hub/
-├── .claude/skills/           # Skills Claude Code
-│   ├── favicon-guide/
-│   ├── logo-guide/
-│   ├── skill-deploy/
-│   ├── skill-design-audit/
-│   └── skill-indicadores-fiscais/
-├── src/
-│   ├── scrapers/             # Scrapers especificos
-│   │   ├── coresignal.py
-│   │   ├── proxycurl.py
-│   │   └── firecrawl.py
-│   ├── services/             # Servicos de negocio
-│   │   ├── empresa.py
-│   │   ├── linkedin.py
-│   │   └── governo.py
-│   └── utils/                # Utilitarios
-│       ├── cache.py
-│       ├── rate_limiter.py
-│       └── validators.py
-├── config/                   # Configuracoes
-│   ├── settings.py
-│   └── providers.yaml
-├── tests/                    # Testes
-├── docs/                     # Documentacao
-├── .env.example
-├── requirements.txt
-└── README.md
+iconsai-scraping/
+├── src/                          # Backend Python (analise avancada)
+│   ├── scrapers/                 # Clientes de API
+│   │   ├── apollo.py             # LinkedIn B2B
+│   │   ├── brasil_api.py         # Dados CNPJ
+│   │   ├── perplexity.py         # AI Research
+│   │   ├── serper.py             # Google Search
+│   │   └── tavily.py             # AI Search
+│   ├── services/                 # Servicos de negocio
+│   │   ├── company_analysis.py   # Analise 11 blocos
+│   │   ├── ai_analyzer.py        # Claude AI
+│   │   └── keyword_extractor.py  # Extracao de keywords
+│   └── database/                 # Repositories
+│       └── star_repository.py    # Star schema
+├── backend/                      # Backend Node.js (API Gateway)
+│   └── src/
+│       ├── routes/               # Rotas Express
+│       ├── services/             # Servicos
+│       └── database/             # Supabase client
+├── frontend/                     # Frontend Next.js
+│   └── src/
+│       ├── app/admin/            # Paginas admin
+│       └── components/analysis/  # Componentes de analise
+├── api/                          # FastAPI routes
+├── config/                       # Configuracoes
+├── database/                     # Migrations SQL
+└── .env                          # Variaveis de ambiente
 ```
+
+## Funcionalidades
+
+### Analise de Empresas (11 Blocos)
+
+1. **A Empresa** - Dados cadastrais, historia, mercado
+2. **Pessoas da Empresa** - Colaboradores e executivos
+3. **Formacao das Pessoas** - Background educacional
+4. **Ativo Humano** - Competencias agregadas
+5. **Capacidade do Ativo** - Capacidade de entrega
+6. **Comunicacao vs Caracteristicas** - Alinhamento
+7. **Fraquezas na Comunicacao** - Gaps identificados
+8. **Visao do Leigo** - Perspectiva do publico geral
+9. **Visao do Profissional** - Avaliacao tecnica
+10. **Visao do Concorrente** - Analise competitiva
+11. **Visao do Fornecedor** - Avaliacao como cliente
+
+### Sintese Final
+
+- **Hipotese de Objetivo** vs OKR sugerido
+- **Concorrentes** com Stamps (Forte/Medio/Fraco)
+- **SWOT Contemporaneo** com scoring e TOWS
 
 ## Instalacao
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/arbachegit/scraping-hub.git
-cd scraping-hub
+git clone https://github.com/iconsai/iconsai-scraping.git
+cd iconsai-scraping
 
-# Criar ambiente virtual
+# Backend Python
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-.\venv\Scripts\activate   # Windows
-
-# Instalar dependencias
+source venv/bin/activate
 pip install -r requirements.txt
 
-# Configurar variaveis de ambiente
+# Backend Node.js
+cd backend && npm install
+
+# Frontend
+cd frontend && npm install
+
+# Configurar variaveis
 cp .env.example .env
-# Editar .env com suas chaves de API
+# Editar .env com suas chaves
 ```
 
-## Configuracao
-
-### Variaveis de Ambiente
+## Execucao Local
 
 ```bash
-# API Keys
-CORESIGNAL_API_KEY=your_coresignal_key
-PROXYCURL_API_KEY=your_proxycurl_key
-FIRECRAWL_API_KEY=your_firecrawl_key
+# Terminal 1 - Backend Python (porta 8000)
+python -m uvicorn api.main:app --port 8000
 
-# Supabase (armazenamento)
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=your_service_key
+# Terminal 2 - Backend Node.js (porta 3001)
+cd backend && npm run dev
 
-# Configuracoes
-CACHE_TTL=3600
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_PERIOD=60
+# Terminal 3 - Frontend (porta 3000)
+cd frontend && npm run dev
 ```
 
-## Uso
+## Variaveis de Ambiente
 
-### Coresignal - Dados de Empresas
+```bash
+# APIs de Busca
+SERPER_API_KEY=
+PERPLEXITY_API_KEY=
+TAVILY_API_KEY=
 
-```python
-from src.scrapers.coresignal import CoresignalClient
+# APIs B2B
+APOLLO_API_KEY=
 
-client = CoresignalClient()
+# AI
+ANTHROPIC_API_KEY=
 
-# Buscar empresa
-empresa = client.search_company(
-    name="Iconsai",
-    country="Brazil"
-)
+# Banco de Dados
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
 
-# Buscar funcionarios
-employees = client.get_company_employees(
-    company_id=empresa['id'],
-    limit=100
-)
+# Autenticacao
+JWT_SECRET_KEY=
 ```
 
-### Proxycurl - LinkedIn
+## Banco de Dados (Star Schema)
 
-```python
-from src.scrapers.proxycurl import ProxycurlClient
+- `dim_empresas` - Dimensao de empresas
+- `dim_pessoas` - Dimensao de pessoas
+- `fato_analises_empresa` - Fato de analises
+- `fato_concorrentes` - Fato de concorrentes
+- `fato_eventos_pessoa` - Eventos de carreira
 
-client = ProxycurlClient()
+## API Endpoints
 
-# Buscar perfil LinkedIn
-profile = client.get_person_profile(
-    linkedin_url="https://linkedin.com/in/username"
-)
+### Empresas
+- `POST /api/v2/company/analyze-complete` - Analise completa
+- `GET /api/v2/company/:id` - Buscar por ID
+- `GET /api/v2/company/search?name=` - Buscar por nome
 
-# Buscar empresa LinkedIn
-company = client.get_company_profile(
-    linkedin_url="https://linkedin.com/company/iconsai"
-)
-```
+### Pessoas
+- `POST /api/v2/people/search` - Buscar pessoas
+- `GET /api/v2/people/empresa/:empresaId` - Listar por empresa
 
-### Firecrawl - Web Scraping
-
-```python
-from src.scrapers.firecrawl import FirecrawlClient
-
-client = FirecrawlClient()
-
-# Scrape de pagina
-content = client.scrape_url(
-    url="https://gov.br/dados",
-    formats=["markdown", "html"]
-)
-
-# Crawl de site
-pages = client.crawl_site(
-    url="https://transparencia.gov.br",
-    max_pages=100
-)
-```
-
-## Casos de Uso
-
-### 1. Enriquecimento de Empresas
-
-```python
-from src.services.empresa import EmpresaService
-
-service = EmpresaService()
-
-# Enriquecer dados de empresa
-dados = service.enrich_company(
-    cnpj="12.345.678/0001-90",
-    sources=["coresignal", "proxycurl"]
-)
-```
-
-### 2. Inteligencia de LinkedIn
-
-```python
-from src.services.linkedin import LinkedInService
-
-service = LinkedInService()
-
-# Analise de perfil
-insights = service.analyze_profile(
-    linkedin_url="https://linkedin.com/in/ceo-empresa"
-)
-
-# Mapeamento de organograma
-org = service.map_company_org(
-    company_linkedin="https://linkedin.com/company/empresa"
-)
-```
-
-### 3. Dados de Governo
-
-```python
-from src.services.governo import GovernoService
-
-service = GovernoService()
-
-# Scrape de transparencia
-dados = service.scrape_transparency_portal(
-    uf="SP",
-    tipo="licitacoes"
-)
-```
-
-## Rate Limiting
-
-O sistema possui controle automatico de rate limiting:
-
-| Servico | Limite | Periodo |
-|---------|--------|---------|
-| Coresignal | 100 req | 60s |
-| Proxycurl | 50 req | 60s |
-| Firecrawl | 200 req | 60s |
-
-## Cache
-
-Estrategia de cache em 3 niveis:
-
-1. **Memoria (LRU)**: Dados recentes em memoria
-2. **Redis**: Cache distribuido (opcional)
-3. **Supabase**: Persistencia permanente
-
-## Deploy
-
-Ver documentacao em `.claude/skills/skill-deploy/skill.md`
+### Concorrentes
+- `POST /api/v2/competitors/search` - Buscar concorrentes
+- `GET /api/v2/competitors/empresa/:empresaId` - Listar por empresa
 
 ## Licenca
 
-MIT License - Iconsai 2026
+MIT License - IconsAI 2026

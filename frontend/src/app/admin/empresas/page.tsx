@@ -108,7 +108,9 @@ export default function EmpresasPage() {
         }
       }, 8000)
 
-      const res = await fetch(`/api/v2/company/analyze-complete`, {
+      // Chamada direta ao backend (evita timeout do proxy Next.js)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      const res = await fetch(`${backendUrl}/api/v2/company/analyze-complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -247,15 +247,25 @@ Responda em português brasileiro com formatação clara."""
         Returns:
             Lista de concorrentes
         """
-        query = f"Quais são os principais concorrentes da empresa {company_name}"
-        if industry:
-            query += f" no setor de {industry}"
-        query += " no Brasil? Liste os nomes das empresas e uma breve descrição de cada."
+        industry_text = f" no setor de {industry}" if industry else ""
+
+        query = f"""Liste os 5 principais concorrentes DIRETOS da empresa "{company_name}"{industry_text} no Brasil.
+
+IMPORTANTE: Retorne APENAS nomes de empresas reais e específicas.
+
+Formato obrigatório:
+1. **Nome da Empresa** - breve descrição
+2. **Nome da Empresa** - breve descrição
+3. **Nome da Empresa** - breve descrição
+4. **Nome da Empresa** - breve descrição
+5. **Nome da Empresa** - breve descrição
+
+NÃO inclua categorias genéricas, apenas nomes de empresas brasileiras reais."""
 
         result = await self.chat(
             query=query,
-            system_prompt="Liste concorrentes diretos e indiretos. Forneça nomes de empresas específicas.",
-            temperature=0.2,
+            system_prompt="Você é um analista de mercado. Liste APENAS nomes de empresas reais brasileiras, nunca categorias ou descrições genéricas. Use o formato numerado com negrito para os nomes.",
+            temperature=0.1,
             max_tokens=1024
         )
 

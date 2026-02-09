@@ -1,5 +1,5 @@
 -- ===========================================
--- Scraping Hub v2.0 - Dimensional Schema
+-- IconsAI Scraping v2.0 - Dimensional Schema
 -- Data Warehouse para Analytics
 -- Star Schema para Business Intelligence
 -- ===========================================

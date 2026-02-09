@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - API Routes
+IconsAI Scraping v2.0 - API Routes
 """
 
 from .analytics import router as analytics_router

@@ -1,5 +1,5 @@
 /**
- * Scraping Hub Backend - Node.js
+ * IconsAI Scraping Backend - Node.js
  * Business Intelligence Brasil
  */
 
@@ -13,7 +13,13 @@ import companyRoutes from './routes/companies.js';
 import peopleRoutes from './routes/people.js';
 import competitorRoutes from './routes/competitors.js';
 
-dotenv.config({ path: '../.env' });
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const logger = pino({
   transport: {

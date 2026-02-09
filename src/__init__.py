@@ -1,5 +1,5 @@
 """
-Scraping Hub
+IconsAI Scraping
 Sistema de scraping inteligente com Coresignal, Proxycurl e Firecrawl
 """
 

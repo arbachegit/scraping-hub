@@ -1,5 +1,5 @@
 -- ===========================================
--- Scraping Hub - Database Schema
+-- IconsAI Scraping - Database Schema
 -- ===========================================
 
 -- Usuarios

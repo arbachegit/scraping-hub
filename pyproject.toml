@@ -1,5 +1,5 @@
 [project]
-name = "scraping-hub"
+name = "iconsai-scraping"
 version = "2.0.0"
 description = "Sistema de Business Intelligence Brasil - Análise de empresas, pessoas e políticos"
 authors = [
@@ -19,8 +19,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/arbachegit/scraping-hub"
-Repository = "https://github.com/arbachegit/scraping-hub.git"
+Homepage = "https://github.com/arbachegit/iconsai-scraping"
+Repository = "https://github.com/arbachegit/iconsai-scraping.git"
 
 [tool.ruff]
 line-length = 100

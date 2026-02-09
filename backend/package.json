@@ -1,7 +1,7 @@
 {
-  "name": "scraping-hub-backend",
+  "name": "iconsai-scraping-backend",
   "version": "2.0.0",
-  "description": "Backend Node.js para Scraping Hub - Business Intelligence Brasil",
+  "description": "Backend Node.js para IconsAI Scraping - Business Intelligence Brasil",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

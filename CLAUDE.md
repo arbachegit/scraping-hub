@@ -75,7 +75,7 @@ iconsai-ecosystem/
 │   │   └── geo-service/    → Geographic data
 │   └── docs/               → Documentation (FONTES_DADOS.md)
 │
-└── scraping-hub/           → Web Scraping (MAIS PROBLEMÁTICO)
+└── iconsai-scraping/           → Web Scraping (MAIS PROBLEMÁTICO)
     ├── src/
     │   ├── scrapers/       → Scrapers individuais
     │   ├── services/       → Business logic
@@ -90,7 +90,7 @@ iconsai-ecosystem/
 |---------|--------|-------|---------------------|
 | **orcamento-fiscal-municipios** | ✅ Melhor estruturado | React + Python + Supabase | Cálculos complexos, ETL massivo |
 | **iconsai-production** | ⚠️ Adequado | React + TS + Supabase | Gestão de voz, múltiplos módulos |
-| **scraping-hub** | ⚠️ Problemático | Python + FastAPI | Quebra frequente, manutenção alta |
+| **iconsai-scraping** | ⚠️ Problemático | Python + FastAPI | Quebra frequente, manutenção alta |
 
 ---
 
@@ -286,7 +286,7 @@ python scripts/popular_indicadores_fiscais.py  # Calcular indicadores
 python scripts/aplicar_migration_*.py          # Migrations
 ```
 
-### scraping-hub
+### iconsai-scraping
 ```bash
 # Backend Python
 uvicorn api.main:app --reload     # Dev local
@@ -499,7 +499,7 @@ async def test_fetch_indicators_municipio_inexistente():
 - `docs/PWA_SPECIFICATION.md` → Especificação do PWA
 - `docs/PRE-DEPLOY-CHECKLIST.md` → Checklist antes de deploy
 
-#### scraping-hub
+#### iconsai-scraping
 - `README.md` → Setup e configuração
 - `tests/` → Exemplos de uso
 
@@ -613,7 +613,7 @@ async function handleUserInput(input: unknown) {
 
 ## ⚠️ PROBLEMAS CONHECIDOS
 
-### scraping-hub (PROBLEMÁTICO)
+### iconsai-scraping (PROBLEMÁTICO)
 - Quebra frequente de scrapers (sites mudam)
 - Falta de retry logic robusto
 - Logs insuficientes para debug

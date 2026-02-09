@@ -354,9 +354,10 @@ class CompanyAnalysisService:
         if not data["employees"]:
             try:
                 logger.info("employees_fallback_perplexity", company=name)
-                people_result = await self.perplexity.search(
-                    f"Quem são os principais executivos, fundadores e líderes da empresa {name} Brasil? "
-                    f"Liste nomes, cargos e LinkedIn se disponível."
+                people_result = await self.perplexity.chat(
+                    query=f"Quem são os principais executivos, fundadores e líderes da empresa {name} Brasil? "
+                    f"Liste nomes, cargos e LinkedIn se disponível.",
+                    system_prompt="Liste pessoas reais com seus cargos. Formato: Nome Completo - Cargo"
                 )
                 if people_result and people_result.get("answer"):
                     extracted = self._extract_people_from_text(people_result["answer"], name)
@@ -397,21 +398,41 @@ class CompanyAnalysisService:
         import re
 
         people = []
-        # Padrões para encontrar pessoas
+        seen_names = set()
+
+        # Cargos executivos para buscar
+        cargos = r"CEO|CTO|CFO|COO|CMO|CPO|CIO|CHRO|Fundador|Co-?fundador|Founder|Co-?founder|Diretor|Director|Presidente|VP|Vice-?Presidente|Head|Sócio|Partner|Gerente|Manager|Chief|Officer|CGO"
+
+        # Padrões para encontrar pessoas (múltiplos formatos)
         patterns = [
-            r"([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:,]\s*(CEO|CTO|CFO|COO|Fundador|Founder|Diretor|Director|Presidente|VP|Head|Sócio|Partner|Gerente|Manager)",
-            r"(CEO|CTO|CFO|COO|Fundador|Founder|Diretor|Director|Presidente):\s*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)",
+            # Formato: Nome Completo - Cargo
+            rf"([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:,]\s*({cargos}[^\n\[\]]*?)(?:\[|\n|$)",
+            # Formato: **Nome Completo** - Cargo
+            rf"\*\*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\*\*\s*[-–:]\s*([^\n\[\]]+?)(?:\[|\n|$)",
+            # Formato: - Nome Completo - Cargo
+            rf"[-•]\s*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)\s*[-–:]\s*({cargos}[^\n\[\]]*?)(?:\[|\n|$)",
+            # Formato: Cargo: Nome
+            rf"({cargos}):\s*([A-Z][a-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-Z][a-záàâãéèêíìîóòôõúùûç]+)+)",
         ]
 
-        seen_names = set()
         for pattern in patterns:
             matches = re.findall(pattern, text, re.IGNORECASE)
             for match in matches:
                 if len(match) >= 2:
-                    name = match[0].strip() if match[0][0].isupper() else match[1].strip()
-                    title = match[1].strip() if match[0][0].isupper() else match[0].strip()
+                    # Determinar qual é nome e qual é cargo
+                    part1, part2 = match[0].strip(), match[1].strip()
 
-                    if name and name not in seen_names and len(name) > 5:
+                    # Se part1 começa com maiúscula e não é cargo, é o nome
+                    if part1 and part1[0].isupper() and not re.match(rf"^({cargos})", part1, re.IGNORECASE):
+                        name, title = part1, part2
+                    else:
+                        name, title = part2, part1
+
+                    # Limpar nome e cargo
+                    name = re.sub(r'\*+', '', name).strip()
+                    title = re.sub(r'\*+|\[.*?\]', '', title).strip()
+
+                    if name and name not in seen_names and len(name) > 5 and len(name) < 60:
                         seen_names.add(name)
                         people.append({
                             "name": name,
@@ -781,26 +802,55 @@ class CompanyAnalysisService:
         return competitors
 
     def _extract_competitor_names(self, text: str) -> List[str]:
-        """Extrai nomes de concorrentes do texto"""
+        """Extrai nomes de concorrentes do texto usando regex melhorado"""
         import re
 
-        patterns = [
-            r"(?:concorrentes?|competidores?):?\s*([^.]+)",
-            r"(?:principais|maiores)\s+(?:concorrentes?|competidores?):\s*([^.]+)",
-            r"\d+\.\s*\*?\*?([A-Z][^:,\n*]+?)\*?\*?(?:\s*[-–:]|\s*\d|\n|$)"
-        ]
+        if not text:
+            return []
 
         names = []
-        for pattern in patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for match in matches:
-                parts = re.split(r'[,;]|(?:\s+e\s+)', match)
-                for part in parts:
-                    cleaned = part.strip().strip('.').strip('*')
-                    if cleaned and 3 < len(cleaned) < 80:
-                        names.append(cleaned)
 
-        return list(dict.fromkeys(names))
+        # Padrão 1: Listas numeradas com nomes de empresas
+        # Ex: "1. Empresa ABC" ou "1. **Empresa ABC**"
+        pattern1 = r'(?:^|\n)\s*\d+[\.\)]\s*\*?\*?([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\*?\*?)\s*(?:[-–:,\n]|$)'
+        matches1 = re.findall(pattern1, text, re.MULTILINE)
+
+        # Padrão 2: Nomes em negrito (markdown)
+        # Ex: "**Nome da Empresa**" ou "- **Empresa XYZ**"
+        pattern2 = r'\*\*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)\*\*'
+        matches2 = re.findall(pattern2, text)
+
+        # Padrão 3: Nomes após bullet points
+        # Ex: "- Empresa ABC:" ou "• Empresa XYZ -"
+        pattern3 = r'(?:^|\n)\s*[-•]\s*([A-Z][A-Za-zÀ-ÿ0-9\s&\-\.]{2,40}?)(?:\s*[-–:]|\s*$)'
+        matches3 = re.findall(pattern3, text, re.MULTILINE)
+
+        # Combinar e filtrar resultados
+        all_matches = matches1 + matches2 + matches3
+
+        # Palavras que NÃO são nomes de empresas
+        blacklist = {
+            'concorrentes', 'competidores', 'empresas', 'principais', 'diretos',
+            'indiretos', 'mercado', 'setor', 'brasil', 'análise', 'comparação',
+            'branding', 'criatividade', 'habilidades', 'profissionais', 'plataformas',
+            'cursos', 'online', 'design', 'educação', 'digital', 'criativos',
+            'conclusão', 'resumo', 'observação', 'nota', 'importante', 'destaque',
+            'informações', 'disponíveis', 'dados', 'insuficientes'
+        }
+
+        for match in all_matches:
+            cleaned = match.strip().strip('.').strip('*').strip(':').strip()
+            # Validar: tem entre 3 e 50 chars, começa com maiúscula, não é blacklisted
+            if (3 < len(cleaned) < 50 and
+                cleaned[0].isupper() and
+                cleaned.lower() not in blacklist and
+                not any(word in cleaned.lower() for word in blacklist) and
+                # Deve ter pelo menos uma palavra com 3+ letras
+                any(len(w) >= 3 for w in cleaned.split())):
+                names.append(cleaned)
+
+        # Remover duplicatas mantendo ordem
+        return list(dict.fromkeys(names))[:5]
 
     def _calculate_quality_score(
         self,

@@ -1,4 +1,4 @@
-# Scraping Hub Backend - Node.js
+# IconsAI Scraping Backend - Node.js
 
 Backend Node.js para o sistema de Business Intelligence Brasil.
 
@@ -87,23 +87,23 @@ BACKEND_PORT=3001
 
 ```bash
 # Instalar dependências
-cd /opt/scraping-hub/backend
+cd /opt/iconsai-scraping/backend
 npm install --production
 
 # Criar serviço systemd
-sudo nano /etc/systemd/system/scraping-hub-backend.service
+sudo nano /etc/systemd/system/iconsai-scraping-backend.service
 ```
 
 Conteúdo do serviço:
 ```ini
 [Unit]
-Description=Scraping Hub Backend Node.js
+Description=IconsAI Scraping Backend Node.js
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/scraping-hub/backend
+WorkingDirectory=/opt/iconsai-scraping/backend
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 Environment=NODE_ENV=production
@@ -113,6 +113,6 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable scraping-hub-backend
-sudo systemctl start scraping-hub-backend
+sudo systemctl enable iconsai-scraping-backend
+sudo systemctl start iconsai-scraping-backend
 ```

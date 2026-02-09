@@ -1,5 +1,5 @@
 -- ===========================================
--- Scraping Hub v2.0 - Database Schema
+-- IconsAI Scraping v2.0 - Database Schema
 -- Business Intelligence Brasil
 -- ===========================================
 

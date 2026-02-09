@@ -41,7 +41,8 @@ class ApolloClient(BaseScraper):
     def _get_headers(self) -> Dict[str, str]:
         return {
             "Content-Type": "application/json",
-            "Cache-Control": "no-cache"
+            "Cache-Control": "no-cache",
+            "X-Api-Key": self.api_key  # Apollo agora exige chave no header
         }
 
     async def _request_with_key(
@@ -51,10 +52,11 @@ class ApolloClient(BaseScraper):
         params: Optional[Dict] = None,
         json: Optional[Dict] = None
     ) -> Dict[str, Any]:
-        """Request com API key no body"""
+        """Request com API key no header (novo padrão Apollo)"""
         if json is None:
             json = {}
-        json["api_key"] = self.api_key
+        # Removido: json["api_key"] = self.api_key
+        # Agora a chave vai no header via _get_headers()
 
         return await self._request(method, endpoint, params=params, json=json)
 

@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Tests for Scrapers
+IconsAI Scraping v2.0 - Tests for Scrapers
 Testes para os clientes de API
 """
 

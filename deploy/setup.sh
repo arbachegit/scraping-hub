@@ -1,12 +1,12 @@
 #!/bin/bash
 # ===========================================
-# Scraping Hub - Setup Script
+# IconsAI Scraping - Setup Script
 # Run on DigitalOcean Droplet
 # ===========================================
 
 set -e
 
-echo "=== Scraping Hub Setup ==="
+echo "=== IconsAI Scraping Setup ==="
 
 # Update system
 echo "[1/8] Updating system..."
@@ -18,15 +18,15 @@ apt install -y python3 python3-pip python3-venv nginx certbot python3-certbot-ng
 
 # Create app directory
 echo "[3/8] Creating app directory..."
-mkdir -p /opt/scraping-hub
-cd /opt/scraping-hub
+mkdir -p /opt/iconsai-scraping
+cd /opt/iconsai-scraping
 
 # Clone or update repo
 echo "[4/8] Cloning repository..."
 if [ -d ".git" ]; then
     git pull origin main
 else
-    git clone https://github.com/arbachegit/scraping-hub.git .
+    git clone https://github.com/arbachegit/iconsai-scraping.git .
 fi
 
 # Create virtual environment
@@ -40,7 +40,7 @@ pip install -r requirements.txt
 echo "[6/8] Configuring environment..."
 if [ ! -f ".env" ]; then
     cat > .env << 'EOF'
-# Scraping Hub Configuration
+# IconsAI Scraping Configuration
 CORESIGNAL_API_KEY=BzRdg5U74jF4SCZJXnR3NSiXnpaelagv
 CORESIGNAL_BASE_URL=https://api.coresignal.com/cdapi/v1
 PROXYCURL_API_KEY=your_proxycurl_api_key_here
@@ -59,15 +59,15 @@ fi
 
 # Install systemd service
 echo "[7/8] Installing systemd service..."
-cp deploy/scraping-hub.service /etc/systemd/system/
+cp deploy/iconsai-scraping.service /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable scraping-hub
-systemctl restart scraping-hub
+systemctl enable iconsai-scraping
+systemctl restart iconsai-scraping
 
 # Configure Nginx
 echo "[8/8] Configuring Nginx..."
-cp deploy/nginx.conf /etc/nginx/sites-available/scraping-hub
-ln -sf /etc/nginx/sites-available/scraping-hub /etc/nginx/sites-enabled/
+cp deploy/nginx.conf /etc/nginx/sites-available/iconsai-scraping
+ln -sf /etc/nginx/sites-available/iconsai-scraping /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test nginx config
@@ -79,7 +79,7 @@ certbot --nginx -d scraping.iconsai.ai --non-interactive --agree-tos -m admin@ic
 
 # Restart services
 systemctl restart nginx
-systemctl restart scraping-hub
+systemctl restart iconsai-scraping
 
 echo ""
 echo "=== Setup Complete! ==="
@@ -88,6 +88,6 @@ echo "URL: https://scraping.iconsai.ai"
 echo "Login: admin@iconsai.ai / admin123"
 echo ""
 echo "Commands:"
-echo "  systemctl status scraping-hub   # Check status"
-echo "  journalctl -u scraping-hub -f   # View logs"
-echo "  systemctl restart scraping-hub  # Restart"
+echo "  systemctl status iconsai-scraping   # Check status"
+echo "  journalctl -u iconsai-scraping -f   # View logs"
+echo "  systemctl restart iconsai-scraping  # Restart"

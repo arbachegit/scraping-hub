@@ -1,4 +1,4 @@
-# Skill: Deploy do Scraping Hub
+# Skill: Deploy do IconsAI Scraping
 
 Skill para realizar deploy da aplicacao e documentar o processo de CI/CD.
 
@@ -78,7 +78,7 @@ Configurar em: **Settings > Secrets and variables > Actions**
 ### Estrutura de Diretorios
 
 ```
-/opt/scraping-hub/
+/opt/iconsai-scraping/
 ├── src/
 │   ├── scrapers/
 │   ├── services/
@@ -86,22 +86,22 @@ Configurar em: **Settings > Secrets and variables > Actions**
 ├── config/
 ├── venv/
 ├── .env
-└── scraping-hub.service
+└── iconsai-scraping.service
 ```
 
 ### Systemd Service
 
 ```ini
 [Unit]
-Description=Scraping Hub Service
+Description=IconsAI Scraping Service
 After=network.target
 
 [Service]
 Type=simple
 User=deploy
-WorkingDirectory=/opt/scraping-hub
-Environment=PATH=/opt/scraping-hub/venv/bin
-ExecStart=/opt/scraping-hub/venv/bin/python -m src.main
+WorkingDirectory=/opt/iconsai-scraping
+Environment=PATH=/opt/iconsai-scraping/venv/bin
+ExecStart=/opt/iconsai-scraping/venv/bin/python -m src.main
 Restart=always
 RestartSec=10
 
@@ -113,13 +113,13 @@ WantedBy=multi-user.target
 
 ```bash
 # Status do service
-sudo systemctl status scraping-hub
+sudo systemctl status iconsai-scraping
 
 # Reiniciar service
-sudo systemctl restart scraping-hub
+sudo systemctl restart iconsai-scraping
 
 # Ver logs
-sudo journalctl -u scraping-hub -f
+sudo journalctl -u iconsai-scraping -f
 ```
 
 ## SSL/HTTPS (Let's Encrypt)
@@ -151,13 +151,13 @@ pytest
 ssh user@server
 
 # Verificar status
-sudo systemctl status scraping-hub
+sudo systemctl status iconsai-scraping
 
 # Ver logs
-sudo journalctl -u scraping-hub -n 50
+sudo journalctl -u iconsai-scraping -n 50
 
 # Reiniciar
-sudo systemctl restart scraping-hub
+sudo systemctl restart iconsai-scraping
 ```
 
 ## Checklist Pre-Deploy
@@ -174,5 +174,5 @@ sudo systemctl restart scraping-hub
 
 | Ambiente | URL |
 |----------|-----|
-| **GitHub Actions** | https://github.com/arbachegit/scraping-hub/actions |
+| **GitHub Actions** | https://github.com/arbachegit/iconsai-scraping/actions |
 | **Digital Ocean** | https://cloud.digitalocean.com |

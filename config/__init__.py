@@ -1,5 +1,5 @@
 """
-Scraping Hub - Config
+IconsAI Scraping - Config
 Configuracoes do sistema
 """
 

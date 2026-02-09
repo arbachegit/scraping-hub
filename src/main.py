@@ -1,5 +1,5 @@
 """
-Scraping Hub - Main Entry Point
+IconsAI Scraping - Main Entry Point
 Ponto de entrada principal do sistema
 """
 
@@ -134,7 +134,7 @@ async def health_check() -> dict:
 async def main():
     """Funcao principal"""
     logger.info(
-        "scraping_hub_start",
+        "iconsai_scraping_start",
         environment=settings.environment,
         version="0.1.0"
     )
@@ -164,7 +164,7 @@ async def main():
         if health["services"]["firecrawl"]["configured"]:
             await demo_governo_scrape()
 
-    logger.info("scraping_hub_ready")
+    logger.info("iconsai_scraping_ready")
 
 
 if __name__ == "__main__":

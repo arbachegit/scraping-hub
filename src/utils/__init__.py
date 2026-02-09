@@ -1,5 +1,5 @@
 """
-Scraping Hub - Utils
+IconsAI Scraping - Utils
 Utilitarios compartilhados
 """
 

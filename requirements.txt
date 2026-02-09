@@ -1,5 +1,5 @@
 # ===========================================
-# Scraping Hub v2.0 - Requirements
+# IconsAI Scraping v2.0 - Requirements
 # Business Intelligence Brasil
 # ===========================================
 

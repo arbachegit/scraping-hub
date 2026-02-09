@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Services
+IconsAI Scraping v2.0 - Services
 Serviços de inteligência empresarial
 """
 

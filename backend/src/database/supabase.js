@@ -4,6 +4,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 import pino from 'pino';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Carregar .env antes de acessar variáveis
+dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const logger = pino({ name: 'supabase' });
 
@@ -11,7 +20,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  logger.warn('Supabase não configurado');
+  logger.warn('Supabase não configurado', { url: !!supabaseUrl, key: !!supabaseKey });
 }
 
 export const supabase = supabaseUrl && supabaseKey

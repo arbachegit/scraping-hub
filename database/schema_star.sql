@@ -1,5 +1,5 @@
 -- ===========================================
--- Scraping Hub - Star Schema
+-- IconsAI Scraping - Star Schema
 -- Modelo Dimensional para Empresas e Pessoas
 -- ===========================================
 

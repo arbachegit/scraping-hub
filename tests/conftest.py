@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Test Fixtures
+IconsAI Scraping v2.0 - Test Fixtures
 Configurações compartilhadas para testes
 """
 

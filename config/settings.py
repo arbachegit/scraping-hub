@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Settings
+IconsAI Scraping v2.0 - Settings
 Configuracoes centralizadas do sistema
 Business Intelligence Brasil
 """
@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Configuracoes do Scraping Hub v2.0"""
+    """Configuracoes do IconsAI Scraping v2.0"""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     # Banco de Dados
     # ===========================================
 
-    # Supabase - Principal (Scraping Hub)
+    # Supabase - Principal (IconsAI Scraping)
     supabase_url: str = ""
     supabase_service_key: str = ""
     supabase_anon_key: str = ""

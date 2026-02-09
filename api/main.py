@@ -1,5 +1,5 @@
 """
-Scraping Hub API v2.0
+IconsAI Scraping API v2.0
 API REST para Business Intelligence Brasil
 """
 
@@ -39,13 +39,13 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação"""
-    logger.info("api_startup", message="Scraping Hub v2.0 iniciando...")
+    logger.info("api_startup", message="IconsAI Scraping v2.0 iniciando...")
     yield
-    logger.info("api_shutdown", message="Scraping Hub v2.0 encerrando...")
+    logger.info("api_shutdown", message="IconsAI Scraping v2.0 encerrando...")
 
 
 app = FastAPI(
-    title="Scraping Hub API",
+    title="IconsAI Scraping API",
     description="""
 ## Business Intelligence Brasil v2.0
 
@@ -124,7 +124,7 @@ async def root():
     if index_file.exists():
         return FileResponse(str(index_file))
     return {
-        "service": "Scraping Hub API",
+        "service": "IconsAI Scraping API",
         "version": "2.0.0",
         "status": "running",
         "docs": "/docs"

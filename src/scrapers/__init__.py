@@ -1,5 +1,5 @@
 """
-Scraping Hub v2.0 - Scrapers
+IconsAI Scraping v2.0 - Scrapers
 Clientes para APIs de dados e scraping
 """
 

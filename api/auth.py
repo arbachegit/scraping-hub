@@ -1,6 +1,6 @@
 """
 Authentication module
-JWT-based authentication for the Scraping Hub API
+JWT-based authentication for the IconsAI Scraping API
 """
 
 import hashlib
@@ -13,7 +13,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 
 # Configuration
-SECRET_KEY = "scraping-hub-secret-key-change-in-production-2024"
+SECRET_KEY = "iconsai-scraping-secret-key-change-in-production-2024"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
