@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.13.2026] - 2026-02-09 23:16
+- Deploy automático
+
 ## [1.12.2026] - 2026-02-09 23:13
 - Deploy automático
 
