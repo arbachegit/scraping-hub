@@ -26,11 +26,14 @@ async function apolloRequest(endpoint, payload) {
   });
 
   if (!response.ok) {
-    console.error(`[APOLLO] Error: ${response.status}`);
+    const errorText = await response.text();
+    console.error(`[APOLLO] Error: ${response.status} - ${errorText}`);
     return null;
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log(`[APOLLO] Response: ${data.organizations?.length || 0} orgs, ${data.people?.length || 0} people`);
+  return data;
 }
 
 /**

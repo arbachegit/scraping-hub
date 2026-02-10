@@ -26,8 +26,49 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     service: 'iconsai-scraping-backend',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    apollo_configured: !!process.env.APOLLO_API_KEY
   });
+});
+
+// Apollo test endpoint
+app.get('/test-apollo', async (req, res) => {
+  try {
+    const apiKey = process.env.APOLLO_API_KEY;
+    if (!apiKey) {
+      return res.json({ error: 'Apollo API key not configured' });
+    }
+
+    const response = await fetch('https://api.apollo.io/v1/mixed_companies/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'X-Api-Key': apiKey
+      },
+      body: JSON.stringify({
+        q_organization_name: 'Petrobras',
+        organization_locations: ['Brazil'],
+        page: 1,
+        per_page: 1
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.json({ error: `Apollo API error: ${response.status}`, details: errorText });
+    }
+
+    const data = await response.json();
+    const org = data.organizations?.[0];
+    res.json({
+      success: true,
+      found: data.organizations?.length || 0,
+      sample: org ? { name: org.name, linkedin: org.linkedin_url, website: org.website_url } : null
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
 });
 
 // Start server
