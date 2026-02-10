@@ -112,8 +112,18 @@ router.post('/details', async (req, res) => {
     const serperData = await serper.getCompanyDetails(cleanCnpj);
 
     // Enrich with Apollo (better LinkedIn and website data)
-    console.log(`[APOLLO] Buscando empresa: ${brasilData.razao_social}`);
-    const apolloData = await apollo.searchCompany(brasilData.razao_social, brasilData.estado);
+    // Use nome_fantasia if available (usually shorter and more recognizable)
+    // Otherwise try first 2-3 words of razao_social
+    let apolloSearchName = brasilData.nome_fantasia;
+    if (!apolloSearchName || apolloSearchName === brasilData.razao_social) {
+      // Extract company name (remove LTDA, S/A, ME, EPP, EIRELI, etc)
+      apolloSearchName = brasilData.razao_social
+        .replace(/\s+(LTDA|S\.?A\.?|S\/A|ME|EPP|EIRELI|SOCIEDADE ANONIMA|LIMITADA)\.?$/gi, '')
+        .replace(/\s+(COMERCIO|COMERCIAL|INDUSTRIA|SERVICOS|PARTICIPACOES).*$/gi, '')
+        .trim();
+    }
+    console.log(`[APOLLO] Buscando empresa: ${apolloSearchName}`);
+    const apolloData = await apollo.searchCompany(apolloSearchName, brasilData.estado);
     console.log(`[APOLLO] Resultado:`, apolloData ? `LinkedIn: ${apolloData.linkedin}, Website: ${apolloData.website}` : 'null');
 
     // Merge data (BrasilAPI = official, Apollo/Serper = enrichment)
