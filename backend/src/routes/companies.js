@@ -33,34 +33,49 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    if (candidates.length === 1) {
-      // Single result - get details for approval
-      const details = await serper.getCompanyDetails(candidates[0].cnpj);
+    // Enrich candidates with city from BrasilAPI (limit to 10 for performance)
+    const limitedCandidates = candidates.slice(0, 10);
+    console.log(`[SEARCH] Enriquecendo ${limitedCandidates.length} candidatos com cidade da Receita Federal`);
+
+    const enrichedCandidates = await Promise.all(
+      limitedCandidates.map(async (c) => {
+        try {
+          const brasilData = await brasilapi.getCompanyByCnpj(c.cnpj);
+          return {
+            cnpj: c.cnpj,
+            cnpj_formatted: c.cnpj_formatted,
+            razao_social: brasilData?.razao_social || c.razao_social,
+            nome_fantasia: brasilData?.nome_fantasia || null,
+            localizacao: brasilData ? `${brasilData.cidade} - ${brasilData.estado}` : c.localizacao
+          };
+        } catch (err) {
+          console.warn(`[SEARCH] Erro ao buscar cidade para ${c.cnpj}:`, err.message);
+          return {
+            cnpj: c.cnpj,
+            cnpj_formatted: c.cnpj_formatted,
+            razao_social: c.razao_social,
+            nome_fantasia: null,
+            localizacao: c.localizacao
+          };
+        }
+      })
+    );
+
+    if (enrichedCandidates.length === 1) {
+      // Single result - redirect to details
       return res.json({
         found: true,
         single_match: true,
-        message: 'Empresa encontrada. Aguardando aprovacao.',
-        company: {
-          ...candidates[0],
-          ...details
-        }
+        message: 'Empresa encontrada. Selecione para ver detalhes.',
+        company: enrichedCandidates[0]
       });
     }
-
-    // Multiple results - return list for selection
-    // Use search city as fallback if localizacao not extracted from snippet
-    const cidadeBusca = cidade?.trim() || null;
 
     return res.json({
       found: true,
       single_match: false,
-      message: `${candidates.length} empresas encontradas. Selecione a correta.`,
-      candidates: candidates.map(c => ({
-        cnpj: c.cnpj,
-        cnpj_formatted: c.cnpj_formatted,
-        razao_social: c.razao_social,
-        localizacao: c.localizacao || cidadeBusca
-      }))
+      message: `${enrichedCandidates.length} empresas encontradas. Selecione a correta.`,
+      candidates: enrichedCandidates
     });
 
   } catch (error) {

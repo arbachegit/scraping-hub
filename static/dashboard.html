@@ -297,15 +297,34 @@
             background: rgba(6, 182, 212, 0.05);
         }
 
+        .result-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.4rem;
+        }
+
         .result-item-name {
             color: #e2e8f0;
             font-size: 0.9rem;
             font-weight: 600;
-            margin-bottom: 0.4rem;
             line-height: 1.3;
+            flex: 1;
         }
 
-        .result-item-row {
+        .result-item-city {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            background: rgba(148, 163, 184, 0.12);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .result-item-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -316,13 +335,14 @@
             font-size: 0.8rem;
         }
 
-        .result-item-city {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            background: rgba(148, 163, 184, 0.12);
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+        .result-item-fantasia {
+            color: #64748b;
+            font-size: 0.8rem;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: right;
         }
 
         .company-details {
@@ -902,10 +922,13 @@
                 } else {
                     results.innerHTML = data.candidates.map(c => `
                         <div class="result-item" onclick="selectCompany('${c.cnpj}')">
-                            <div class="result-item-name">${c.razao_social || 'Sem nome'}</div>
-                            <div class="result-item-row">
-                                <span class="result-item-cnpj">${c.cnpj_formatted}</span>
+                            <div class="result-item-header">
+                                <div class="result-item-name">${c.razao_social || 'Sem nome'}</div>
                                 ${c.localizacao ? `<span class="result-item-city">${c.localizacao}</span>` : ''}
+                            </div>
+                            <div class="result-item-footer">
+                                <span class="result-item-cnpj">${c.cnpj_formatted}</span>
+                                ${c.nome_fantasia ? `<span class="result-item-fantasia">${c.nome_fantasia}</span>` : ''}
                             </div>
                         </div>
                     `).join('');
