@@ -2,7 +2,8 @@ import { Router } from 'express';
 import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
-import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, findCompanyByCnpj } from '../database/supabase.js';
+import * as cnpja from '../services/cnpja.js';
+import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, findCompanyByCnpj } from '../database/supabase.js';
 
 const router = Router();
 
@@ -178,7 +179,13 @@ router.post('/details', async (req, res) => {
     }
 
     // ========================================
-    // 6. MONTAR DADOS DA EMPRESA (sem sócios)
+    // 6. REGIME TRIBUTÁRIO - CNPJá (histórico)
+    // ========================================
+    console.log(`[CNPJA] Buscando regime tributário: ${cleanCnpj}`);
+    const cnpjaData = await cnpja.getRegimeTributario(cleanCnpj);
+
+    // ========================================
+    // 7. MONTAR DADOS DA EMPRESA (sem sócios)
     // ========================================
     const empresa = {
       // Identificação
@@ -231,9 +238,22 @@ router.post('/details', async (req, res) => {
       // Quantidade de sócios (para exibir botão "Ver Sócios")
       qtd_socios: brasilData.socios?.length || 0,
 
+      // Regime Tributário (CNPJá)
+      regime_tributario: cnpjaData?.regime_atual || null,
+      simples_optante: cnpjaData?.simples_optante || brasilData.simples_nacional || false,
+      simples_desde: cnpjaData?.simples_desde || null,
+      mei_optante: cnpjaData?.mei_optante || brasilData.simei || false,
+      mei_desde: cnpjaData?.mei_desde || null,
+      historico_regimes: cnpjaData?.historico_regimes || [],
+      qtd_mudancas_regime: cnpjaData?.qtd_mudancas_regime || 0,
+
+      // Inferências sobre limites
+      inferencias: cnpjaData?.inferencias || null,
+
       // Raw data
       raw_brasilapi: brasilData.raw_brasilapi,
-      raw_apollo: apolloData?.raw_apollo || null
+      raw_apollo: apolloData?.raw_apollo || null,
+      raw_cnpja: cnpjaData?.raw_cnpja || null
     };
 
     // ========================================
@@ -399,9 +419,8 @@ router.post('/approve', async (req, res) => {
     });
 
     // Insert regime tributario (fato_regime_tributario)
-    const regimeTributario = (empresa.simples_nacional || empresa.simei)
-      ? (empresa.simei ? 'MEI' : 'SIMPLES_NACIONAL')
-      : 'LUCRO_PRESUMIDO';
+    const regimeTributario = empresa.regime_tributario
+      || (empresa.mei_optante ? 'MEI' : (empresa.simples_optante ? 'SIMPLES_NACIONAL' : 'LUCRO_PRESUMIDO'));
 
     await insertRegimeTributario({
       empresa_id: insertedCompany.id,
@@ -413,8 +432,29 @@ router.post('/approve', async (req, res) => {
       regime_tributario: regimeTributario,
       setor: empresa.setor,
       descricao: empresa.descricao,
-      qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : null
+      qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : null,
+      // CNPJá fields
+      data_inicio: empresa.simples_desde || empresa.mei_desde,
+      ativo: true,
+      simples_optante: empresa.simples_optante,
+      simples_desde: empresa.simples_desde,
+      mei_optante: empresa.mei_optante,
+      mei_desde: empresa.mei_desde,
+      raw_cnpja: empresa.raw_cnpja || {}
     });
+
+    // Insert inferencias (if available)
+    if (empresa.inferencias) {
+      await insertInferenciaLimites({
+        empresa_id: insertedCompany.id,
+        provavelmente_ultrapassou_limite: empresa.inferencias.provavelmente_ultrapassou_limite,
+        confianca: empresa.inferencias.confianca,
+        sinais: empresa.inferencias.sinais,
+        qtd_mudancas_regime: empresa.qtd_mudancas_regime || 0,
+        capital_social: empresa.capital_social,
+        qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : null
+      });
+    }
 
     // Insert socios
     const insertedSocios = [];

@@ -160,7 +160,67 @@ export async function insertRegimeTributario(regime) {
       regime_tributario: regime.regime_tributario,
       setor: regime.setor,
       descricao: regime.descricao,
-      qtd_funcionarios: regime.qtd_funcionarios
+      qtd_funcionarios: regime.qtd_funcionarios,
+      // New fields
+      data_inicio: regime.data_inicio,
+      data_fim: regime.data_fim,
+      ativo: regime.ativo !== false,
+      motivo_exclusao: regime.motivo_exclusao,
+      simples_optante: regime.simples_optante,
+      simples_desde: regime.simples_desde,
+      mei_optante: regime.mei_optante,
+      mei_desde: regime.mei_desde,
+      raw_cnpja: regime.raw_cnpja || {}
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Insert historical regime records (bulk)
+ */
+export async function insertRegimeHistorico(empresa_id, historico, dadosBase) {
+  const records = historico.map(h => ({
+    empresa_id,
+    regime_tributario: h.regime,
+    data_inicio: h.data_inicio,
+    data_fim: h.data_fim,
+    ativo: h.ativo,
+    motivo_exclusao: h.motivo_exclusao,
+    porte: dadosBase.porte,
+    natureza_juridica: dadosBase.natureza_juridica,
+    capital_social: dadosBase.capital_social,
+    cnae_principal: dadosBase.cnae_principal,
+    cnae_descricao: dadosBase.cnae_descricao
+  }));
+
+  const { data, error } = await supabase
+    .from('fato_regime_tributario')
+    .insert(records)
+    .select();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Insert inference about limits
+ */
+export async function insertInferenciaLimites(inferencia) {
+  const { data, error } = await supabase
+    .from('fato_inferencia_limites')
+    .insert([{
+      empresa_id: inferencia.empresa_id,
+      provavelmente_ultrapassou_limite: inferencia.provavelmente_ultrapassou_limite,
+      confianca: inferencia.confianca,
+      sinais: inferencia.sinais,
+      qtd_mudancas_regime: inferencia.qtd_mudancas_regime,
+      capital_social: inferencia.capital_social,
+      qtd_funcionarios: inferencia.qtd_funcionarios,
+      anos_operando: inferencia.anos_operando
     }])
     .select()
     .single();
