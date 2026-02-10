@@ -48,6 +48,9 @@ router.post('/search', async (req, res) => {
     }
 
     // Multiple results - return list for selection
+    // Use search city as fallback if localizacao not extracted from snippet
+    const cidadeBusca = cidade?.trim() || null;
+
     return res.json({
       found: true,
       single_match: false,
@@ -56,7 +59,7 @@ router.post('/search', async (req, res) => {
         cnpj: c.cnpj,
         cnpj_formatted: c.cnpj_formatted,
         razao_social: c.razao_social,
-        localizacao: c.localizacao
+        localizacao: c.localizacao || cidadeBusca
       }))
     });
 

@@ -68,28 +68,8 @@ export async function searchCompanyByName(companyName, cidade = null) {
       if (cnpj.length === 14 && !seenCnpjs.has(cnpj)) {
         seenCnpjs.add(cnpj);
 
-        // Extract location from snippet - try multiple patterns
-        let localizacao = null;
-        const snippet = item.snippet || '';
-
-        // Pattern 1: "Cidade - UF" or "Cidade – UF"
-        const pattern1 = snippet.match(/([A-Za-zÀ-ú\s]+)\s*[-–]\s*([A-Z]{2})(?:\s|,|\.|\)|$)/);
-        // Pattern 2: "UF - Cidade"
-        const pattern2 = snippet.match(/\b([A-Z]{2})\s*[-–]\s*([A-Za-zÀ-ú\s]+?)(?:,|\.|$)/);
-        // Pattern 3: "Cidade/UF"
-        const pattern3 = snippet.match(/([A-Za-zÀ-ú\s]+)\/([A-Z]{2})\b/);
-        // Pattern 4: "em Cidade, UF" or "de Cidade, UF"
-        const pattern4 = snippet.match(/(?:em|de)\s+([A-Za-zÀ-ú\s]+),\s*([A-Z]{2})\b/i);
-
-        if (pattern1 && pattern1[1].trim().length > 2) {
-          localizacao = `${pattern1[1].trim()} - ${pattern1[2]}`;
-        } else if (pattern2) {
-          localizacao = `${pattern2[2].trim()} - ${pattern2[1]}`;
-        } else if (pattern3) {
-          localizacao = `${pattern3[1].trim()} - ${pattern3[2]}`;
-        } else if (pattern4) {
-          localizacao = `${pattern4[1].trim()} - ${pattern4[2]}`;
-        }
+        // Extract location from multiple sources
+        let localizacao = extractLocation(item.title, item.snippet, item.link);
 
         candidates.push({
           cnpj: cnpj,
@@ -397,4 +377,60 @@ function extractCompanyName(title, snippet) {
     }
   }
   return title || null;
+}
+
+/**
+ * Extract location from title, snippet or URL
+ * @param {string} title - Result title
+ * @param {string} snippet - Result snippet
+ * @param {string} url - Result URL
+ * @returns {string|null} Location in format "Cidade - UF"
+ */
+function extractLocation(title, snippet, url) {
+  const text = `${title || ''} ${snippet || ''}`;
+
+  // Brazilian states
+  const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+  // Pattern 1: "Cidade - UF" or "Cidade – UF" (most common)
+  const p1 = text.match(/([A-Za-zÀ-ú][A-Za-zÀ-ú\s]{2,25})\s*[-–]\s*([A-Z]{2})(?:\s|,|\.|\)|$)/);
+  if (p1 && estados.includes(p1[2])) {
+    return `${p1[1].trim()} - ${p1[2]}`;
+  }
+
+  // Pattern 2: "Cidade/UF"
+  const p2 = text.match(/([A-Za-zÀ-ú][A-Za-zÀ-ú\s]{2,25})\/([A-Z]{2})\b/);
+  if (p2 && estados.includes(p2[2])) {
+    return `${p2[1].trim()} - ${p2[2]}`;
+  }
+
+  // Pattern 3: "em Cidade, UF" or "de Cidade, UF" or "Cidade, UF"
+  const p3 = text.match(/(?:em\s+|de\s+)?([A-Za-zÀ-ú][A-Za-zÀ-ú\s]{2,25}),\s*([A-Z]{2})\b/i);
+  if (p3 && estados.includes(p3[2].toUpperCase())) {
+    return `${p3[1].trim()} - ${p3[2].toUpperCase()}`;
+  }
+
+  // Pattern 4: "UF - Cidade" (less common)
+  const p4 = text.match(/\b([A-Z]{2})\s*[-–]\s*([A-Za-zÀ-ú][A-Za-zÀ-ú\s]{2,25})(?:,|\.|$)/);
+  if (p4 && estados.includes(p4[1])) {
+    return `${p4[2].trim()} - ${p4[1]}`;
+  }
+
+  // Pattern 5: Extract from URL (some sites include city in URL)
+  if (url) {
+    // cnpj.info format: /cidade-uf/
+    const urlMatch = url.match(/\/([a-z-]+)-([a-z]{2})\//i);
+    if (urlMatch && estados.includes(urlMatch[2].toUpperCase())) {
+      const cidade = urlMatch[1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      return `${cidade} - ${urlMatch[2].toUpperCase()}`;
+    }
+  }
+
+  // Pattern 6: Just state abbreviation at end of text
+  const p6 = text.match(/\b([A-Z]{2})$/);
+  if (p6 && estados.includes(p6[1])) {
+    return p6[1];
+  }
+
+  return null;
 }
