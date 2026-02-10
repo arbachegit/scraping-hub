@@ -68,9 +68,7 @@ export async function insertCompany(company) {
 
       // Raw data
       raw_cnpj_data: company.raw_brasilapi,
-      raw_search_data: company.raw_serper,
       raw_brasilapi: company.raw_brasilapi,
-      raw_serper: company.raw_serper,
       raw_apollo: company.raw_apollo,
 
       // Metadata
