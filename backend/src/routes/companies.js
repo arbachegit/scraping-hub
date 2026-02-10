@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
-import { insertCompany, insertPerson, findCompanyByCnpj } from '../database/supabase.js';
+import { insertCompany, insertPerson, insertTransacaoEmpresa, findCompanyByCnpj } from '../database/supabase.js';
 
 const router = Router();
 
@@ -442,12 +442,22 @@ router.post('/approve', async (req, res) => {
           cargo: socio.cargo || socio.qualificacao || 'Socio',
           qualificacao: socio.qualificacao,
           empresa_id: insertedCompany.id,
-          empresa_nome: empresa.nome_fantasia || empresa.razao_social,
           tipo: 'fundador',
-          data_entrada_sociedade: socio.data_entrada,
           faixa_etaria: socio.faixa_etaria,
           pais_origem: socio.pais_origem
         });
+
+        // Insert transaction (entrada_sociedade)
+        if (socio.data_entrada) {
+          await insertTransacaoEmpresa({
+            pessoa_id: person.id,
+            empresa_id: insertedCompany.id,
+            tipo_transacao: 'entrada_sociedade',
+            data_transacao: socio.data_entrada,
+            qualificacao: socio.qualificacao
+          });
+        }
+
         insertedSocios.push(person);
       }
     }

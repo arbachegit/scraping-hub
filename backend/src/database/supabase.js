@@ -64,6 +64,7 @@ export async function insertCompany(company) {
       // Social media (Apollo/Serper)
       twitter_url: company.twitter,
       facebook_url: company.facebook,
+      instagram: company.instagram,
 
       // Raw data
       raw_cnpj_data: company.raw_brasilapi,
@@ -113,15 +114,13 @@ export async function insertPerson(person) {
       foto_url: person.foto_url,
       headline: person.headline,
 
-      // Job info (using correct column names)
+      // Job info
       cargo_atual: person.cargo,
       empresa_atual_id: person.empresa_id,
-      empresa_atual_nome: person.empresa_nome,
 
       // BrasilAPI QSA fields
       qualificacao: person.qualificacao,
       tipo: person.tipo || 'fundador',
-      data_entrada_sociedade: person.data_entrada_sociedade,
       faixa_etaria: person.faixa_etaria,
       pais: person.pais_origem || 'Brasil',
 
@@ -131,6 +130,28 @@ export async function insertPerson(person) {
       // Metadata
       fonte: 'brasilapi+serper+apollo',
       data_coleta: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Insert transaction into fato_transacao_empresas
+ * @param {Object} transacao - Transaction data
+ * @returns {Promise<Object>} Inserted transaction
+ */
+export async function insertTransacaoEmpresa(transacao) {
+  const { data, error } = await supabase
+    .from('fato_transacao_empresas')
+    .insert([{
+      pessoa_id: transacao.pessoa_id,
+      empresa_id: transacao.empresa_id,
+      tipo_transacao: transacao.tipo_transacao || 'entrada_sociedade',
+      data_transacao: transacao.data_transacao,
+      qualificacao: transacao.qualificacao
     }])
     .select()
     .single();
