@@ -83,7 +83,8 @@ jobs:
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
             cd /opt/iconsai-scraping
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             # Backend Python
             source venv/bin/activate
