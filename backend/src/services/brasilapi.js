@@ -8,7 +8,12 @@ const BRASIL_API_URL = 'https://brasilapi.com.br/api';
 export async function getCompanyByCnpj(cnpj) {
   const cleanCnpj = cnpj.replace(/[^\d]/g, '');
 
-  const response = await fetch(`${BRASIL_API_URL}/cnpj/v1/${cleanCnpj}`);
+  const response = await fetch(`${BRASIL_API_URL}/cnpj/v1/${cleanCnpj}`, {
+    headers: {
+      'User-Agent': 'IconsAI-Scraping/1.0',
+      'Accept': 'application/json'
+    }
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
