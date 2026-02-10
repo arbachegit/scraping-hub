@@ -113,30 +113,32 @@ export async function enrichCompanyByDomain(domain) {
 }
 
 /**
- * Search for person by name and company
+ * Search for person by name and company using People Match API
  * @param {string} personName - Person full name
  * @param {string} companyName - Company name
  * @returns {Promise<Object|null>} Person data with LinkedIn
  */
 export async function searchPerson(personName, companyName) {
-  const result = await apolloRequest('/mixed_people/search', {
-    q_person_name: personName,
-    q_organization_name: companyName,
-    organization_locations: ['Brazil'],
-    page: 1,
-    per_page: 5
+  // Split name into first and last
+  const nameParts = personName.trim().split(/\s+/);
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+
+  console.log(`[APOLLO] Matching person: ${firstName} ${lastName} at ${companyName}`);
+
+  const result = await apolloRequest('/people/match', {
+    first_name: firstName,
+    last_name: lastName,
+    organization_name: companyName
   });
 
-  if (!result || !result.people || result.people.length === 0) {
+  if (!result || !result.person) {
+    console.log(`[APOLLO] Person not found: ${personName}`);
     return null;
   }
 
-  // Find best match by name similarity
-  const nameLower = personName.toLowerCase();
-  const person = result.people.find(p => {
-    const pName = (p.name || '').toLowerCase();
-    return pName.includes(nameLower) || nameLower.includes(pName);
-  }) || result.people[0];
+  const person = result.person;
+  console.log(`[APOLLO] Found: ${person.name} - ${person.linkedin_url}`);
 
   return {
     name: person.name,
