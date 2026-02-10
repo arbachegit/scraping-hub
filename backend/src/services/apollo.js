@@ -119,10 +119,11 @@ export async function enrichCompanyByDomain(domain) {
  * @returns {Promise<Object|null>} Person data with LinkedIn
  */
 export async function searchPerson(personName, companyName) {
-  // Split name into first and last
+  // Split name into first and last (use only first 2 parts for Brazilian names)
   const nameParts = personName.trim().split(/\s+/);
   const firstName = nameParts[0];
-  const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+  // Use only the second name part (not all last names) for better matching
+  const lastName = nameParts[1] || nameParts[0];
 
   console.log(`[APOLLO] Matching person: ${firstName} ${lastName} at ${companyName}`);
 
