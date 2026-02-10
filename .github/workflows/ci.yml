@@ -128,10 +128,22 @@ jobs:
 
             # Verificar status
             sudo systemctl status scraping --no-pager || true
-            echo "=== Verify static files ==="
-            head -5 static/dashboard.html
+
+            echo "=== Git debug ==="
+            git log --oneline -1
+            git status
+            echo ""
+            echo "=== Directory listing ==="
+            ls -la
+            echo ""
+            echo "=== Check if static exists in git ==="
+            git ls-tree -r HEAD --name-only | grep static || echo "No static files in git tree!"
+            echo ""
+            echo "=== Static folder ==="
+            ls -la static/ 2>/dev/null || echo "Static folder NOT FOUND"
+            echo ""
             echo "=== Testing API ==="
             curl -s http://127.0.0.1:8000/health | head -c 200
             echo ""
             echo "=== Dashboard check ==="
-            curl -s http://127.0.0.1:8000/dashboard.html | grep -o "Em desenvolvimento" | head -1 || echo "OLD VERSION DETECTED"
+            curl -s http://127.0.0.1:8000/dashboard.html | grep -o "Em desenvolvimento" | head -1 || echo "OLD VERSION - no 'Em desenvolvimento' found"
