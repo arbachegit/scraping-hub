@@ -103,7 +103,14 @@ export async function searchCompanyByName(companyName, cidade = null) {
     }
   }
 
-  return candidates;
+  // Filter candidates to only include those with the search term in the name
+  const searchTermLower = companyName.toLowerCase();
+  const filtered = candidates.filter(c => {
+    const name = (c.razao_social || '').toLowerCase();
+    return name.includes(searchTermLower);
+  });
+
+  return filtered;
 }
 
 /**
