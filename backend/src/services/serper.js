@@ -215,6 +215,143 @@ export async function findPersonLinkedin(name, company = null) {
 }
 
 /**
+ * Find company official website via Google search
+ * @param {string} companyName - Company name
+ * @param {string} cidade - City (optional)
+ * @returns {Promise<string|null>} Website URL or null
+ */
+export async function findCompanyWebsite(companyName, cidade = null) {
+  let query = `"${companyName}" site oficial`;
+  if (cidade) {
+    query += ` ${cidade}`;
+  }
+
+  const results = await search(query, 10);
+  const kg = results.knowledgeGraph;
+
+  // Check knowledge graph first
+  if (kg?.website) {
+    return kg.website;
+  }
+
+  // Look for official website in organic results
+  const excludeDomains = [
+    'linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com',
+    'youtube.com', 'cnpj.info', 'consultacnpj.com', 'casadosdados.com.br',
+    'econodata.com.br', 'empresas.serasaexperian.com.br', 'infoplex.com.br'
+  ];
+
+  for (const item of results.organic || []) {
+    const url = item.link;
+    if (!url) continue;
+
+    // Skip social media and CNPJ databases
+    const isExcluded = excludeDomains.some(domain => url.includes(domain));
+    if (isExcluded) continue;
+
+    // Check if the result seems like the official website
+    const titleLower = (item.title || '').toLowerCase();
+    const companyLower = companyName.toLowerCase().split(' ')[0]; // First word
+
+    if (titleLower.includes(companyLower) || url.toLowerCase().includes(companyLower)) {
+      return url;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find company LinkedIn via Google search
+ * @param {string} companyName - Company name
+ * @returns {Promise<string|null>} LinkedIn URL or null
+ */
+export async function findCompanyLinkedin(companyName) {
+  const query = `"${companyName}" site:linkedin.com/company`;
+  const results = await search(query, 5);
+
+  for (const item of results.organic || []) {
+    if (item.link?.includes('linkedin.com/company')) {
+      return item.link;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract contacts from a website URL
+ * @param {string} websiteUrl - Website URL to scrape
+ * @returns {Promise<Object>} Extracted contacts (email, phone, social)
+ */
+export async function extractContactsFromWebsite(websiteUrl) {
+  if (!websiteUrl) return { emails: [], phones: [], social: {} };
+
+  try {
+    // Search for contact page
+    const domain = new URL(websiteUrl).hostname;
+    const query = `site:${domain} contato OR contact OR fale conosco email telefone`;
+    const results = await search(query, 5);
+
+    const contacts = {
+      emails: new Set(),
+      phones: new Set(),
+      social: {}
+    };
+
+    // Email patterns
+    const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    // Phone patterns (Brazilian)
+    const phonePattern = /(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?(?:9?\d{4}[-.\s]?\d{4})/g;
+
+    // Extract from snippets
+    for (const item of results.organic || []) {
+      const text = `${item.title || ''} ${item.snippet || ''}`;
+
+      // Find emails
+      const emails = text.match(emailPattern) || [];
+      emails.forEach(e => {
+        if (!e.includes('example') && !e.includes('teste')) {
+          contacts.emails.add(e.toLowerCase());
+        }
+      });
+
+      // Find phones
+      const phones = text.match(phonePattern) || [];
+      phones.forEach(p => {
+        const cleaned = p.replace(/\D/g, '');
+        if (cleaned.length >= 10 && cleaned.length <= 13) {
+          contacts.phones.add(p.trim());
+        }
+      });
+    }
+
+    // Search for social media
+    const socialQuery = `site:${domain} instagram OR facebook OR twitter OR whatsapp`;
+    const socialResults = await search(socialQuery, 3);
+
+    for (const item of socialResults.organic || []) {
+      const text = `${item.snippet || ''}`;
+
+      // Instagram
+      const igMatch = text.match(/@([a-zA-Z0-9_.]+)/);
+      if (igMatch && !contacts.social.instagram) {
+        contacts.social.instagram = `@${igMatch[1]}`;
+      }
+    }
+
+    return {
+      emails: [...contacts.emails],
+      phones: [...contacts.phones],
+      social: contacts.social
+    };
+  } catch (error) {
+    console.error('[SERPER] Error extracting contacts:', error.message);
+    return { emails: [], phones: [], social: {} };
+  }
+}
+
+/**
  * Format CNPJ with punctuation
  * @param {string} cnpj - CNPJ digits only
  * @returns {string} Formatted CNPJ

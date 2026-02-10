@@ -622,7 +622,8 @@
         loadVersion();
 
         // Company Modal Functions
-        let currentCompany = null;
+        let currentEmpresa = null;
+        let currentSocios = [];
 
         function openCompanyModal() {
             document.getElementById('companyModal').classList.add('show');
@@ -636,7 +637,8 @@
             document.getElementById('companyCidade').value = '';
             document.getElementById('searchView').style.display = 'block';
             document.getElementById('detailsView').style.display = 'none';
-            currentCompany = null;
+            currentEmpresa = null;
+            currentSocios = [];
         }
 
         async function searchCompany() {
@@ -673,7 +675,9 @@
                 }
 
                 if (data.single_match) {
-                    showCompanyDetails(data.company);
+                    // Single match found - get full details via /details endpoint
+                    selectCompany(data.company.cnpj);
+                    return;
                 } else {
                     results.innerHTML = data.candidates.map(c => `
                         <div class="result-item" onclick="selectCompany('${c.cnpj}')">
@@ -708,86 +712,165 @@
                     return;
                 }
 
-                showCompanyDetails(data.company);
+                // New structure: empresa and socios are separate
+                currentEmpresa = data.empresa;
+                currentSocios = data.socios || [];
+                showCompanyDetails();
             } catch (e) {
                 results.innerHTML = '<div class="message error">Erro: ' + e.message + '</div>';
             }
         }
 
-        function showCompanyDetails(company) {
-            currentCompany = company;
+        function showCompanyDetails() {
+            const empresa = currentEmpresa;
             document.getElementById('searchView').style.display = 'none';
             document.getElementById('detailsView').style.display = 'block';
 
-            const socios = company.socios || [];
-            const sociosHtml = socios.length > 0 ? `
-                <div class="socios-list">
-                    <h4 style="color: #94a3b8; margin-bottom: 0.5rem;">Socios (${socios.length})</h4>
-                    ${socios.map(s => `
-                        <div class="socio-item">
-                            <strong>${s.nome}</strong><br>
-                            <span>${s.qualificacao || s.cargo || 'Socio'}</span>
-                            ${s.cpf ? '<br><span>CPF: ' + s.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4') + '</span>' : ''}
-                            ${s.linkedin ? '<br><a href="' + s.linkedin + '" target="_blank" style="color:#22d3ee">LinkedIn</a>' : ''}
-                        </div>
-                    `).join('')}
-                </div>
+            // Format LinkedIn display (NAO_POSSUI = "Nao possui")
+            let linkedinDisplay = '-';
+            if (empresa.linkedin && empresa.linkedin !== 'NAO_POSSUI') {
+                linkedinDisplay = `<a href="${empresa.linkedin}" target="_blank">Ver perfil</a>`;
+            } else if (empresa.linkedin === 'NAO_POSSUI') {
+                linkedinDisplay = '<span style="color:#f87171">Nao possui</span>';
+            }
+
+            // Format website display
+            let websiteDisplay = '-';
+            if (empresa.website && empresa.website !== 'NAO_POSSUI') {
+                websiteDisplay = `<a href="${empresa.website}" target="_blank">${empresa.website}</a>`;
+            }
+
+            // Ver Socios button (only if there are socios)
+            const verSociosBtn = currentSocios.length > 0 ? `
+                <button class="btn-search" style="width:100%;margin-top:1rem;background:#6366f1;" onclick="loadSocios()" id="btnVerSocios">
+                    Ver Socios (${currentSocios.length})
+                </button>
             ` : '';
 
             document.getElementById('companyDetails').innerHTML = `
                 <div class="company-details">
                     <div class="detail-row">
                         <span class="detail-label">CNPJ</span>
-                        <span class="detail-value">${formatCnpj(company.cnpj)}</span>
+                        <span class="detail-value">${formatCnpj(empresa.cnpj)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Razao Social</span>
-                        <span class="detail-value">${company.razao_social || '-'}</span>
+                        <span class="detail-value">${empresa.razao_social || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Nome Fantasia</span>
-                        <span class="detail-value">${company.nome_fantasia || '-'}</span>
+                        <span class="detail-value">${empresa.nome_fantasia || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">CNAE</span>
-                        <span class="detail-value">${company.cnae_principal || '-'} - ${company.cnae_descricao || ''}</span>
+                        <span class="detail-value">${empresa.cnae_principal || '-'} - ${empresa.cnae_descricao || ''}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Porte</span>
-                        <span class="detail-value">${company.porte || '-'}</span>
+                        <span class="detail-value">${empresa.porte || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Situacao</span>
-                        <span class="detail-value">${company.situacao_cadastral || '-'}</span>
+                        <span class="detail-value">${empresa.situacao_cadastral || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Capital Social</span>
-                        <span class="detail-value">${company.capital_social ? 'R$ ' + Number(company.capital_social).toLocaleString('pt-BR') : '-'}</span>
+                        <span class="detail-value">${empresa.capital_social ? 'R$ ' + Number(empresa.capital_social).toLocaleString('pt-BR') : '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Endereco</span>
-                        <span class="detail-value">${[company.logradouro, company.numero, company.bairro, company.cidade, company.estado].filter(Boolean).join(', ') || '-'}</span>
+                        <span class="detail-value">${[empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ') || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Telefone</span>
-                        <span class="detail-value">${company.telefone_1 || '-'}</span>
+                        <span class="detail-value">${empresa.telefone_1 || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Email</span>
-                        <span class="detail-value">${company.email || '-'}</span>
+                        <span class="detail-value">${empresa.email || '-'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Website</span>
-                        <span class="detail-value">${company.website ? '<a href="' + company.website + '" target="_blank">' + company.website + '</a>' : '-'}</span>
+                        <span class="detail-value">${websiteDisplay}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">LinkedIn</span>
-                        <span class="detail-value">${company.linkedin ? '<a href="' + company.linkedin + '" target="_blank">Ver perfil</a>' : '-'}</span>
+                        <span class="detail-value">${linkedinDisplay}</span>
                     </div>
-                    ${sociosHtml}
+                    <div id="sociosContainer"></div>
                 </div>
+                ${verSociosBtn}
                 <button class="btn-approve" onclick="approveCompany()" id="btnApprove">Aprovar e Cadastrar</button>
                 <button class="btn-search" style="width:100%;margin-top:0.5rem;background:#374151;" onclick="backToSearch()">Voltar</button>
+            `;
+        }
+
+        async function loadSocios() {
+            const btn = document.getElementById('btnVerSocios');
+            const container = document.getElementById('sociosContainer');
+
+            btn.disabled = true;
+            btn.textContent = 'Buscando LinkedIn...';
+            container.innerHTML = '<div class="loading" style="padding:1rem;">Enriquecendo dados dos socios</div>';
+
+            try {
+                const r = await fetch('/api/companies/socios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        socios: currentSocios,
+                        empresa_nome: currentEmpresa.nome_fantasia || currentEmpresa.razao_social
+                    })
+                });
+
+                const data = await r.json();
+
+                if (data.success && data.socios) {
+                    currentSocios = data.socios;
+                    renderSocios();
+                    btn.style.display = 'none';
+                } else {
+                    throw new Error(data.error || 'Erro ao buscar socios');
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="message error" style="margin-top:1rem;">Erro: ${e.message}</div>`;
+                btn.disabled = false;
+                btn.textContent = `Ver Socios (${currentSocios.length})`;
+            }
+        }
+
+        function renderSocios() {
+            const container = document.getElementById('sociosContainer');
+
+            if (currentSocios.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="socios-list" style="margin-top:1rem;">
+                    <h4 style="color:#94a3b8;margin-bottom:0.5rem;">Socios (${currentSocios.length})</h4>
+                    ${currentSocios.map(s => {
+                        let linkedinHtml = '';
+                        if (s.linkedin && s.linkedin !== 'NAO_POSSUI') {
+                            linkedinHtml = `<br><a href="${s.linkedin}" target="_blank" style="color:#22d3ee">LinkedIn</a>`;
+                        } else if (s.linkedin === 'NAO_POSSUI') {
+                            linkedinHtml = '<br><span style="color:#f87171;font-size:0.8rem">LinkedIn: Nao possui</span>';
+                        }
+
+                        return `
+                            <div class="socio-item">
+                                <strong>${s.nome}</strong>
+                                ${s.foto_url ? `<img src="${s.foto_url}" style="width:32px;height:32px;border-radius:50%;float:right;">` : ''}
+                                <br><span>${s.qualificacao || s.cargo || 'Socio'}</span>
+                                ${s.cpf ? '<br><span style="color:#64748b">CPF: ***.' + s.cpf.slice(-6, -2) + '.**-' + s.cpf.slice(-2) + '</span>' : ''}
+                                ${s.email ? `<br><span style="color:#64748b">${s.email}</span>` : ''}
+                                ${s.headline ? `<br><span style="color:#94a3b8;font-size:0.8rem">${s.headline}</span>` : ''}
+                                ${linkedinHtml}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
             `;
         }
 
@@ -795,11 +878,12 @@
             document.getElementById('searchView').style.display = 'block';
             document.getElementById('detailsView').style.display = 'none';
             document.getElementById('searchResults').innerHTML = '';
-            currentCompany = null;
+            currentEmpresa = null;
+            currentSocios = [];
         }
 
         async function approveCompany() {
-            if (!currentCompany) {
+            if (!currentEmpresa) {
                 alert('Nenhuma empresa selecionada');
                 return;
             }
@@ -814,8 +898,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        company: currentCompany,
-                        socios: currentCompany.socios,
+                        empresa: currentEmpresa,
+                        socios: currentSocios,
                         aprovado_por: user
                     })
                 });

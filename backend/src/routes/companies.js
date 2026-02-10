@@ -72,7 +72,8 @@ router.post('/search', async (req, res) => {
 /**
  * POST /api/companies/details
  * Get detailed info for a specific CNPJ
- * Uses: BrasilAPI (official data) + Serper (enrichment)
+ * Sources: BrasilAPI (official) + Apollo + Serper (enrichment)
+ * Returns: empresa (company data) separately from socios (people data)
  */
 router.post('/details', async (req, res) => {
   try {
@@ -93,11 +94,14 @@ router.post('/details', async (req, res) => {
       return res.json({
         exists: true,
         message: 'Empresa ja cadastrada',
-        company: existing
+        empresa: existing,
+        socios: [] // Load separately via /socios endpoint
       });
     }
 
-    // Get official data from BrasilAPI (Receita Federal)
+    // ========================================
+    // 1. DADOS OFICIAIS - BrasilAPI (Receita Federal)
+    // ========================================
     console.log(`[BRASILAPI] Buscando CNPJ: ${cleanCnpj}`);
     const brasilData = await brasilapi.getCompanyByCnpj(cleanCnpj);
 
@@ -107,41 +111,64 @@ router.post('/details', async (req, res) => {
       });
     }
 
-    // Enrich with Serper (LinkedIn, website, etc)
-    console.log(`[SERPER] Enriquecendo dados para: ${brasilData.razao_social}`);
-    const serperData = await serper.getCompanyDetails(cleanCnpj);
-
-    // Enrich with Apollo (better LinkedIn and website data)
-    // Use nome_fantasia if available (usually shorter and more recognizable)
-    // Clean and simplify the name for better Apollo search
-    let apolloSearchName = brasilData.nome_fantasia || brasilData.razao_social;
-
-    // Clean the name for better search
-    apolloSearchName = apolloSearchName
-      // Remove branch/unit suffixes (e.g., "- EDISE", "- UNIDADE X")
+    // Clean company name for searches
+    let searchName = brasilData.nome_fantasia || brasilData.razao_social;
+    searchName = searchName
       .replace(/\s*[-–]\s*[A-Z0-9\s]+$/gi, '')
-      // Remove legal suffixes
       .replace(/\s+(LTDA|S\.?A\.?|S\/A|ME|EPP|EIRELI|SOCIEDADE ANONIMA|LIMITADA)\.?$/gi, '')
-      // Remove common business terms at the end
       .replace(/\s+(COMERCIO|COMERCIAL|INDUSTRIA|SERVICOS|PARTICIPACOES|BRASILEIRO|BRASILEIRA).*$/gi, '')
       .trim();
-
-    // If name is too long (>30 chars), try to get first meaningful word
-    if (apolloSearchName.length > 30) {
-      const words = apolloSearchName.split(/\s+/);
-      apolloSearchName = words[0]; // Usually the brand name
+    if (searchName.length > 30) {
+      searchName = searchName.split(/\s+/)[0];
     }
 
-    console.log(`[APOLLO] Buscando empresa: ${apolloSearchName}`);
-    const apolloData = await apollo.searchCompany(apolloSearchName, brasilData.estado);
-    console.log(`[APOLLO] Resultado:`, apolloData ? `LinkedIn: ${apolloData.linkedin}, Website: ${apolloData.website}` : 'null');
+    // ========================================
+    // 2. ENRIQUECIMENTO - Apollo (LinkedIn empresa)
+    // ========================================
+    console.log(`[APOLLO] Buscando empresa: ${searchName}`);
+    const apolloData = await apollo.searchCompany(searchName, brasilData.estado);
 
-    // Merge data (BrasilAPI = official, Apollo/Serper = enrichment)
-    const merged = {
-      // BrasilAPI - Official data
+    // ========================================
+    // 3. ENRIQUECIMENTO - Serper (Website via Google)
+    // ========================================
+    console.log(`[SERPER] Buscando website: ${searchName}`);
+    let website = apolloData?.website || null;
+    if (!website) {
+      website = await serper.findCompanyWebsite(searchName, brasilData.cidade);
+    }
+
+    // ========================================
+    // 4. ENRIQUECIMENTO - LinkedIn empresa (Apollo → Serper → NAO_POSSUI)
+    // ========================================
+    let linkedin = apolloData?.linkedin || null;
+    if (!linkedin) {
+      console.log(`[SERPER] Buscando LinkedIn empresa: ${searchName}`);
+      linkedin = await serper.findCompanyLinkedin(searchName);
+    }
+    // Mark as NAO_POSSUI if not found (important for analysis)
+    if (!linkedin) {
+      linkedin = 'NAO_POSSUI';
+    }
+
+    // ========================================
+    // 5. EXTRAIR CONTATOS DO WEBSITE
+    // ========================================
+    let websiteContacts = { emails: [], phones: [], social: {} };
+    if (website && website !== 'NAO_POSSUI') {
+      console.log(`[SERPER] Extraindo contatos de: ${website}`);
+      websiteContacts = await serper.extractContactsFromWebsite(website);
+    }
+
+    // ========================================
+    // 6. MONTAR DADOS DA EMPRESA (sem sócios)
+    // ========================================
+    const empresa = {
+      // Identificação
       cnpj: brasilData.cnpj,
       razao_social: brasilData.razao_social,
       nome_fantasia: brasilData.nome_fantasia,
+
+      // Classificação (Receita Federal)
       cnae_principal: brasilData.cnae_principal,
       cnae_descricao: brasilData.cnae_descricao,
       porte: brasilData.porte,
@@ -152,7 +179,7 @@ router.post('/details', async (req, res) => {
       simples_nacional: brasilData.simples_nacional,
       simei: brasilData.simei,
 
-      // Address (BrasilAPI)
+      // Endereço (Receita Federal)
       logradouro: brasilData.logradouro,
       numero: brasilData.numero,
       complemento: brasilData.complemento,
@@ -162,60 +189,56 @@ router.post('/details', async (req, res) => {
       cep: brasilData.cep,
       codigo_municipio_ibge: brasilData.codigo_municipio_ibge,
 
-      // Contact (BrasilAPI)
+      // Contato (Receita Federal + Website)
       telefone_1: brasilData.telefone_1,
       telefone_2: brasilData.telefone_2,
-      email: brasilData.email,
+      email: brasilData.email || websiteContacts.emails[0] || null,
+      emails_website: websiteContacts.emails,
+      telefones_website: websiteContacts.phones,
 
-      // Enrichment (Apollo preferred, Serper fallback)
-      website: apolloData?.website || serperData.website,
-      linkedin: apolloData?.linkedin || serperData.linkedin,
-      setor: apolloData?.industry || serperData.setor,
-      descricao: apolloData?.description || serperData.descricao,
-      num_funcionarios: apolloData?.num_employees || serperData.num_funcionarios,
-      logo_url: apolloData?.logo_url || serperData.imageUrl || null,
+      // Presença Digital (Apollo + Serper)
+      website: website,
+      linkedin: linkedin, // NAO_POSSUI se não encontrar
+      twitter: apolloData?.twitter || websiteContacts.social?.twitter || null,
+      facebook: apolloData?.facebook || websiteContacts.social?.facebook || null,
+      instagram: websiteContacts.social?.instagram || null,
+
+      // Informações Adicionais (Apollo)
+      setor: apolloData?.industry || null,
+      descricao: apolloData?.description || null,
+      num_funcionarios: apolloData?.num_employees || null,
+      logo_url: apolloData?.logo_url || null,
       ano_fundacao: apolloData?.founded_year || null,
-      twitter: apolloData?.twitter || null,
-      facebook: apolloData?.facebook || null,
 
-      // Founders/Partners from BrasilAPI QSA
-      socios: brasilData.socios || [],
+      // Quantidade de sócios (para exibir botão "Ver Sócios")
+      qtd_socios: brasilData.socios?.length || 0,
 
       // Raw data
       raw_brasilapi: brasilData.raw_brasilapi,
-      raw_serper: serperData,
       raw_apollo: apolloData?.raw_apollo || null
     };
 
-    // Enrich socios with LinkedIn (via Apollo, fallback to Serper)
-    if (merged.socios && merged.socios.length > 0) {
-      console.log(`[APOLLO] Buscando LinkedIn para ${merged.socios.length} socios`);
-      for (const socio of merged.socios.slice(0, 5)) { // Limit to 5 to avoid rate limits
-        if (!socio.linkedin) {
-          // Try Apollo first (use cleaned company name for better match)
-          console.log(`[APOLLO] Buscando pessoa: ${socio.nome} em ${apolloSearchName}`);
-          const apolloPerson = await apollo.searchPerson(socio.nome, apolloSearchName);
-          if (apolloPerson) {
-            socio.linkedin = apolloPerson.linkedin;
-            socio.email = apolloPerson.email;
-            socio.foto_url = apolloPerson.photo_url;
-            socio.headline = apolloPerson.headline;
-            socio.raw_apollo = apolloPerson.raw_apollo;
-          } else {
-            // Fallback to Serper (use cleaned company name)
-            socio.linkedin = await serper.findPersonLinkedin(
-              socio.nome,
-              apolloSearchName
-            );
-          }
-        }
-      }
-    }
+    // ========================================
+    // 7. MONTAR DADOS DOS SÓCIOS (separado)
+    // ========================================
+    const socios = (brasilData.socios || []).map(socio => ({
+      nome: socio.nome,
+      cpf: socio.cpf, // CPF mascarado da Receita Federal
+      cargo: socio.cargo,
+      qualificacao: socio.qualificacao,
+      data_entrada: socio.data_entrada,
+      faixa_etaria: socio.faixa_etaria,
+      pais_origem: socio.pais_origem,
+      // LinkedIn será buscado sob demanda via /socios endpoint
+      linkedin: null,
+      email: null
+    }));
 
     return res.json({
       exists: false,
       message: 'Detalhes da empresa. Aguardando aprovacao.',
-      company: merged
+      empresa: empresa,
+      socios: socios
     });
 
   } catch (error) {
@@ -228,15 +251,88 @@ router.post('/details', async (req, res) => {
 });
 
 /**
+ * POST /api/companies/socios
+ * Enrich socios with LinkedIn data (called on demand via "Ver Sócios" button)
+ */
+router.post('/socios', async (req, res) => {
+  try {
+    const { socios, empresa_nome } = req.body;
+
+    if (!socios || !Array.isArray(socios)) {
+      return res.status(400).json({ error: 'Lista de socios e obrigatoria' });
+    }
+
+    // Clean company name for searches
+    let searchName = empresa_nome || '';
+    searchName = searchName
+      .replace(/\s*[-–]\s*[A-Z0-9\s]+$/gi, '')
+      .replace(/\s+(LTDA|S\.?A\.?|S\/A|ME|EPP|EIRELI|SOCIEDADE ANONIMA|LIMITADA)\.?$/gi, '')
+      .trim();
+    if (searchName.length > 30) {
+      searchName = searchName.split(/\s+/)[0];
+    }
+
+    console.log(`[SOCIOS] Enriquecendo ${socios.length} socios de ${searchName}`);
+
+    const enrichedSocios = [];
+
+    for (const socio of socios.slice(0, 10)) { // Limit to 10
+      console.log(`[APOLLO] Buscando pessoa: ${socio.nome}`);
+
+      // Try Apollo first
+      const apolloPerson = await apollo.searchPerson(socio.nome, searchName);
+
+      if (apolloPerson) {
+        enrichedSocios.push({
+          ...socio,
+          linkedin: apolloPerson.linkedin || 'NAO_POSSUI',
+          email: apolloPerson.email,
+          foto_url: apolloPerson.photo_url,
+          headline: apolloPerson.headline,
+          titulo: apolloPerson.title,
+          fonte_linkedin: 'apollo'
+        });
+      } else {
+        // Fallback to Serper
+        const linkedinUrl = await serper.findPersonLinkedin(socio.nome, searchName);
+        enrichedSocios.push({
+          ...socio,
+          linkedin: linkedinUrl || 'NAO_POSSUI',
+          email: null,
+          foto_url: null,
+          headline: null,
+          fonte_linkedin: linkedinUrl ? 'serper' : null
+        });
+      }
+
+      // Rate limit: wait 200ms between requests
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    return res.json({
+      success: true,
+      socios: enrichedSocios
+    });
+
+  } catch (error) {
+    console.error('[SOCIOS ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao enriquecer socios',
+      details: error.message
+    });
+  }
+});
+
+/**
  * POST /api/companies/approve
- * Approve and insert company into database
- * Includes: BrasilAPI fields + Serper enrichment + Socios with CPF
+ * Approve and insert company + socios into database
+ * Empresa and Socios are saved separately
  */
 router.post('/approve', async (req, res) => {
   try {
-    const { company, socios, aprovado_por } = req.body;
+    const { empresa, socios, aprovado_por } = req.body;
 
-    if (!company || !company.cnpj) {
+    if (!empresa || !empresa.cnpj) {
       return res.status(400).json({ error: 'Dados da empresa sao obrigatorios' });
     }
 
@@ -244,92 +340,95 @@ router.post('/approve', async (req, res) => {
       return res.status(400).json({ error: 'Aprovador e obrigatorio' });
     }
 
-    const cleanCnpj = company.cnpj.replace(/[^\d]/g, '');
+    const cleanCnpj = empresa.cnpj.replace(/[^\d]/g, '');
 
     // Check if already exists
     const existing = await findCompanyByCnpj(cleanCnpj);
     if (existing) {
       return res.status(409).json({
         error: 'Empresa ja cadastrada',
-        company: existing
+        empresa: existing
       });
     }
 
-    // Insert company with all fields
+    // Insert company
     const insertedCompany = await insertCompany({
-      // Identification
+      // Identificação
       cnpj: cleanCnpj,
-      razao_social: company.razao_social,
-      nome_fantasia: company.nome_fantasia,
+      razao_social: empresa.razao_social,
+      nome_fantasia: empresa.nome_fantasia,
 
-      // Classification (BrasilAPI)
-      cnae_principal: company.cnae_principal,
-      cnae_descricao: company.cnae_descricao,
-      porte: company.porte,
-      natureza_juridica: company.natureza_juridica,
-      situacao_cadastral: company.situacao_cadastral,
-      capital_social: company.capital_social,
-      data_fundacao: company.data_abertura,
-      simples_nacional: company.simples_nacional,
-      simei: company.simei,
+      // Classificação
+      cnae_principal: empresa.cnae_principal,
+      cnae_descricao: empresa.cnae_descricao,
+      porte: empresa.porte,
+      natureza_juridica: empresa.natureza_juridica,
+      situacao_cadastral: empresa.situacao_cadastral,
+      capital_social: empresa.capital_social,
+      data_fundacao: empresa.data_abertura,
+      simples_nacional: empresa.simples_nacional,
+      simei: empresa.simei,
 
-      // Address (BrasilAPI)
-      logradouro: company.logradouro,
-      numero: company.numero,
-      complemento: company.complemento,
-      bairro: company.bairro,
-      cidade: company.cidade,
-      estado: company.estado,
-      cep: company.cep,
-      codigo_municipio_ibge: company.codigo_municipio_ibge,
+      // Endereço
+      logradouro: empresa.logradouro,
+      numero: empresa.numero,
+      complemento: empresa.complemento,
+      bairro: empresa.bairro,
+      cidade: empresa.cidade,
+      estado: empresa.estado,
+      cep: empresa.cep,
+      codigo_municipio_ibge: empresa.codigo_municipio_ibge,
 
-      // Contact (BrasilAPI)
-      telefone_1: company.telefone_1,
-      telefone_2: company.telefone_2,
-      email: company.email,
+      // Contato
+      telefone_1: empresa.telefone_1,
+      telefone_2: empresa.telefone_2,
+      email: empresa.email,
 
-      // Enrichment (Apollo/Serper)
-      website: company.website,
-      linkedin: company.linkedin,
-      setor: company.setor,
-      descricao: company.descricao,
-      num_funcionarios: company.num_funcionarios,
-      logo_url: company.logo_url,
-      twitter: company.twitter,
-      facebook: company.facebook,
-      ano_fundacao: company.ano_fundacao,
+      // Presença Digital
+      website: empresa.website,
+      linkedin: empresa.linkedin, // NAO_POSSUI se não tiver
+      twitter: empresa.twitter,
+      facebook: empresa.facebook,
+      instagram: empresa.instagram,
+
+      // Informações Adicionais
+      setor: empresa.setor,
+      descricao: empresa.descricao,
+      num_funcionarios: empresa.num_funcionarios,
+      logo_url: empresa.logo_url,
+      ano_fundacao: empresa.ano_fundacao,
 
       // Raw data
-      raw_brasilapi: company.raw_brasilapi || {},
-      raw_serper: company.raw_serper || {},
-      raw_apollo: company.raw_apollo || {},
+      raw_brasilapi: empresa.raw_brasilapi || {},
+      raw_apollo: empresa.raw_apollo || {},
 
-      // Approval
+      // Aprovação
       aprovado_por: aprovado_por
     });
 
-    // Insert socios/founders as separate people (dim_pessoas)
+    // Insert socios
     const insertedSocios = [];
-    const sociosList = socios || company.socios || [];
 
-    if (sociosList.length > 0) {
-      for (const socio of sociosList) {
+    if (socios && socios.length > 0) {
+      for (const socio of socios) {
+        // Skip if linkedin is NAO_POSSUI, set to null
+        const linkedinValue = socio.linkedin === 'NAO_POSSUI' ? null : socio.linkedin;
+
         const person = await insertPerson({
           nome: socio.nome,
-          cpf: socio.cpf || null, // CPF from BrasilAPI QSA
-          linkedin: socio.linkedin,
-          email: socio.email || null, // From Apollo
-          foto_url: socio.foto_url || null, // From Apollo
-          headline: socio.headline || null, // From Apollo
+          cpf: socio.cpf || null,
+          linkedin: linkedinValue,
+          email: socio.email || null,
+          foto_url: socio.foto_url || null,
+          headline: socio.headline || null,
           cargo: socio.cargo || socio.qualificacao || 'Socio',
           qualificacao: socio.qualificacao,
           empresa_id: insertedCompany.id,
-          empresa_nome: company.nome_fantasia || company.razao_social,
+          empresa_nome: empresa.nome_fantasia || empresa.razao_social,
           tipo: 'fundador',
           data_entrada_sociedade: socio.data_entrada,
           faixa_etaria: socio.faixa_etaria,
-          pais_origem: socio.pais_origem,
-          raw_apollo: socio.raw_apollo || null
+          pais_origem: socio.pais_origem
         });
         insertedSocios.push(person);
       }
@@ -340,7 +439,7 @@ router.post('/approve', async (req, res) => {
     return res.json({
       success: true,
       message: 'Empresa aprovada e cadastrada com sucesso',
-      company: insertedCompany,
+      empresa: insertedCompany,
       socios: insertedSocios
     });
 
