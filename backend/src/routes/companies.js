@@ -114,6 +114,7 @@ router.post('/details', async (req, res) => {
     // Enrich with Apollo (better LinkedIn and website data)
     console.log(`[APOLLO] Buscando empresa: ${brasilData.razao_social}`);
     const apolloData = await apollo.searchCompany(brasilData.razao_social, brasilData.estado);
+    console.log(`[APOLLO] Resultado:`, apolloData ? `LinkedIn: ${apolloData.linkedin}, Website: ${apolloData.website}` : 'null');
 
     // Merge data (BrasilAPI = official, Apollo/Serper = enrichment)
     const merged = {

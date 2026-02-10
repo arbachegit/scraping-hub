@@ -13,6 +13,8 @@ async function apolloRequest(endpoint, payload) {
     return null;
   }
 
+  console.log(`[APOLLO] Request: ${endpoint}, key: ${apiKey.substring(0, 8)}...`);
+
   const response = await fetch(`${APOLLO_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: {
@@ -40,12 +42,16 @@ async function apolloRequest(endpoint, payload) {
 export async function searchCompany(companyName, state = null) {
   const locations = state ? [`${state}, Brazil`] : ['Brazil'];
 
+  console.log(`[APOLLO] searchCompany: ${companyName}, locations: ${locations}`);
+
   const result = await apolloRequest('/mixed_companies/search', {
     q_organization_name: companyName,
     organization_locations: locations,
     page: 1,
     per_page: 5
   });
+
+  console.log(`[APOLLO] searchCompany result: ${result ? `${result.organizations?.length || 0} orgs found` : 'null'}`);
 
   if (!result || !result.organizations || result.organizations.length === 0) {
     return null;
