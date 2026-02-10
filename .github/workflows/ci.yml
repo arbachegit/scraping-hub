@@ -49,9 +49,32 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Increment version
+        run: |
+          NEW_VERSION=$(python scripts/version.py --deploy)
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "New version: $NEW_VERSION"
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add VERSION
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]"
+          git push || echo "Nothing to push"
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master
@@ -94,52 +117,80 @@ jobs:
             git reset --hard origin/main
 
             # Backend Python - force recreate venv to ensure correct Python version
-            echo "=== Creating fresh venv ==="
+            echo "=== Creating fresh Python venv ==="
             rm -rf venv
             python3 -m venv venv
             ./venv/bin/pip install -q --upgrade pip
             ./venv/bin/pip install -q -r requirements.txt
 
-            # Stop the service first (this cleanly stops uvicorn)
-            echo "=== Stopping service ==="
-            sudo systemctl stop scraping 2>/dev/null || true
+            # Backend Node.js
+            echo "=== Installing Node.js backend ==="
+            cd backend
+            npm install --silent
+            cd ..
 
-            # Stop any PM2 processes
+            # Stop the services first
+            echo "=== Stopping services ==="
+            sudo systemctl stop scraping 2>/dev/null || true
+            sudo systemctl stop scraping-backend 2>/dev/null || true
             pm2 stop all 2>/dev/null || true
             pm2 delete all 2>/dev/null || true
 
-            # Create systemd service if missing
-            if ! systemctl is-enabled scraping 2>/dev/null; then
-              echo "=== Creating systemd service ==="
-              sudo tee /etc/systemd/system/scraping.service > /dev/null << 'SERVICE_EOF'
+            # Create Python API systemd service
+            echo "=== Creating Python API service ==="
+            sudo tee /etc/systemd/system/scraping.service > /dev/null << 'SERVICE_EOF'
             [Unit]
-            Description=Iconsai Scraping Hub
+            Description=Iconsai Scraping API (Python)
             After=network.target
 
             [Service]
             Type=simple
             User=root
             WorkingDirectory=/opt/iconsai-scraping
-            Environment=PATH=/opt/iconsai-scraping/venv/bin
+            EnvironmentFile=/opt/iconsai-scraping/.env
             ExecStart=/opt/iconsai-scraping/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
             Restart=always
 
             [Install]
             WantedBy=multi-user.target
             SERVICE_EOF
-              sudo systemctl daemon-reload
-              sudo systemctl enable scraping
-            fi
 
-            echo "=== Starting service ==="
+            # Create Node.js backend systemd service
+            echo "=== Creating Node.js backend service ==="
+            sudo tee /etc/systemd/system/scraping-backend.service > /dev/null << 'SERVICE_EOF'
+            [Unit]
+            Description=Iconsai Scraping Backend (Node.js)
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=root
+            WorkingDirectory=/opt/iconsai-scraping/backend
+            EnvironmentFile=/opt/iconsai-scraping/.env
+            ExecStart=/usr/bin/node src/index.js
+            Restart=always
+            Environment=NODE_ENV=production
+            Environment=BACKEND_PORT=3001
+
+            [Install]
+            WantedBy=multi-user.target
+            SERVICE_EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable scraping
+            sudo systemctl enable scraping-backend
+
+            echo "=== Starting services ==="
             sudo systemctl start scraping
+            sudo systemctl start scraping-backend
             sleep 3
 
-            # Verify service is running
-            echo "=== Service Status ==="
+            # Verify services
+            echo "=== Services Status ==="
             sudo systemctl status scraping --no-pager || true
+            sudo systemctl status scraping-backend --no-pager || true
 
-            # Fix nginx configuration (proxy to port 8000)
+            # Fix nginx configuration
             sudo tee /etc/nginx/sites-available/scraping-hub > /dev/null << 'NGINX_EOF'
             server {
                 listen 80;
@@ -157,6 +208,19 @@ jobs:
                 add_header Strict-Transport-Security "max-age=63072000" always;
                 access_log /var/log/nginx/scraping-hub.access.log;
                 error_log /var/log/nginx/scraping-hub.error.log;
+
+                # Node.js backend API (port 3001)
+                location /api {
+                    proxy_pass http://127.0.0.1:3001;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_read_timeout 300s;
+                }
+
+                # Python API (port 8000) - everything else
                 location / {
                     proxy_pass http://127.0.0.1:8000;
                     proxy_http_version 1.1;
