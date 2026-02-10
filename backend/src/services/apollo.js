@@ -1,4 +1,3 @@
-const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
 const APOLLO_BASE_URL = 'https://api.apollo.io/v1';
 
 /**
@@ -8,7 +7,8 @@ const APOLLO_BASE_URL = 'https://api.apollo.io/v1';
  * @returns {Promise<Object>} API response
  */
 async function apolloRequest(endpoint, payload) {
-  if (!APOLLO_API_KEY) {
+  const apiKey = process.env.APOLLO_API_KEY;
+  if (!apiKey) {
     console.warn('[APOLLO] API key not configured');
     return null;
   }
@@ -18,7 +18,7 @@ async function apolloRequest(endpoint, payload) {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
-      'X-Api-Key': APOLLO_API_KEY
+      'X-Api-Key': apiKey
     },
     body: JSON.stringify(payload)
   });

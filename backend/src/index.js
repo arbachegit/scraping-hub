@@ -1,4 +1,12 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load .env from parent directory (project root)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '../../.env') });
+
 import express from 'express';
 import cors from 'cors';
 import companiesRouter from './routes/companies.js';
@@ -26,4 +34,5 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
   console.log(`Health: http://localhost:${PORT}/health`);
+  console.log(`Apollo API Key: ${process.env.APOLLO_API_KEY ? 'configured' : 'NOT configured'}`);
 });
