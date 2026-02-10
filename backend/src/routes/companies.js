@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as serper from '../services/serper.js';
+import * as perplexity from '../services/perplexity.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
 import * as cnpja from '../services/cnpja.js';
@@ -24,14 +25,54 @@ router.post('/search', async (req, res) => {
 
     console.log(`[SEARCH] Buscando empresa: ${nome}${cidade ? ` em ${cidade}` : ''}`);
 
-    // Search for company candidates with optional city filter
-    const candidates = await serper.searchCompanyByName(nome.trim(), cidade?.trim() || null);
+    // 1. First try: Serper (Google search)
+    let candidates = await serper.searchCompanyByName(nome.trim(), cidade?.trim() || null);
+    let searchSource = 'serper';
+
+    // 2. Fallback: Perplexity AI (if Serper found nothing)
+    if (candidates.length === 0) {
+      console.log(`[SEARCH] Serper não encontrou. Tentando Perplexity...`);
+      candidates = await perplexity.searchCompanyByName(nome.trim(), cidade?.trim() || null);
+      searchSource = 'perplexity';
+    }
+
+    // 3. Fallback: Serper with exact name in quotes
+    if (candidates.length === 0) {
+      console.log(`[SEARCH] Perplexity não encontrou. Tentando Serper com nome exato...`);
+      const exactQuery = `"${nome.trim()}" CNPJ empresa`;
+      const exactResults = await serper.search(exactQuery, 20);
+
+      // Extract CNPJs from exact search
+      const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
+      const seenCnpjs = new Set();
+
+      for (const item of exactResults.organic || []) {
+        const text = `${item.title || ''} ${item.snippet || ''}`;
+        const matches = text.match(cnpjPattern) || [];
+
+        for (const match of matches) {
+          const cnpj = match.replace(/[^\d]/g, '');
+          if (cnpj.length === 14 && !seenCnpjs.has(cnpj)) {
+            seenCnpjs.add(cnpj);
+            candidates.push({
+              cnpj: cnpj,
+              cnpj_formatted: `${cnpj.slice(0,2)}.${cnpj.slice(2,5)}.${cnpj.slice(5,8)}/${cnpj.slice(8,12)}-${cnpj.slice(12)}`,
+              razao_social: item.title?.split('-')[0]?.trim() || nome,
+              localizacao: null,
+              fonte: 'serper_exact'
+            });
+          }
+        }
+      }
+      searchSource = 'serper_exact';
+    }
 
     if (candidates.length === 0) {
       return res.json({
         found: false,
         message: 'Nenhuma empresa encontrada com este nome',
-        candidates: []
+        candidates: [],
+        sources_tried: ['serper', 'perplexity', 'serper_exact']
       });
     }
 
