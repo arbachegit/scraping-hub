@@ -61,14 +61,19 @@ export async function insertCompany(company) {
       num_funcionarios: company.num_funcionarios,
       logo_url: company.logo_url,
 
+      // Social media (Apollo/Serper)
+      twitter_url: company.twitter,
+      facebook_url: company.facebook,
+
       // Raw data
       raw_cnpj_data: company.raw_brasilapi,
       raw_search_data: company.raw_serper,
       raw_brasilapi: company.raw_brasilapi,
       raw_serper: company.raw_serper,
+      raw_apollo: company.raw_apollo,
 
       // Metadata
-      fonte: 'brasilapi+serper',
+      fonte: 'brasilapi+serper+apollo',
       data_coleta: new Date().toISOString(),
       aprovado_por: company.aprovado_por
     }])
@@ -102,8 +107,11 @@ export async function insertPerson(person) {
       // CPF from BrasilAPI QSA
       cpf: person.cpf,
 
-      // LinkedIn and contact
+      // LinkedIn and contact (Apollo/Serper)
       linkedin_url: person.linkedin,
+      email: person.email,
+      foto_url: person.foto_url,
+      headline: person.headline,
 
       // Job info (using correct column names)
       cargo_atual: person.cargo,
@@ -117,8 +125,11 @@ export async function insertPerson(person) {
       faixa_etaria: person.faixa_etaria,
       pais: person.pais_origem || 'Brasil',
 
+      // Raw data
+      raw_apollo_data: person.raw_apollo,
+
       // Metadata
-      fonte: 'brasilapi+serper',
+      fonte: 'brasilapi+serper+apollo',
       data_coleta: new Date().toISOString()
     }])
     .select()

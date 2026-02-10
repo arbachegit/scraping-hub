@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
+import * as apollo from '../services/apollo.js';
 import { insertCompany, insertPerson, findCompanyByCnpj } from '../database/supabase.js';
 
 const router = Router();
@@ -110,7 +111,11 @@ router.post('/details', async (req, res) => {
     console.log(`[SERPER] Enriquecendo dados para: ${brasilData.razao_social}`);
     const serperData = await serper.getCompanyDetails(cleanCnpj);
 
-    // Merge data (BrasilAPI = official, Serper = enrichment)
+    // Enrich with Apollo (better LinkedIn and website data)
+    console.log(`[APOLLO] Buscando empresa: ${brasilData.razao_social}`);
+    const apolloData = await apollo.searchCompany(brasilData.razao_social, brasilData.estado);
+
+    // Merge data (BrasilAPI = official, Apollo/Serper = enrichment)
     const merged = {
       // BrasilAPI - Official data
       cnpj: brasilData.cnpj,
@@ -141,31 +146,46 @@ router.post('/details', async (req, res) => {
       telefone_2: brasilData.telefone_2,
       email: brasilData.email,
 
-      // Serper enrichment
-      website: serperData.website,
-      linkedin: serperData.linkedin,
-      setor: serperData.setor,
-      descricao: serperData.descricao,
-      num_funcionarios: serperData.num_funcionarios,
-      logo_url: serperData.imageUrl || null,
+      // Enrichment (Apollo preferred, Serper fallback)
+      website: apolloData?.website || serperData.website,
+      linkedin: apolloData?.linkedin || serperData.linkedin,
+      setor: apolloData?.industry || serperData.setor,
+      descricao: apolloData?.description || serperData.descricao,
+      num_funcionarios: apolloData?.num_employees || serperData.num_funcionarios,
+      logo_url: apolloData?.logo_url || serperData.imageUrl || null,
+      ano_fundacao: apolloData?.founded_year || null,
+      twitter: apolloData?.twitter || null,
+      facebook: apolloData?.facebook || null,
 
       // Founders/Partners from BrasilAPI QSA
       socios: brasilData.socios || [],
 
       // Raw data
       raw_brasilapi: brasilData.raw_brasilapi,
-      raw_serper: serperData
+      raw_serper: serperData,
+      raw_apollo: apolloData?.raw_apollo || null
     };
 
-    // Enrich socios with LinkedIn (via Serper)
+    // Enrich socios with LinkedIn (via Apollo, fallback to Serper)
     if (merged.socios && merged.socios.length > 0) {
-      console.log(`[SERPER] Buscando LinkedIn para ${merged.socios.length} socios`);
+      console.log(`[APOLLO] Buscando LinkedIn para ${merged.socios.length} socios`);
       for (const socio of merged.socios.slice(0, 5)) { // Limit to 5 to avoid rate limits
         if (!socio.linkedin) {
-          socio.linkedin = await serper.findPersonLinkedin(
-            socio.nome,
-            brasilData.razao_social
-          );
+          // Try Apollo first
+          const apolloPerson = await apollo.searchPerson(socio.nome, brasilData.razao_social);
+          if (apolloPerson) {
+            socio.linkedin = apolloPerson.linkedin;
+            socio.email = apolloPerson.email;
+            socio.foto_url = apolloPerson.photo_url;
+            socio.headline = apolloPerson.headline;
+            socio.raw_apollo = apolloPerson.raw_apollo;
+          } else {
+            // Fallback to Serper
+            socio.linkedin = await serper.findPersonLinkedin(
+              socio.nome,
+              brasilData.razao_social
+            );
+          }
         }
       }
     }
@@ -246,17 +266,21 @@ router.post('/approve', async (req, res) => {
       telefone_2: company.telefone_2,
       email: company.email,
 
-      // Enrichment (Serper)
+      // Enrichment (Apollo/Serper)
       website: company.website,
       linkedin: company.linkedin,
       setor: company.setor,
       descricao: company.descricao,
       num_funcionarios: company.num_funcionarios,
       logo_url: company.logo_url,
+      twitter: company.twitter,
+      facebook: company.facebook,
+      ano_fundacao: company.ano_fundacao,
 
       // Raw data
       raw_brasilapi: company.raw_brasilapi || {},
       raw_serper: company.raw_serper || {},
+      raw_apollo: company.raw_apollo || {},
 
       // Approval
       aprovado_por: aprovado_por
@@ -272,6 +296,9 @@ router.post('/approve', async (req, res) => {
           nome: socio.nome,
           cpf: socio.cpf || null, // CPF from BrasilAPI QSA
           linkedin: socio.linkedin,
+          email: socio.email || null, // From Apollo
+          foto_url: socio.foto_url || null, // From Apollo
+          headline: socio.headline || null, // From Apollo
           cargo: socio.cargo || socio.qualificacao || 'Socio',
           qualificacao: socio.qualificacao,
           empresa_id: insertedCompany.id,
@@ -279,7 +306,8 @@ router.post('/approve', async (req, res) => {
           tipo: 'fundador',
           data_entrada_sociedade: socio.data_entrada,
           faixa_etaria: socio.faixa_etaria,
-          pais_origem: socio.pais_origem
+          pais_origem: socio.pais_origem,
+          raw_apollo: socio.raw_apollo || null
         });
         insertedSocios.push(person);
       }
