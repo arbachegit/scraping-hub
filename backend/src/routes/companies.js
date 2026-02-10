@@ -7,11 +7,11 @@ const router = Router();
 
 /**
  * POST /api/companies/search
- * Search for company by name, return candidates with CNPJ
+ * Search for company by name and optional city, return candidates with CNPJ
  */
 router.post('/search', async (req, res) => {
   try {
-    const { nome } = req.body;
+    const { nome, cidade } = req.body;
 
     if (!nome || nome.trim().length < 2) {
       return res.status(400).json({
@@ -19,10 +19,10 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    console.log(`[SEARCH] Buscando empresa: ${nome}`);
+    console.log(`[SEARCH] Buscando empresa: ${nome}${cidade ? ` em ${cidade}` : ''}`);
 
-    // Search for company candidates
-    const candidates = await serper.searchCompanyByName(nome.trim());
+    // Search for company candidates with optional city filter
+    const candidates = await serper.searchCompanyByName(nome.trim(), cidade?.trim() || null);
 
     if (candidates.length === 0) {
       return res.json({

@@ -40,13 +40,18 @@ export async function search(query, num = 10) {
 }
 
 /**
- * Search for company by name, find CNPJ candidates
+ * Search for company by name and optional city, find CNPJ candidates
  * @param {string} companyName - Company name to search
+ * @param {string} cidade - Optional city to filter results
  * @returns {Promise<Array>} List of company candidates with CNPJ
  */
-export async function searchCompanyByName(companyName) {
-  // Search in CNPJ databases
-  const query = `"${companyName}" CNPJ site:cnpj.info OR site:consultacnpj.com OR site:casadosdados.com.br`;
+export async function searchCompanyByName(companyName, cidade = null) {
+  // Build search query with exact name match and optional city
+  let query = `"${companyName}" CNPJ`;
+  if (cidade) {
+    query += ` "${cidade}"`;
+  }
+  query += ` site:cnpj.info OR site:consultacnpj.com OR site:casadosdados.com.br`;
   const results = await search(query, 20);
 
   const candidates = [];

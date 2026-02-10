@@ -562,8 +562,9 @@
             </div>
 
             <div id="searchView">
-                <div class="search-box">
-                    <input type="text" id="companyName" placeholder="Digite o nome da empresa..." onkeypress="if(event.key==='Enter') searchCompany()">
+                <div class="search-box" style="flex-wrap: wrap;">
+                    <input type="text" id="companyName" placeholder="Nome da empresa..." style="flex: 2; min-width: 200px;" onkeypress="if(event.key==='Enter') searchCompany()">
+                    <input type="text" id="companyCidade" placeholder="Cidade (opcional)" style="flex: 1; min-width: 120px;" onkeypress="if(event.key==='Enter') searchCompany()">
                     <button class="btn-search" onclick="searchCompany()" id="btnSearch">Buscar</button>
                 </div>
                 <div id="searchResults"></div>
@@ -632,6 +633,7 @@
             document.getElementById('companyModal').classList.remove('show');
             document.getElementById('searchResults').innerHTML = '';
             document.getElementById('companyName').value = '';
+            document.getElementById('companyCidade').value = '';
             document.getElementById('searchView').style.display = 'block';
             document.getElementById('detailsView').style.display = 'none';
             currentCompany = null;
@@ -639,8 +641,10 @@
 
         async function searchCompany() {
             const nome = document.getElementById('companyName').value.trim();
+            const cidade = document.getElementById('companyCidade').value.trim();
+
             if (!nome || nome.length < 2) {
-                alert('Digite pelo menos 2 caracteres');
+                alert('Digite pelo menos 2 caracteres no nome');
                 return;
             }
 
@@ -652,10 +656,13 @@
             results.innerHTML = '<div class="loading">Buscando empresa</div>';
 
             try {
+                const payload = { nome };
+                if (cidade) payload.cidade = cidade;
+
                 const r = await fetch('/api/companies/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await r.json();
@@ -787,11 +794,15 @@
         function backToSearch() {
             document.getElementById('searchView').style.display = 'block';
             document.getElementById('detailsView').style.display = 'none';
+            document.getElementById('searchResults').innerHTML = '';
             currentCompany = null;
         }
 
         async function approveCompany() {
-            if (!currentCompany) return;
+            if (!currentCompany) {
+                alert('Nenhuma empresa selecionada');
+                return;
+            }
 
             const btn = document.getElementById('btnApprove');
             btn.disabled = true;
@@ -811,21 +822,30 @@
 
                 const data = await r.json();
 
+                if (!r.ok) {
+                    throw new Error(data.error || data.details || `Erro HTTP ${r.status}`);
+                }
+
                 if (data.success) {
                     document.getElementById('companyDetails').innerHTML = `
                         <div class="message success">
                             Empresa cadastrada com sucesso!<br>
                             ${data.socios?.length || 0} socio(s) adicionado(s).
                         </div>
+                        <button class="btn-search" style="width:100%;margin-top:1rem;" onclick="closeCompanyModal()">Fechar</button>
                     `;
-                    setTimeout(closeCompanyModal, 2000);
                 } else {
-                    throw new Error(data.error || 'Erro ao aprovar');
+                    throw new Error(data.error || 'Erro desconhecido ao aprovar');
                 }
             } catch (e) {
+                console.error('Approve error:', e);
                 btn.disabled = false;
                 btn.textContent = 'Aprovar e Cadastrar';
-                alert('Erro: ' + e.message);
+                document.getElementById('companyDetails').innerHTML += `
+                    <div class="message error" style="margin-top:1rem;">
+                        Erro: ${e.message}
+                    </div>
+                `;
             }
         }
 
