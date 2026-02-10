@@ -26,11 +26,22 @@ from config.settings import settings
 
 logger = structlog.get_logger()
 
+
+def get_version() -> str:
+    """Read version from VERSION file"""
+    version_file = Path(__file__).resolve().parent.parent / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "1.0.2026"
+
+
+APP_VERSION = get_version()
+
 # FastAPI app
 app = FastAPI(
     title="IconsAI Scraping API",
     description="API de inteligencia de dados",
-    version="1.14.2026",
+    version=APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -150,7 +161,7 @@ async def health():
 
     return {
         "status": "healthy",
-        "version": "1.14.2026",
+        "version": APP_VERSION,
         "apis": apis,
         "apis_configured": f"{configured}/{total}",
         "ready": configured >= 3,
@@ -163,7 +174,7 @@ async def health():
 
 @app.on_event("startup")
 async def startup():
-    logger.info("api_starting", version="1.14.2026")
+    logger.info("api_starting", version=APP_VERSION)
 
 
 if __name__ == "__main__":

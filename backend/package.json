@@ -1,6 +1,6 @@
 {
   "name": "iconsai-scraping-backend",
-  "version": "1.14.2026",
+  "version": "1.18.2026",
   "description": "Backend Node.js para gestao de APIs do Iconsai Scraping",
   "main": "src/index.js",
   "type": "module",
