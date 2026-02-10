@@ -275,6 +275,7 @@ router.post('/approve', async (req, res) => {
           cargo: socio.cargo || socio.qualificacao || 'Socio',
           qualificacao: socio.qualificacao,
           empresa_id: insertedCompany.id,
+          empresa_nome: company.nome_fantasia || company.razao_social,
           tipo: 'fundador',
           data_entrada_sociedade: socio.data_entrada,
           faixa_etaria: socio.faixa_etaria,

@@ -44,21 +44,26 @@ export async function insertCompany(company) {
       cep: company.cep,
       codigo_municipio_ibge: company.codigo_municipio_ibge,
 
-      // Contact (BrasilAPI)
+      // Contact (BrasilAPI) - using correct column names
+      telefone: company.telefone_1,
       telefone_1: company.telefone_1,
       telefone_2: company.telefone_2,
       email: company.email,
 
-      // Enrichment (Serper)
+      // Enrichment (Serper) - using correct column names
       website: company.website,
-      linkedin: company.linkedin,
+      linkedin_url: company.linkedin,
       setor: company.setor,
       descricao: company.descricao,
+      data_abertura: company.data_fundacao,
       data_fundacao: company.data_fundacao,
+      qtd_funcionarios: company.num_funcionarios ? parseInt(company.num_funcionarios) : null,
       num_funcionarios: company.num_funcionarios,
       logo_url: company.logo_url,
 
       // Raw data
+      raw_cnpj_data: company.raw_brasilapi,
+      raw_search_data: company.raw_serper,
       raw_brasilapi: company.raw_brasilapi,
       raw_serper: company.raw_serper,
 
@@ -81,19 +86,38 @@ export async function insertCompany(company) {
  * @returns {Promise<Object>} Inserted person
  */
 export async function insertPerson(person) {
+  // Extract first and last name
+  const nameParts = (person.nome || '').split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
   const { data, error } = await supabase
     .from('dim_pessoas')
     .insert([{
-      nome: person.nome,
-      cpf: person.cpf, // CPF from BrasilAPI QSA
-      linkedin: person.linkedin,
-      cargo: person.cargo,
+      // Name fields (using correct column names)
+      nome_completo: person.nome,
+      primeiro_nome: firstName,
+      sobrenome: lastName,
+
+      // CPF from BrasilAPI QSA
+      cpf: person.cpf,
+
+      // LinkedIn and contact
+      linkedin_url: person.linkedin,
+
+      // Job info (using correct column names)
+      cargo_atual: person.cargo,
+      empresa_atual_id: person.empresa_id,
+      empresa_atual_nome: person.empresa_nome,
+
+      // BrasilAPI QSA fields
       qualificacao: person.qualificacao,
-      empresa_id: person.empresa_id,
       tipo: person.tipo || 'fundador',
       data_entrada_sociedade: person.data_entrada_sociedade,
       faixa_etaria: person.faixa_etaria,
-      pais_origem: person.pais_origem,
+      pais: person.pais_origem || 'Brasil',
+
+      // Metadata
       fonte: 'brasilapi+serper',
       data_coleta: new Date().toISOString()
     }])
