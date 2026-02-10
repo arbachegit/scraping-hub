@@ -150,7 +150,7 @@ async def health():
 
     return {
         "status": "healthy",
-        "version": "3.0.0",
+        "version": "1.14.2026",
         "apis": apis,
         "apis_configured": f"{configured}/{total}",
         "ready": configured >= 3,

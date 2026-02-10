@@ -108,54 +108,6 @@
             padding: 2rem;
         }
 
-        .status-section {
-            background: rgba(15, 22, 41, 0.8);
-            border: 1px solid rgba(6, 182, 212, 0.2);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-        }
-
-        .status-item {
-            text-align: center;
-        }
-
-        .status-value {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #22d3ee, #60a5fa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .status-label {
-            color: #94a3b8;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 0.5rem;
-        }
-
-        .status-healthy {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #4ade80;
-        }
-
         .page-title {
             font-size: 1.5rem;
             font-weight: 700;
@@ -269,19 +221,6 @@
     </div>
 
     <div class="container">
-        <div class="status-section">
-            <div class="status-grid">
-                <div class="status-item">
-                    <div class="status-value" id="apiCount">-</div>
-                    <div class="status-label">APIs Configuradas</div>
-                </div>
-                <div class="status-item">
-                    <span class="status-badge status-healthy" id="statusBadge">-</span>
-                    <div class="status-label" id="apiStatus">Verificando...</div>
-                </div>
-            </div>
-        </div>
-
         <h2 class="page-title">Modulos de Inteligencia</h2>
 
         <div class="cards">
@@ -391,16 +330,13 @@
             } catch (e) { console.error(e); }
         }
 
-        async function loadStatus() {
+        async function loadVersion() {
             try {
                 const r = await fetch('/health');
                 const data = await r.json();
-                document.getElementById('apiCount').textContent = data.apis_configured;
-                document.getElementById('apiStatus').textContent = data.ready ? 'Sistema operacional' : 'Verificando...';
-                document.getElementById('statusBadge').textContent = data.status;
                 document.getElementById('versionBadge').textContent = 'v' + data.version;
             } catch (e) {
-                document.getElementById('apiStatus').textContent = 'Erro';
+                console.error(e);
             }
         }
 
@@ -411,7 +347,7 @@
         }
 
         loadUser();
-        loadStatus();
+        loadVersion();
     </script>
 </body>
 </html>
