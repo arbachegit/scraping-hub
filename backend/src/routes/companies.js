@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as serper from '../services/serper.js';
+import * as brasilapi from '../services/brasilapi.js';
 import { insertCompany, insertPerson, findCompanyByCnpj } from '../database/supabase.js';
 
 const router = Router();
@@ -70,6 +71,7 @@ router.post('/search', async (req, res) => {
 /**
  * POST /api/companies/details
  * Get detailed info for a specific CNPJ
+ * Uses: BrasilAPI (official data) + Serper (enrichment)
  */
 router.post('/details', async (req, res) => {
   try {
@@ -94,16 +96,75 @@ router.post('/details', async (req, res) => {
       });
     }
 
-    // Get details from Serper
-    const details = await serper.getCompanyDetails(cleanCnpj);
+    // Get official data from BrasilAPI (Receita Federal)
+    console.log(`[BRASILAPI] Buscando CNPJ: ${cleanCnpj}`);
+    const brasilData = await brasilapi.getCompanyByCnpj(cleanCnpj);
 
-    // Search LinkedIn for founders
-    if (details.fundadores) {
-      for (const founder of details.fundadores) {
-        if (!founder.linkedin) {
-          founder.linkedin = await serper.findPersonLinkedin(
-            founder.nome,
-            details.razao_social
+    if (!brasilData) {
+      return res.status(404).json({
+        error: 'CNPJ nao encontrado na Receita Federal'
+      });
+    }
+
+    // Enrich with Serper (LinkedIn, website, etc)
+    console.log(`[SERPER] Enriquecendo dados para: ${brasilData.razao_social}`);
+    const serperData = await serper.getCompanyDetails(cleanCnpj);
+
+    // Merge data (BrasilAPI = official, Serper = enrichment)
+    const merged = {
+      // BrasilAPI - Official data
+      cnpj: brasilData.cnpj,
+      razao_social: brasilData.razao_social,
+      nome_fantasia: brasilData.nome_fantasia,
+      cnae_principal: brasilData.cnae_principal,
+      cnae_descricao: brasilData.cnae_descricao,
+      porte: brasilData.porte,
+      natureza_juridica: brasilData.natureza_juridica,
+      situacao_cadastral: brasilData.situacao_cadastral,
+      capital_social: brasilData.capital_social,
+      data_abertura: brasilData.data_abertura,
+      simples_nacional: brasilData.simples_nacional,
+      simei: brasilData.simei,
+
+      // Address (BrasilAPI)
+      logradouro: brasilData.logradouro,
+      numero: brasilData.numero,
+      complemento: brasilData.complemento,
+      bairro: brasilData.bairro,
+      cidade: brasilData.cidade,
+      estado: brasilData.estado,
+      cep: brasilData.cep,
+      codigo_municipio_ibge: brasilData.codigo_municipio_ibge,
+
+      // Contact (BrasilAPI)
+      telefone_1: brasilData.telefone_1,
+      telefone_2: brasilData.telefone_2,
+      email: brasilData.email,
+
+      // Serper enrichment
+      website: serperData.website,
+      linkedin: serperData.linkedin,
+      setor: serperData.setor,
+      descricao: serperData.descricao,
+      num_funcionarios: serperData.num_funcionarios,
+      logo_url: serperData.imageUrl || null,
+
+      // Founders/Partners from BrasilAPI QSA
+      socios: brasilData.socios || [],
+
+      // Raw data
+      raw_brasilapi: brasilData.raw_brasilapi,
+      raw_serper: serperData
+    };
+
+    // Enrich socios with LinkedIn (via Serper)
+    if (merged.socios && merged.socios.length > 0) {
+      console.log(`[SERPER] Buscando LinkedIn para ${merged.socios.length} socios`);
+      for (const socio of merged.socios.slice(0, 5)) { // Limit to 5 to avoid rate limits
+        if (!socio.linkedin) {
+          socio.linkedin = await serper.findPersonLinkedin(
+            socio.nome,
+            brasilData.razao_social
           );
         }
       }
@@ -112,7 +173,7 @@ router.post('/details', async (req, res) => {
     return res.json({
       exists: false,
       message: 'Detalhes da empresa. Aguardando aprovacao.',
-      company: details
+      company: merged
     });
 
   } catch (error) {
@@ -127,10 +188,11 @@ router.post('/details', async (req, res) => {
 /**
  * POST /api/companies/approve
  * Approve and insert company into database
+ * Includes: BrasilAPI fields + Serper enrichment + Socios with CPF
  */
 router.post('/approve', async (req, res) => {
   try {
-    const { company, fundadores, aprovado_por } = req.body;
+    const { company, socios, aprovado_por } = req.body;
 
     if (!company || !company.cnpj) {
       return res.status(400).json({ error: 'Dados da empresa sao obrigatorios' });
@@ -151,45 +213,84 @@ router.post('/approve', async (req, res) => {
       });
     }
 
-    // Insert company (without founders)
+    // Insert company with all fields
     const insertedCompany = await insertCompany({
+      // Identification
       cnpj: cleanCnpj,
       razao_social: company.razao_social,
       nome_fantasia: company.nome_fantasia,
-      website: company.website,
-      linkedin: company.linkedin, // LinkedIn da empresa
-      endereco: company.endereco,
+
+      // Classification (BrasilAPI)
+      cnae_principal: company.cnae_principal,
+      cnae_descricao: company.cnae_descricao,
+      porte: company.porte,
+      natureza_juridica: company.natureza_juridica,
+      situacao_cadastral: company.situacao_cadastral,
+      capital_social: company.capital_social,
+      data_fundacao: company.data_abertura,
+      simples_nacional: company.simples_nacional,
+      simei: company.simei,
+
+      // Address (BrasilAPI)
+      logradouro: company.logradouro,
+      numero: company.numero,
+      complemento: company.complemento,
+      bairro: company.bairro,
       cidade: company.cidade,
       estado: company.estado,
+      cep: company.cep,
+      codigo_municipio_ibge: company.codigo_municipio_ibge,
+
+      // Contact (BrasilAPI)
+      telefone_1: company.telefone_1,
+      telefone_2: company.telefone_2,
+      email: company.email,
+
+      // Enrichment (Serper)
+      website: company.website,
+      linkedin: company.linkedin,
       setor: company.setor,
       descricao: company.descricao,
-      data_fundacao: company.data_fundacao,
       num_funcionarios: company.num_funcionarios,
+      logo_url: company.logo_url,
+
+      // Raw data
+      raw_brasilapi: company.raw_brasilapi || {},
+      raw_serper: company.raw_serper || {},
+
+      // Approval
       aprovado_por: aprovado_por
     });
 
-    // Insert founders as separate people
-    const insertedFounders = [];
-    if (fundadores && fundadores.length > 0) {
-      for (const founder of fundadores) {
+    // Insert socios/founders as separate people (dim_pessoas)
+    const insertedSocios = [];
+    const sociosList = socios || company.socios || [];
+
+    if (sociosList.length > 0) {
+      for (const socio of sociosList) {
         const person = await insertPerson({
-          nome: founder.nome,
-          linkedin: founder.linkedin, // LinkedIn pessoal do fundador
-          cargo: founder.cargo || 'Fundador',
+          nome: socio.nome,
+          cpf: socio.cpf || null, // CPF from BrasilAPI QSA
+          linkedin: socio.linkedin,
+          cargo: socio.cargo || socio.qualificacao || 'Socio',
+          qualificacao: socio.qualificacao,
           empresa_id: insertedCompany.id,
-          tipo: 'fundador'
+          tipo: 'fundador',
+          data_entrada_sociedade: socio.data_entrada,
+          faixa_etaria: socio.faixa_etaria,
+          pais_origem: socio.pais_origem
         });
-        insertedFounders.push(person);
+        insertedSocios.push(person);
       }
     }
 
-    console.log(`[APPROVED] Empresa ${cleanCnpj} aprovada por ${aprovado_por}`);
+    console.log(`[APPROVED] Empresa ${cleanCnpj} aprovada por ${aprovado_por} com ${insertedSocios.length} socios`);
 
     return res.json({
       success: true,
       message: 'Empresa aprovada e cadastrada com sucesso',
       company: insertedCompany,
-      fundadores: insertedFounders
+      socios: insertedSocios
     });
 
   } catch (error) {
