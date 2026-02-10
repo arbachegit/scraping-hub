@@ -127,6 +127,255 @@
             border-radius: 1rem;
             padding: 1.5rem;
             opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+
+        .card.active {
+            opacity: 1;
+            cursor: pointer;
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .card.active:hover {
+            border-color: rgba(6, 182, 212, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.15);
+        }
+
+        .card-badge.ready {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1629;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            color: #22d3ee;
+            font-size: 1.25rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: rgba(6, 182, 212, 0.5);
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-search:hover {
+            opacity: 0.9;
+        }
+
+        .btn-search:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 1rem;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .result-item:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .result-item h4 {
+            color: #d1d5db;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-item p {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .company-details {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #64748b;
+            width: 140px;
+            flex-shrink: 0;
+            font-size: 0.875rem;
+        }
+
+        .detail-value {
+            color: #d1d5db;
+            font-size: 0.875rem;
+        }
+
+        .detail-value a {
+            color: #22d3ee;
+            text-decoration: none;
+        }
+
+        .socios-list {
+            margin-top: 1rem;
+        }
+
+        .socio-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .socio-item strong {
+            color: #d1d5db;
+        }
+
+        .socio-item span {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+
+        .btn-approve:hover {
+            opacity: 0.9;
+        }
+
+        .btn-approve:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            color: #64748b;
+            padding: 2rem;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
         }
 
         .card-header {
@@ -224,7 +473,7 @@
         <h2 class="page-title">Modulos de Inteligencia</h2>
 
         <div class="cards">
-            <div class="card">
+            <div class="card active" onclick="openCompanyModal()">
                 <div class="card-header">
                     <div class="card-icon red">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,8 +482,8 @@
                     </div>
                     <h3>Empresas</h3>
                 </div>
-                <p>Analise empresas, relatorios SWOT, OKRs e inteligencia competitiva.</p>
-                <span class="card-badge">Em desenvolvimento</span>
+                <p>Busque por CNPJ via BrasilAPI + Serper. Dados oficiais da Receita Federal.</p>
+                <span class="card-badge ready">Disponivel</span>
             </div>
 
             <div class="card">
@@ -304,6 +553,28 @@
         </div>
     </div>
 
+    <!-- Modal Empresas -->
+    <div class="modal" id="companyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Buscar Empresa</h2>
+                <button class="modal-close" onclick="closeCompanyModal()">&times;</button>
+            </div>
+
+            <div id="searchView">
+                <div class="search-box">
+                    <input type="text" id="companyName" placeholder="Digite o nome da empresa..." onkeypress="if(event.key==='Enter') searchCompany()">
+                    <button class="btn-search" onclick="searchCompany()" id="btnSearch">Buscar</button>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+
+            <div id="detailsView" style="display: none;">
+                <div id="companyDetails"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const token = localStorage.getItem('token');
         if (!token) window.location.href = '/';
@@ -348,6 +619,226 @@
 
         loadUser();
         loadVersion();
+
+        // Company Modal Functions
+        let currentCompany = null;
+
+        function openCompanyModal() {
+            document.getElementById('companyModal').classList.add('show');
+            document.getElementById('companyName').focus();
+        }
+
+        function closeCompanyModal() {
+            document.getElementById('companyModal').classList.remove('show');
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('companyName').value = '';
+            document.getElementById('searchView').style.display = 'block';
+            document.getElementById('detailsView').style.display = 'none';
+            currentCompany = null;
+        }
+
+        async function searchCompany() {
+            const nome = document.getElementById('companyName').value.trim();
+            if (!nome || nome.length < 2) {
+                alert('Digite pelo menos 2 caracteres');
+                return;
+            }
+
+            const btn = document.getElementById('btnSearch');
+            const results = document.getElementById('searchResults');
+
+            btn.disabled = true;
+            btn.textContent = 'Buscando...';
+            results.innerHTML = '<div class="loading">Buscando empresa</div>';
+
+            try {
+                const r = await fetch('/api/companies/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome })
+                });
+
+                const data = await r.json();
+
+                if (!data.found) {
+                    results.innerHTML = '<div class="message error">Nenhuma empresa encontrada</div>';
+                    return;
+                }
+
+                if (data.single_match) {
+                    showCompanyDetails(data.company);
+                } else {
+                    results.innerHTML = data.candidates.map(c => `
+                        <div class="result-item" onclick="selectCompany('${c.cnpj}')">
+                            <h4>${c.razao_social || 'Sem nome'}</h4>
+                            <p>CNPJ: ${c.cnpj_formatted} ${c.localizacao ? '| ' + c.localizacao : ''}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                results.innerHTML = '<div class="message error">Erro ao buscar: ' + e.message + '</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Buscar';
+            }
+        }
+
+        async function selectCompany(cnpj) {
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '<div class="loading">Buscando detalhes</div>';
+
+            try {
+                const r = await fetch('/api/companies/details', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cnpj })
+                });
+
+                const data = await r.json();
+
+                if (data.exists) {
+                    results.innerHTML = '<div class="message success">Empresa ja cadastrada no sistema</div>';
+                    return;
+                }
+
+                showCompanyDetails(data.company);
+            } catch (e) {
+                results.innerHTML = '<div class="message error">Erro: ' + e.message + '</div>';
+            }
+        }
+
+        function showCompanyDetails(company) {
+            currentCompany = company;
+            document.getElementById('searchView').style.display = 'none';
+            document.getElementById('detailsView').style.display = 'block';
+
+            const socios = company.socios || [];
+            const sociosHtml = socios.length > 0 ? `
+                <div class="socios-list">
+                    <h4 style="color: #94a3b8; margin-bottom: 0.5rem;">Socios (${socios.length})</h4>
+                    ${socios.map(s => `
+                        <div class="socio-item">
+                            <strong>${s.nome}</strong><br>
+                            <span>${s.qualificacao || s.cargo || 'Socio'}</span>
+                            ${s.cpf ? '<br><span>CPF: ' + s.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.***.***-$4') + '</span>' : ''}
+                            ${s.linkedin ? '<br><a href="' + s.linkedin + '" target="_blank" style="color:#22d3ee">LinkedIn</a>' : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            document.getElementById('companyDetails').innerHTML = `
+                <div class="company-details">
+                    <div class="detail-row">
+                        <span class="detail-label">CNPJ</span>
+                        <span class="detail-value">${formatCnpj(company.cnpj)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Razao Social</span>
+                        <span class="detail-value">${company.razao_social || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Nome Fantasia</span>
+                        <span class="detail-value">${company.nome_fantasia || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">CNAE</span>
+                        <span class="detail-value">${company.cnae_principal || '-'} - ${company.cnae_descricao || ''}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Porte</span>
+                        <span class="detail-value">${company.porte || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Situacao</span>
+                        <span class="detail-value">${company.situacao_cadastral || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Capital Social</span>
+                        <span class="detail-value">${company.capital_social ? 'R$ ' + Number(company.capital_social).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Endereco</span>
+                        <span class="detail-value">${[company.logradouro, company.numero, company.bairro, company.cidade, company.estado].filter(Boolean).join(', ') || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Telefone</span>
+                        <span class="detail-value">${company.telefone_1 || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email</span>
+                        <span class="detail-value">${company.email || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Website</span>
+                        <span class="detail-value">${company.website ? '<a href="' + company.website + '" target="_blank">' + company.website + '</a>' : '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">LinkedIn</span>
+                        <span class="detail-value">${company.linkedin ? '<a href="' + company.linkedin + '" target="_blank">Ver perfil</a>' : '-'}</span>
+                    </div>
+                    ${sociosHtml}
+                </div>
+                <button class="btn-approve" onclick="approveCompany()" id="btnApprove">Aprovar e Cadastrar</button>
+                <button class="btn-search" style="width:100%;margin-top:0.5rem;background:#374151;" onclick="backToSearch()">Voltar</button>
+            `;
+        }
+
+        function backToSearch() {
+            document.getElementById('searchView').style.display = 'block';
+            document.getElementById('detailsView').style.display = 'none';
+            currentCompany = null;
+        }
+
+        async function approveCompany() {
+            if (!currentCompany) return;
+
+            const btn = document.getElementById('btnApprove');
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
+
+            try {
+                const user = document.getElementById('userEmail').textContent;
+                const r = await fetch('/api/companies/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company: currentCompany,
+                        socios: currentCompany.socios,
+                        aprovado_por: user
+                    })
+                });
+
+                const data = await r.json();
+
+                if (data.success) {
+                    document.getElementById('companyDetails').innerHTML = `
+                        <div class="message success">
+                            Empresa cadastrada com sucesso!<br>
+                            ${data.socios?.length || 0} socio(s) adicionado(s).
+                        </div>
+                    `;
+                    setTimeout(closeCompanyModal, 2000);
+                } else {
+                    throw new Error(data.error || 'Erro ao aprovar');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = 'Aprovar e Cadastrar';
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        function formatCnpj(cnpj) {
+            if (!cnpj) return '-';
+            const c = cnpj.replace(/\D/g, '');
+            return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        }
+
+        // Close modal on ESC
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeCompanyModal();
+        });
     </script>
 </body>
 </html>
