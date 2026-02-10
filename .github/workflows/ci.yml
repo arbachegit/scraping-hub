@@ -115,15 +115,26 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Backend Python - create venv if missing
-            if [ ! -d "venv" ]; then
+            # Backend Python - recreate venv if pip doesn't exist
+            if [ ! -f "venv/bin/pip" ]; then
+              echo "=== Creating fresh venv ==="
+              rm -rf venv
               python3 -m venv venv
             fi
             # Use venv pip directly to avoid activation issues
-            ./venv/bin/pip install -r requirements.txt
+            ./venv/bin/pip install -q -r requirements.txt
+
+            # Stop the service first (this cleanly stops uvicorn)
+            echo "=== Stopping service ==="
+            sudo systemctl stop scraping 2>/dev/null || true
+
+            # Stop any PM2 processes
+            pm2 stop all 2>/dev/null || true
+            pm2 delete all 2>/dev/null || true
 
             # Create systemd service if missing
             if ! systemctl is-enabled scraping 2>/dev/null; then
+              echo "=== Creating systemd service ==="
               sudo tee /etc/systemd/system/scraping.service > /dev/null << 'SERVICE_EOF'
             [Unit]
             Description=Iconsai Scraping Hub
@@ -144,14 +155,8 @@ jobs:
               sudo systemctl enable scraping
             fi
 
-            # Stop any PM2 or other processes that might be running the old app
-            echo "=== Stopping old processes ==="
-            (pm2 stop all 2>/dev/null) ; true
-            (pm2 delete all 2>/dev/null) ; true
-            (sudo pkill -f "uvicorn" 2>/dev/null) ; true
-            sleep 2
-
-            sudo systemctl restart scraping
+            echo "=== Starting service ==="
+            sudo systemctl start scraping
             sleep 3
 
             # Verify service is running
