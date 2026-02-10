@@ -115,13 +115,11 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # Backend Python - recreate venv if pip doesn't exist
-            if [ ! -f "venv/bin/pip" ]; then
-              echo "=== Creating fresh venv ==="
-              rm -rf venv
-              python3 -m venv venv
-            fi
-            # Use venv pip directly to avoid activation issues
+            # Backend Python - force recreate venv to ensure correct Python version
+            echo "=== Creating fresh venv ==="
+            rm -rf venv
+            python3 -m venv venv
+            ./venv/bin/pip install -q --upgrade pip
             ./venv/bin/pip install -q -r requirements.txt
 
             # Stop the service first (this cleanly stops uvicorn)
