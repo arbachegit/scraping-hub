@@ -49,31 +49,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Increment version
-        run: |
-          python scripts/version.py --deploy
-          echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
-
-      - name: Commit version bump
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add VERSION CHANGELOG.md 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]"
-          git push || echo "Nothing to push"
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master

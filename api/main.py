@@ -30,7 +30,7 @@ logger = structlog.get_logger()
 app = FastAPI(
     title="IconsAI Scraping API",
     description="API de inteligencia de dados",
-    version="3.0.0",
+    version="1.14.2026",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -163,7 +163,7 @@ async def health():
 
 @app.on_event("startup")
 async def startup():
-    logger.info("api_starting", version="3.0.0")
+    logger.info("api_starting", version="1.14.2026")
 
 
 if __name__ == "__main__":
