@@ -24,15 +24,10 @@ export async function insertCompany(company) {
       razao_social: company.razao_social,
       nome_fantasia: company.nome_fantasia,
 
-      // Classification (BrasilAPI)
-      cnae_principal: company.cnae_principal,
-      cnae_descricao: company.cnae_descricao,
-      porte: company.porte,
-      natureza_juridica: company.natureza_juridica,
+      // Status
       situacao_cadastral: company.situacao_cadastral,
-      capital_social: company.capital_social,
-      simples_nacional: company.simples_nacional,
-      simei: company.simei,
+      data_abertura: company.data_fundacao,
+      data_fundacao: company.data_fundacao,
 
       // Address (BrasilAPI)
       logradouro: company.logradouro,
@@ -44,21 +39,15 @@ export async function insertCompany(company) {
       cep: company.cep,
       codigo_municipio_ibge: company.codigo_municipio_ibge,
 
-      // Contact (BrasilAPI) - using correct column names
+      // Contact (BrasilAPI)
       telefone: company.telefone_1,
       telefone_1: company.telefone_1,
       telefone_2: company.telefone_2,
       email: company.email,
 
-      // Enrichment (Serper) - using correct column names
+      // Digital presence
       website: company.website,
       linkedin_url: company.linkedin,
-      setor: company.setor,
-      descricao: company.descricao,
-      data_abertura: company.data_fundacao,
-      data_fundacao: company.data_fundacao,
-      qtd_funcionarios: company.num_funcionarios ? parseInt(company.num_funcionarios) : null,
-      num_funcionarios: company.num_funcionarios,
       logo_url: company.logo_url,
 
       // Social media (Apollo/Serper)
@@ -98,7 +87,7 @@ export async function insertPerson(person) {
   const { data, error } = await supabase
     .from('dim_pessoas')
     .insert([{
-      // Name fields (using correct column names)
+      // Name
       nome_completo: person.nome,
       primeiro_nome: firstName,
       sobrenome: lastName,
@@ -106,19 +95,12 @@ export async function insertPerson(person) {
       // CPF from BrasilAPI QSA
       cpf: person.cpf,
 
-      // LinkedIn and contact (Apollo/Serper)
+      // LinkedIn and contact
       linkedin_url: person.linkedin,
       email: person.email,
       foto_url: person.foto_url,
-      headline: person.headline,
-
-      // Job info
-      cargo_atual: person.cargo,
-      empresa_atual_id: person.empresa_id,
 
       // BrasilAPI QSA fields
-      qualificacao: person.qualificacao,
-      tipo: person.tipo || 'fundador',
       faixa_etaria: person.faixa_etaria,
       pais: person.pais_origem || 'Brasil',
 
@@ -149,7 +131,36 @@ export async function insertTransacaoEmpresa(transacao) {
       empresa_id: transacao.empresa_id,
       tipo_transacao: transacao.tipo_transacao || 'entrada_sociedade',
       data_transacao: transacao.data_transacao,
-      qualificacao: transacao.qualificacao
+      qualificacao: transacao.qualificacao,
+      cargo: transacao.cargo,
+      headline: transacao.headline,
+      tipo: transacao.tipo || 'fundador',
+      logo_url: transacao.logo_url
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Insert regime tributario into fato_regime_tributario
+ */
+export async function insertRegimeTributario(regime) {
+  const { data, error } = await supabase
+    .from('fato_regime_tributario')
+    .insert([{
+      empresa_id: regime.empresa_id,
+      porte: regime.porte,
+      natureza_juridica: regime.natureza_juridica,
+      capital_social: regime.capital_social,
+      cnae_principal: regime.cnae_principal,
+      cnae_descricao: regime.cnae_descricao,
+      regime_tributario: regime.regime_tributario,
+      setor: regime.setor,
+      descricao: regime.descricao,
+      qtd_funcionarios: regime.qtd_funcionarios
     }])
     .select()
     .single();

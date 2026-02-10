@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
-import { insertCompany, insertPerson, insertTransacaoEmpresa, findCompanyByCnpj } from '../database/supabase.js';
+import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, findCompanyByCnpj } from '../database/supabase.js';
 
 const router = Router();
 
@@ -369,25 +369,13 @@ router.post('/approve', async (req, res) => {
       });
     }
 
-    // Insert company
+    // Insert company (dim_empresas)
     const insertedCompany = await insertCompany({
-      // Identificação
       cnpj: cleanCnpj,
       razao_social: empresa.razao_social,
       nome_fantasia: empresa.nome_fantasia,
-
-      // Classificação
-      cnae_principal: empresa.cnae_principal,
-      cnae_descricao: empresa.cnae_descricao,
-      porte: empresa.porte,
-      natureza_juridica: empresa.natureza_juridica,
       situacao_cadastral: empresa.situacao_cadastral,
-      capital_social: empresa.capital_social,
       data_fundacao: empresa.data_abertura,
-      simples_nacional: empresa.simples_nacional,
-      simei: empresa.simei,
-
-      // Endereço
       logradouro: empresa.logradouro,
       numero: empresa.numero,
       complemento: empresa.complemento,
@@ -396,32 +384,36 @@ router.post('/approve', async (req, res) => {
       estado: empresa.estado,
       cep: empresa.cep,
       codigo_municipio_ibge: empresa.codigo_municipio_ibge,
-
-      // Contato
       telefone_1: empresa.telefone_1,
       telefone_2: empresa.telefone_2,
       email: empresa.email,
-
-      // Presença Digital
       website: empresa.website,
-      linkedin: empresa.linkedin, // NAO_POSSUI se não tiver
+      linkedin: empresa.linkedin,
+      logo_url: empresa.logo_url,
       twitter: empresa.twitter,
       facebook: empresa.facebook,
       instagram: empresa.instagram,
-
-      // Informações Adicionais
-      setor: empresa.setor,
-      descricao: empresa.descricao,
-      num_funcionarios: empresa.num_funcionarios,
-      logo_url: empresa.logo_url,
-      ano_fundacao: empresa.ano_fundacao,
-
-      // Raw data
       raw_brasilapi: empresa.raw_brasilapi || {},
       raw_apollo: empresa.raw_apollo || {},
-
-      // Aprovação
       aprovado_por: aprovado_por
+    });
+
+    // Insert regime tributario (fato_regime_tributario)
+    const regimeTributario = (empresa.simples_nacional || empresa.simei)
+      ? (empresa.simei ? 'MEI' : 'SIMPLES_NACIONAL')
+      : 'LUCRO_PRESUMIDO';
+
+    await insertRegimeTributario({
+      empresa_id: insertedCompany.id,
+      porte: empresa.porte,
+      natureza_juridica: empresa.natureza_juridica,
+      capital_social: empresa.capital_social,
+      cnae_principal: empresa.cnae_principal,
+      cnae_descricao: empresa.cnae_descricao,
+      regime_tributario: regimeTributario,
+      setor: empresa.setor,
+      descricao: empresa.descricao,
+      qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : null
     });
 
     // Insert socios
@@ -429,34 +421,31 @@ router.post('/approve', async (req, res) => {
 
     if (socios && socios.length > 0) {
       for (const socio of socios) {
-        // Skip if linkedin is NAO_POSSUI, set to null
         const linkedinValue = socio.linkedin === 'NAO_POSSUI' ? null : socio.linkedin;
 
+        // Insert person (dim_pessoas)
         const person = await insertPerson({
           nome: socio.nome,
           cpf: socio.cpf || null,
           linkedin: linkedinValue,
           email: socio.email || null,
           foto_url: socio.foto_url || null,
-          headline: socio.headline || null,
-          cargo: socio.cargo || socio.qualificacao || 'Socio',
-          qualificacao: socio.qualificacao,
-          empresa_id: insertedCompany.id,
-          tipo: 'fundador',
           faixa_etaria: socio.faixa_etaria,
           pais_origem: socio.pais_origem
         });
 
-        // Insert transaction (entrada_sociedade)
-        if (socio.data_entrada) {
-          await insertTransacaoEmpresa({
-            pessoa_id: person.id,
-            empresa_id: insertedCompany.id,
-            tipo_transacao: 'entrada_sociedade',
-            data_transacao: socio.data_entrada,
-            qualificacao: socio.qualificacao
-          });
-        }
+        // Insert transaction (fato_transacao_empresas)
+        await insertTransacaoEmpresa({
+          pessoa_id: person.id,
+          empresa_id: insertedCompany.id,
+          tipo_transacao: 'entrada_sociedade',
+          data_transacao: socio.data_entrada || null,
+          qualificacao: socio.qualificacao,
+          cargo: socio.cargo || socio.qualificacao || 'Socio',
+          headline: socio.headline || null,
+          tipo: 'fundador',
+          logo_url: socio.foto_url || null
+        });
 
         insertedSocios.push(person);
       }
