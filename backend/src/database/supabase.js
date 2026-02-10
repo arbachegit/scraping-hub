@@ -244,3 +244,94 @@ export async function findCompanyByCnpj(cnpj) {
   if (error && error.code !== 'PGRST116') throw error;
   return data;
 }
+
+/**
+ * List all companies
+ */
+export async function listCompanies() {
+  const { data, error } = await supabase
+    .from('dim_empresas')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get company with all related data for VAR analysis
+ */
+export async function getCompanyFullData(empresa_id) {
+  // Company
+  const { data: empresa, error: e1 } = await supabase
+    .from('dim_empresas')
+    .select('*')
+    .eq('id', empresa_id)
+    .single();
+  if (e1) throw e1;
+
+  // Regime history
+  const { data: regimes, error: e2 } = await supabase
+    .from('fato_regime_tributario')
+    .select('*')
+    .eq('empresa_id', empresa_id)
+    .order('data_inicio', { ascending: true });
+  if (e2 && e2.code !== 'PGRST116') throw e2;
+
+  // Inferences
+  const { data: inferencias, error: e3 } = await supabase
+    .from('fato_inferencia_limites')
+    .select('*')
+    .eq('empresa_id', empresa_id)
+    .order('data_analise', { ascending: false });
+  if (e3 && e3.code !== 'PGRST116') throw e3;
+
+  // Partners (socios)
+  const { data: transacoes, error: e4 } = await supabase
+    .from('fato_transacao_empresas')
+    .select('*, dim_pessoas(*)')
+    .eq('empresa_id', empresa_id);
+  if (e4 && e4.code !== 'PGRST116') throw e4;
+
+  return {
+    empresa,
+    regimes: regimes || [],
+    inferencias: inferencias || [],
+    socios: transacoes || []
+  };
+}
+
+/**
+ * Update inference for a company
+ */
+export async function updateInferenciaLimites(empresa_id, inferencia) {
+  // Check if exists
+  const { data: existing } = await supabase
+    .from('fato_inferencia_limites')
+    .select('id')
+    .eq('empresa_id', empresa_id)
+    .single();
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('fato_inferencia_limites')
+      .update({
+        provavelmente_ultrapassou_limite: inferencia.provavelmente_ultrapassou_limite,
+        confianca: inferencia.confianca,
+        sinais: inferencia.sinais,
+        faturamento_estimado_min: inferencia.faturamento_estimado_min,
+        faturamento_estimado_max: inferencia.faturamento_estimado_max,
+        probabilidade_mudanca_regime: inferencia.probabilidade_mudanca_regime,
+        regime_provavel_proximo: inferencia.regime_provavel_proximo,
+        variaveis_correlacionadas: inferencia.variaveis_correlacionadas,
+        data_analise: new Date().toISOString()
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    return insertInferenciaLimites({ empresa_id, ...inferencia });
+  }
+}

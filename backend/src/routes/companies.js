@@ -3,7 +3,8 @@ import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
 import * as cnpja from '../services/cnpja.js';
-import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, findCompanyByCnpj } from '../database/supabase.js';
+import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites } from '../database/supabase.js';
+import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../services/var_inference.js';
 
 const router = Router();
 
@@ -443,18 +444,37 @@ router.post('/approve', async (req, res) => {
       raw_cnpja: empresa.raw_cnpja || {}
     });
 
-    // Insert inferencias (if available)
-    if (empresa.inferencias) {
-      await insertInferenciaLimites({
-        empresa_id: insertedCompany.id,
-        provavelmente_ultrapassou_limite: empresa.inferencias.provavelmente_ultrapassou_limite,
-        confianca: empresa.inferencias.confianca,
-        sinais: empresa.inferencias.sinais,
-        qtd_mudancas_regime: empresa.qtd_mudancas_regime || 0,
-        capital_social: empresa.capital_social,
-        qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : null
-      });
+    // Insert historical regimes (if available)
+    if (empresa.historico_regimes && empresa.historico_regimes.length > 0) {
+      const historicoAntigo = empresa.historico_regimes.filter(h => !h.ativo);
+      if (historicoAntigo.length > 0) {
+        await insertRegimeHistorico(insertedCompany.id, historicoAntigo, {
+          porte: empresa.porte,
+          natureza_juridica: empresa.natureza_juridica,
+          capital_social: empresa.capital_social,
+          cnae_principal: empresa.cnae_principal,
+          cnae_descricao: empresa.cnae_descricao
+        });
+      }
     }
+
+    // Calculate VAR inference
+    const regimes = [{
+      empresa_id: insertedCompany.id,
+      regime_tributario: regimeTributario,
+      ativo: true,
+      qtd_funcionarios: empresa.num_funcionarios ? parseInt(empresa.num_funcionarios) : 0,
+      capital_social: empresa.capital_social,
+      cnae_principal: empresa.cnae_principal
+    }];
+
+    const varInferencia = calcularInferenciaVAR(empresa, regimes, socios || []);
+
+    // Insert VAR inference
+    await insertInferenciaLimites({
+      empresa_id: insertedCompany.id,
+      ...varInferencia
+    });
 
     // Insert socios
     const insertedSocios = [];
@@ -507,6 +527,144 @@ router.post('/approve', async (req, res) => {
       details: error.message
     });
   }
+});
+
+/**
+ * GET /api/companies/list
+ * List all approved companies
+ */
+router.get('/list', async (req, res) => {
+  try {
+    const companies = await listCompanies();
+    return res.json({
+      success: true,
+      count: companies.length,
+      companies: companies
+    });
+  } catch (error) {
+    console.error('[LIST ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao listar empresas',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/companies/:id/analysis
+ * Get full VAR analysis for a company
+ */
+router.get('/:id/analysis', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get full company data
+    const fullData = await getCompanyFullData(id);
+
+    if (!fullData.empresa) {
+      return res.status(404).json({ error: 'Empresa nao encontrada' });
+    }
+
+    // Calculate VAR inference
+    const inferencia = calcularInferenciaVAR(
+      fullData.empresa,
+      fullData.regimes,
+      fullData.socios
+    );
+
+    // Update inference in database
+    await updateInferenciaLimites(id, inferencia);
+
+    return res.json({
+      success: true,
+      empresa: fullData.empresa,
+      regimes: fullData.regimes,
+      socios: fullData.socios,
+      inferencia: inferencia,
+      modelo: {
+        pesos_var: getPesosVAR(),
+        limites_regime: getLimitesRegime()
+      }
+    });
+
+  } catch (error) {
+    console.error('[ANALYSIS ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao analisar empresa',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/companies/:id/recalculate
+ * Recalculate VAR inference with updated data
+ */
+router.post('/:id/recalculate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { qtd_funcionarios, capital_social } = req.body;
+
+    // Get full company data
+    const fullData = await getCompanyFullData(id);
+
+    if (!fullData.empresa) {
+      return res.status(404).json({ error: 'Empresa nao encontrada' });
+    }
+
+    // Override with manual values if provided
+    if (fullData.regimes.length > 0) {
+      const regimeAtivo = fullData.regimes.find(r => r.ativo) || fullData.regimes[0];
+      if (qtd_funcionarios !== undefined) {
+        regimeAtivo.qtd_funcionarios = qtd_funcionarios;
+      }
+      if (capital_social !== undefined) {
+        regimeAtivo.capital_social = capital_social;
+      }
+    }
+
+    // Recalculate VAR inference
+    const inferencia = calcularInferenciaVAR(
+      fullData.empresa,
+      fullData.regimes,
+      fullData.socios
+    );
+
+    // Update in database
+    await updateInferenciaLimites(id, inferencia);
+
+    return res.json({
+      success: true,
+      message: 'Inferencia recalculada',
+      inferencia: inferencia
+    });
+
+  } catch (error) {
+    console.error('[RECALCULATE ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao recalcular inferencia',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/companies/var-model
+ * Get VAR model parameters
+ */
+router.get('/var-model', async (req, res) => {
+  return res.json({
+    pesos: getPesosVAR(),
+    limites: getLimitesRegime(),
+    descricao: {
+      qtd_funcionarios: 'Número de funcionários (CAGED/eSocial)',
+      capital_social: 'Capital social registrado (Receita Federal)',
+      anos_operando: 'Anos desde a fundação',
+      qtd_mudancas_regime: 'Quantidade de mudanças de regime tributário',
+      qtd_socios: 'Quantidade de sócios no QSA',
+      qtd_cnaes: 'Quantidade de CNAEs (principal + secundários)'
+    }
+  });
 });
 
 export default router;
