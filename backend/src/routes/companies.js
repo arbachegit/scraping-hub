@@ -192,8 +192,9 @@ router.post('/details', async (req, res) => {
       console.log(`[APOLLO] Buscando LinkedIn para ${merged.socios.length} socios`);
       for (const socio of merged.socios.slice(0, 5)) { // Limit to 5 to avoid rate limits
         if (!socio.linkedin) {
-          // Try Apollo first
-          const apolloPerson = await apollo.searchPerson(socio.nome, brasilData.razao_social);
+          // Try Apollo first (use cleaned company name for better match)
+          console.log(`[APOLLO] Buscando pessoa: ${socio.nome} em ${apolloSearchName}`);
+          const apolloPerson = await apollo.searchPerson(socio.nome, apolloSearchName);
           if (apolloPerson) {
             socio.linkedin = apolloPerson.linkedin;
             socio.email = apolloPerson.email;
@@ -201,10 +202,10 @@ router.post('/details', async (req, res) => {
             socio.headline = apolloPerson.headline;
             socio.raw_apollo = apolloPerson.raw_apollo;
           } else {
-            // Fallback to Serper
+            // Fallback to Serper (use cleaned company name)
             socio.linkedin = await serper.findPersonLinkedin(
               socio.nome,
-              brasilData.razao_social
+              apolloSearchName
             );
           }
         }
