@@ -15,7 +15,6 @@
             color: #fff;
         }
 
-        /* Header */
         .header {
             background: rgba(15, 22, 41, 0.8);
             backdrop-filter: blur(12px);
@@ -75,7 +74,6 @@
         .btn-admin:hover {
             background: rgba(6, 182, 212, 0.2);
             border-color: rgba(6, 182, 212, 0.5);
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
         }
 
         .btn-logout {
@@ -91,102 +89,14 @@
 
         .btn-logout:hover {
             background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.5);
         }
 
-        /* Container */
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
         }
 
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #d1d5db;
-            margin-bottom: 2rem;
-        }
-
-        /* Cards Grid */
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: rgba(15, 22, 41, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: block;
-        }
-
-        .card:hover {
-            border-color: #22d3ee;
-            transform: translateY(-4px);
-            box-shadow: 0 10px 40px rgba(0, 255, 255, 0.15);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .card-icon {
-            width: 3rem;
-            height: 3rem;
-            border-radius: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .card-icon svg {
-            width: 1.5rem;
-            height: 1.5rem;
-        }
-
-        .card-icon.red { background: rgba(239, 68, 68, 0.1); }
-        .card-icon.red svg { color: #f87171; stroke: #f87171; }
-
-        .card-icon.orange { background: rgba(249, 115, 22, 0.1); }
-        .card-icon.orange svg { color: #fb923c; stroke: #fb923c; }
-
-        .card-icon.blue { background: rgba(59, 130, 246, 0.1); }
-        .card-icon.blue svg { color: #60a5fa; stroke: #60a5fa; }
-
-        .card-icon.green { background: rgba(34, 197, 94, 0.1); }
-        .card-icon.green svg { color: #4ade80; stroke: #4ade80; }
-
-        .card-icon.purple { background: rgba(168, 85, 247, 0.1); }
-        .card-icon.purple svg { color: #a78bfa; stroke: #a78bfa; }
-
-        .card-icon.cyan { background: rgba(6, 182, 212, 0.1); }
-        .card-icon.cyan svg { color: #22d3ee; stroke: #22d3ee; }
-
-        .card-icon.gray { background: rgba(148, 163, 184, 0.1); }
-        .card-icon.gray svg { color: #94a3b8; stroke: #94a3b8; }
-
-        .card h3 {
-            color: #d1d5db;
-            font-size: 1.125rem;
-            font-weight: 600;
-        }
-
-        .card p {
-            color: rgba(148, 163, 184, 0.8);
-            font-size: 0.875rem;
-            line-height: 1.5;
-        }
-
-        /* Status Section */
         .status-section {
             background: rgba(15, 22, 41, 0.8);
             border: 1px solid rgba(6, 182, 212, 0.2);
@@ -235,170 +145,100 @@
             color: #4ade80;
         }
 
-        .status-degraded {
-            background: rgba(234, 179, 8, 0.1);
-            border: 1px solid rgba(234, 179, 8, 0.3);
-            color: #facc15;
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #d1d5db;
+            margin-bottom: 2rem;
         }
 
-        /* Module Sections */
-        .module-section {
-            background: rgba(15, 22, 41, 0.9);
-            border: 1px solid rgba(6, 182, 212, 0.3);
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(15, 22, 41, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 1rem;
             padding: 1.5rem;
-            margin-top: 1.5rem;
+            opacity: 0.6;
         }
 
-        .section-header {
+        .card-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .section-header h3 {
-            color: #22d3ee;
-            font-size: 1.25rem;
-        }
-
-        .btn-close {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-        }
-
-        .btn-close:hover {
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        .form-group {
+            gap: 1rem;
             margin-bottom: 1rem;
         }
 
-        .form-group label {
-            display: block;
-            color: #94a3b8;
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .input-row {
+        .card-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
         }
 
-        .input-row input, .input-row select {
-            flex: 1;
-            min-width: 150px;
-            padding: 0.75rem 1rem;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.5rem;
-            color: #fff;
-            font-size: 0.875rem;
+        .card-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
         }
 
-        .input-row input:focus, .input-row select:focus {
-            outline: none;
-            border-color: #22d3ee;
-        }
+        .card-icon.red { background: rgba(239, 68, 68, 0.1); }
+        .card-icon.red svg { stroke: #f87171; }
 
-        .input-row button, .form-group > button {
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #0891b2, #0e7490);
-            border: none;
-            border-radius: 0.5rem;
-            color: #fff;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .card-icon.orange { background: rgba(249, 115, 22, 0.1); }
+        .card-icon.orange svg { stroke: #fb923c; }
 
-        .input-row button:hover, .form-group > button:hover {
-            background: linear-gradient(135deg, #06b6d4, #0891b2);
-            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
-        }
+        .card-icon.blue { background: rgba(59, 130, 246, 0.1); }
+        .card-icon.blue svg { stroke: #60a5fa; }
 
-        .results {
-            margin-top: 1rem;
-        }
+        .card-icon.green { background: rgba(34, 197, 94, 0.1); }
+        .card-icon.green svg { stroke: #4ade80; }
 
-        .result-item {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-        }
+        .card-icon.cyan { background: rgba(6, 182, 212, 0.1); }
+        .card-icon.cyan svg { stroke: #22d3ee; }
 
-        .result-item h4 {
+        .card-icon.purple { background: rgba(168, 85, 247, 0.1); }
+        .card-icon.purple svg { stroke: #a78bfa; }
+
+        .card h3 {
             color: #d1d5db;
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.125rem;
+            font-weight: 600;
         }
 
-        .result-item p {
-            color: #94a3b8;
+        .card p {
+            color: rgba(148, 163, 184, 0.8);
             font-size: 0.875rem;
-            margin: 0.25rem 0;
+            line-height: 1.5;
         }
 
-        .result-item strong {
-            color: #22d3ee;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
+        .card-badge {
+            display: inline-block;
+            margin-top: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
             color: #94a3b8;
         }
 
-        .error-msg {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
-            padding: 1rem;
-            border-radius: 0.5rem;
-        }
-
-        .success-msg {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #4ade80;
-            padding: 1rem;
-            border-radius: 0.5rem;
-        }
-
-        /* Responsive */
         @media (max-width: 640px) {
             .header {
                 padding: 1rem;
                 flex-direction: column;
                 gap: 1rem;
             }
-
             .container {
                 padding: 1rem;
             }
-
             .cards {
                 grid-template-columns: 1fr;
-            }
-
-            .input-row {
-                flex-direction: column;
-            }
-
-            .input-row input, .input-row select, .input-row button {
-                width: 100%;
             }
         }
     </style>
@@ -417,7 +257,6 @@
     </div>
 
     <div class="container">
-        <!-- Status Section -->
         <div class="status-section">
             <div class="status-grid">
                 <div class="status-item">
@@ -425,7 +264,7 @@
                     <div class="status-label">APIs Configuradas</div>
                 </div>
                 <div class="status-item">
-                    <div class="status-value">v2.0</div>
+                    <div class="status-value">v3.0</div>
                     <div class="status-label">Versao</div>
                 </div>
                 <div class="status-item">
@@ -437,10 +276,8 @@
 
         <h2 class="page-title">Modulos de Inteligencia</h2>
 
-        <!-- Main Cards Grid -->
         <div class="cards">
-            <!-- Empresas -->
-            <div class="card" onclick="showSection('empresas')" style="cursor: pointer;">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon red">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -449,24 +286,24 @@
                     </div>
                     <h3>Empresas</h3>
                 </div>
-                <p>Analise empresas, gere relatorios SWOT, OKRs e inteligencia competitiva. Busca por CNPJ.</p>
+                <p>Analise empresas, relatorios SWOT, OKRs e inteligencia competitiva.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
 
-            <!-- Pessoas -->
-            <div class="card" onclick="showSection('pessoas')" style="cursor: pointer;">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon orange">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </div>
                     <h3>Pessoas</h3>
                 </div>
-                <p>Pesquise perfis profissionais, analise talentos e faca comparacao de candidatos.</p>
+                <p>Pesquise perfis profissionais e analise talentos.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
 
-            <!-- Politicos -->
-            <div class="card" onclick="showSection('politicos')" style="cursor: pointer;">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon blue">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,11 +312,11 @@
                     </div>
                     <h3>Politicos</h3>
                 </div>
-                <p>Pesquise perfis de politicos, percepcao publica e presenca em midias sociais.</p>
+                <p>Perfis de politicos e percepcao publica.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
 
-            <!-- Noticias -->
-            <div class="card" onclick="showSection('noticias')" style="cursor: pointer;">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon green">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,11 +325,11 @@
                     </div>
                     <h3>Noticias</h3>
                 </div>
-                <p>Monitore noticias, tendencias e cenario economico do mercado brasileiro.</p>
+                <p>Monitore noticias e cenario economico.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
 
-            <!-- Analytics -->
-            <div class="card" onclick="showSection('analytics')" style="cursor: pointer;">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon cyan">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -501,11 +338,11 @@
                     </div>
                     <h3>Analytics</h3>
                 </div>
-                <p>Visualize metricas de uso, qualidade de dados e performance do sistema.</p>
+                <p>Metricas e performance do sistema.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
 
-            <!-- Documentacao -->
-            <a href="/docs" class="card" target="_blank">
+            <div class="card">
                 <div class="card-header">
                     <div class="card-icon purple">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -514,120 +351,8 @@
                     </div>
                     <h3>Documentacao</h3>
                 </div>
-                <p>Explore todos os endpoints da API com Swagger UI interativo.</p>
-            </a>
-        </div>
-
-        <!-- Secoes Funcionais -->
-        <div id="section-empresas" class="module-section" style="display: none;">
-            <div class="section-header">
-                <h3>Empresas</h3>
-                <button class="btn-close" onclick="hideSection()">Fechar</button>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label>Buscar Empresa por Nome (CNPJ)</label>
-                    <div class="input-row">
-                        <input type="text" id="companyName" placeholder="Ex: Natura, Magazine Luiza, Petrobras">
-                        <button onclick="searchCNPJ()">Buscar</button>
-                    </div>
-                </div>
-                <div id="cnpjResults" class="results"></div>
-                <hr style="border-color: rgba(255,255,255,0.1); margin: 1.5rem 0;">
-                <div class="form-group">
-                    <label>Analise Completa de Empresa</label>
-                    <div class="input-row">
-                        <input type="text" id="companyAnalyzeName" placeholder="Nome da empresa (obrigatorio)">
-                        <input type="text" id="companyCnpj" placeholder="CNPJ (opcional)">
-                        <button onclick="analyzeCompany()">Analisar</button>
-                    </div>
-                </div>
-                <div id="companyAnalysis" class="results"></div>
-            </div>
-        </div>
-
-        <div id="section-pessoas" class="module-section" style="display: none;">
-            <div class="section-header">
-                <h3>Pessoas</h3>
-                <button class="btn-close" onclick="hideSection()">Fechar</button>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label>Analisar Perfil Profissional</label>
-                    <div class="input-row">
-                        <input type="text" id="personName" placeholder="Nome completo da pessoa">
-                        <input type="text" id="personCompany" placeholder="Empresa (opcional)">
-                        <button onclick="analyzePerson()">Analisar</button>
-                    </div>
-                </div>
-                <div id="personResults" class="results"></div>
-            </div>
-        </div>
-
-        <div id="section-politicos" class="module-section" style="display: none;">
-            <div class="section-header">
-                <h3>Politicos</h3>
-                <button class="btn-close" onclick="hideSection()">Fechar</button>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label>Analisar Perfil de Politico</label>
-                    <div class="input-row">
-                        <input type="text" id="politicianName" placeholder="Nome do politico">
-                        <button onclick="analyzePolitician()">Analisar</button>
-                    </div>
-                </div>
-                <div id="politicianResults" class="results"></div>
-                <hr style="border-color: rgba(255,255,255,0.1); margin: 1.5rem 0;">
-                <div class="form-group">
-                    <label>Percepcao Publica</label>
-                    <div class="input-row">
-                        <input type="text" id="politicianPerception" placeholder="Nome do politico">
-                        <button onclick="getPoliticianPerception()">Consultar</button>
-                    </div>
-                </div>
-                <div id="perceptionResults" class="results"></div>
-            </div>
-        </div>
-
-        <div id="section-noticias" class="module-section" style="display: none;">
-            <div class="section-header">
-                <h3>Noticias</h3>
-                <button class="btn-close" onclick="hideSection()">Fechar</button>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label>Buscar Noticias</label>
-                    <div class="input-row">
-                        <input type="text" id="newsQuery" placeholder="Termo de busca">
-                        <select id="newsDays">
-                            <option value="1">Ultimo dia</option>
-                            <option value="7" selected>Ultima semana</option>
-                            <option value="30">Ultimo mes</option>
-                        </select>
-                        <button onclick="searchNews()">Buscar</button>
-                    </div>
-                </div>
-                <div id="newsResults" class="results"></div>
-                <hr style="border-color: rgba(255,255,255,0.1); margin: 1.5rem 0;">
-                <div class="form-group">
-                    <label>Cenario Economico</label>
-                    <button onclick="getEconomicScenario()" style="margin-top: 0.5rem;">Consultar Cenario Atual</button>
-                </div>
-                <div id="economicResults" class="results"></div>
-            </div>
-        </div>
-
-        <div id="section-analytics" class="module-section" style="display: none;">
-            <div class="section-header">
-                <h3>Analytics</h3>
-                <button class="btn-close" onclick="hideSection()">Fechar</button>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <button onclick="loadAnalytics()">Carregar Metricas</button>
-                </div>
-                <div id="analyticsResults" class="results"></div>
+                <p>API reference e guias de uso.</p>
+                <span class="card-badge">Em desenvolvimento</span>
             </div>
         </div>
     </div>
@@ -649,8 +374,6 @@
                 if (r.ok) {
                     const user = await r.json();
                     document.getElementById('userEmail').textContent = user.email;
-
-                    // Show admin button for super_admin users
                     if (user.role === 'super_admin') {
                         document.getElementById('btnAdmin').style.display = 'inline-block';
                     }
@@ -665,11 +388,10 @@
                 const r = await fetch('/health');
                 const data = await r.json();
                 document.getElementById('apiCount').textContent = data.apis_configured;
-                document.getElementById('apiStatus').textContent = data.ready ? 'Sistema operacional' : 'Sistema degradado';
+                document.getElementById('apiStatus').textContent = data.ready ? 'Sistema operacional' : 'Verificando...';
                 document.getElementById('statusBadge').textContent = data.status;
-                document.getElementById('statusBadge').className = `status-badge status-${data.status}`;
             } catch (e) {
-                document.getElementById('apiStatus').textContent = 'Erro ao carregar';
+                document.getElementById('apiStatus').textContent = 'Erro';
             }
         }
 
@@ -677,213 +399,6 @@
             localStorage.removeItem('token');
             localStorage.removeItem('tokenType');
             window.location.href = '/';
-        }
-
-        // Section Navigation
-        function showSection(name) {
-            document.querySelectorAll('.module-section').forEach(s => s.style.display = 'none');
-            const section = document.getElementById('section-' + name);
-            if (section) {
-                section.style.display = 'block';
-                section.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-
-        function hideSection() {
-            document.querySelectorAll('.module-section').forEach(s => s.style.display = 'none');
-        }
-
-        // Empresas
-        async function searchCNPJ() {
-            const name = document.getElementById('companyName').value;
-            if (!name) return;
-            const results = document.getElementById('cnpjResults');
-            results.innerHTML = '<div class="loading">Buscando empresas...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/company/cnpj/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ company_name: name, max_results: 5 })
-                });
-                const data = await r.json();
-                if (data.companies && data.companies.length > 0) {
-                    results.innerHTML = data.companies.map(c => `
-                        <div class="result-item">
-                            <h4>${c.razao_social || c.nome_fantasia || 'N/A'}</h4>
-                            <p><strong>CNPJ:</strong> ${c.cnpj}</p>
-                            <p><strong>Situacao:</strong> ${c.situacao_cadastral || 'N/A'}</p>
-                            ${c.municipio ? `<p><strong>Cidade:</strong> ${c.municipio}/${c.uf}</p>` : ''}
-                        </div>
-                    `).join('');
-                } else {
-                    results.innerHTML = '<p class="error-msg">Nenhuma empresa encontrada</p>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na busca: ' + e.message + '</p>';
-            }
-        }
-
-        async function analyzeCompany() {
-            const name = document.getElementById('companyAnalyzeName').value;
-            const cnpj = document.getElementById('companyCnpj').value.replace(/\D/g, '');
-            if (!name) {
-                alert('Nome da empresa e obrigatorio');
-                return;
-            }
-            const results = document.getElementById('companyAnalysis');
-            results.innerHTML = '<div class="loading">Analisando empresa (pode levar alguns minutos)...</div>';
-            try {
-                const body = { name: name };
-                if (cnpj) body.cnpj = cnpj;
-                const r = await fetchWithAuth('/api/v2/company/analyze-complete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Analise Completa</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na analise: ' + e.message + '</p>';
-            }
-        }
-
-        // Pessoas
-        async function analyzePerson() {
-            const name = document.getElementById('personName').value;
-            const company = document.getElementById('personCompany').value;
-            if (!name) return;
-            const results = document.getElementById('personResults');
-            results.innerHTML = '<div class="loading">Analisando perfil...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/person/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name, company: company || undefined })
-                });
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Perfil de ' + name + '</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na analise: ' + e.message + '</p>';
-            }
-        }
-
-        // Politicos
-        async function analyzePolitician() {
-            const name = document.getElementById('politicianName').value;
-            if (!name) return;
-            const results = document.getElementById('politicianResults');
-            results.innerHTML = '<div class="loading">Analisando politico...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/politician/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name })
-                });
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Perfil de ' + name + '</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na analise: ' + e.message + '</p>';
-            }
-        }
-
-        async function getPoliticianPerception() {
-            const name = document.getElementById('politicianPerception').value;
-            if (!name) return;
-            const results = document.getElementById('perceptionResults');
-            results.innerHTML = '<div class="loading">Consultando percepcao publica...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/politician/' + encodeURIComponent(name) + '/perception');
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Percepcao de ' + name + '</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na consulta: ' + e.message + '</p>';
-            }
-        }
-
-        // Noticias
-        async function searchNews() {
-            const query = document.getElementById('newsQuery').value;
-            const days = document.getElementById('newsDays').value;
-            if (!query) return;
-            const results = document.getElementById('newsResults');
-            results.innerHTML = '<div class="loading">Buscando noticias...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/news/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query, days: parseInt(days), max_results: 10 })
-                });
-                const data = await r.json();
-                if (data.articles && data.articles.length > 0) {
-                    results.innerHTML = data.articles.map(a => `
-                        <div class="result-item">
-                            <h4><a href="${a.url}" target="_blank" style="color: #22d3ee;">${a.title}</a></h4>
-                            <p>${a.description || ''}</p>
-                            <p><strong>Fonte:</strong> ${a.source || 'N/A'} | <strong>Data:</strong> ${a.date || 'N/A'}</p>
-                        </div>
-                    `).join('');
-                } else if (data.news && data.news.length > 0) {
-                    results.innerHTML = data.news.map(a => `
-                        <div class="result-item">
-                            <h4><a href="${a.url}" target="_blank" style="color: #22d3ee;">${a.title}</a></h4>
-                            <p>${a.snippet || a.description || ''}</p>
-                        </div>
-                    `).join('');
-                } else {
-                    results.innerHTML = '<p class="error-msg">Nenhuma noticia encontrada</p>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na busca: ' + e.message + '</p>';
-            }
-        }
-
-        async function getEconomicScenario() {
-            const results = document.getElementById('economicResults');
-            results.innerHTML = '<div class="loading">Consultando cenario economico...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/news/economic');
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Cenario Economico</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro na consulta: ' + e.message + '</p>';
-            }
-        }
-
-        // Analytics
-        async function loadAnalytics() {
-            const results = document.getElementById('analyticsResults');
-            results.innerHTML = '<div class="loading">Carregando metricas...</div>';
-            try {
-                const r = await fetchWithAuth('/api/v2/analytics/dashboard');
-                const data = await r.json();
-                if (data.error) {
-                    results.innerHTML = '<p class="error-msg">' + data.error + '</p>';
-                } else {
-                    results.innerHTML = '<div class="result-item"><h4>Dashboard de Metricas</h4><pre style="white-space: pre-wrap; color: #94a3b8;">' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            } catch (e) {
-                results.innerHTML = '<p class="error-msg">Erro ao carregar: ' + e.message + '</p>';
-            }
         }
 
         loadUser();
