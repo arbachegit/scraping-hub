@@ -3,7 +3,7 @@ import * as serper from '../services/serper.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
 import * as cnpja from '../services/cnpja.js';
-import { insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites } from '../database/supabase.js';
+import { supabase, insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites } from '../database/supabase.js';
 import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../services/var_inference.js';
 
 const router = Router();
@@ -773,6 +773,106 @@ router.get('/var-model', async (req, res) => {
       qtd_cnaes: 'Quantidade de CNAEs (principal + secundários)'
     }
   });
+});
+
+/**
+ * GET /api/companies/:id/founders-history
+ * Check if founders had other companies
+ */
+router.get('/:id/founders-history', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get company with socios
+    const fullData = await getCompanyFullData(id);
+    if (!fullData.empresa) {
+      return res.status(404).json({ error: 'Empresa nao encontrada' });
+    }
+
+    const foundersHistory = [];
+
+    for (const transacao of fullData.socios) {
+      const pessoa = transacao.dim_pessoas;
+      if (!pessoa) continue;
+
+      // Search for other companies this person is associated with
+      const { data: outrasEmpresas, error } = await supabase
+        .from('fato_transacao_empresas')
+        .select('*, dim_empresas(*)')
+        .eq('pessoa_id', pessoa.id)
+        .neq('empresa_id', id);
+
+      if (error) {
+        console.error('Error fetching other companies:', error);
+        continue;
+      }
+
+      foundersHistory.push({
+        pessoa: {
+          id: pessoa.id,
+          nome: pessoa.nome_completo,
+          cpf: pessoa.cpf,
+          linkedin: pessoa.linkedin_url
+        },
+        empresas_anteriores: (outrasEmpresas || []).map(t => ({
+          empresa_id: t.empresa_id,
+          razao_social: t.dim_empresas?.razao_social,
+          cnpj: t.dim_empresas?.cnpj,
+          cargo: t.cargo || t.qualificacao,
+          data_entrada: t.data_transacao
+        }))
+      });
+    }
+
+    return res.json({
+      success: true,
+      empresa: {
+        id: fullData.empresa.id,
+        razao_social: fullData.empresa.razao_social,
+        cnpj: fullData.empresa.cnpj
+      },
+      fundadores: foundersHistory
+    });
+
+  } catch (error) {
+    console.error('[FOUNDERS-HISTORY ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao buscar historico dos fundadores',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/companies/segments
+ * List all unique segments (setores) in the database
+ */
+router.get('/segments', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('fato_regime_tributario')
+      .select('setor, cnae_descricao')
+      .not('setor', 'is', null);
+
+    if (error) throw error;
+
+    // Get unique segments
+    const segments = [...new Set(data.map(d => d.setor).filter(Boolean))];
+    const cnaes = [...new Set(data.map(d => d.cnae_descricao).filter(Boolean))];
+
+    return res.json({
+      success: true,
+      segments: segments,
+      cnaes: cnaes.slice(0, 20) // Limit
+    });
+
+  } catch (error) {
+    console.error('[SEGMENTS ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao listar segmentos',
+      details: error.message
+    });
+  }
 });
 
 export default router;

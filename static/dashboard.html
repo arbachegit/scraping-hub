@@ -694,6 +694,347 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* AI Agent Floating Button */
+        .ai-agent-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .ai-agent-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6);
+        }
+
+        .ai-agent-fab svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        /* Multi-ring effect */
+        .ai-agent-fab::before,
+        .ai-agent-fab::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid rgba(59, 130, 246, 0.4);
+            animation: pulse-ring 2s infinite;
+        }
+
+        .ai-agent-fab::after {
+            animation-delay: 1s;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.8);
+                opacity: 0;
+            }
+        }
+
+        /* Beacon notification */
+        .ai-beacon {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 16px;
+            height: 16px;
+            background: #ef4444;
+            border-radius: 50%;
+            border: 2px solid #0a0e1a;
+            animation: beacon-pulse 1.5s infinite;
+        }
+
+        @keyframes beacon-pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* Chat Window */
+        .ai-chat-window {
+            position: fixed;
+            bottom: 7rem;
+            right: 2rem;
+            width: 400px;
+            max-width: calc(100vw - 2rem);
+            height: 550px;
+            max-height: calc(100vh - 10rem);
+            background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 999;
+            overflow: hidden;
+        }
+
+        .ai-chat-window.show {
+            display: flex;
+            animation: chat-slide-up 0.3s ease;
+        }
+
+        @keyframes chat-slide-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .ai-chat-header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .ai-avatar {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-avatar svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .ai-header-info {
+            flex: 1;
+        }
+
+        .ai-header-info h3 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .ai-header-info span {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.75rem;
+        }
+
+        .ai-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: background 0.2s;
+        }
+
+        .ai-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .ai-message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            animation: message-fade-in 0.3s ease;
+        }
+
+        @keyframes message-fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .ai-message.bot {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #e2e8f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .ai-message.user {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .ai-message-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .ai-option-btn {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ai-option-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+
+        .ai-chat-input {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .ai-chat-input input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 0.75rem 1rem;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .ai-chat-input input::placeholder {
+            color: #64748b;
+        }
+
+        .ai-chat-input input:focus {
+            outline: none;
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .ai-send-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .ai-send-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .ai-typing {
+            display: flex;
+            gap: 4px;
+            padding: 0.5rem;
+        }
+
+        .ai-typing span {
+            width: 8px;
+            height: 8px;
+            background: #60a5fa;
+            border-radius: 50%;
+            animation: typing-bounce 1.4s infinite;
+        }
+
+        .ai-typing span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .ai-typing span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing-bounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .ai-company-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .ai-company-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .ai-company-name {
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .ai-company-cnpj {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -791,6 +1132,39 @@
                 <p>API reference e guias de uso.</p>
                 <span class="card-badge">Em desenvolvimento</span>
             </div>
+        </div>
+    </div>
+
+    <!-- AI Agent Floating Button -->
+    <button class="ai-agent-fab" id="aiAgentFab" onclick="toggleAiChat()">
+        <div class="ai-beacon"></div>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.79 0 1.5-.71 1.5-1.5S8.79 9 8 9s-1.5.71-1.5 1.5S7.21 11 8 11zm8 0c.79 0 1.5-.71 1.5-1.5S16.79 9 16 9s-1.5.71-1.5 1.5.71 1.5 1.5 1.5zm-4 4c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
+        </svg>
+    </button>
+
+    <!-- AI Chat Window -->
+    <div class="ai-chat-window" id="aiChatWindow">
+        <div class="ai-chat-header">
+            <div class="ai-avatar">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.79 0 1.5-.71 1.5-1.5S8.79 9 8 9s-1.5.71-1.5 1.5S7.21 11 8 11zm8 0c.79 0 1.5-.71 1.5-1.5S16.79 9 16 9s-1.5.71-1.5 1.5.71 1.5 1.5 1.5zm-4 4c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
+                </svg>
+            </div>
+            <div class="ai-header-info">
+                <h3>Atlas</h3>
+                <span>Assistente de Inteligencia</span>
+            </div>
+            <button class="ai-close-btn" onclick="toggleAiChat()">&times;</button>
+        </div>
+        <div class="ai-chat-messages" id="aiChatMessages"></div>
+        <div class="ai-chat-input">
+            <input type="text" id="aiChatInput" placeholder="Digite sua mensagem..." onkeypress="if(event.key==='Enter') sendAiMessage()">
+            <button class="ai-send-btn" onclick="sendAiMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
         </div>
     </div>
 
@@ -1205,6 +1579,456 @@
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') closeCompanyModal();
         });
+
+        // ============================================
+        // AI AGENT - Atlas
+        // ============================================
+        let aiChatOpen = false;
+        let aiState = 'idle';
+        let aiCompanies = [];
+        let aiSelectedCompany = null;
+
+        function toggleAiChat() {
+            aiChatOpen = !aiChatOpen;
+            const chatWindow = document.getElementById('aiChatWindow');
+            const beacon = document.querySelector('.ai-beacon');
+
+            if (aiChatOpen) {
+                chatWindow.classList.add('show');
+                beacon.style.display = 'none';
+                if (aiState === 'idle') {
+                    startAiConversation();
+                }
+            } else {
+                chatWindow.classList.remove('show');
+            }
+        }
+
+        function addAiMessage(text, isBot = true, options = null) {
+            const messages = document.getElementById('aiChatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `ai-message ${isBot ? 'bot' : 'user'}`;
+
+            let html = text;
+            if (options && options.length > 0) {
+                html += '<div class="ai-message-options">';
+                options.forEach((opt, i) => {
+                    html += `<button class="ai-option-btn" onclick="handleAiOption('${opt.action}', '${opt.value || ''}')">${opt.label}</button>`;
+                });
+                html += '</div>';
+            }
+
+            msgDiv.innerHTML = html;
+            messages.appendChild(msgDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function showAiTyping() {
+            const messages = document.getElementById('aiChatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'aiTyping';
+            typingDiv.className = 'ai-message bot';
+            typingDiv.innerHTML = '<div class="ai-typing"><span></span><span></span><span></span></div>';
+            messages.appendChild(typingDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function hideAiTyping() {
+            const typing = document.getElementById('aiTyping');
+            if (typing) typing.remove();
+        }
+
+        function startAiConversation() {
+            aiState = 'greeting';
+            setTimeout(() => {
+                addAiMessage('Ola! Eu sou o <strong>Atlas</strong>, seu assistente de inteligencia empresarial. Estou aqui para ajuda-lo a explorar os dados das empresas cadastradas.');
+                setTimeout(() => {
+                    addAiMessage('Gostaria que eu liste as empresas na base de dados?', true, [
+                        { label: 'Sim, listar empresas', action: 'list_companies' },
+                        { label: 'Ver modelo VAR', action: 'show_var' }
+                    ]);
+                    aiState = 'awaiting_list';
+                }, 800);
+            }, 500);
+        }
+
+        async function handleAiOption(action, value) {
+            switch(action) {
+                case 'list_companies':
+                    addAiMessage('Sim, listar empresas', false);
+                    await listAiCompanies();
+                    break;
+                case 'show_var':
+                    addAiMessage('Ver modelo VAR', false);
+                    await showVarModel();
+                    break;
+                case 'select_company':
+                    await selectAiCompany(value);
+                    break;
+                case 'show_regime':
+                    await showCompanyRegime();
+                    break;
+                case 'show_founders':
+                    await showFoundersHistory();
+                    break;
+                case 'show_growth':
+                    await showGrowthProjection();
+                    break;
+                case 'back_to_list':
+                    await listAiCompanies();
+                    break;
+            }
+        }
+
+        async function listAiCompanies() {
+            showAiTyping();
+
+            try {
+                const r = await fetch('/api/companies/list');
+                const data = await r.json();
+                hideAiTyping();
+
+                if (!data.success || data.count === 0) {
+                    addAiMessage('Ainda nao temos empresas cadastradas na base. Que tal adicionar uma?', true, [
+                        { label: 'Adicionar empresa', action: 'add_company' }
+                    ]);
+                    return;
+                }
+
+                aiCompanies = data.companies;
+
+                let html = `Encontrei <strong>${data.count}</strong> empresa(s) na base:`;
+                data.companies.forEach((c, i) => {
+                    html += `
+                        <div class="ai-company-card" onclick="handleAiOption('select_company', '${c.id}')">
+                            <div class="ai-company-name">${i + 1}. ${c.nome_fantasia || c.razao_social}</div>
+                            <div class="ai-company-cnpj">${formatCnpj(c.cnpj)} - ${c.cidade}/${c.estado}</div>
+                        </div>
+                    `;
+                });
+
+                addAiMessage(html);
+                setTimeout(() => {
+                    addAiMessage('Clique em uma empresa para ver todos os detalhes.');
+                    aiState = 'awaiting_company_selection';
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Desculpe, ocorreu um erro ao buscar as empresas: ' + e.message);
+            }
+        }
+
+        async function selectAiCompany(companyId) {
+            const company = aiCompanies.find(c => c.id === companyId);
+            if (!company) return;
+
+            aiSelectedCompany = company;
+            addAiMessage(`${company.nome_fantasia || company.razao_social}`, false);
+            showAiTyping();
+
+            try {
+                const r = await fetch(`/api/companies/${companyId}/analysis`);
+                const data = await r.json();
+                hideAiTyping();
+
+                if (!data.success) {
+                    addAiMessage('Erro ao buscar dados da empresa.');
+                    return;
+                }
+
+                const emp = data.empresa;
+                const inf = data.inferencia;
+                const socios = data.socios || [];
+
+                let html = `<strong>${emp.nome_fantasia || emp.razao_social}</strong><br><br>`;
+                html += `<strong>Dados Cadastrais:</strong><br>`;
+                html += `CNPJ: ${formatCnpj(emp.cnpj)}<br>`;
+                html += `Situacao: ${emp.situacao_cadastral}<br>`;
+                html += `Endereco: ${emp.cidade}/${emp.estado}<br>`;
+                html += `Fundacao: ${emp.data_fundacao || emp.data_abertura}<br>`;
+
+                if (emp.website) html += `Website: <a href="${emp.website}" target="_blank">${emp.website}</a><br>`;
+                if (emp.linkedin_url && emp.linkedin_url !== 'NAO_POSSUI') {
+                    html += `LinkedIn: <a href="${emp.linkedin_url}" target="_blank">Ver perfil</a><br>`;
+                }
+
+                html += `<br><strong>Fundadores/Socios (${socios.length}):</strong><br>`;
+                socios.forEach(s => {
+                    const pessoa = s.dim_pessoas;
+                    if (pessoa) {
+                        html += `- ${pessoa.nome_completo}`;
+                        if (pessoa.linkedin_url) {
+                            html += ` <a href="${pessoa.linkedin_url}" target="_blank">[LinkedIn]</a>`;
+                        }
+                        if (pessoa.email) {
+                            html += ` (${pessoa.email})`;
+                        }
+                        html += `<br>`;
+                    }
+                });
+
+                addAiMessage(html);
+
+                setTimeout(() => {
+                    addAiMessage('O que mais gostaria de saber sobre esta empresa?', true, [
+                        { label: 'Regime Tributario', action: 'show_regime' },
+                        { label: 'Crescimento Projetado', action: 'show_growth' },
+                        { label: 'Outras empresas dos fundadores', action: 'show_founders' },
+                        { label: 'Voltar a lista', action: 'back_to_list' }
+                    ]);
+                    aiState = 'company_details';
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Erro ao buscar detalhes: ' + e.message);
+            }
+        }
+
+        async function showCompanyRegime() {
+            if (!aiSelectedCompany) return;
+            addAiMessage('Regime Tributario', false);
+            showAiTyping();
+
+            try {
+                const r = await fetch(`/api/companies/${aiSelectedCompany.id}/analysis`);
+                const data = await r.json();
+                hideAiTyping();
+
+                const inf = data.inferencia;
+                const regimes = data.regimes || [];
+
+                let html = `<strong>Regime Tributario Atual:</strong><br>`;
+                html += `Regime: ${inf.variaveis_correlacionadas?.regime_atual || 'Nao identificado'}<br>`;
+                html += `Simples Nacional: ${inf.variaveis_correlacionadas?.simples_optante ? 'Sim' : 'Nao'}<br>`;
+                html += `MEI: ${inf.variaveis_correlacionadas?.mei_optante ? 'Sim' : 'Nao'}<br><br>`;
+
+                if (regimes.length > 0) {
+                    html += `<strong>Historico de Regimes:</strong><br>`;
+                    regimes.forEach(r => {
+                        html += `- ${r.regime_tributario} (desde ${r.data_inicio || 'N/A'})`;
+                        if (!r.ativo) html += ` [Encerrado]`;
+                        html += `<br>`;
+                    });
+                } else {
+                    html += `<em>Sem historico de mudancas de regime.</em><br>`;
+                }
+
+                html += `<br><strong>Sinais identificados:</strong><br>`;
+                if (inf.sinais && inf.sinais.length > 0) {
+                    inf.sinais.forEach(s => {
+                        html += `- ${s}<br>`;
+                    });
+                } else {
+                    html += `<em>Nenhum sinal de alerta.</em>`;
+                }
+
+                addAiMessage(html);
+
+                setTimeout(() => {
+                    addAiMessage('Deseja ver mais informacoes?', true, [
+                        { label: 'Crescimento Projetado', action: 'show_growth' },
+                        { label: 'Fundadores', action: 'show_founders' },
+                        { label: 'Voltar a lista', action: 'back_to_list' }
+                    ]);
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Erro: ' + e.message);
+            }
+        }
+
+        async function showGrowthProjection() {
+            if (!aiSelectedCompany) return;
+            addAiMessage('Crescimento Projetado', false);
+            showAiTyping();
+
+            try {
+                const r = await fetch(`/api/companies/${aiSelectedCompany.id}/analysis`);
+                const data = await r.json();
+                hideAiTyping();
+
+                const inf = data.inferencia;
+                const vars = inf.variaveis_correlacionadas || {};
+
+                let html = `<strong>Analise VAR - ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}</strong><br><br>`;
+
+                html += `<strong>Variaveis do Modelo:</strong><br>`;
+                html += `- Funcionarios: ${vars.qtd_funcionarios || 0}<br>`;
+                html += `- Capital Social: R$ ${(vars.capital_social || 0).toLocaleString('pt-BR')}<br>`;
+                html += `- Anos Operando: ${vars.anos_operando || 0}<br>`;
+                html += `- Socios: ${vars.qtd_socios || 0}<br>`;
+                html += `- Mudancas de Regime: ${vars.qtd_mudancas_regime || 0}<br>`;
+                html += `- Setor: ${vars.setor || 'N/A'}<br><br>`;
+
+                html += `<strong>Projecao:</strong><br>`;
+                html += `Faturamento Estimado: R$ ${(inf.faturamento_estimado_medio || 0).toLocaleString('pt-BR')}/ano<br>`;
+                html += `Limite do Regime: R$ ${(inf.faturamento_estimado_max || 0).toLocaleString('pt-BR')}<br>`;
+                html += `Probabilidade de Mudanca: ${inf.probabilidade_mudanca_regime || 0}%<br>`;
+                html += `Proximo Regime Provavel: ${inf.regime_provavel_proximo || 'N/A'}<br>`;
+                html += `Confianca: ${inf.confianca || 'baixa'}<br>`;
+
+                if (inf.tempo_estimado_mudanca_meses) {
+                    html += `Tempo Estimado: ${inf.tempo_estimado_mudanca_meses} meses<br>`;
+                }
+
+                addAiMessage(html);
+
+                setTimeout(() => {
+                    addAiMessage('Mais opcoes:', true, [
+                        { label: 'Regime Tributario', action: 'show_regime' },
+                        { label: 'Fundadores', action: 'show_founders' },
+                        { label: 'Voltar a lista', action: 'back_to_list' }
+                    ]);
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Erro: ' + e.message);
+            }
+        }
+
+        async function showFoundersHistory() {
+            if (!aiSelectedCompany) return;
+            addAiMessage('Outras empresas dos fundadores', false);
+            showAiTyping();
+
+            try {
+                const r = await fetch(`/api/companies/${aiSelectedCompany.id}/founders-history`);
+                const data = await r.json();
+                hideAiTyping();
+
+                if (!data.success) {
+                    addAiMessage('Erro ao buscar historico dos fundadores.');
+                    return;
+                }
+
+                let html = `<strong>Historico dos Fundadores:</strong><br><br>`;
+
+                let foundOther = false;
+                data.fundadores.forEach(f => {
+                    html += `<strong>${f.pessoa.nome}</strong><br>`;
+
+                    if (f.empresas_anteriores && f.empresas_anteriores.length > 0) {
+                        foundOther = true;
+                        html += `Outras empresas:<br>`;
+                        f.empresas_anteriores.forEach(e => {
+                            html += `- ${e.razao_social} (${e.cargo})<br>`;
+                        });
+                    } else {
+                        html += `<em>Nenhuma outra empresa encontrada na base.</em><br>`;
+                    }
+                    html += `<br>`;
+                });
+
+                if (!foundOther) {
+                    html += `<br><em>Nenhum dos fundadores possui outras empresas cadastradas na base. Isso pode significar que esta e a primeira empresa deles ou que as outras empresas ainda nao foram adicionadas.</em>`;
+                }
+
+                addAiMessage(html);
+
+                setTimeout(() => {
+                    addAiMessage('Mais opcoes:', true, [
+                        { label: 'Regime Tributario', action: 'show_regime' },
+                        { label: 'Crescimento', action: 'show_growth' },
+                        { label: 'Voltar a lista', action: 'back_to_list' }
+                    ]);
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Erro: ' + e.message);
+            }
+        }
+
+        async function showVarModel() {
+            showAiTyping();
+
+            try {
+                const r = await fetch('/api/companies/var-model');
+                const data = await r.json();
+                hideAiTyping();
+
+                let html = `<strong>Modelo VAR - Vector Autoregression</strong><br><br>`;
+                html += `Este modelo estima o faturamento e preve mudancas de regime tributario baseado em variaveis publicas.<br><br>`;
+
+                html += `<strong>Pesos das Variaveis:</strong><br>`;
+                for (const [key, value] of Object.entries(data.pesos)) {
+                    html += `- ${key}: ${(value * 100).toFixed(0)}%<br>`;
+                }
+
+                html += `<br><strong>Limites dos Regimes:</strong><br>`;
+                html += `- MEI: R$ ${data.limites.MEI.toLocaleString('pt-BR')}/ano<br>`;
+                html += `- Simples ME: R$ ${data.limites.SIMPLES_ME.toLocaleString('pt-BR')}/ano<br>`;
+                html += `- Simples EPP: R$ ${data.limites.SIMPLES_EPP.toLocaleString('pt-BR')}/ano<br>`;
+                html += `- Lucro Presumido: ate R$ ${data.limites.LUCRO_PRESUMIDO.toLocaleString('pt-BR')}/ano<br>`;
+
+                addAiMessage(html);
+
+                setTimeout(() => {
+                    addAiMessage('Gostaria de ver as empresas cadastradas?', true, [
+                        { label: 'Listar empresas', action: 'list_companies' }
+                    ]);
+                }, 500);
+
+            } catch (e) {
+                hideAiTyping();
+                addAiMessage('Erro: ' + e.message);
+            }
+        }
+
+        function sendAiMessage() {
+            const input = document.getElementById('aiChatInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            addAiMessage(text, false);
+            input.value = '';
+
+            // Simple NLP
+            const lower = text.toLowerCase();
+
+            if (lower.includes('empresa') || lower.includes('listar') || lower.includes('lista')) {
+                listAiCompanies();
+            } else if (lower.includes('regime') || lower.includes('tributar')) {
+                if (aiSelectedCompany) {
+                    showCompanyRegime();
+                } else {
+                    addAiMessage('Primeiro selecione uma empresa para ver o regime tributario.', true, [
+                        { label: 'Listar empresas', action: 'list_companies' }
+                    ]);
+                }
+            } else if (lower.includes('crescimento') || lower.includes('projecao') || lower.includes('var')) {
+                if (aiSelectedCompany) {
+                    showGrowthProjection();
+                } else {
+                    addAiMessage('Primeiro selecione uma empresa para ver a projecao.', true, [
+                        { label: 'Listar empresas', action: 'list_companies' }
+                    ]);
+                }
+            } else if (lower.includes('fundador') || lower.includes('socio') || lower.includes('outra empresa')) {
+                if (aiSelectedCompany) {
+                    showFoundersHistory();
+                } else {
+                    addAiMessage('Primeiro selecione uma empresa para ver os fundadores.', true, [
+                        { label: 'Listar empresas', action: 'list_companies' }
+                    ]);
+                }
+            } else if (lower.includes('ola') || lower.includes('oi') || lower.includes('hey')) {
+                addAiMessage('Ola! Como posso ajuda-lo hoje?', true, [
+                    { label: 'Listar empresas', action: 'list_companies' },
+                    { label: 'Ver modelo VAR', action: 'show_var' }
+                ]);
+            } else {
+                addAiMessage('Posso ajuda-lo com informacoes sobre as empresas cadastradas. O que gostaria de saber?', true, [
+                    { label: 'Listar empresas', action: 'list_companies' },
+                    { label: 'Ver modelo VAR', action: 'show_var' }
+                ]);
+            }
+        }
     </script>
 </body>
 </html>
