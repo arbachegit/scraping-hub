@@ -78,10 +78,13 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master
+        env:
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
+          envs: APOLLO_API_KEY
           script: |
             # Find the correct project directory
             echo "=== Finding project directory ==="
@@ -115,6 +118,16 @@ jobs:
 
             git fetch origin main
             git reset --hard origin/main
+
+            # Update .env with Apollo API key
+            if [ -n "$APOLLO_API_KEY" ]; then
+              echo "=== Adding APOLLO_API_KEY to .env ==="
+              if grep -q "APOLLO_API_KEY=" .env 2>/dev/null; then
+                sed -i "s|APOLLO_API_KEY=.*|APOLLO_API_KEY=$APOLLO_API_KEY|" .env
+              else
+                echo "APOLLO_API_KEY=$APOLLO_API_KEY" >> .env
+              fi
+            fi
 
             # Backend Python - force recreate venv to ensure correct Python version
             echo "=== Creating fresh Python venv ==="
