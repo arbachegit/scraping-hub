@@ -35,8 +35,9 @@ function transformBrasilApiData(data) {
   // Extract socios (partners/founders) for dim_pessoas
   const socios = (data.qsa || []).map(socio => ({
     nome: socio.nome_socio,
-    cpf: socio.cnpj_cpf_do_socio, // CPF when available
+    cpf: socio.cnpj_cpf_do_socio || null, // CPF (may be masked: ***123456**)
     cargo: socio.qualificacao_socio,
+    qualificacao: socio.qualificacao_socio,
     data_entrada: socio.data_entrada_sociedade,
     faixa_etaria: socio.faixa_etaria,
     pais_origem: socio.pais,

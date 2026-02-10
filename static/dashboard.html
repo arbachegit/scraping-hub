@@ -286,14 +286,10 @@
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-            margin-bottom: 0.625rem;
+            padding: 0.875rem 1rem;
+            margin-bottom: 0.5rem;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
         }
 
         .result-item:hover {
@@ -301,35 +297,32 @@
             background: rgba(6, 182, 212, 0.05);
         }
 
-        .result-item-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .result-item-info h4 {
+        .result-item-name {
             color: #e2e8f0;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
-            margin-bottom: 0.2rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            margin-bottom: 0.4rem;
+            line-height: 1.3;
         }
 
-        .result-item-info p {
+        .result-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item-cnpj {
             color: #64748b;
             font-size: 0.8rem;
         }
 
-        .city-badge {
+        .result-item-city {
             font-size: 0.7rem;
             color: #94a3b8;
             background: rgba(148, 163, 184, 0.12);
-            padding: 0.3rem 0.6rem;
-            border-radius: 0.35rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
             border: 1px solid rgba(148, 163, 184, 0.2);
-            white-space: nowrap;
-            flex-shrink: 0;
         }
 
         .company-details {
@@ -909,11 +902,11 @@
                 } else {
                     results.innerHTML = data.candidates.map(c => `
                         <div class="result-item" onclick="selectCompany('${c.cnpj}')">
-                            <div class="result-item-info">
-                                <h4>${c.razao_social || 'Sem nome'}</h4>
-                                <p>CNPJ: ${c.cnpj_formatted}</p>
+                            <div class="result-item-name">${c.razao_social || 'Sem nome'}</div>
+                            <div class="result-item-row">
+                                <span class="result-item-cnpj">${c.cnpj_formatted}</span>
+                                ${c.localizacao ? `<span class="result-item-city">${c.localizacao}</span>` : ''}
                             </div>
-                            ${c.localizacao ? `<span class="city-badge">${c.localizacao}</span>` : ''}
                         </div>
                     `).join('');
                 }

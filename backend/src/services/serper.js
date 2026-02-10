@@ -68,14 +68,34 @@ export async function searchCompanyByName(companyName, cidade = null) {
       if (cnpj.length === 14 && !seenCnpjs.has(cnpj)) {
         seenCnpjs.add(cnpj);
 
-        // Extract location from snippet
-        const locationMatch = item.snippet?.match(/([A-Z]{2})\s*[-–]\s*([^,\n]+)/i);
+        // Extract location from snippet - try multiple patterns
+        let localizacao = null;
+        const snippet = item.snippet || '';
+
+        // Pattern 1: "Cidade - UF" or "Cidade – UF"
+        const pattern1 = snippet.match(/([A-Za-zÀ-ú\s]+)\s*[-–]\s*([A-Z]{2})(?:\s|,|\.|\)|$)/);
+        // Pattern 2: "UF - Cidade"
+        const pattern2 = snippet.match(/\b([A-Z]{2})\s*[-–]\s*([A-Za-zÀ-ú\s]+?)(?:,|\.|$)/);
+        // Pattern 3: "Cidade/UF"
+        const pattern3 = snippet.match(/([A-Za-zÀ-ú\s]+)\/([A-Z]{2})\b/);
+        // Pattern 4: "em Cidade, UF" or "de Cidade, UF"
+        const pattern4 = snippet.match(/(?:em|de)\s+([A-Za-zÀ-ú\s]+),\s*([A-Z]{2})\b/i);
+
+        if (pattern1 && pattern1[1].trim().length > 2) {
+          localizacao = `${pattern1[1].trim()} - ${pattern1[2]}`;
+        } else if (pattern2) {
+          localizacao = `${pattern2[2].trim()} - ${pattern2[1]}`;
+        } else if (pattern3) {
+          localizacao = `${pattern3[1].trim()} - ${pattern3[2]}`;
+        } else if (pattern4) {
+          localizacao = `${pattern4[1].trim()} - ${pattern4[2]}`;
+        }
 
         candidates.push({
           cnpj: cnpj,
           cnpj_formatted: formatCnpj(cnpj),
           razao_social: extractCompanyName(item.title, item.snippet),
-          localizacao: locationMatch ? `${locationMatch[2].trim()} - ${locationMatch[1]}` : null,
+          localizacao: localizacao,
           fonte_url: item.link,
           snippet: item.snippet
         });
