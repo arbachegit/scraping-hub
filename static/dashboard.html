@@ -680,9 +680,10 @@
                     return;
                 } else {
                     results.innerHTML = data.candidates.map(c => `
-                        <div class="result-item" onclick="selectCompany('${c.cnpj}')">
+                        <div class="result-item" onclick="selectCompany('${c.cnpj}')" style="position:relative;">
+                            ${c.localizacao ? `<span style="position:absolute;top:0.75rem;right:0.75rem;font-size:0.75rem;color:#94a3b8;background:rgba(148,163,184,0.1);padding:0.25rem 0.5rem;border-radius:0.25rem;">${c.localizacao}</span>` : ''}
                             <h4>${c.razao_social || 'Sem nome'}</h4>
-                            <p>CNPJ: ${c.cnpj_formatted} ${c.localizacao ? '| ' + c.localizacao : ''}</p>
+                            <p>CNPJ: ${c.cnpj_formatted}</p>
                         </div>
                     `).join('');
                 }
