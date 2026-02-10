@@ -758,18 +758,14 @@
         fill: white;
       }
 
-      .ai-robot-img {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        object-fit: cover;
+      .ai-robot-icon {
+        width: 44px;
+        height: 44px;
       }
 
-      .ai-avatar-img {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        object-fit: cover;
+      .ai-robot-icon-small {
+        width: 32px;
+        height: 32px;
       }
 
       /* Multi-ring effect */
@@ -1227,22 +1223,44 @@
     <!-- AI Agent Floating Button -->
     <button class="ai-agent-fab" id="aiAgentFab" onclick="toggleAiChat()">
       <div class="ai-beacon"></div>
-      <img
-        src="/static/images/atlas-robot.png"
-        alt="Atlas"
-        class="ai-robot-img"
-      />
+      <svg class="ai-robot-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Antenna -->
+        <circle cx="32" cy="6" r="4" fill="#60a5fa"/>
+        <rect x="30" y="8" width="4" height="8" fill="#60a5fa"/>
+        <!-- Head (square) -->
+        <rect x="12" y="16" width="40" height="32" rx="4" fill="white"/>
+        <!-- Eyes -->
+        <rect x="18" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
+        <rect x="36" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
+        <!-- Eye shine -->
+        <circle cx="21" cy="29" r="2" fill="white"/>
+        <circle cx="39" cy="29" r="2" fill="white"/>
+        <!-- Mouth -->
+        <rect x="22" y="40" width="20" height="4" rx="2" fill="#3b82f6"/>
+        <!-- Ears -->
+        <rect x="6" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
+        <rect x="52" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
+        <!-- Body hint -->
+        <rect x="24" y="48" width="16" height="8" rx="2" fill="#60a5fa"/>
+      </svg>
     </button>
 
     <!-- AI Chat Window -->
     <div class="ai-chat-window" id="aiChatWindow">
       <div class="ai-chat-header">
         <div class="ai-avatar">
-          <img
-            src="/static/images/atlas-robot.png"
-            alt="Atlas"
-            class="ai-avatar-img"
-          />
+          <svg class="ai-robot-icon-small" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="32" cy="6" r="4" fill="#60a5fa"/>
+            <rect x="30" y="8" width="4" height="8" fill="#60a5fa"/>
+            <rect x="12" y="16" width="40" height="32" rx="4" fill="white"/>
+            <rect x="18" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
+            <rect x="36" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
+            <circle cx="21" cy="29" r="2" fill="white"/>
+            <circle cx="39" cy="29" r="2" fill="white"/>
+            <rect x="22" y="40" width="20" height="4" rx="2" fill="#3b82f6"/>
+            <rect x="6" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
+            <rect x="52" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
+          </svg>
         </div>
         <div class="ai-header-info">
           <h3>Atlas</h3>
