@@ -119,8 +119,8 @@ jobs:
             if [ ! -d "venv" ]; then
               python3 -m venv venv
             fi
-            source venv/bin/activate
-            pip install -r requirements.txt
+            # Use venv pip directly to avoid activation issues
+            ./venv/bin/pip install -r requirements.txt
 
             # Create systemd service if missing
             if ! systemctl is-enabled scraping 2>/dev/null; then
@@ -146,9 +146,9 @@ jobs:
 
             # Stop any PM2 or other processes that might be running the old app
             echo "=== Stopping old processes ==="
-            pm2 stop all 2>/dev/null || true
-            pm2 delete all 2>/dev/null || true
-            sudo pkill -f "uvicorn" 2>/dev/null || true
+            (pm2 stop all 2>/dev/null) ; true
+            (pm2 delete all 2>/dev/null) ; true
+            (sudo pkill -f "uvicorn" 2>/dev/null) ; true
             sleep 2
 
             sudo systemctl restart scraping
