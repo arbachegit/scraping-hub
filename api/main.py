@@ -64,7 +64,7 @@ async def index():
     return {"error": "index.html not found"}
 
 
-@app.get("/dashboard.html", include_in_schema=False)
+@app.get("/dashboard", include_in_schema=False)
 async def dashboard():
     """Serve dashboard page"""
     dashboard_file = static_path / "dashboard.html"
@@ -73,7 +73,7 @@ async def dashboard():
     return {"error": "dashboard.html not found"}
 
 
-@app.get("/admin.html", include_in_schema=False)
+@app.get("/admin", include_in_schema=False)
 async def admin_page():
     """Serve admin page"""
     admin_file = static_path / "admin.html"

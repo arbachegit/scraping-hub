@@ -436,7 +436,7 @@
             <h1>Admin - Usuarios</h1>
         </div>
         <div class="header-right">
-            <a href="/dashboard.html" class="btn-back">Voltar ao Dashboard</a>
+            <a href="/dashboard" class="btn-back">Voltar ao Dashboard</a>
         </div>
     </div>
 
@@ -610,7 +610,7 @@
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.role !== 'super_admin') {
                     alert('Acesso negado. Apenas super_admin pode acessar esta area.');
-                    window.location.href = '/dashboard.html';
+                    window.location.href = '/dashboard';
                 }
             } catch (e) {
                 window.location.href = '/';

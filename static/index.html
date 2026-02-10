@@ -388,7 +388,7 @@
                     successMsg.textContent = 'Login realizado com sucesso!';
                     successMsg.classList.add('show');
                     setTimeout(() => {
-                        window.location.href = '/dashboard.html';
+                        window.location.href = '/dashboard';
                     }, 500);
                 } else {
                     errorMsg.textContent = data.detail || 'Email ou senha incorretos';
@@ -410,7 +410,7 @@
             fetch('/auth/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(r => {
-                if (r.ok) window.location.href = '/dashboard.html';
+                if (r.ok) window.location.href = '/dashboard';
             });
         }
     </script>
