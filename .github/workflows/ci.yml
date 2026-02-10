@@ -82,13 +82,68 @@ jobs:
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
-            cd /opt/iconsai-scraping
+            # Find the correct project directory
+            echo "=== Finding project directory ==="
+            for dir in /opt/iconsai-scraping /opt/scraping-hub /var/www/iconsai-scraping /home/*/iconsai-scraping /home/*/scraping-hub; do
+              if [ -d "$dir" ]; then
+                echo "Found: $dir"
+              fi
+            done
+
+            # Standardize on /opt/iconsai-scraping
+            PROJECT_DIR="/opt/iconsai-scraping"
+
+            # If old path exists, move it
+            if [ -d "/opt/scraping-hub" ] && [ ! -d "$PROJECT_DIR" ]; then
+              echo "Moving /opt/scraping-hub to $PROJECT_DIR..."
+              sudo mv /opt/scraping-hub $PROJECT_DIR
+            fi
+
+            # Create directory if it doesn't exist
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "Creating $PROJECT_DIR and cloning repo..."
+              sudo mkdir -p $PROJECT_DIR
+              sudo chown $USER:$USER $PROJECT_DIR
+              cd $PROJECT_DIR
+              git clone https://github.com/arbachegit/scraping-hub.git .
+            else
+              cd $PROJECT_DIR
+            fi
+
+            echo "Working in: $(pwd)"
+
             git fetch origin main
             git reset --hard origin/main
 
-            # Backend Python
+            # Backend Python - create venv if missing
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
             source venv/bin/activate
             pip install -r requirements.txt
+
+            # Create systemd service if missing
+            if ! systemctl is-enabled scraping 2>/dev/null; then
+              sudo tee /etc/systemd/system/scraping.service > /dev/null << 'SERVICE_EOF'
+            [Unit]
+            Description=Iconsai Scraping Hub
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=root
+            WorkingDirectory=/opt/iconsai-scraping
+            Environment=PATH=/opt/iconsai-scraping/venv/bin
+            ExecStart=/opt/iconsai-scraping/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+            SERVICE_EOF
+              sudo systemctl daemon-reload
+              sudo systemctl enable scraping
+            fi
+
             sudo systemctl restart scraping
 
             # Fix nginx configuration (proxy to port 8000)
