@@ -113,15 +113,25 @@ router.post('/details', async (req, res) => {
 
     // Enrich with Apollo (better LinkedIn and website data)
     // Use nome_fantasia if available (usually shorter and more recognizable)
-    // Otherwise try first 2-3 words of razao_social
-    let apolloSearchName = brasilData.nome_fantasia;
-    if (!apolloSearchName || apolloSearchName === brasilData.razao_social) {
-      // Extract company name (remove LTDA, S/A, ME, EPP, EIRELI, etc)
-      apolloSearchName = brasilData.razao_social
-        .replace(/\s+(LTDA|S\.?A\.?|S\/A|ME|EPP|EIRELI|SOCIEDADE ANONIMA|LIMITADA)\.?$/gi, '')
-        .replace(/\s+(COMERCIO|COMERCIAL|INDUSTRIA|SERVICOS|PARTICIPACOES).*$/gi, '')
-        .trim();
+    // Clean and simplify the name for better Apollo search
+    let apolloSearchName = brasilData.nome_fantasia || brasilData.razao_social;
+
+    // Clean the name for better search
+    apolloSearchName = apolloSearchName
+      // Remove branch/unit suffixes (e.g., "- EDISE", "- UNIDADE X")
+      .replace(/\s*[-–]\s*[A-Z0-9\s]+$/gi, '')
+      // Remove legal suffixes
+      .replace(/\s+(LTDA|S\.?A\.?|S\/A|ME|EPP|EIRELI|SOCIEDADE ANONIMA|LIMITADA)\.?$/gi, '')
+      // Remove common business terms at the end
+      .replace(/\s+(COMERCIO|COMERCIAL|INDUSTRIA|SERVICOS|PARTICIPACOES|BRASILEIRO|BRASILEIRA).*$/gi, '')
+      .trim();
+
+    // If name is too long (>30 chars), try to get first meaningful word
+    if (apolloSearchName.length > 30) {
+      const words = apolloSearchName.split(/\s+/);
+      apolloSearchName = words[0]; // Usually the brand name
     }
+
     console.log(`[APOLLO] Buscando empresa: ${apolloSearchName}`);
     const apolloData = await apollo.searchCompany(apolloSearchName, brasilData.estado);
     console.log(`[APOLLO] Resultado:`, apolloData ? `LinkedIn: ${apolloData.linkedin}, Website: ${apolloData.website}` : 'null');
