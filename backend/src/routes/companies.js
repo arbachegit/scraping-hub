@@ -649,6 +649,114 @@ router.post('/:id/recalculate', async (req, res) => {
 });
 
 /**
+ * POST /api/companies/:id/update-regime
+ * Update regime tributario for existing company (fetch from CNPJá)
+ */
+router.post('/:id/update-regime', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get company
+    const fullData = await getCompanyFullData(id);
+    if (!fullData.empresa) {
+      return res.status(404).json({ error: 'Empresa nao encontrada' });
+    }
+
+    const empresa = fullData.empresa;
+    const cleanCnpj = empresa.cnpj.replace(/[^\d]/g, '');
+
+    // Fetch CNPJá data
+    console.log(`[CNPJA] Atualizando regime para CNPJ: ${cleanCnpj}`);
+    const cnpjaData = await cnpja.getRegimeTributario(cleanCnpj);
+
+    if (!cnpjaData) {
+      return res.status(404).json({
+        error: 'Dados CNPJá nao encontrados',
+        message: 'Verifique se a API key está configurada'
+      });
+    }
+
+    // Get data from raw
+    const capitalSocial = empresa.raw_brasilapi?.capital_social || empresa.raw_cnpj_data?.capital_social || 0;
+    const porte = empresa.raw_brasilapi?.porte || empresa.raw_cnpj_data?.porte || null;
+    const naturezaJuridica = empresa.raw_brasilapi?.natureza_juridica || empresa.raw_cnpj_data?.natureza_juridica || null;
+    const cnaePrincipal = empresa.raw_brasilapi?.cnae_fiscal?.toString() || empresa.raw_cnpj_data?.cnae_fiscal?.toString() || null;
+    const cnaeDescricao = empresa.raw_brasilapi?.cnae_fiscal_descricao || empresa.raw_cnpj_data?.cnae_fiscal_descricao || null;
+
+    // Insert current regime
+    const regimeTributario = cnpjaData.regime_atual || 'LUCRO_PRESUMIDO';
+
+    await insertRegimeTributario({
+      empresa_id: id,
+      porte: porte,
+      natureza_juridica: naturezaJuridica,
+      capital_social: capitalSocial,
+      cnae_principal: cnaePrincipal,
+      cnae_descricao: cnaeDescricao,
+      regime_tributario: regimeTributario,
+      qtd_funcionarios: cnpjaData.qtd_funcionarios || null,
+      data_inicio: cnpjaData.simples_desde || cnpjaData.mei_desde,
+      ativo: true,
+      simples_optante: cnpjaData.simples_optante,
+      simples_desde: cnpjaData.simples_desde,
+      mei_optante: cnpjaData.mei_optante,
+      mei_desde: cnpjaData.mei_desde,
+      raw_cnpja: cnpjaData.raw_cnpja || {}
+    });
+
+    // Insert historical regimes
+    if (cnpjaData.historico_regimes && cnpjaData.historico_regimes.length > 0) {
+      const historicoAntigo = cnpjaData.historico_regimes.filter(h => !h.ativo);
+      if (historicoAntigo.length > 0) {
+        await insertRegimeHistorico(id, historicoAntigo, {
+          porte: porte,
+          natureza_juridica: naturezaJuridica,
+          capital_social: capitalSocial,
+          cnae_principal: cnaePrincipal,
+          cnae_descricao: cnaeDescricao
+        });
+      }
+    }
+
+    // Recalculate VAR inference
+    const regimes = [{
+      empresa_id: id,
+      regime_tributario: regimeTributario,
+      ativo: true,
+      qtd_funcionarios: cnpjaData.qtd_funcionarios || 0,
+      capital_social: capitalSocial,
+      cnae_principal: cnaePrincipal,
+      mei_optante: cnpjaData.mei_optante,
+      simples_optante: cnpjaData.simples_optante
+    }];
+
+    const varInferencia = calcularInferenciaVAR(empresa, regimes, fullData.socios);
+    await updateInferenciaLimites(id, varInferencia);
+
+    console.log(`[UPDATE-REGIME] Empresa ${cleanCnpj} atualizada: ${regimeTributario}`);
+
+    return res.json({
+      success: true,
+      message: 'Regime tributario atualizado',
+      regime: {
+        atual: regimeTributario,
+        simples_optante: cnpjaData.simples_optante,
+        mei_optante: cnpjaData.mei_optante,
+        historico: cnpjaData.historico_regimes
+      },
+      inferencia: varInferencia
+    });
+
+  } catch (error) {
+    console.error('[UPDATE-REGIME ERROR]', error);
+    res.status(500).json({
+      error: 'Erro ao atualizar regime',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/companies/var-model
  * Get VAR model parameters
  */
