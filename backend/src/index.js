@@ -10,8 +10,8 @@ const PORT = process.env.BACKEND_PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/companies', companiesRouter);
+// Routes (nginx strips /api/ prefix, so use /companies directly)
+app.use('/companies', companiesRouter);
 
 // Health check
 app.get('/health', (req, res) => {
