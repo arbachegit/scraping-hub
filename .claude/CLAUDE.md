@@ -1,8 +1,8 @@
 # scraping-hub - Sistema de Web Scraping
 
-**VERSÃO: 2.0.0 - ULTRA-STRICT**  
-**DATA: 08/02/2026**  
-**STATUS: PROJETO TRAVADO - AUTOMAÇÃO OBRIGATÓRIA**
+**VERSÃO: 3.0.0 - COMPLIANCE + VALIDATION**
+**DATA: 11/02/2026**
+**STATUS: PROJETO AUDITADO - COMPLIANCE ISO 27001/27701**
 
 ---
 
@@ -47,117 +47,154 @@ CONFIRMAÇÃO NECESSÁRIA: Prosseguir? (sim/não)
 
 ---
 
-### REGRA 2: AUTOMAÇÃO OBRIGATÓRIA - ZERO INTERVENÇÃO MANUAL
+### REGRA 2: VALIDAÇÃO OBRIGATÓRIA (ZOD + PYDANTIC)
 
-**TUDO deve ser automatizado:**
+**Todo endpoint DEVE ter validação:**
 
-```python
-# ❌ NUNCA fazer manualmente
-# ❌ NUNCA pedir para usuário fazer algo
-# ❌ NUNCA deixar tarefas para depois
+```javascript
+// ✅ Node.js - SEMPRE usar Zod
+import { z } from 'zod';
+import { validateBody } from '../validation/schemas.js';
 
-# ✅ SEMPRE criar scripts de automação
-# ✅ SEMPRE usar DigitalOcean API
-# ✅ SEMPRE criar CRON jobs
-# ✅ SEMPRE criar webhooks
-# ✅ SEMPRE criar monitoramento automático
+const schema = z.object({
+  nome: z.string().min(2).max(200),
+  cnpj: z.string().transform(val => val.replace(/[^\d]/g, ''))
+});
+
+router.post('/endpoint', validateBody(schema), async (req, res) => {
+  // req.body já validado
+});
 ```
 
-**Exemplos proibidos:**
-- ❌ "Você pode executar esse comando manualmente"
-- ❌ "Depois você configura o CRON"
-- ❌ "Faça login no servidor e..."
-- ❌ "Manualmente, ajuste o arquivo X"
+```python
+# ✅ Python - SEMPRE usar Pydantic
+from pydantic import BaseModel
 
-**Exemplos obrigatórios:**
-- ✅ "Criando script de deploy automático"
-- ✅ "Configurando CRON via DigitalOcean API"
-- ✅ "Implementando webhook de monitoramento"
-- ✅ "Deploy automático via GitHub Actions"
+class RequestBody(BaseModel):
+    nome: str
+    cnpj: str
+
+@app.post("/endpoint")
+async def endpoint(body: RequestBody):
+    # body já validado
+```
+
+**Schemas existentes:** `backend/src/validation/schemas.js`
+- `searchCompanySchema` - Busca de empresa
+- `detailsCompanySchema` - Detalhes por CNPJ
+- `sociosSchema` - Enriquecimento de sócios
+- `approveCompanySchema` - Aprovação de empresa
+- `recalculateSchema` - Recálculo VAR
 
 ---
 
-### REGRA 3: ACESSO OBRIGATÓRIO AO DIGITALOCEAN
+### REGRA 3: CONSTANTES OBRIGATÓRIAS (SEM MAGIC STRINGS)
 
-**Claude DEVE ter acesso à infraestrutura:**
+**NUNCA usar strings literais repetidas:**
 
-```bash
-# Servidor DigitalOcean
-IP: 161.35.128.174
-Port: 5678 (n8n)
-SSH: Acesso obrigatório via API
+```javascript
+// ❌ PROIBIDO
+linkedin = 'NAO_POSSUI';
+regime = 'SIMPLES_NACIONAL';
+
+// ✅ OBRIGATÓRIO - usar constants.js
+import { LINKEDIN_STATUS, REGIME_TRIBUTARIO } from '../constants.js';
+
+linkedin = LINKEDIN_STATUS.NAO_POSSUI;
+regime = REGIME_TRIBUTARIO.SIMPLES_NACIONAL;
 ```
 
-**Automações obrigatórias via DigitalOcean:**
-1. ✅ Deploy automático via API
-2. ✅ CRON configuration via API
-3. ✅ Monitoring setup via API
-4. ✅ Log collection automático
-5. ✅ Health checks automáticos
-6. ✅ Restart automático em falhas
-7. ✅ Backup automático
-
-**Se Claude não conseguir acessar DigitalOcean:**
-```
-PARAR IMEDIATAMENTE
-REPORTAR: "Acesso DigitalOcean necessário para automação"
-SOLICITAR: Credenciais API / SSH keys
-NÃO PROSSEGUIR com soluções manuais
-```
+**Constantes disponíveis:** `backend/src/constants.js`
+- `LINKEDIN_STATUS` - NAO_POSSUI, PENDENTE
+- `REGIME_TRIBUTARIO` - MEI, SIMPLES_NACIONAL, LUCRO_PRESUMIDO, LUCRO_REAL
+- `LIMITES_REGIME` - Limites de faturamento por regime
+- `DATA_SOURCES` - Fontes de dados para compliance
 
 ---
 
-### REGRA 4: DOCUMENTAÇÃO PROIBIDA (APENAS CÓDIGO)
+### REGRA 4: LOGGING ESTRUTURADO OBRIGATÓRIO
 
-```
-❌ NUNCA escrever documentação longa
-❌ NUNCA criar READMEs extensos
-❌ NUNCA explicar "como funciona"
+**NUNCA usar console.log para logs de produção:**
 
-✅ APENAS código auto-documentado
-✅ APENAS docstrings curtas
-✅ APENAS comentários essenciais
-```
+```javascript
+// ❌ PROIBIDO
+console.log('Buscando empresa:', nome);
+console.error('Erro:', error);
 
-**Formato permitido de comentário:**
-```python
-# O QUÊ (não POR QUÊ)
-def scrape_siconfi(codigo_ibge: str):
-    """Scrape SICONFI para município."""  # ← Máximo permitido
-    pass
+// ✅ OBRIGATÓRIO - usar logger estruturado
+import logger from '../utils/logger.js';
+
+logger.info('Buscando empresa', { nome, cidade });
+logger.error('Erro na busca', { error: error.message, stack: error.stack });
 ```
 
-**Formato PROIBIDO:**
-```python
-# ❌ NUNCA fazer isso:
-def scrape_siconfi(codigo_ibge: str):
-    """
-    Esta função realiza o scraping do portal SICONFI.
-    
-    O SICONFI é o Sistema de Informações Contábeis...
-    Utilizamos BeautifulSoup porque...
-    O retry é necessário pois...
-    
-    Args:
-        codigo_ibge: Código IBGE de 7 dígitos que representa...
-    
-    Returns:
-        Um dicionário contendo os dados fiscais...
-    
-    Examples:
-        >>> scrape_siconfi('3550308')
-        {'rcl': 1000000, ...}
-    
-    Notes:
-        - Lembre-se de configurar...
-        - É importante que...
-    """
-    pass
-```
+**Logger:** `backend/src/utils/logger.js`
+- Formato JSON estruturado
+- Níveis: debug, info, warn, error
+- Request ID para rastreamento
+- Consistente com Python structlog
 
 ---
 
-### REGRA 5: IMUTABILIDADE DO BASE.PY
+### REGRA 5: RATE LIMITER OBRIGATÓRIO
+
+**Todo endpoint público DEVE ter rate limit:**
+
+```javascript
+// Configurado em backend/src/index.js
+import rateLimit from 'express-rate-limit';
+
+const limiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minuto
+  max: 100,             // 100 requisições por IP
+  message: { error: 'Muitas requisições. Tente novamente em 1 minuto.' }
+});
+
+app.use('/companies', limiter);
+```
+
+**Limites atuais:**
+- `/companies/*` - 100 req/min por IP
+
+---
+
+### REGRA 6: REGISTRO DE FONTES OBRIGATÓRIO (COMPLIANCE)
+
+**TODO scraping DEVE registrar fonte na tabela `fontes_dados`:**
+
+```javascript
+// Registro automático no startup do backend
+import { registerDataSource } from '../database/supabase.js';
+import { DATA_SOURCES } from '../constants.js';
+
+// Auto-registro de todas as fontes
+for (const [key, source] of Object.entries(DATA_SOURCES)) {
+  await registerDataSource(source);
+}
+```
+
+**Tabela `fontes_dados` (Supabase):**
+| Campo | Tipo | Obrigatório |
+|-------|------|-------------|
+| nome | TEXT UNIQUE | ✅ |
+| categoria | TEXT | ✅ |
+| fonte_primaria | TEXT | ✅ |
+| url | TEXT | ✅ |
+| confiabilidade | TEXT | ✅ |
+| api_key_necessaria | BOOLEAN | ✅ |
+
+**Fontes registradas:**
+1. Serper - Google Search API (busca)
+2. Perplexity AI (ia)
+3. BrasilAPI - Receita Federal (governamental)
+4. Apollo.io (enrichment)
+5. CNPJá - Regime Tributário (fiscal)
+
+**Penalidade:** Scraper sem registro de fonte = REJEITADO
+
+---
+
+### REGRA 7: IMUTABILIDADE DO BASE.PY
 
 **O arquivo `src/scrapers/base.py` é SAGRADO:**
 
@@ -168,49 +205,17 @@ def scrape_siconfi(codigo_ibge: str):
 🔒 NUNCA adicionar features a base.py
 
 ✅ APENAS criar NOVOS scrapers que HERDAM de BaseScraper
-✅ APENAS modificar base.py se comando for:
-   "Modifique o arquivo base.py adicionando [X]"
-```
-
-**Conteúdo atual do base.py (IMUTÁVEL):**
-- Retry automático (tenacity)
-- Logging estruturado (structlog)
-- Métricas de uso
-- Async HTTP client (httpx)
-- Context manager
-
-**Se precisar de nova funcionalidade:**
-```python
-# ✅ CERTO - Criar em NOVO arquivo
-# src/scrapers/advanced_base.py
-from .base import BaseScraper
-
-class AdvancedBaseScraper(BaseScraper):
-    # Nova funcionalidade aqui
-    pass
-```
-
-```python
-# ❌ ERRADO - Modificar base.py
-# src/scrapers/base.py
-class BaseScraper:
-    # Adicionar nova funcionalidade ← PROIBIDO
-    pass
 ```
 
 ---
 
-### REGRA 6: SCRAPERS SÃO WRITE-ONLY
+### REGRA 8: SCRAPERS SÃO WRITE-ONLY
 
 **Scrapers existentes NÃO podem ser modificados:**
 
 ```
-🔒 apollo.py         - IMUTÁVEL
-🔒 brasil_api.py     - IMUTÁVEL
-🔒 perplexity.py     - IMUTÁVEL
-🔒 serper.py         - IMUTÁVEL
-🔒 tavily.py         - IMUTÁVEL
-🔒 web_scraper.py    - IMUTÁVEL
+🔒 src/scrapers/*.py     - IMUTÁVEL
+🔒 backend/src/services/*.js - IMUTÁVEL (exceto bug fixes)
 ```
 
 **Único caso permitido para modificação:**
@@ -219,495 +224,138 @@ class BaseScraper:
 "Adicione o parâmetro Z à função W do arquivo V"
 ```
 
-**Para novas features:**
-```python
-# ✅ Criar NOVO scraper
-# src/scrapers/siconfi_v2.py
-from .base import BaseScraper
+---
 
-class SiconfiV2Scraper(BaseScraper):
-    # Nova implementação
-    pass
+### REGRA 9: DEPLOY VIA CI/CD (GITHUB ACTIONS)
+
+**NUNCA fazer deploy manual:**
+
 ```
+❌ NUNCA SSH no servidor para deploy
+❌ NUNCA editar arquivos diretamente no servidor
+❌ NUNCA rodar comandos manuais no servidor
+
+✅ SEMPRE commit + push → CI/CD automático
+✅ SEMPRE usar GitHub Actions
+✅ SEMPRE secrets via GitHub Secrets
+```
+
+**Secrets configurados:**
+- `DO_HOST` - IP do servidor
+- `DO_USERNAME` - Usuário SSH
+- `DO_SSH_KEY` - Chave SSH
+- `APOLLO_API_KEY` - Apollo API
+- `CNPJA_API_KEY` - CNPJá API
+- `PERPLEXITY_API_KEY` - Perplexity API
 
 ---
 
-### REGRA 7: TESTES SÃO OBRIGATÓRIOS E AUTOMÁTICOS
-
-**TODA mudança de código DEVE ter teste automático:**
-
-```python
-# ❌ NUNCA aceitar código sem testes
-# ❌ NUNCA deixar "adicionar testes depois"
-# ❌ NUNCA testes manuais
-
-# ✅ SEMPRE criar testes junto com código
-# ✅ SEMPRE rodar testes antes de commitar
-# ✅ SEMPRE CI/CD com testes automáticos
-```
-
-**Estrutura obrigatória:**
-```
-CRIAR código → CRIAR teste → RODAR teste → COMMITAR
-```
-
-**Formato de teste obrigatório:**
-```python
-# tests/scrapers/test_novo_scraper.py
-import pytest
-from src.scrapers.novo_scraper import NovoScraper
-
-@pytest.mark.asyncio
-async def test_scraper_success():
-    scraper = NovoScraper()
-    result = await scraper.scrape()
-    assert result is not None
-    assert len(result) > 0
-
-@pytest.mark.asyncio
-async def test_scraper_validation():
-    scraper = NovoScraper()
-    data = {"field": "value"}
-    validated = scraper.validate(data)
-    assert validated["field"] == "value"
-
-# MÍNIMO: 2 testes por scraper
-# IDEAL: 5+ testes (happy path + edge cases)
-```
-
----
-
-### REGRA 8: REGISTRO DE FONTES OBRIGATÓRIO
-
-**TODO scraping DEVE registrar fonte:**
-
-```python
-async def register_data_source(self, **kwargs):
-    """
-    OBRIGATÓRIO para compliance ISO 27001/27701.
-    
-    Deve ser chamado SEMPRE após scraping.
-    """
-    from database import get_db_client
-    
-    db = get_db_client()
-    
-    await db.execute("""
-        INSERT INTO fontes_dados (
-            nome, categoria, fonte_primaria, url, 
-            data_primeira_coleta, periodicidade, 
-            formato, confiabilidade
-        )
-        VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
-        ON CONFLICT (nome) DO UPDATE
-        SET data_ultima_atualizacao = NOW()
-    """,
-        'Nome da Fonte',      # OBRIGATÓRIO
-        'categoria',          # OBRIGATÓRIO
-        'Fonte Primária',     # OBRIGATÓRIO
-        'https://url.com',    # OBRIGATÓRIO
-        'periodicidade',      # OBRIGATÓRIO
-        'formato',            # OBRIGATÓRIO
-        'confiabilidade'      # OBRIGATÓRIO
-    )
-```
-
-**Penalidade:** Scraper sem registro de fonte = REJEITADO
-
----
-
-## 🤖 AUTOMAÇÃO OBRIGATÓRIA
-
-### DigitalOcean API - Acesso Necessário
-
-**Servidor:**
-```
-IP: 161.35.128.174
-Porta n8n: 5678
-SSH: Via API Token
-DigitalOcean API: Obrigatório
-```
-
-**Automações obrigatórias:**
-
-#### 1. Deploy Automático
-
-```python
-# scripts/deploy_to_digitalocean.py
-"""
-Deploy automático via DigitalOcean API.
-
-NUNCA fazer deploy manual.
-NUNCA pedir para usuário fazer SSH.
-SEMPRE usar este script.
-"""
-
-import digitalocean
-import subprocess
-
-def deploy_scraper(scraper_name: str):
-    """
-    Deploy automático de scraper.
-    
-    Passos:
-    1. Build Docker image
-    2. Push to registry
-    3. Deploy via API
-    4. Configure CRON via API
-    5. Setup monitoring via API
-    """
-    # 1. Build
-    subprocess.run([
-        "docker", "build", 
-        "-t", f"scraping-hub/{scraper_name}:latest",
-        "."
-    ])
-    
-    # 2. Push
-    subprocess.run([
-        "docker", "push",
-        f"scraping-hub/{scraper_name}:latest"
-    ])
-    
-    # 3. Deploy via DigitalOcean API
-    manager = digitalocean.Manager(token=DIGITALOCEAN_TOKEN)
-    droplet = manager.get_droplet(DROPLET_ID)
-    
-    # Execute deployment commands via API
-    droplet.run_command([
-        "docker", "pull", f"scraping-hub/{scraper_name}:latest",
-        "&&",
-        "docker", "run", "-d", f"scraping-hub/{scraper_name}:latest"
-    ])
-    
-    # 4. Configure CRON via API (not manual!)
-    configure_cron_via_api(scraper_name)
-    
-    # 5. Setup monitoring
-    setup_monitoring_via_api(scraper_name)
-
-def configure_cron_via_api(scraper_name: str):
-    """Configure CRON job via DigitalOcean API."""
-    # IMPLEMENTAR: API call to configure CRON
-    pass
-
-def setup_monitoring_via_api(scraper_name: str):
-    """Setup monitoring via DigitalOcean API."""
-    # IMPLEMENTAR: API call to setup monitoring
-    pass
-
-if __name__ == "__main__":
-    # NUNCA rodar manualmente
-    # SEMPRE via CI/CD
-    pass
-```
-
-#### 2. CRON Automático
-
-```python
-# scripts/setup_cron_jobs.py
-"""
-Configuração automática de CRON jobs via API.
-
-NUNCA editar crontab manualmente.
-NUNCA SSH no servidor para configurar.
-SEMPRE usar este script.
-"""
-
-from digitalocean import Manager
-
-CRON_JOBS = {
-    "siconfi_daily": {
-        "schedule": "0 2 * * *",  # 2h da manhã
-        "command": "python src/scrapers/siconfi.py",
-        "description": "Import diário SICONFI"
-    },
-    "cleanup_old_data": {
-        "schedule": "0 1 1 * *",  # 1º dia do mês, 1h
-        "command": "python scripts/cleanup.py",
-        "description": "Limpeza de dados > 90 dias"
-    }
-}
-
-def setup_all_crons():
-    """Setup TODOS os CRON jobs via API."""
-    manager = Manager(token=DIGITALOCEAN_TOKEN)
-    droplet = manager.get_droplet(DROPLET_ID)
-    
-    for job_name, config in CRON_JOBS.items():
-        # Remove existing
-        droplet.run_command(f"crontab -l | grep -v '{job_name}' | crontab -")
-        
-        # Add new
-        cron_line = f"{config['schedule']} {config['command']} # {job_name}"
-        droplet.run_command(f"(crontab -l; echo '{cron_line}') | crontab -")
-
-if __name__ == "__main__":
-    setup_all_crons()
-```
-
-#### 3. Monitoramento Automático
-
-```python
-# scripts/setup_monitoring.py
-"""
-Monitoramento automático via n8n webhooks.
-
-NUNCA verificar manualmente.
-NUNCA logs manuais.
-SEMPRE monitoramento automático.
-"""
-
-import requests
-
-N8N_WEBHOOK = "http://161.35.128.174:5678/webhook/scraping-monitor"
-
-def send_alert(scraper: str, status: str, error: str = None):
-    """Envia alerta para n8n."""
-    payload = {
-        "scraper": scraper,
-        "status": status,
-        "error": error,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    
-    requests.post(N8N_WEBHOOK, json=payload)
-
-def setup_health_checks():
-    """Configura health checks automáticos."""
-    # Verificar cada 5 minutos
-    # Enviar alerta se falhar
-    # Auto-restart se necessário
-    pass
-
-if __name__ == "__main__":
-    setup_health_checks()
-```
-
----
-
-## 📁 ESTRUTURA IMUTÁVEL DO PROJETO
+## 📁 ESTRUTURA DO PROJETO
 
 ```
 scraping-hub/
 ├── .claude/
-│   └── CLAUDE.md                    🔒 IMUTÁVEL (este arquivo)
+│   └── CLAUDE.md                    📋 Este arquivo
+├── backend/
+│   ├── src/
+│   │   ├── index.js                 🚀 Entry point (rate limiter, logger)
+│   │   ├── constants.js             📌 Constantes (LINKEDIN_STATUS, etc)
+│   │   ├── routes/
+│   │   │   └── companies.js         🛣️ Rotas (com Zod validation)
+│   │   ├── services/
+│   │   │   ├── serper.js            🔍 Google Search
+│   │   │   ├── perplexity.js        🤖 AI Search (fallback)
+│   │   │   ├── apollo.js            👤 LinkedIn enrichment
+│   │   │   ├── brasilapi.js         🏛️ Receita Federal
+│   │   │   ├── cnpja.js             📊 Regime tributário
+│   │   │   └── var_inference.js     📈 Modelo VAR
+│   │   ├── database/
+│   │   │   └── supabase.js          🗄️ DB + registerDataSource
+│   │   ├── validation/
+│   │   │   └── schemas.js           ✅ Zod schemas
+│   │   └── utils/
+│   │       └── logger.js            📝 Structured logging
+│   └── database/
+│       └── migrations/              🔄 SQL migrations
 ├── src/
-│   ├── scrapers/
-│   │   ├── base.py                  🔒 IMUTÁVEL (salvo ordem explícita)
-│   │   ├── apollo.py                🔒 IMUTÁVEL
-│   │   ├── brasil_api.py            🔒 IMUTÁVEL
-│   │   ├── perplexity.py            🔒 IMUTÁVEL
-│   │   ├── serper.py                🔒 IMUTÁVEL
-│   │   ├── tavily.py                🔒 IMUTÁVEL
-│   │   └── web_scraper.py           🔒 IMUTÁVEL
-│   ├── database/                    ✅ Modificável (com ordem)
-│   ├── models/                      ✅ Modificável (com ordem)
-│   └── services/                    ✅ Modificável (com ordem)
-├── scripts/                         ✅ CRIAR automações aqui
-│   ├── deploy_to_digitalocean.py    
-│   ├── setup_cron_jobs.py
-│   └── setup_monitoring.py
-├── tests/                           ✅ SEMPRE criar testes
-└── .github/workflows/               ✅ CI/CD automático
-    └── deploy.yml
+│   └── scrapers/
+│       └── base.py                  🔒 IMUTÁVEL
+├── api/
+│   ├── main.py                      🐍 FastAPI
+│   └── auth.py                      🔐 JWT + Pydantic
+├── static/
+│   └── dashboard.html               🖥️ Frontend
+├── scripts/
+│   └── apply_migration_*.py         🔧 Migration scripts
+├── tests/                           🧪 Pytest
+└── .github/workflows/
+    └── ci.yml                       🚀 CI/CD
 ```
 
 ---
 
-## 🚫 ANTI-PADRÕES PROIBIDOS
-
-### 1. "Melhorias" Não Solicitadas
-
-```python
-# ❌ NUNCA fazer:
-# "Vou aproveitar e melhorar o logging aqui"
-# "Vou refatorar esta função para ficar mais limpa"
-# "Vou adicionar type hints para melhorar"
-
-# ✅ SEMPRE:
-# Executar APENAS o solicitado
-# Se vir oportunidade de melhoria → IGNORAR
-# Se código estiver ruim → IGNORAR (a não ser que seja pedido para corrigir)
-```
-
-### 2. Soluções Manuais
+## 🔄 FLUXO DE BUSCA (FALLBACK)
 
 ```
-❌ "Execute este comando no servidor"
-❌ "Configure manualmente o CRON"
-❌ "Faça SSH e edite o arquivo X"
-❌ "Depois você adiciona..."
-
-✅ "Criando script de automação..."
-✅ "Configurando via DigitalOcean API..."
-✅ "Deploy automático configurado"
-✅ "Monitoramento automático ativo"
-```
-
-### 3. Documentação Excessiva
-
-```
-❌ README de 500 linhas
-❌ Explicações de "como funciona"
-❌ Tutoriais passo-a-passo
-❌ Diagramas de arquitetura
-
-✅ Código auto-documentado
-✅ Docstrings de 1 linha
-✅ Scripts de automação
-✅ Testes automáticos
-```
-
-### 4. Perguntas Desnecessárias
-
-```
-❌ "Você quer que eu adicione testes?"  (SIM, sempre)
-❌ "Devo criar documentação?"           (NÃO, nunca)
-❌ "Prefere fazer X ou Y?"              (Decida e execute)
-❌ "Como você quer que eu faça?"        (Automação total)
-
-✅ Apenas executar com automação máxima
-✅ Perguntar APENAS se houver ambiguidade REAL
+1. Serper (Google)
+   ↓ não encontrou?
+2. Perplexity AI
+   ↓ não encontrou?
+3. Serper (nome exato)
+   ↓ não encontrou?
+4. Retorna vazio + sources_tried
 ```
 
 ---
 
-## ✅ WORKFLOW OBRIGATÓRIO
+## 🗄️ BANCO DE DADOS (SUPABASE)
 
-### Para QUALQUER mudança de código:
-
-```
-1. CONFIRMAÇÃO
-   ├─ Entendi: [listar ações]
-   ├─ Arquivos: [listar modificações]
-   └─ Prosseguir? (aguardar SIM)
-
-2. EXECUÇÃO (somente após SIM)
-   ├─ Modificar APENAS arquivos listados
-   ├─ Modificar APENAS linhas mencionadas
-   └─ NÃO tocar em nada mais
-
-3. TESTES AUTOMÁTICOS
-   ├─ Criar testes (se código novo)
-   ├─ Rodar todos os testes
-   └─ FALHOU? → Reverter tudo
-
-4. AUTOMAÇÃO
-   ├─ Criar scripts de deploy
-   ├─ Configurar CRON via API
-   └─ Setup monitoramento via API
-
-5. COMMIT
-   ├─ Git add (APENAS arquivos modificados)
-   ├─ Git commit (mensagem descritiva)
-   └─ Git push (CI/CD automático)
-```
+**Tabelas principais:**
+- `dim_empresas` - Dados cadastrais
+- `dim_pessoas` - Sócios/fundadores
+- `fato_regime_tributario` - Histórico de regimes
+- `fato_transacao_empresas` - Relação pessoa-empresa
+- `fato_inferencia_limites` - Análise VAR
+- `fontes_dados` - Compliance (ISO 27001/27701)
 
 ---
 
-## 🔐 CREDENCIAIS NECESSÁRIAS
-
-**Claude PRECISA ter acesso a:**
+## 🚀 COMANDOS
 
 ```bash
-# DigitalOcean
-DIGITALOCEAN_TOKEN=dop_v1_xxxxx
-DROPLET_ID=xxxxx
-
-# n8n
-N8N_URL=http://161.35.128.174:5678
-N8N_WEBHOOK_URL=http://161.35.128.174:5678/webhook/scraping-monitor
-
-# Supabase
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_KEY=xxxxx
-
-# GitHub (CI/CD)
-GITHUB_TOKEN=ghp_xxxxx
-```
-
-**Se NÃO tiver acesso:**
-```
-PARAR
-SOLICITAR credenciais
-NÃO prosseguir com soluções manuais
-```
-
----
-
-## 📊 MÉTRICAS DE SUCESSO
-
-**Este projeto é considerado BOM se:**
-
-- ✅ 0% de mudanças não solicitadas
-- ✅ 100% de automação (zero manual)
-- ✅ 100% de testes (todo código testado)
-- ✅ 0% de documentação desnecessária
-- ✅ Deploy automático funcionando
-- ✅ CRON via API configurado
-- ✅ Monitoramento automático ativo
-
-**Este projeto FALHA se:**
-
-- ❌ Código modificado sem ordem
-- ❌ Tarefa manual sugerida
-- ❌ Teste não criado
-- ❌ README extenso criado
-- ❌ "Melhorias" não pedidas
-- ❌ Deploy manual necessário
-
----
-
-## 🎯 PRINCÍPIOS IMUTÁVEIS
-
-```
-1. LITERAL     - Executar exatamente o pedido
-2. ZERO MANUAL - Tudo deve ser automatizado
-3. IMUTÁVEL    - base.py e scrapers existentes são sagrados
-4. TESTADO     - Todo código tem teste automático
-5. SUCINTO     - Sem documentação excessiva
-6. API-FIRST   - DigitalOcean API obrigatória
-7. CI/CD       - Deploy automático sempre
-```
-
----
-
-## 🚀 COMANDOS RÁPIDOS
-
-```bash
-# Deploy automático
-python scripts/deploy_to_digitalocean.py
-
-# Configurar CRON via API
-python scripts/setup_cron_jobs.py
-
-# Setup monitoramento
-python scripts/setup_monitoring.py
+# Deploy (via CI/CD)
+git add . && git commit -m "feat: ..." && git push
 
 # Rodar testes
 pytest tests/ -v
 
-# ❌ NUNCA fazer manualmente:
-ssh user@161.35.128.174
-crontab -e
-nano arquivo.py
+# Rodar backend local
+cd backend && npm run dev
+
+# Rodar Python API local
+uvicorn api.main:app --reload
 ```
 
 ---
 
 ## 📝 CHANGELOG
 
+**v3.0.0 (11/02/2026) - COMPLIANCE + VALIDATION**
+- ✅ Validação Zod em todos os endpoints Node.js
+- ✅ Rate limiter (100 req/min)
+- ✅ Logging estruturado (JSON)
+- ✅ Constantes (sem magic strings)
+- ✅ Tabela fontes_dados (compliance ISO 27001/27701)
+- ✅ Auto-registro de fontes no startup
+- ✅ Removida dependência de DigitalOcean API direta
+
 **v2.0.0 (08/02/2026) - ULTRA-STRICT**
 - ✅ Proibição absoluta de mudanças não solicitadas
-- ✅ Automação obrigatória via DigitalOcean API
 - ✅ Imutabilidade de base.py e scrapers existentes
 - ✅ Testes automáticos obrigatórios
-- ✅ Documentação mínima
 - ✅ CI/CD automático obrigatório
 
 ---
 
-**ESTE DOCUMENTO É IMUTÁVEL**  
-**VIOLAÇÕES SERÃO REJEITADAS**  
-**AUTOMAÇÃO É LEI**
+**ESTE DOCUMENTO É A FONTE DA VERDADE**
+**VIOLAÇÕES SERÃO REJEITADAS**
