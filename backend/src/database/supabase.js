@@ -302,6 +302,58 @@ export async function getCompanyFullData(empresa_id) {
 }
 
 /**
+ * Register data source for compliance (ISO 27001/27701)
+ * OBRIGATÓRIO: Todo scraping deve registrar fonte
+ */
+export async function registerDataSource(source) {
+  const { data: existing } = await supabase
+    .from('fontes_dados')
+    .select('id')
+    .eq('nome', source.nome)
+    .single();
+
+  if (existing) {
+    // Update last collection date
+    const { error } = await supabase
+      .from('fontes_dados')
+      .update({
+        data_ultima_atualizacao: new Date().toISOString()
+      })
+      .eq('id', existing.id);
+    if (error) console.error('[FONTE] Erro ao atualizar:', error.message);
+    return existing;
+  }
+
+  const { data, error } = await supabase
+    .from('fontes_dados')
+    .insert([{
+      nome: source.nome,
+      categoria: source.categoria || 'scraping',
+      fonte_primaria: source.fonte_primaria,
+      url: source.url,
+      documentacao_url: source.documentacao_url,
+      data_primeira_coleta: new Date().toISOString(),
+      periodicidade: source.periodicidade || 'sob_demanda',
+      formato: source.formato || 'JSON',
+      autenticacao_requerida: source.autenticacao_requerida || false,
+      api_key_necessaria: source.api_key_necessaria || false,
+      confiabilidade: source.confiabilidade || 'alta',
+      cobertura_temporal: source.cobertura_temporal,
+      observacoes: source.observacoes
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[FONTE] Erro ao registrar:', error.message);
+    return null;
+  }
+
+  console.log(`[FONTE] Registrada: ${source.nome}`);
+  return data;
+}
+
+/**
  * Update inference for a company
  */
 export async function updateInferenciaLimites(empresa_id, inferencia) {

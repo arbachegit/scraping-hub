@@ -4,10 +4,18 @@ import * as perplexity from '../services/perplexity.js';
 import * as brasilapi from '../services/brasilapi.js';
 import * as apollo from '../services/apollo.js';
 import * as cnpja from '../services/cnpja.js';
-import { supabase, insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites } from '../database/supabase.js';
+import { supabase, insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites, registerDataSource } from '../database/supabase.js';
 import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../services/var_inference.js';
+import { LINKEDIN_STATUS, DATA_SOURCES } from '../constants.js';
 
 const router = Router();
+
+// Register all data sources on startup (compliance)
+(async () => {
+  for (const [key, source] of Object.entries(DATA_SOURCES)) {
+    await registerDataSource(source);
+  }
+})();
 
 /**
  * POST /api/companies/search
@@ -208,14 +216,14 @@ router.post('/details', async (req, res) => {
     }
     // Mark as NAO_POSSUI if not found (important for analysis)
     if (!linkedin) {
-      linkedin = 'NAO_POSSUI';
+      linkedin = LINKEDIN_STATUS.NAO_POSSUI;
     }
 
     // ========================================
     // 5. EXTRAIR CONTATOS DO WEBSITE
     // ========================================
     let websiteContacts = { emails: [], phones: [], social: {} };
-    if (website && website !== 'NAO_POSSUI') {
+    if (website && website !== LINKEDIN_STATUS.NAO_POSSUI) {
       console.log(`[SERPER] Extraindo contatos de: ${website}`);
       websiteContacts = await serper.extractContactsFromWebsite(website);
     }
@@ -365,7 +373,7 @@ router.post('/socios', async (req, res) => {
       if (apolloPerson) {
         enrichedSocios.push({
           ...socio,
-          linkedin: apolloPerson.linkedin || 'NAO_POSSUI',
+          linkedin: apolloPerson.linkedin || LINKEDIN_STATUS.NAO_POSSUI,
           email: apolloPerson.email,
           foto_url: apolloPerson.photo_url,
           headline: apolloPerson.headline,
@@ -377,7 +385,7 @@ router.post('/socios', async (req, res) => {
         const linkedinUrl = await serper.findPersonLinkedin(socio.nome, searchName);
         enrichedSocios.push({
           ...socio,
-          linkedin: linkedinUrl || 'NAO_POSSUI',
+          linkedin: linkedinUrl || LINKEDIN_STATUS.NAO_POSSUI,
           email: null,
           foto_url: null,
           headline: null,
@@ -522,7 +530,7 @@ router.post('/approve', async (req, res) => {
 
     if (socios && socios.length > 0) {
       for (const socio of socios) {
-        const linkedinValue = socio.linkedin === 'NAO_POSSUI' ? null : socio.linkedin;
+        const linkedinValue = socio.linkedin === LINKEDIN_STATUS.NAO_POSSUI ? null : socio.linkedin;
 
         // Insert person (dim_pessoas)
         const person = await insertPerson({
