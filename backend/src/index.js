@@ -9,14 +9,27 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import companiesRouter from './routes/companies.js';
+import { logger, requestLogger } from './utils/logger.js';
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
 
+// Rate limiter - 100 requests per minute per IP
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,
+  message: { error: 'Muitas requisições. Tente novamente em 1 minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
+app.use('/companies', limiter);
 
 // Routes (nginx strips /api/ prefix, so use /companies directly)
 app.use('/companies', companiesRouter);
@@ -73,7 +86,10 @@ app.get('/test-apollo', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-  console.log(`Health: http://localhost:${PORT}/health`);
-  console.log(`Apollo API Key: ${process.env.APOLLO_API_KEY ? 'configured' : 'NOT configured'}`);
+  logger.info('Backend started', {
+    port: PORT,
+    apollo_configured: !!process.env.APOLLO_API_KEY,
+    cnpja_configured: !!process.env.CNPJA_API_KEY,
+    perplexity_configured: !!process.env.PERPLEXITY_API_KEY
+  });
 });

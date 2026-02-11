@@ -7,6 +7,8 @@ import * as cnpja from '../services/cnpja.js';
 import { supabase, insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites, registerDataSource } from '../database/supabase.js';
 import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../services/var_inference.js';
 import { LINKEDIN_STATUS, DATA_SOURCES } from '../constants.js';
+import { searchCompanySchema, detailsCompanySchema, sociosSchema, approveCompanySchema, recalculateSchema, validateBody } from '../validation/schemas.js';
+import logger from '../utils/logger.js';
 
 const router = Router();
 
@@ -15,16 +17,18 @@ const router = Router();
   for (const [key, source] of Object.entries(DATA_SOURCES)) {
     await registerDataSource(source);
   }
+  logger.info('Data sources registered for compliance');
 })();
 
 /**
  * POST /api/companies/search
  * Search for company by name and optional city, return candidates with CNPJ
  */
-router.post('/search', async (req, res) => {
+router.post('/search', validateBody(searchCompanySchema), async (req, res) => {
   try {
     const { nome, cidade } = req.body;
 
+    // Validation already done by middleware, but keep for backwards compatibility
     if (!nome || nome.trim().length < 2) {
       return res.status(400).json({
         error: 'Nome da empresa e obrigatorio (minimo 2 caracteres)'
@@ -144,18 +148,10 @@ router.post('/search', async (req, res) => {
  * Sources: BrasilAPI (official) + Apollo + Serper (enrichment)
  * Returns: empresa (company data) separately from socios (people data)
  */
-router.post('/details', async (req, res) => {
+router.post('/details', validateBody(detailsCompanySchema), async (req, res) => {
   try {
     const { cnpj } = req.body;
-
-    if (!cnpj) {
-      return res.status(400).json({ error: 'CNPJ e obrigatorio' });
-    }
-
-    const cleanCnpj = cnpj.replace(/[^\d]/g, '');
-    if (cleanCnpj.length !== 14) {
-      return res.status(400).json({ error: 'CNPJ invalido' });
-    }
+    const cleanCnpj = cnpj; // Already cleaned by Zod schema
 
     // Check if already exists
     const existing = await findCompanyByCnpj(cleanCnpj);
@@ -342,13 +338,9 @@ router.post('/details', async (req, res) => {
  * POST /api/companies/socios
  * Enrich socios with LinkedIn data (called on demand via "Ver Sócios" button)
  */
-router.post('/socios', async (req, res) => {
+router.post('/socios', validateBody(sociosSchema), async (req, res) => {
   try {
     const { socios, empresa_nome } = req.body;
-
-    if (!socios || !Array.isArray(socios)) {
-      return res.status(400).json({ error: 'Lista de socios e obrigatoria' });
-    }
 
     // Clean company name for searches
     let searchName = empresa_nome || '';
@@ -360,7 +352,7 @@ router.post('/socios', async (req, res) => {
       searchName = searchName.split(/\s+/)[0];
     }
 
-    console.log(`[SOCIOS] Enriquecendo ${socios.length} socios de ${searchName}`);
+    logger.info('Enriching socios', { count: socios.length, empresa: searchName });
 
     const enrichedSocios = [];
 
@@ -416,19 +408,12 @@ router.post('/socios', async (req, res) => {
  * Approve and insert company + socios into database
  * Empresa and Socios are saved separately
  */
-router.post('/approve', async (req, res) => {
+router.post('/approve', validateBody(approveCompanySchema), async (req, res) => {
   try {
     const { empresa, socios, aprovado_por } = req.body;
-
-    if (!empresa || !empresa.cnpj) {
-      return res.status(400).json({ error: 'Dados da empresa sao obrigatorios' });
-    }
-
-    if (!aprovado_por) {
-      return res.status(400).json({ error: 'Aprovador e obrigatorio' });
-    }
-
     const cleanCnpj = empresa.cnpj.replace(/[^\d]/g, '');
+
+    logger.info('Approving company', { cnpj: cleanCnpj, aprovado_por });
 
     // Check if already exists
     const existing = await findCompanyByCnpj(cleanCnpj);
@@ -649,7 +634,7 @@ router.get('/:id/analysis', async (req, res) => {
  * POST /api/companies/:id/recalculate
  * Recalculate VAR inference with updated data
  */
-router.post('/:id/recalculate', async (req, res) => {
+router.post('/:id/recalculate', validateBody(recalculateSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { qtd_funcionarios, capital_social } = req.body;
