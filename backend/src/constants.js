@@ -84,6 +84,50 @@ export const DATA_SOURCES = {
     confiabilidade: 'alta',
     cobertura_temporal: '2015-presente',
     observacoes: 'Histórico de Simples Nacional e MEI'
+  },
+  GITHUB: {
+    nome: 'GitHub API',
+    categoria: 'competencias',
+    fonte_primaria: 'GitHub',
+    url: 'https://api.github.com',
+    documentacao_url: 'https://docs.github.com/en/rest',
+    formato: 'JSON',
+    api_key_necessaria: false,
+    confiabilidade: 'alta',
+    observacoes: 'Perfil técnico de desenvolvedores - repositórios, linguagens, contribuições'
+  },
+  GOOGLE_SCHOLAR: {
+    nome: 'Google Scholar (via Serper)',
+    categoria: 'competencias',
+    fonte_primaria: 'Google Scholar',
+    url: 'https://scholar.google.com',
+    documentacao_url: 'https://serper.dev/docs',
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'alta',
+    observacoes: 'Publicações acadêmicas, citações, h-index'
+  },
+  GOOGLE_NEWS: {
+    nome: 'Google News (via Serper)',
+    categoria: 'reputacional',
+    fonte_primaria: 'Google News',
+    url: 'https://news.google.com',
+    documentacao_url: 'https://serper.dev/docs',
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'media',
+    observacoes: 'Notícias e menções na mídia'
+  },
+  RECLAME_AQUI: {
+    nome: 'Reclame Aqui (via Serper)',
+    categoria: 'reputacional',
+    fonte_primaria: 'Reclame Aqui',
+    url: 'https://www.reclameaqui.com.br',
+    documentacao_url: null,
+    formato: 'HTML',
+    api_key_necessaria: false,
+    confiabilidade: 'media',
+    observacoes: 'Reclamações de consumidores - busca por nome de pessoa/empresa'
   }
 };
 
