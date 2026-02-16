@@ -10,9 +10,10 @@ from typing import Any
 
 from mcp.types import TextContent, Tool
 
+from src.scrapers.apollo import ApolloClient
+
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
-from src.scrapers.apollo import ApolloClient
 
 
 class ApolloMCPServer(BaseMCPServer):

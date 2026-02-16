@@ -9,7 +9,8 @@ Tabela: raw.geo_municipios
 from typing import Any
 
 from mcp.types import TextContent, Tool
-from supabase import create_client, Client
+
+from supabase import Client, create_client
 
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig

@@ -3,7 +3,6 @@ Configurações compartilhadas para MCP Servers
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from config.settings import settings
 

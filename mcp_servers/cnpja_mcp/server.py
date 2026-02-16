@@ -149,10 +149,7 @@ class CNPJaMCPServer(BaseMCPServer):
             elif simples.get("simples"):
                 # Verificar se é ME ou EPP baseado no porte
                 porte = company.get("size", {}).get("text", "")
-                if "MICRO" in porte.upper():
-                    regime = "SIMPLES_ME"
-                else:
-                    regime = "SIMPLES_EPP"
+                regime = "SIMPLES_ME" if "MICRO" in porte.upper() else "SIMPLES_EPP"
 
             return self._success_response(
                 data={

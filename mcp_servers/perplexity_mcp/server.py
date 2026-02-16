@@ -10,9 +10,10 @@ from typing import Any
 
 from mcp.types import TextContent, Tool
 
+from src.scrapers.perplexity import PerplexityClient
+
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
-from src.scrapers.perplexity import PerplexityClient
 
 
 class PerplexityMCPServer(BaseMCPServer):

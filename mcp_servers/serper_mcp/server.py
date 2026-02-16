@@ -9,9 +9,10 @@ from typing import Any
 
 from mcp.types import TextContent, Tool
 
+from src.scrapers.serper import SerperClient
+
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
-from src.scrapers.serper import SerperClient
 
 
 class SerperMCPServer(BaseMCPServer):
