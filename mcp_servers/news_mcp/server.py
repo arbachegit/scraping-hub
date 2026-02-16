@@ -18,7 +18,6 @@ from mcp.types import TextContent, Tool
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
 
-
 # Fontes confiáveis para incluir nas buscas
 TRUSTED_SOURCES = {
     "agencias_checagem": [
