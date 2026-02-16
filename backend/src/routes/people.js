@@ -15,7 +15,7 @@ router.get('/list', async (req, res) => {
 
     const { data, error, count } = await supabase
       .from('dim_pessoas')
-      .select('id, nome_completo, email, linkedin_url, foto_url, cargo_atual, empresa_atual_nome, cidade, estado', { count: 'exact' })
+      .select('id, nome_completo, email, linkedin_url, foto_url, cpf, faixa_etaria, pais_origem', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -141,9 +141,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
           email,
           linkedin_url,
           foto_url,
-          cargo_atual,
-          cidade,
-          estado
+          cpf
         )
       `)
       .eq('empresa_id', empresaId)
@@ -179,7 +177,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
  */
 router.post('/search', async (req, res) => {
   try {
-    const { nome, empresa } = req.body;
+    const { nome } = req.body;
 
     if (!nome || nome.trim().length < 2) {
       return res.status(400).json({
@@ -188,15 +186,12 @@ router.post('/search', async (req, res) => {
       });
     }
 
+    // Search in dim_pessoas - empresa filter via fato_transacao_empresas join
     let query = supabase
       .from('dim_pessoas')
-      .select('id, nome_completo, email, linkedin_url, foto_url, cargo_atual, empresa_atual_nome')
+      .select('id, nome_completo, email, linkedin_url, foto_url, cpf')
       .ilike('nome_completo', `%${nome.trim()}%`)
       .limit(20);
-
-    if (empresa) {
-      query = query.ilike('empresa_atual_nome', `%${empresa.trim()}%`);
-    }
 
     const { data, error } = await query;
 
