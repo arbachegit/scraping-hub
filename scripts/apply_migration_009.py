@@ -23,8 +23,9 @@ from pathlib import Path
 # Adicionar diretório raiz ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import settings
 from supabase import create_client
+
+from config.settings import settings
 
 
 def apply_migration(dry_run: bool = False) -> None:
