@@ -1,0 +1,38 @@
+name: Run Person Enrichment
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of people to enrich'
+        required: true
+        default: '20'
+        type: string
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run enrichment on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /opt/iconsai-scraping
+
+            echo "=== Running Person Enrichment ==="
+            echo "Limit: ${{ github.event.inputs.limit }}"
+
+            # Activate venv and run enrichment
+            source venv/bin/activate
+
+            # Export env vars from .env
+            export $(grep -v '^#' .env | xargs)
+
+            # Run the enrichment script
+            python scripts/run_person_enrichment.py --limit ${{ github.event.inputs.limit }}
+
+            echo "=== Enrichment Complete ==="
