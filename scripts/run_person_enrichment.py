@@ -8,6 +8,7 @@ Uso:
 Exemplo:
     python scripts/run_person_enrichment.py --limit 20
 """
+# ruff: noqa: E402
 
 import asyncio
 import os
@@ -17,17 +18,14 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dotenv import load_dotenv
-from supabase import create_client
+from dotenv import load_dotenv  # noqa: E402
+from supabase import create_client  # noqa: E402
 
 # Load environment variables
 load_dotenv()
 
 # Import after path setup
-from backend.src.services.person_enrichment import (
-    PersonEnrichmentService,
-    enrich_all_pending_persons,
-)
+from backend.src.services.person_enrichment import PersonEnrichmentService  # noqa: E402
 
 
 async def main(limit: int = 20):
@@ -46,7 +44,7 @@ async def main(limit: int = 20):
         print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY are required")
         return
 
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  - Supabase: {supabase_url[:30]}...")
     print(f"  - Apollo API: {'Configured' if apollo_api_key else 'NOT CONFIGURED'}")
     print(f"  - Perplexity API: {'Configured' if perplexity_api_key else 'NOT CONFIGURED'}")
@@ -130,7 +128,7 @@ async def main(limit: int = 20):
                     print(f"               OK ({source}) - sem LinkedIn")
             else:
                 stats["failed"] += 1
-                print(f"               FAILED - not found")
+                print("               FAILED - not found")
 
         except Exception as e:
             stats["failed"] += 1
