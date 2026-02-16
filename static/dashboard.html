@@ -1090,6 +1090,317 @@
         background: rgba(0, 0, 0, 0.2);
         border-radius: 0.5rem;
       }
+
+      /* People & News Modal Styles */
+      .btn-back {
+        background: rgba(148, 163, 184, 0.1);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+      }
+
+      .btn-back:hover {
+        background: rgba(148, 163, 184, 0.2);
+        color: #fff;
+      }
+
+      .results-header {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+
+      .result-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .result-card:hover {
+        background: rgba(6, 182, 212, 0.05);
+        border-color: rgba(6, 182, 212, 0.2);
+        transform: translateY(-2px);
+      }
+
+      .result-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .result-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #fff;
+        font-size: 1rem;
+      }
+
+      .result-info strong {
+        color: #fff;
+        display: block;
+        font-size: 0.95rem;
+      }
+
+      .result-meta {
+        color: #64748b;
+        font-size: 0.8rem;
+      }
+
+      .result-detail {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+      }
+
+      .result-detail .label {
+        color: #64748b;
+      }
+
+      .linkedin-link {
+        color: #0077b5;
+        text-decoration: none;
+        font-size: 0.85rem;
+      }
+
+      .linkedin-link:hover {
+        text-decoration: underline;
+      }
+
+      .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .detail-avatar {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: #fff;
+        font-size: 1.5rem;
+      }
+
+      .detail-header h3 {
+        color: #fff;
+        font-size: 1.25rem;
+        margin: 0;
+      }
+
+      .detail-meta {
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .detail-grid {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .detail-item {
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+
+      .detail-item .label {
+        color: #64748b;
+        margin-right: 0.5rem;
+      }
+
+      .experiences-list, .companies-list {
+        margin-top: 0.75rem;
+      }
+
+      .experience-item, .company-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .experience-item strong, .company-item strong {
+        color: #fff;
+      }
+
+      .experience-item span, .company-item span {
+        color: #94a3b8;
+      }
+
+      .exp-period, .company-location {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+      }
+
+      /* News specific styles */
+      .news-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .news-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .news-card:hover {
+        background: rgba(16, 185, 129, 0.05);
+        border-color: rgba(16, 185, 129, 0.2);
+      }
+
+      .news-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .news-title {
+        color: #fff;
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+
+      .news-source {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+
+      .news-summary {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin: 0;
+      }
+
+      .news-date {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        display: block;
+      }
+
+      .news-detail-header h3 {
+        color: #fff;
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .news-detail-meta {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .news-detail-meta .source {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.85rem;
+      }
+
+      .news-detail-meta .date {
+        color: #64748b;
+        font-size: 0.85rem;
+      }
+
+      .news-detail-summary, .news-detail-content {
+        color: #94a3b8;
+        line-height: 1.7;
+        margin-bottom: 1.5rem;
+      }
+
+      .news-detail-summary p, .news-detail-content p {
+        margin: 0;
+      }
+
+      .news-detail-link {
+        margin-top: 1.5rem;
+      }
+
+      .btn-link {
+        display: inline-block;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #60a5fa;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+      }
+
+      .btn-link:hover {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: rgba(59, 130, 246, 0.5);
+      }
+
+      .loading {
+        text-align: center;
+        color: #64748b;
+        padding: 2rem;
+      }
+
+      .error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+      }
+
+      .no-results {
+        text-align: center;
+        color: #64748b;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 0.5rem;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -1138,7 +1449,7 @@
           <span class="card-badge ready">Disponivel</span>
         </div>
 
-        <div class="card">
+        <div class="card active" onclick="openPeopleModal()">
           <div class="card-header">
             <div class="card-icon orange">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1153,7 +1464,7 @@
             <h3>Pessoas</h3>
           </div>
           <p>Pesquise perfis profissionais e analise talentos.</p>
-          <span class="card-badge">Em desenvolvimento</span>
+          <span class="card-badge ready">Disponivel</span>
         </div>
 
         <div class="card">
@@ -1174,7 +1485,7 @@
           <span class="card-badge">Em desenvolvimento</span>
         </div>
 
-        <div class="card">
+        <div class="card active" onclick="openNewsModal()">
           <div class="card-header">
             <div class="card-icon green">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1189,7 +1500,7 @@
             <h3>Noticias</h3>
           </div>
           <p>Monitore noticias e cenario economico.</p>
-          <span class="card-badge">Em desenvolvimento</span>
+          <span class="card-badge ready">Disponivel</span>
         </div>
 
         <div class="card">
@@ -1336,6 +1647,79 @@
 
         <div id="detailsView" style="display: none">
           <div id="companyDetails"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Pessoas -->
+    <div class="modal" id="peopleModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Buscar Pessoas</h2>
+          <button class="modal-close" onclick="closePeopleModal()">
+            &times;
+          </button>
+        </div>
+
+        <div id="peopleSearchView">
+          <div class="search-box" style="flex-wrap: wrap">
+            <input
+              type="text"
+              id="personName"
+              placeholder="Nome da pessoa..."
+              style="flex: 2; min-width: 200px"
+              onkeypress="if (event.key === 'Enter') searchPeople();"
+            />
+            <button class="btn-search" onclick="searchPeople()" id="btnSearchPeople">
+              Buscar
+            </button>
+            <button class="btn-search" onclick="listAllPeople()" style="background: #10b981;">
+              Listar Todos
+            </button>
+          </div>
+          <div id="peopleResults"></div>
+        </div>
+
+        <div id="personDetailsView" style="display: none">
+          <button class="btn-back" onclick="backToPeopleSearch()">← Voltar</button>
+          <div id="personDetails"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Noticias -->
+    <div class="modal" id="newsModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Noticias</h2>
+          <button class="modal-close" onclick="closeNewsModal()">
+            &times;
+          </button>
+        </div>
+
+        <div id="newsSearchView">
+          <div class="search-box" style="flex-wrap: wrap">
+            <input
+              type="text"
+              id="newsQuery"
+              placeholder="Buscar noticias..."
+              style="flex: 2; min-width: 200px"
+              onkeypress="if (event.key === 'Enter') searchNews();"
+            />
+            <button class="btn-search" onclick="searchNews()" id="btnSearchNews">
+              Buscar
+            </button>
+            <button class="btn-search" onclick="listAllNews()" style="background: #10b981;">
+              Listar Todas
+            </button>
+          </div>
+          <div id="newsSourcesInfo" style="margin: 1rem 0; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.5rem; font-size: 0.875rem; color: #10b981;"></div>
+          <div id="newsResults"></div>
+        </div>
+
+        <div id="newsDetailsView" style="display: none">
+          <button class="btn-back" onclick="backToNewsSearch()">← Voltar</button>
+          <div id="newsDetails"></div>
         </div>
       </div>
     </div>
@@ -1761,6 +2145,366 @@
       // Close modal on ESC
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") closeCompanyModal();
+      });
+
+      // ============================================
+      // PEOPLE MODAL FUNCTIONS
+      // ============================================
+      let currentPerson = null;
+      let peopleList = [];
+
+      function openPeopleModal() {
+        document.getElementById("peopleModal").classList.add("show");
+        document.getElementById("personName").focus();
+        // Load initial list
+        listAllPeople();
+      }
+
+      function closePeopleModal() {
+        document.getElementById("peopleModal").classList.remove("show");
+        document.getElementById("peopleResults").innerHTML = "";
+        document.getElementById("personName").value = "";
+        document.getElementById("peopleSearchView").style.display = "block";
+        document.getElementById("personDetailsView").style.display = "none";
+        currentPerson = null;
+      }
+
+      function backToPeopleSearch() {
+        document.getElementById("peopleSearchView").style.display = "block";
+        document.getElementById("personDetailsView").style.display = "none";
+      }
+
+      async function listAllPeople() {
+        const resultsDiv = document.getElementById("peopleResults");
+        resultsDiv.innerHTML = '<div class="loading">Carregando pessoas...</div>';
+
+        try {
+          const r = await fetch("/api/people/list?limit=50");
+          const data = await r.json();
+
+          if (!data.success) {
+            resultsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          if (data.count === 0) {
+            resultsDiv.innerHTML = '<div class="no-results">Nenhuma pessoa encontrada na base.</div>';
+            return;
+          }
+
+          peopleList = data.people;
+          renderPeopleList(data.people, data.count);
+        } catch (e) {
+          resultsDiv.innerHTML = `<div class="error">Erro ao carregar: ${e.message}</div>`;
+        }
+      }
+
+      async function searchPeople() {
+        const nome = document.getElementById("personName").value.trim();
+        if (!nome) {
+          listAllPeople();
+          return;
+        }
+
+        const resultsDiv = document.getElementById("peopleResults");
+        resultsDiv.innerHTML = '<div class="loading">Buscando...</div>';
+
+        try {
+          const r = await fetch("/api/people/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome })
+          });
+          const data = await r.json();
+
+          if (!data.success) {
+            resultsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          if (data.count === 0) {
+            resultsDiv.innerHTML = `<div class="no-results">Nenhuma pessoa encontrada com "${nome}".</div>`;
+            return;
+          }
+
+          peopleList = data.people;
+          renderPeopleList(data.people, data.count);
+        } catch (e) {
+          resultsDiv.innerHTML = `<div class="error">Erro ao buscar: ${e.message}</div>`;
+        }
+      }
+
+      function renderPeopleList(people, total) {
+        const resultsDiv = document.getElementById("peopleResults");
+        let html = `<div class="results-header"><strong>${total}</strong> pessoa(s) encontrada(s)</div>`;
+        html += '<div class="results-grid">';
+
+        people.forEach(p => {
+          const nome = p.nome_completo || p.nome || 'Nome não disponível';
+          const faixa = p.faixa_etaria || '';
+          const pais = p.pais || '';
+          const linkedin = p.linkedin_url && p.linkedin_url !== 'inexistente' ? p.linkedin_url : null;
+
+          html += `
+            <div class="result-card" onclick="showPersonDetails('${p.id}')">
+              <div class="result-card-header">
+                <div class="result-avatar">${nome.charAt(0).toUpperCase()}</div>
+                <div class="result-info">
+                  <strong>${nome}</strong>
+                  ${faixa ? `<span class="result-meta">${faixa}</span>` : ''}
+                </div>
+              </div>
+              ${pais ? `<div class="result-detail"><span class="label">País:</span> ${pais}</div>` : ''}
+              ${linkedin ? `<div class="result-detail"><a href="${linkedin}" target="_blank" class="linkedin-link">Ver LinkedIn</a></div>` : ''}
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+      }
+
+      async function showPersonDetails(personId) {
+        document.getElementById("peopleSearchView").style.display = "none";
+        document.getElementById("personDetailsView").style.display = "block";
+        const detailsDiv = document.getElementById("personDetails");
+        detailsDiv.innerHTML = '<div class="loading">Carregando detalhes...</div>';
+
+        try {
+          const r = await fetch(`/api/people/${personId}`);
+          const data = await r.json();
+
+          if (!data.success) {
+            detailsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          const p = data.pessoa;
+          const nome = p.nome_completo || p.nome || 'Nome não disponível';
+
+          let html = `
+            <div class="detail-header">
+              <div class="detail-avatar">${nome.charAt(0).toUpperCase()}</div>
+              <div>
+                <h3>${nome}</h3>
+                ${p.faixa_etaria ? `<span class="detail-meta">${p.faixa_etaria}</span>` : ''}
+              </div>
+            </div>
+            <div class="detail-grid">
+              ${p.email ? `<div class="detail-item"><span class="label">Email:</span> ${p.email}</div>` : ''}
+              ${p.pais ? `<div class="detail-item"><span class="label">País:</span> ${p.pais}</div>` : ''}
+              ${p.linkedin_url && p.linkedin_url !== 'inexistente' ? `<div class="detail-item"><a href="${p.linkedin_url}" target="_blank" class="linkedin-link">Ver LinkedIn</a></div>` : ''}
+            </div>
+          `;
+
+          // Show experiences if available
+          if (data.experiencias && data.experiencias.length > 0) {
+            html += '<h4 style="margin-top: 1.5rem; color: #94a3b8;">Experiências</h4><div class="experiences-list">';
+            data.experiencias.forEach(exp => {
+              html += `
+                <div class="experience-item">
+                  <strong>${exp.titulo || 'Cargo não informado'}</strong>
+                  ${exp.instituicao ? `<span> - ${exp.instituicao}</span>` : ''}
+                  ${exp.data_inicio ? `<div class="exp-period">${exp.data_inicio}${exp.data_fim ? ' - ' + exp.data_fim : ' - Atual'}</div>` : ''}
+                </div>
+              `;
+            });
+            html += '</div>';
+          }
+
+          // Show company relationships if available
+          if (data.empresas && data.empresas.length > 0) {
+            html += '<h4 style="margin-top: 1.5rem; color: #94a3b8;">Empresas Relacionadas</h4><div class="companies-list">';
+            data.empresas.forEach(emp => {
+              const empresa = emp.dim_empresas;
+              if (empresa) {
+                html += `
+                  <div class="company-item">
+                    <strong>${empresa.razao_social || empresa.nome_fantasia || 'Empresa'}</strong>
+                    ${emp.cargo ? `<span> - ${emp.cargo}</span>` : ''}
+                    ${empresa.cidade ? `<div class="company-location">${empresa.cidade}/${empresa.estado}</div>` : ''}
+                  </div>
+                `;
+              }
+            });
+            html += '</div>';
+          }
+
+          detailsDiv.innerHTML = html;
+        } catch (e) {
+          detailsDiv.innerHTML = `<div class="error">Erro ao carregar detalhes: ${e.message}</div>`;
+        }
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closePeopleModal();
+      });
+
+      // ============================================
+      // NEWS MODAL FUNCTIONS
+      // ============================================
+      let currentNews = null;
+      let newsList = [];
+
+      function openNewsModal() {
+        document.getElementById("newsModal").classList.add("show");
+        document.getElementById("newsQuery").focus();
+        // Load sources info and initial list
+        loadNewsSources();
+        listAllNews();
+      }
+
+      function closeNewsModal() {
+        document.getElementById("newsModal").classList.remove("show");
+        document.getElementById("newsResults").innerHTML = "";
+        document.getElementById("newsQuery").value = "";
+        document.getElementById("newsSearchView").style.display = "block";
+        document.getElementById("newsDetailsView").style.display = "none";
+        currentNews = null;
+      }
+
+      function backToNewsSearch() {
+        document.getElementById("newsSearchView").style.display = "block";
+        document.getElementById("newsDetailsView").style.display = "none";
+      }
+
+      async function loadNewsSources() {
+        try {
+          const r = await fetch("/api/news/sources/list");
+          const data = await r.json();
+
+          if (data.success && data.count > 0) {
+            document.getElementById("newsSourcesInfo").innerHTML =
+              `<strong>${data.count}</strong> fontes verificadas configuradas (Fact-checkers, Agências de notícias)`;
+          }
+        } catch (e) {
+          console.error("Error loading news sources:", e);
+        }
+      }
+
+      async function listAllNews() {
+        const resultsDiv = document.getElementById("newsResults");
+        resultsDiv.innerHTML = '<div class="loading">Carregando notícias...</div>';
+
+        try {
+          const r = await fetch("/api/news/list?limit=50");
+          const data = await r.json();
+
+          if (!data.success) {
+            resultsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          if (data.count === 0) {
+            resultsDiv.innerHTML = '<div class="no-results">Nenhuma notícia encontrada na base. Execute o scraping para coletar notícias.</div>';
+            return;
+          }
+
+          newsList = data.news;
+          renderNewsList(data.news, data.count);
+        } catch (e) {
+          resultsDiv.innerHTML = `<div class="error">Erro ao carregar: ${e.message}</div>`;
+        }
+      }
+
+      async function searchNews() {
+        const query = document.getElementById("newsQuery").value.trim();
+        if (!query) {
+          listAllNews();
+          return;
+        }
+
+        const resultsDiv = document.getElementById("newsResults");
+        resultsDiv.innerHTML = '<div class="loading">Buscando...</div>';
+
+        try {
+          const r = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`);
+          const data = await r.json();
+
+          if (!data.success) {
+            resultsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          if (data.count === 0) {
+            resultsDiv.innerHTML = `<div class="no-results">Nenhuma notícia encontrada com "${query}".</div>`;
+            return;
+          }
+
+          newsList = data.news;
+          renderNewsList(data.news, data.count);
+        } catch (e) {
+          resultsDiv.innerHTML = `<div class="error">Erro ao buscar: ${e.message}</div>`;
+        }
+      }
+
+      function renderNewsList(news, total) {
+        const resultsDiv = document.getElementById("newsResults");
+        let html = `<div class="results-header"><strong>${total}</strong> notícia(s) encontrada(s)</div>`;
+        html += '<div class="news-list">';
+
+        news.forEach(n => {
+          const titulo = n.titulo || 'Sem título';
+          const resumo = n.resumo ? n.resumo.substring(0, 150) + '...' : '';
+          const fonte = n.fonte_nome || n.fonte || '';
+          const data = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString('pt-BR') : '';
+
+          html += `
+            <div class="news-card" onclick="showNewsDetails('${n.id}')">
+              <div class="news-header">
+                <strong class="news-title">${titulo}</strong>
+                ${fonte ? `<span class="news-source">${fonte}</span>` : ''}
+              </div>
+              ${resumo ? `<p class="news-summary">${resumo}</p>` : ''}
+              ${data ? `<span class="news-date">${data}</span>` : ''}
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+      }
+
+      async function showNewsDetails(newsId) {
+        document.getElementById("newsSearchView").style.display = "none";
+        document.getElementById("newsDetailsView").style.display = "block";
+        const detailsDiv = document.getElementById("newsDetails");
+        detailsDiv.innerHTML = '<div class="loading">Carregando detalhes...</div>';
+
+        try {
+          const r = await fetch(`/api/news/${newsId}`);
+          const data = await r.json();
+
+          if (!data.success) {
+            detailsDiv.innerHTML = `<div class="error">Erro: ${data.error}</div>`;
+            return;
+          }
+
+          const n = data.news;
+          const titulo = n.titulo || 'Sem título';
+          const data_pub = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString('pt-BR') : '';
+
+          let html = `
+            <div class="news-detail-header">
+              <h3>${titulo}</h3>
+              <div class="news-detail-meta">
+                ${n.fonte_nome ? `<span class="source">${n.fonte_nome}</span>` : ''}
+                ${data_pub ? `<span class="date">${data_pub}</span>` : ''}
+              </div>
+            </div>
+            ${n.resumo ? `<div class="news-detail-summary"><p>${n.resumo}</p></div>` : ''}
+            ${n.conteudo ? `<div class="news-detail-content"><p>${n.conteudo}</p></div>` : ''}
+            ${n.url ? `<div class="news-detail-link"><a href="${n.url}" target="_blank" class="btn-link">Ver notícia original</a></div>` : ''}
+          `;
+
+          detailsDiv.innerHTML = html;
+        } catch (e) {
+          detailsDiv.innerHTML = `<div class="error">Erro ao carregar detalhes: ${e.message}</div>`;
+        }
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeNewsModal();
       });
 
       // ============================================
