@@ -8,9 +8,11 @@ Fluxo:
 3. Salva em fato_eventos_pessoa
 """
 
+from __future__ import annotations
+
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 import structlog
