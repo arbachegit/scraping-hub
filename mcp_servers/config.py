@@ -38,6 +38,10 @@ class MCPConfig:
     supabase_url: str = settings.supabase_url
     supabase_key: str = settings.supabase_service_key
 
+    # Supabase Fiscal Brasil (iconsai-fiscal)
+    fiscal_supabase_url: str = settings.fiscal_supabase_url
+    fiscal_supabase_key: str = settings.fiscal_supabase_key
+
     @classmethod
     def from_env(cls) -> "MCPConfig":
         """Cria configuração a partir das variáveis de ambiente"""
@@ -53,4 +57,5 @@ class MCPConfig:
             "perplexity": bool(self.perplexity_api_key),
             "brasil_data_hub": bool(self.brasil_data_hub_url and self.brasil_data_hub_key),
             "supabase": bool(self.supabase_url and self.supabase_key),
+            "fiscal_supabase": bool(self.fiscal_supabase_url and self.fiscal_supabase_key),
         }

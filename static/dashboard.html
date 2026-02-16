@@ -821,12 +821,12 @@
       /* Chat Window */
       .ai-chat-window {
         position: fixed;
-        bottom: 7rem;
+        bottom: 6rem;
         right: 2rem;
-        width: 520px;
-        max-width: calc(100vw - 2rem);
-        height: 680px;
-        max-height: calc(100vh - 10rem);
+        width: 1000px;
+        max-width: calc(100vw - 4rem);
+        height: 500px;
+        max-height: calc(100vh - 8rem);
         background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
         border: 1px solid rgba(59, 130, 246, 0.3);
         border-radius: 1rem;
@@ -1826,20 +1826,27 @@
         aiState = "greeting";
         setTimeout(() => {
           addAiMessage(
-            "Ola! Eu sou o <strong>Atlas</strong>, seu assistente de inteligencia empresarial. Estou aqui para ajuda-lo a explorar os dados das empresas cadastradas.",
+            "Ola! Eu sou o <strong>Atlas</strong>, seu assistente de inteligencia empresarial. Estou aqui para ajuda-lo a explorar dados de <strong>empresas</strong>, <strong>pessoas</strong> e <strong>noticias</strong>.",
           );
           setTimeout(() => {
-            addAiMessage(
-              "Gostaria que eu liste as empresas na base de dados?",
-              true,
-              [
-                { label: "Sim, listar empresas", action: "list_companies" },
-                { label: "Ver modelo VAR", action: "show_var" },
-              ],
-            );
-            aiState = "awaiting_list";
+            showMainMenu();
+            aiState = "awaiting_selection";
           }, 800);
         }, 500);
+      }
+
+      function showMainMenu() {
+        addAiMessage(
+          "O que gostaria de explorar?",
+          true,
+          [
+            { label: "Empresas", action: "list_companies" },
+            { label: "Pessoas", action: "list_people" },
+            { label: "Politicos", action: "list_politicians" },
+            { label: "Noticias", action: "list_news" },
+            { label: "Modelo VAR", action: "show_var" },
+          ],
+        );
       }
 
       async function handleAiOption(action, value) {
@@ -1866,6 +1873,36 @@
             break;
           case "back_to_list":
             await listAiCompanies();
+            break;
+          case "list_people":
+            addAiMessage("Listar pessoas", false);
+            await listAiPeople();
+            break;
+          case "select_person":
+            await selectAiPerson(value);
+            break;
+          case "show_company_people":
+            await showCompanyPeople();
+            break;
+          case "show_company_news":
+            await showCompanyNews();
+            break;
+          case "list_news":
+            addAiMessage("Listar notícias", false);
+            await listAiNews();
+            break;
+          case "select_news":
+            await selectAiNews(value);
+            break;
+          case "list_politicians":
+            addAiMessage("Listar politicos", false);
+            await listAiPoliticians();
+            break;
+          case "select_politician":
+            await selectAiPolitician(value);
+            break;
+          case "back_to_menu":
+            showMainMenu();
             break;
         }
       }
@@ -1969,13 +2006,10 @@
               "O que mais gostaria de saber sobre esta empresa?",
               true,
               [
+                { label: "Pessoas", action: "show_company_people" },
+                { label: "Noticias", action: "show_company_news" },
                 { label: "Regime Tributario", action: "show_regime" },
-                { label: "Crescimento Projetado", action: "show_growth" },
-                {
-                  label: "Outras empresas dos fundadores",
-                  action: "show_founders",
-                },
-                { label: "Voltar a lista", action: "back_to_list" },
+                { label: "Crescimento", action: "show_growth" },
               ],
             );
             aiState = "company_details";
@@ -2248,6 +2282,466 @@
         }
       }
 
+      // ============================================
+      // PESSOAS
+      // ============================================
+      let aiPeople = [];
+      let aiSelectedPerson = null;
+
+      async function listAiPeople() {
+        showAiTyping();
+
+        try {
+          const r = await fetch("/api/people/list?limit=20");
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage(
+              "Ainda nao temos pessoas cadastradas na base.",
+              true,
+              [{ label: "Voltar ao menu", action: "back_to_menu" }],
+            );
+            return;
+          }
+
+          aiPeople = data.people;
+
+          let html = `Encontrei <strong>${data.count}</strong> pessoa(s) na base:`;
+          data.people.slice(0, 10).forEach((p, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_person', '${p.id}')">
+                <div class="ai-company-name">${i + 1}. ${p.nome_completo}</div>
+                <div class="ai-company-cnpj">${p.cargo_atual || ""} ${p.empresa_atual_nome ? "@ " + p.empresa_atual_nome : ""}</div>
+              </div>
+            `;
+          });
+
+          addAiMessage(html);
+          setTimeout(() => {
+            addAiMessage("Clique em uma pessoa para ver detalhes.", true, [
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro ao buscar pessoas: " + e.message);
+        }
+      }
+
+      async function selectAiPerson(personId) {
+        const person = aiPeople.find((p) => p.id === personId);
+        if (!person) return;
+
+        aiSelectedPerson = person;
+        addAiMessage(`${person.nome_completo}`, false);
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/people/${personId}`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success) {
+            addAiMessage("Erro ao buscar dados da pessoa.");
+            return;
+          }
+
+          const p = data.pessoa;
+          const exp = data.experiencias || [];
+          const emp = data.empresas || [];
+
+          let html = `<strong>${p.nome_completo}</strong><br><br>`;
+          if (p.cargo_atual) html += `Cargo: ${p.cargo_atual}<br>`;
+          if (p.empresa_atual_nome) html += `Empresa: ${p.empresa_atual_nome}<br>`;
+          if (p.email) html += `Email: ${p.email}<br>`;
+          if (p.linkedin_url && p.linkedin_url !== "inexistente") {
+            html += `LinkedIn: <a href="${p.linkedin_url}" target="_blank">Ver perfil</a><br>`;
+          }
+          if (p.cidade) html += `Local: ${p.cidade}/${p.estado || ""}<br>`;
+
+          if (exp.length > 0) {
+            html += `<br><strong>Experiencias (${exp.length}):</strong><br>`;
+            exp.slice(0, 5).forEach((e) => {
+              html += `- ${e.titulo || "Cargo"} @ ${e.instituicao || "Empresa"}`;
+              if (e.atual) html += " (atual)";
+              html += `<br>`;
+            });
+          }
+
+          if (emp.length > 0) {
+            html += `<br><strong>Empresas relacionadas (${emp.length}):</strong><br>`;
+            emp.slice(0, 5).forEach((e) => {
+              const empresa = e.dim_empresas;
+              if (empresa) {
+                html += `- ${empresa.nome_fantasia || empresa.razao_social}`;
+                if (e.cargo) html += ` (${e.cargo})`;
+                html += `<br>`;
+              }
+            });
+          }
+
+          addAiMessage(html);
+
+          setTimeout(() => {
+            addAiMessage("Mais opcoes:", true, [
+              { label: "Listar pessoas", action: "list_people" },
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro: " + e.message);
+        }
+      }
+
+      async function showCompanyPeople() {
+        if (!aiSelectedCompany) return;
+        addAiMessage("Pessoas da empresa", false);
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/people/by-company/${aiSelectedCompany.id}`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage("Nenhuma pessoa encontrada para esta empresa.", true, [
+              { label: "Voltar", action: "back_to_list" },
+            ]);
+            return;
+          }
+
+          let html = `<strong>Pessoas de ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}:</strong><br><br>`;
+          data.people.forEach((p) => {
+            html += `- <strong>${p.nome_completo}</strong>`;
+            if (p.cargo) html += ` (${p.cargo})`;
+            if (p.linkedin_url && p.linkedin_url !== "inexistente") {
+              html += ` <a href="${p.linkedin_url}" target="_blank">[LinkedIn]</a>`;
+            }
+            html += `<br>`;
+          });
+
+          addAiMessage(html);
+
+          setTimeout(() => {
+            addAiMessage("Mais opcoes:", true, [
+              { label: "Noticias da empresa", action: "show_company_news" },
+              { label: "Regime tributario", action: "show_regime" },
+              { label: "Voltar a lista", action: "back_to_list" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro: " + e.message);
+        }
+      }
+
+      // ============================================
+      // NOTICIAS
+      // ============================================
+      let aiNews = [];
+      let aiSelectedNews = null;
+
+      async function listAiNews() {
+        showAiTyping();
+
+        try {
+          const r = await fetch("/api/news/list?limit=15");
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage(
+              "Ainda nao temos noticias cadastradas na base.",
+              true,
+              [{ label: "Voltar ao menu", action: "back_to_menu" }],
+            );
+            return;
+          }
+
+          aiNews = data.news;
+
+          let html = `Encontrei <strong>${data.count}</strong> noticia(s) recentes:`;
+          data.news.slice(0, 10).forEach((n, i) => {
+            const data = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString("pt-BR") : "";
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_news', '${n.id}')">
+                <div class="ai-company-name">${i + 1}. ${n.titulo?.substring(0, 80) || "Sem titulo"}${n.titulo?.length > 80 ? "..." : ""}</div>
+                <div class="ai-company-cnpj">${n.fonte_nome || "Fonte desconhecida"} - ${data} ${n.segmento ? `[${n.segmento}]` : ""}</div>
+              </div>
+            `;
+          });
+
+          addAiMessage(html);
+          setTimeout(() => {
+            addAiMessage("Clique em uma noticia para ver detalhes.", true, [
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro ao buscar noticias: " + e.message);
+        }
+      }
+
+      async function selectAiNews(newsId) {
+        const news = aiNews.find((n) => n.id === newsId);
+        if (!news) return;
+
+        aiSelectedNews = news;
+        addAiMessage(`${news.titulo?.substring(0, 50)}...`, false);
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/news/${newsId}`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success) {
+            addAiMessage("Erro ao buscar noticia.");
+            return;
+          }
+
+          const n = data.noticia;
+          const topicos = data.topicos || [];
+          const empresas = data.empresas || [];
+
+          let html = `<strong>${n.titulo}</strong><br><br>`;
+          if (n.resumo) html += `${n.resumo}<br><br>`;
+          html += `Fonte: ${n.fonte_nome || "Desconhecida"}<br>`;
+          if (n.data_publicacao) {
+            html += `Data: ${new Date(n.data_publicacao).toLocaleDateString("pt-BR")}<br>`;
+          }
+          if (n.url) {
+            html += `<a href="${n.url}" target="_blank">Ver noticia completa</a><br>`;
+          }
+
+          if (topicos.length > 0) {
+            html += `<br><strong>Topicos:</strong><br>`;
+            topicos.forEach((t) => {
+              html += `- ${t.topico} (relevancia: ${t.relevancia}/10)`;
+              if (t.sentimento) html += ` [${t.sentimento}]`;
+              html += `<br>`;
+            });
+          }
+
+          if (empresas.length > 0) {
+            html += `<br><strong>Empresas mencionadas:</strong><br>`;
+            empresas.forEach((e) => {
+              html += `- ${e.nome_fantasia || e.razao_social}<br>`;
+            });
+          }
+
+          addAiMessage(html);
+
+          setTimeout(() => {
+            addAiMessage("Mais opcoes:", true, [
+              { label: "Listar noticias", action: "list_news" },
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro: " + e.message);
+        }
+      }
+
+      async function showCompanyNews() {
+        if (!aiSelectedCompany) return;
+        addAiMessage("Noticias da empresa", false);
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/news/by-company/${aiSelectedCompany.id}?limit=10`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage("Nenhuma noticia encontrada para esta empresa.", true, [
+              { label: "Pessoas da empresa", action: "show_company_people" },
+              { label: "Voltar", action: "back_to_list" },
+            ]);
+            return;
+          }
+
+          let html = `<strong>Noticias sobre ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}:</strong><br><br>`;
+          data.news.forEach((n, i) => {
+            const data = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString("pt-BR") : "";
+            html += `${i + 1}. <strong>${n.titulo?.substring(0, 60) || "Sem titulo"}...</strong><br>`;
+            html += `   ${n.fonte_nome || ""} - ${data}`;
+            if (n.sentimento) html += ` [${n.sentimento}]`;
+            html += `<br><br>`;
+          });
+
+          addAiMessage(html);
+
+          setTimeout(() => {
+            addAiMessage("Mais opcoes:", true, [
+              { label: "Pessoas da empresa", action: "show_company_people" },
+              { label: "Regime tributario", action: "show_regime" },
+              { label: "Voltar a lista", action: "back_to_list" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro: " + e.message);
+        }
+      }
+
+      // ============================================
+      // POLITICOS
+      // ============================================
+      let aiPoliticians = [];
+      let aiSelectedPolitician = null;
+
+      async function listAiPoliticians() {
+        showAiTyping();
+
+        try {
+          const r = await fetch("/api/politicians/list?limit=15");
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage(
+              "Ainda nao temos politicos cadastrados na base. Configure as credenciais do Fiscal Supabase.",
+              true,
+              [{ label: "Voltar ao menu", action: "back_to_menu" }],
+            );
+            return;
+          }
+
+          aiPoliticians = data.politicians;
+
+          let html = `Encontrei <strong>${data.count}</strong> politico(s):`;
+          data.politicians.slice(0, 10).forEach((p, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
+                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
+                <div class="ai-company-cnpj">${p.cargo_atual || "Cargo desconhecido"} - ${p.partido_sigla || ""} ${p.municipio_nome ? `(${p.municipio_nome}/${p.uf})` : ""}</div>
+              </div>
+            `;
+          });
+
+          addAiMessage(html);
+          setTimeout(() => {
+            addAiMessage("Clique em um politico para ver detalhes.", true, [
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro ao buscar politicos: " + e.message);
+        }
+      }
+
+      async function selectAiPolitician(politicoId) {
+        const pol = aiPoliticians.find((p) => p.id === politicoId);
+        if (!pol) return;
+
+        aiSelectedPolitician = pol;
+        addAiMessage(`${pol.nome_urna || pol.nome_completo}`, false);
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/politicians/${politicoId}`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success) {
+            addAiMessage("Erro ao buscar politico.");
+            return;
+          }
+
+          const p = data.politico;
+          const mandatos = data.mandatos || [];
+
+          let html = `<strong>${p.nome_completo}</strong><br><br>`;
+          html += `Nome de urna: ${p.nome_urna || "-"}<br>`;
+          html += `Cargo atual: ${p.cargo_atual || "-"}<br>`;
+          html += `Partido: ${p.partido_sigla || "-"}<br>`;
+          if (p.municipio_nome) {
+            html += `Municipio: ${p.municipio_nome}/${p.uf}<br>`;
+          }
+          if (p.email) {
+            html += `Email: ${p.email}<br>`;
+          }
+          if (p.cpf_masked) {
+            html += `CPF: ${p.cpf_masked}<br>`;
+          }
+
+          if (mandatos.length > 0) {
+            html += `<br><strong>Historico de Mandatos:</strong><br>`;
+            mandatos.forEach((m) => {
+              html += `- ${m.cargo} (${m.ano_eleicao}) - ${m.partido_sigla}`;
+              if (m.ativo) html += ` <span style="color: #22c55e;">[ATIVO]</span>`;
+              if (m.votos_recebidos) html += ` - ${m.votos_recebidos.toLocaleString("pt-BR")} votos`;
+              html += `<br>`;
+            });
+          }
+
+          addAiMessage(html);
+
+          setTimeout(() => {
+            addAiMessage("Mais opcoes:", true, [
+              { label: "Listar politicos", action: "list_politicians" },
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro: " + e.message);
+        }
+      }
+
+      async function searchPoliticians(nome) {
+        showAiTyping();
+
+        try {
+          const r = await fetch(`/api/politicians/search?nome=${encodeURIComponent(nome)}`);
+          const data = await r.json();
+          hideAiTyping();
+
+          if (!data.success || data.count === 0) {
+            addAiMessage(
+              `Nenhum politico encontrado com o nome "${nome}".`,
+              true,
+              [
+                { label: "Listar todos", action: "list_politicians" },
+                { label: "Voltar ao menu", action: "back_to_menu" },
+              ],
+            );
+            return;
+          }
+
+          aiPoliticians = data.politicians;
+
+          let html = `Encontrei <strong>${data.count}</strong> politico(s) com "${nome}":`;
+          data.politicians.forEach((p, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
+                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
+                <div class="ai-company-cnpj">${p.cargo_atual || ""} - ${p.partido_sigla || ""} ${p.municipio_nome ? `(${p.municipio_nome}/${p.uf})` : ""}</div>
+              </div>
+            `;
+          });
+
+          addAiMessage(html);
+          setTimeout(() => {
+            addAiMessage("Clique em um politico para ver detalhes.", true, [
+              { label: "Voltar ao menu", action: "back_to_menu" },
+            ]);
+          }, 500);
+        } catch (e) {
+          hideAiTyping();
+          addAiMessage("Erro ao buscar politicos: " + e.message);
+        }
+      }
+
+      // ============================================
+      // NLP MELHORADO
+      // ============================================
       function sendAiMessage() {
         const input = document.getElementById("aiChatInput");
         const text = input.value.trim();
@@ -2260,13 +2754,34 @@
         // Simple NLP
         const lower = text.toLowerCase();
 
-        if (
-          lower.includes("empresa") ||
-          lower.includes("listar") ||
-          lower.includes("lista")
-        ) {
+        // Pessoas
+        if (lower.includes("pessoa") || lower.includes("socios") || lower.includes("fundador")) {
+          if (aiSelectedCompany && (lower.includes("empresa") || lower.includes("desta"))) {
+            showCompanyPeople();
+          } else {
+            listAiPeople();
+          }
+        }
+        // Noticias
+        else if (lower.includes("noticia") || lower.includes("news")) {
+          if (aiSelectedCompany && (lower.includes("empresa") || lower.includes("desta"))) {
+            showCompanyNews();
+          } else {
+            listAiNews();
+          }
+        }
+        // Politicos
+        else if (lower.includes("politico") || lower.includes("prefeito") || lower.includes("vereador") ||
+                 lower.includes("deputado") || lower.includes("senador") || lower.includes("governador") ||
+                 lower.includes("mandato")) {
+          listAiPoliticians();
+        }
+        // Empresas
+        else if (lower.includes("empresa") || lower.includes("listar") || lower.includes("lista")) {
           listAiCompanies();
-        } else if (lower.includes("regime") || lower.includes("tributar")) {
+        }
+        // Regime
+        else if (lower.includes("regime") || lower.includes("tributar")) {
           if (aiSelectedCompany) {
             showCompanyRegime();
           } else {
@@ -2276,11 +2791,9 @@
               [{ label: "Listar empresas", action: "list_companies" }],
             );
           }
-        } else if (
-          lower.includes("crescimento") ||
-          lower.includes("projecao") ||
-          lower.includes("var")
-        ) {
+        }
+        // Crescimento/VAR
+        else if (lower.includes("crescimento") || lower.includes("projecao") || lower.includes("var")) {
           if (aiSelectedCompany) {
             showGrowthProjection();
           } else {
@@ -2290,36 +2803,28 @@
               [{ label: "Listar empresas", action: "list_companies" }],
             );
           }
-        } else if (
-          lower.includes("fundador") ||
-          lower.includes("socio") ||
-          lower.includes("outra empresa")
-        ) {
-          if (aiSelectedCompany) {
-            showFoundersHistory();
-          } else {
-            addAiMessage(
-              "Primeiro selecione uma empresa para ver os fundadores.",
-              true,
-              [{ label: "Listar empresas", action: "list_companies" }],
-            );
-          }
-        } else if (
-          lower.includes("ola") ||
-          lower.includes("oi") ||
-          lower.includes("hey")
-        ) {
+        }
+        // Saudacao
+        else if (lower.includes("ola") || lower.includes("oi") || lower.includes("hey")) {
           addAiMessage("Ola! Como posso ajuda-lo hoje?", true, [
-            { label: "Listar empresas", action: "list_companies" },
-            { label: "Ver modelo VAR", action: "show_var" },
+            { label: "Empresas", action: "list_companies" },
+            { label: "Pessoas", action: "list_people" },
+            { label: "Noticias", action: "list_news" },
           ]);
-        } else {
+        }
+        // Menu
+        else if (lower.includes("menu") || lower.includes("opcoes") || lower.includes("inicio")) {
+          showMainMenu();
+        }
+        // Default
+        else {
           addAiMessage(
-            "Posso ajuda-lo com informacoes sobre as empresas cadastradas. O que gostaria de saber?",
+            "Posso ajuda-lo com informacoes sobre empresas, pessoas e noticias. O que gostaria de saber?",
             true,
             [
-              { label: "Listar empresas", action: "list_companies" },
-              { label: "Ver modelo VAR", action: "show_var" },
+              { label: "Empresas", action: "list_companies" },
+              { label: "Pessoas", action: "list_people" },
+              { label: "Noticias", action: "list_news" },
             ],
           );
         }

@@ -11,6 +11,9 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import companiesRouter from './routes/companies.js';
+import peopleRouter from './routes/people.js';
+import newsRouter from './routes/news.js';
+import politiciansRouter from './routes/politicians.js';
 import { logger, requestLogger } from './utils/logger.js';
 
 const app = express();
@@ -30,9 +33,15 @@ app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
 app.use('/companies', limiter);
+app.use('/people', limiter);
+app.use('/news', limiter);
+app.use('/politicians', limiter);
 
 // Routes (nginx strips /api/ prefix, so use /companies directly)
 app.use('/companies', companiesRouter);
+app.use('/people', peopleRouter);
+app.use('/news', newsRouter);
+app.use('/politicians', politiciansRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -40,7 +49,8 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     service: 'iconsai-scraping-backend',
     timestamp: new Date().toISOString(),
-    apollo_configured: !!process.env.APOLLO_API_KEY
+    apollo_configured: !!process.env.APOLLO_API_KEY,
+    fiscal_configured: !!(process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY)
   });
 });
 

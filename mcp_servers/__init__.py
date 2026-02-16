@@ -9,9 +9,11 @@ Servers disponíveis:
 - apollo_mcp: B2B Intelligence (LinkedIn, contatos)
 - cnpja_mcp: Regime tributário
 - perplexity_mcp: AI Research
+- news_mcp: Notícias econômicas via Perplexity + Twitter
+- fiscal_mcp: Políticos e mandatos (iconsai-fiscal)
 """
 
 from .config import MCPConfig
 
 __all__ = ["MCPConfig"]
-__version__ = "1.0.0"
+__version__ = "1.2.0"
