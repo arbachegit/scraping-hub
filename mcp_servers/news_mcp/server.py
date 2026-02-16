@@ -10,8 +10,6 @@ Fontes confiáveis incluídas na busca:
 O MCP busca notícias, filtra citações e prepara para análise do Claude.
 """
 
-import hashlib
-from datetime import datetime
 from typing import Any
 
 import httpx
@@ -543,8 +541,6 @@ class NewsMCPServer(BaseMCPServer):
         Returns:
             Resposta estruturada
         """
-        import json
-
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(

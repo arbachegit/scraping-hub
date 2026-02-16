@@ -8,7 +8,6 @@ Fluxo:
 3. Salva em fato_eventos_pessoa
 """
 
-import hashlib
 import re
 from datetime import datetime
 from typing import Any
@@ -321,11 +320,6 @@ class PersonEnrichmentService:
         """
         for exp in experiences:
             try:
-                # Calcular hash para evitar duplicatas
-                exp_hash = hashlib.md5(
-                    f"{pessoa_id}:{tipo_evento}:{exp.get('company') or exp.get('institution')}:{exp.get('title') or exp.get('degree')}".encode()
-                ).hexdigest()
-
                 data = {
                     "pessoa_id": pessoa_id,
                     "tipo_evento": tipo_evento,
