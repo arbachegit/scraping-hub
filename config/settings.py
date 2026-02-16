@@ -63,6 +63,26 @@ class Settings(BaseSettings):
     apollo_base_url: str = "https://api.apollo.io/v1"
     apollo_rate_limit: int = 100
 
+    # CNPJá - Regime Tributário
+    cnpja_api_key: str = ""
+    cnpja_base_url: str = "https://api.cnpja.com"
+
+    # ===========================================
+    # Brasil Data Hub (Dados Geográficos)
+    # ===========================================
+
+    # Supabase do projeto brasil-data-hub (geo_municipios)
+    brasil_data_hub_url: str = ""
+    brasil_data_hub_key: str = ""
+
+    # ===========================================
+    # Scheduler
+    # ===========================================
+
+    scheduler_enabled: bool = False
+    scheduler_hour: int = 2
+    scheduler_minute: int = 0
+
     # ===========================================
     # Banco de Dados
     # ===========================================
@@ -167,6 +187,16 @@ class Settings(BaseSettings):
     def has_fiscal_supabase(self) -> bool:
         """Verifica se Supabase Fiscal está configurado"""
         return bool(self.fiscal_supabase_url and self.fiscal_supabase_key)
+
+    @property
+    def has_brasil_data_hub(self) -> bool:
+        """Verifica se Brasil Data Hub está configurado"""
+        return bool(self.brasil_data_hub_url and self.brasil_data_hub_key)
+
+    @property
+    def has_cnpja(self) -> bool:
+        """Verifica se CNPJá está configurado"""
+        return bool(self.cnpja_api_key)
 
     @property
     def parsed_allowed_origins(self) -> list:
