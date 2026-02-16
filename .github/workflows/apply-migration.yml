@@ -1,0 +1,40 @@
+name: Apply Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration:
+        description: 'Migration number (e.g., 011)'
+        required: true
+        default: '011'
+        type: string
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Apply migration on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /opt/iconsai-scraping
+
+            echo "=== Applying Migration ${{ github.event.inputs.migration }} ==="
+
+            # Pull latest code
+            git pull origin main
+
+            # Activate venv
+            source venv/bin/activate
+
+            # Export env vars from .env
+            export $(grep -v '^#' .env | xargs)
+
+            # Run migration script
+            python3 scripts/apply_migration_${{ github.event.inputs.migration }}.py
+
+            echo "=== Migration Complete ==="

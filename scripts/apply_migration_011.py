@@ -4,12 +4,10 @@ Apply migration 011: Add extended enrichment fields.
 
 This migration adds:
 - raw_enrichment_extended column to dim_pessoas
-- Index for checking enrichment status
 - Registers new data sources (GitHub, Google Scholar, Google News, Reclame Aqui)
 """
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from supabase import create_client
@@ -32,48 +30,87 @@ def main():
         print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY are required")
         return
 
-    # Read migration SQL
-    migration_file = Path(__file__).parent.parent / "backend/database/migrations/011_add_extended_enrichment.sql"
-
-    if not migration_file.exists():
-        print(f"ERROR: Migration file not found: {migration_file}")
-        return
-
-    sql = migration_file.read_text()
-
-    print("\nMigration SQL:")
-    print("-" * 60)
-    print(sql[:500] + "..." if len(sql) > 500 else sql)
-    print("-" * 60)
-
     # Connect to Supabase
     supabase = create_client(supabase_url, supabase_key)
 
-    # Execute migration statements one by one
-    statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+    # Test if column exists by trying to select it
+    print("\n[1/2] Checking if column exists...")
+    try:
+        result = supabase.table("dim_pessoas").select("id, raw_enrichment_extended").limit(1).execute()
+        print("    ✓ Column raw_enrichment_extended already exists")
+    except Exception as e:
+        if "column" in str(e).lower() and "does not exist" in str(e).lower():
+            print("    ⚠ Column does not exist - needs to be created via Supabase Studio")
+            print("\n" + "=" * 60)
+            print("MANUAL STEP REQUIRED")
+            print("=" * 60)
+            print("\nRun this SQL in Supabase Studio (SQL Editor):\n")
+            print("ALTER TABLE dim_pessoas")
+            print("ADD COLUMN IF NOT EXISTS raw_enrichment_extended JSONB;")
+            print("\n" + "=" * 60)
+            return
+        else:
+            print(f"    ✗ Error: {str(e)[:100]}")
+            return
 
-    print(f"\nExecuting {len(statements)} statements...")
+    # Register data sources
+    print("\n[2/2] Registering data sources...")
 
-    for i, statement in enumerate(statements, 1):
+    sources = [
+        {
+            "nome": "GitHub API",
+            "categoria": "competencias",
+            "fonte_primaria": "GitHub",
+            "url": "https://api.github.com",
+            "documentacao_url": "https://docs.github.com/en/rest",
+            "formato": "JSON",
+            "api_key_necessaria": False,
+            "confiabilidade": "alta",
+            "observacoes": "Perfil técnico de desenvolvedores - repositórios, linguagens, contribuições"
+        },
+        {
+            "nome": "Google Scholar (via Serper)",
+            "categoria": "competencias",
+            "fonte_primaria": "Google Scholar",
+            "url": "https://scholar.google.com",
+            "documentacao_url": "https://serper.dev/docs",
+            "formato": "JSON",
+            "api_key_necessaria": True,
+            "confiabilidade": "alta",
+            "observacoes": "Publicações acadêmicas, citações, h-index"
+        },
+        {
+            "nome": "Google News (via Serper)",
+            "categoria": "reputacional",
+            "fonte_primaria": "Google News",
+            "url": "https://news.google.com",
+            "documentacao_url": "https://serper.dev/docs",
+            "formato": "JSON",
+            "api_key_necessaria": True,
+            "confiabilidade": "media",
+            "observacoes": "Notícias e menções na mídia"
+        },
+        {
+            "nome": "Reclame Aqui (via Serper)",
+            "categoria": "reputacional",
+            "fonte_primaria": "Reclame Aqui",
+            "url": "https://www.reclameaqui.com.br",
+            "formato": "HTML",
+            "api_key_necessaria": False,
+            "confiabilidade": "media",
+            "observacoes": "Reclamações de consumidores - busca por nome de pessoa/empresa"
+        }
+    ]
+
+    for source in sources:
         try:
-            # Skip empty statements
-            if not statement or statement.isspace():
-                continue
-
-            print(f"\n[{i}/{len(statements)}] Executing...")
-            print(f"    {statement[:80]}..." if len(statement) > 80 else f"    {statement}")
-
-            # Execute via RPC
-            supabase.rpc("exec_sql", {"sql": statement + ";"}).execute()
-            print("    ✓ Success")
-
+            supabase.table("fontes_dados").upsert(
+                source,
+                on_conflict="nome"
+            ).execute()
+            print(f"    ✓ {source['nome']}")
         except Exception as e:
-            error_msg = str(e)
-            # Ignore "already exists" errors
-            if "already exists" in error_msg.lower() or "duplicate" in error_msg.lower():
-                print(f"    ⚠ Already exists (skipped)")
-            else:
-                print(f"    ✗ Error: {error_msg[:100]}")
+            print(f"    ⚠ {source['nome']}: {str(e)[:50]}")
 
     print("\n" + "=" * 60)
     print("Migration 011 completed!")
