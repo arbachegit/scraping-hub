@@ -23,6 +23,8 @@ from api.auth import (
     update_user,
 )
 from config.settings import settings
+from backend.src.services.person_enrichment import PersonEnrichmentService
+from supabase import create_client
 
 logger = structlog.get_logger()
 
@@ -166,6 +168,93 @@ async def health():
         "apis_configured": f"{configured}/{total}",
         "ready": configured >= 3,
     }
+
+
+# ===========================================
+# ENRICHMENT ENDPOINTS
+# ===========================================
+
+@app.post("/api/enrich/people", tags=["Enrichment"])
+async def enrich_people(limit: int = 10, current_user=Depends(get_current_user)):
+    """
+    Enrich people data using Apollo/Perplexity.
+    Requires authentication.
+    """
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    if not settings.apollo_api_key and not settings.perplexity_api_key:
+        raise HTTPException(status_code=500, detail="Neither Apollo nor Perplexity API configured")
+
+    try:
+        # Create Supabase client
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+        # Get people without enrichment
+        result = (
+            supabase.table("dim_pessoas")
+            .select("id, nome_completo, linkedin_url")
+            .is_("raw_apollo_data", "null")
+            .limit(limit)
+            .execute()
+        )
+
+        people = result.data
+        if not people:
+            return {"success": True, "message": "No people pending enrichment", "stats": {"processed": 0}}
+
+        # Create enrichment service
+        service = PersonEnrichmentService(
+            supabase=supabase,
+            apollo_api_key=settings.apollo_api_key,
+            perplexity_api_key=settings.perplexity_api_key,
+        )
+
+        stats = {"processed": 0, "success": 0, "failed": 0, "linkedin_found": 0}
+
+        for pessoa in people:
+            nome = pessoa.get("nome_completo", "Unknown")
+
+            try:
+                enrichment = await service.enrich_person(
+                    pessoa_id=pessoa["id"],
+                    nome=nome,
+                    linkedin_url=pessoa.get("linkedin_url"),
+                )
+
+                stats["processed"] += 1
+
+                if enrichment["success"]:
+                    stats["success"] += 1
+                    raw_data = enrichment.get("raw_data", {})
+                    linkedin = raw_data.get("linkedin_url") if raw_data else None
+
+                    if linkedin:
+                        stats["linkedin_found"] += 1
+                        supabase.table("dim_pessoas").update({
+                            "linkedin_url": linkedin,
+                            "raw_apollo_data": raw_data,
+                        }).eq("id", pessoa["id"]).execute()
+                    else:
+                        supabase.table("dim_pessoas").update({
+                            "raw_apollo_data": raw_data,
+                        }).eq("id", pessoa["id"]).execute()
+                else:
+                    stats["failed"] += 1
+
+            except Exception as e:
+                stats["failed"] += 1
+                logger.error("enrichment_error", pessoa=nome, error=str(e))
+
+        return {
+            "success": True,
+            "message": f"Enrichment completed for {stats['processed']} people",
+            "stats": stats,
+        }
+
+    except Exception as e:
+        logger.error("enrich_people_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ===========================================
