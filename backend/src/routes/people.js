@@ -15,7 +15,7 @@ router.get('/list', async (req, res) => {
 
     const { data, error, count } = await supabase
       .from('dim_pessoas')
-      .select('id, nome, email, linkedin, foto_url, cargo, empresa_id', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -135,14 +135,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
         qualificacao,
         data_transacao,
         ativo,
-        dim_pessoas (
-          id,
-          nome,
-          email,
-          linkedin,
-          foto_url,
-          cargo
-        )
+        dim_pessoas (*)
       `)
       .eq('empresa_id', empresaId)
       .order('data_transacao', { ascending: false });
@@ -186,14 +179,12 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    // Search in dim_pessoas by name
-    const query = supabase
+    // Search in dim_pessoas by name (try both nome and nome_completo)
+    const { data, error } = await supabase
       .from('dim_pessoas')
-      .select('id, nome, email, linkedin, foto_url, cargo')
-      .ilike('nome', `%${nome.trim()}%`)
+      .select('*')
+      .or(`nome_completo.ilike.%${nome.trim()}%,nome.ilike.%${nome.trim()}%`)
       .limit(20);
-
-    const { data, error } = await query;
 
     if (error) {
       logger.error('Error searching people', { error: error.message });
