@@ -44,6 +44,45 @@ router.get('/list', async (req, res) => {
 });
 
 /**
+ * GET /api/news/search
+ * Search news by query text
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const q = req.query.q?.trim();
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+
+    if (!q) {
+      return res.status(400).json({ success: false, error: 'Query parameter "q" is required' });
+    }
+
+    // Search in title and resumo using ilike
+    const { data, error, count } = await supabase
+      .from('dim_noticias')
+      .select('id, titulo, resumo, fonte_nome, url, segmento, data_publicacao, relevancia_geral', { count: 'exact' })
+      .or(`titulo.ilike.%${q}%,resumo.ilike.%${q}%`)
+      .order('data_publicacao', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logger.error('Error searching news', { error: error.message, query: q });
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      query: q,
+      news: data || []
+    });
+
+  } catch (error) {
+    logger.error('Error searching news', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/news/:id
  * Get news details with topics
  */
