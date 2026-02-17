@@ -20,6 +20,11 @@ on:
         required: false
         default: 'false'
 
+# CRITICO: Cancela deploys anteriores pendentes para evitar race conditions
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/iconsai-scraping
