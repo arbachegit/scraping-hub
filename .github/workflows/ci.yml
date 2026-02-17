@@ -291,3 +291,8 @@ jobs:
             echo ""
             echo "=== Dashboard check ==="
             curl -s http://127.0.0.1:8000/dashboard | grep -o "Em desenvolvimento" | head -1 || echo "OLD VERSION - no 'Em desenvolvimento' found"
+
+            # Populate CNAE table (runs only if table exists and is empty or needs update)
+            echo ""
+            echo "=== Populating CNAE table ==="
+            ./venv/bin/python scripts/populate_cnae.py || echo "CNAE population failed or skipped"
