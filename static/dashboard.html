@@ -1729,7 +1729,7 @@
       <h2 class="page-title">Modulos de Inteligencia</h2>
 
       <div class="cards">
-        <div class="card active" onclick="event.target.closest('.card-form') ? null : openCompanyModal()">
+        <div class="card active" onclick="openCompanyModal()">
           <div class="card-header">
             <div class="card-icon red">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1747,20 +1747,9 @@
             Busque por CNPJ via BrasilAPI + Serper. Dados oficiais da Receita
             Federal.
           </p>
-          <div class="card-form" onclick="event.stopPropagation()">
-            <div class="card-form-row">
-              <input type="text" id="cardEmpresaNome" placeholder="Nome da empresa *" required />
-              <input type="text" id="cardEmpresaCidade" placeholder="Cidade" />
-            </div>
-            <div class="card-form-row">
-              <input type="text" id="cardEmpresaSegmento" placeholder="Segmento / CNAE" />
-            </div>
-            <button class="btn-list" onclick="openEmpresasListingModal()">Listar</button>
-          </div>
-          <span class="card-badge ready">Disponivel</span>
         </div>
 
-        <div class="card active" onclick="event.target.closest('.card-form') ? null : openPeopleModal()">
+        <div class="card active" onclick="openPeopleModal()">
           <div class="card-header">
             <div class="card-icon orange">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1775,14 +1764,6 @@
             <h3>Pessoas</h3>
           </div>
           <p>Pesquise perfis profissionais e analise talentos.</p>
-          <div class="card-form" onclick="event.stopPropagation()">
-            <div class="card-form-row">
-              <input type="text" id="cardPessoaNome" placeholder="Nome da pessoa *" required />
-              <input type="text" id="cardPessoaCidade" placeholder="Cidade" />
-            </div>
-            <button class="btn-list" onclick="openPessoasListingModal()">Listar</button>
-          </div>
-          <span class="card-badge ready">Disponivel</span>
         </div>
 
         <div class="card">
@@ -1803,7 +1784,7 @@
           <span class="card-badge">Em desenvolvimento</span>
         </div>
 
-        <div class="card active" onclick="event.target.closest('.card-form') ? null : openNewsModal()">
+        <div class="card active" onclick="openNewsModal()">
           <div class="card-header">
             <div class="card-icon green">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1818,49 +1799,6 @@
             <h3>Noticias</h3>
           </div>
           <p>Monitore noticias e cenario economico.</p>
-          <div class="card-form" onclick="event.stopPropagation()">
-            <div class="card-form-row">
-              <input type="text" id="cardNoticiaQuery" placeholder="Termo(s) / query" style="flex: 2;" />
-            </div>
-            <div class="card-form-row">
-              <div class="form-group">
-                <label class="form-label">Data inicial</label>
-                <input type="date" id="cardNoticiaDataInicio" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Data final</label>
-                <input type="date" id="cardNoticiaDataFim" />
-              </div>
-            </div>
-            <div class="card-form-row">
-              <select id="cardNoticiaIdioma">
-                <option value="">Idioma</option>
-                <option value="pt">Português</option>
-                <option value="en">English</option>
-                <option value="es">Español</option>
-              </select>
-              <select id="cardNoticiaPais">
-                <option value="BR" selected>Brasil</option>
-                <option value="US">Estados Unidos</option>
-                <option value="PT">Portugal</option>
-                <option value="all">Todos os países</option>
-              </select>
-            </div>
-            <div class="card-form-row">
-              <input type="text" id="cardNoticiaFonte" placeholder="Folha, G1, Reuters..." style="flex: 1;" />
-              <select id="cardNoticiaTipo" style="flex: 1;">
-                <option value="">Tipo de conteúdo</option>
-                <option value="noticia">Notícia</option>
-                <option value="opiniao">Opinião</option>
-                <option value="editorial">Editorial</option>
-                <option value="press_release">Press Release</option>
-                <option value="blog">Blog</option>
-                <option value="post_social">Post Social</option>
-              </select>
-            </div>
-            <button class="btn-list" onclick="openNoticiasListingModal()">Listar</button>
-          </div>
-          <span class="card-badge ready">Disponivel</span>
         </div>
 
         <div class="card">
@@ -1987,19 +1925,31 @@
             <input
               type="text"
               id="companyName"
-              placeholder="Nome da empresa..."
+              placeholder="Nome da empresa *"
               style="flex: 2; min-width: 200px"
               onkeypress="if (event.key === 'Enter') searchCompany();"
             />
             <input
               type="text"
               id="companyCidade"
-              placeholder="Cidade (opcional)"
+              placeholder="Cidade"
               style="flex: 1; min-width: 120px"
+              onkeypress="if (event.key === 'Enter') searchCompany();"
+            />
+          </div>
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem;">
+            <input
+              type="text"
+              id="companySegmento"
+              placeholder="Segmento / CNAE"
+              style="flex: 1; min-width: 150px"
               onkeypress="if (event.key === 'Enter') searchCompany();"
             />
             <button class="btn-search" onclick="searchCompany()" id="btnSearch">
               Buscar
+            </button>
+            <button class="btn-search" onclick="openEmpresasListingModal()" style="background: #10b981;">
+              Listar
             </button>
           </div>
           <div id="searchResults"></div>
@@ -2026,15 +1976,22 @@
             <input
               type="text"
               id="personName"
-              placeholder="Nome da pessoa..."
+              placeholder="Nome da pessoa *"
               style="flex: 2; min-width: 200px"
+              onkeypress="if (event.key === 'Enter') searchPeople();"
+            />
+            <input
+              type="text"
+              id="personCidade"
+              placeholder="Cidade"
+              style="flex: 1; min-width: 120px"
               onkeypress="if (event.key === 'Enter') searchPeople();"
             />
             <button class="btn-search" onclick="searchPeople()" id="btnSearchPeople">
               Buscar
             </button>
-            <button class="btn-search" onclick="listAllPeople()" style="background: #10b981;">
-              Listar Todos
+            <button class="btn-search" onclick="openPessoasListingModal()" style="background: #10b981;">
+              Listar
             </button>
           </div>
           <div id="peopleResults"></div>
@@ -2062,15 +2019,54 @@
             <input
               type="text"
               id="newsQuery"
-              placeholder="Buscar noticias..."
+              placeholder="Termo(s) / query"
               style="flex: 2; min-width: 200px"
               onkeypress="if (event.key === 'Enter') searchNews();"
             />
+          </div>
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem; gap: 0.5rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">Data inicial</label>
+              <input type="date" id="newsDataInicio" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff;" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">Data final</label>
+              <input type="date" id="newsDataFim" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff;" />
+            </div>
+            <select id="newsIdioma" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
+              <option value="">Idioma</option>
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+            <select id="newsPais" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
+              <option value="BR" selected>Brasil</option>
+              <option value="US">Estados Unidos</option>
+              <option value="PT">Portugal</option>
+              <option value="all">Todos</option>
+            </select>
+          </div>
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem;">
+            <input
+              type="text"
+              id="newsFonte"
+              placeholder="Fonte (Folha, G1, Reuters...)"
+              style="flex: 1; min-width: 150px"
+            />
+            <select id="newsTipo" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 140px;">
+              <option value="">Tipo de conteúdo</option>
+              <option value="noticia">Notícia</option>
+              <option value="opiniao">Opinião</option>
+              <option value="editorial">Editorial</option>
+              <option value="press_release">Press Release</option>
+              <option value="blog">Blog</option>
+              <option value="post_social">Post Social</option>
+            </select>
             <button class="btn-search" onclick="searchNews()" id="btnSearchNews">
               Buscar
             </button>
-            <button class="btn-search" onclick="listAllNews()" style="background: #10b981;">
-              Listar Todas
+            <button class="btn-search" onclick="openNoticiasListingModal()" style="background: #10b981;">
+              Listar
             </button>
           </div>
           <div id="newsSourcesInfo" style="margin: 1rem 0; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.5rem; font-size: 0.875rem; color: #10b981;"></div>
@@ -2980,10 +2976,10 @@
         document.getElementById("empresasListingTable").style.display = "none";
         document.getElementById("empresasListingEmpty").style.display = "none";
 
-        // Get filters from card
-        const nome = document.getElementById("cardEmpresaNome").value.trim();
-        const cidade = document.getElementById("cardEmpresaCidade").value.trim();
-        const segmento = document.getElementById("cardEmpresaSegmento").value.trim();
+        // Get filters from modal
+        const nome = document.getElementById("companyName").value.trim();
+        const cidade = document.getElementById("companyCidade").value.trim();
+        const segmento = (document.getElementById("companySegmento")?.value || "").trim();
 
         // Show filter info
         let filterParts = [];
@@ -3102,9 +3098,9 @@
         document.getElementById("pessoasListingTable").style.display = "none";
         document.getElementById("pessoasListingEmpty").style.display = "none";
 
-        // Get filters from card
-        const nome = document.getElementById("cardPessoaNome").value.trim();
-        const cidade = document.getElementById("cardPessoaCidade").value.trim();
+        // Get filters from modal
+        const nome = document.getElementById("personName").value.trim();
+        const cidade = (document.getElementById("personCidade")?.value || "").trim();
 
         // Show filter info
         let filterParts = [];
@@ -3216,14 +3212,14 @@
         document.getElementById("noticiasListingTable").style.display = "none";
         document.getElementById("noticiasListingEmpty").style.display = "none";
 
-        // Get filters from card
-        const query = document.getElementById("cardNoticiaQuery").value.trim();
-        const dataInicio = document.getElementById("cardNoticiaDataInicio").value;
-        const dataFim = document.getElementById("cardNoticiaDataFim").value;
-        const idioma = document.getElementById("cardNoticiaIdioma").value;
-        const pais = document.getElementById("cardNoticiaPais").value;
-        const fonte = document.getElementById("cardNoticiaFonte").value.trim();
-        const tipo = document.getElementById("cardNoticiaTipo").value;
+        // Get filters from modal
+        const query = document.getElementById("newsQuery").value.trim();
+        const dataInicio = (document.getElementById("newsDataInicio")?.value || "");
+        const dataFim = (document.getElementById("newsDataFim")?.value || "");
+        const idioma = (document.getElementById("newsIdioma")?.value || "");
+        const pais = (document.getElementById("newsPais")?.value || "BR");
+        const fonte = (document.getElementById("newsFonte")?.value || "").trim();
+        const tipo = (document.getElementById("newsTipo")?.value || "");
 
         // Show filter info
         let filterParts = [];
