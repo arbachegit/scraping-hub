@@ -5,6 +5,8 @@ IconsAI Scraping API - v3.0 (Clean Architecture)
 from datetime import timedelta
 from pathlib import Path
 
+import os
+
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -164,9 +166,22 @@ async def health():
     return {
         "status": "healthy",
         "version": APP_VERSION,
+        "git_sha": os.getenv("GIT_SHA", "unknown"),
+        "build_date": os.getenv("BUILD_DATE", "unknown"),
         "apis": apis,
         "apis_configured": f"{configured}/{total}",
         "ready": configured >= 3,
+    }
+
+
+@app.get("/version", tags=["System"])
+async def version():
+    """Version endpoint for deployment verification"""
+    return {
+        "version": APP_VERSION,
+        "git_sha": os.getenv("GIT_SHA", "unknown"),
+        "build_date": os.getenv("BUILD_DATE", "unknown"),
+        "service": "iconsai-scraping-api",
     }
 
 

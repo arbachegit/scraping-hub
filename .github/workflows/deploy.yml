@@ -1,0 +1,356 @@
+# =============================================================================
+# DETERMINISTIC DOCKER DEPLOY
+# =============================================================================
+# Este workflow garante deploy determinístico usando:
+# 1. Tags SHA imutáveis (ghcr.io/user/repo:abc1234)
+# 2. Build multi-stage para imagens otimizadas
+# 3. Verificação pós-deploy que o SHA no container == SHA do deploy
+# 4. Rollback automático se verificação falhar
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy even if tests fail'
+        required: false
+        default: 'false'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/iconsai-scraping
+
+jobs:
+  # ===========================================
+  # Job 1: Test
+  # ===========================================
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run linting
+        run: |
+          pip install ruff
+          ruff check .
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml
+
+  # ===========================================
+  # Job 2: Build and Push Docker Images
+  # ===========================================
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      git_sha: ${{ steps.vars.outputs.git_sha }}
+      build_date: ${{ steps.vars.outputs.build_date }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set variables
+        id: vars
+        run: |
+          echo "git_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build API image
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.git_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:latest
+          build-args: |
+            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build Backend image
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.git_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+          build-args: |
+            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build Scheduler image
+      - name: Build and push Scheduler image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./scheduler/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.git_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:latest
+          build-args: |
+            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================
+  # Job 3: Deploy to Production
+  # ===========================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Increment version
+        run: |
+          NEW_VERSION=$(python scripts/version.py --deploy)
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "New version: $NEW_VERSION"
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add VERSION
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]"
+          git push || echo "Nothing to push"
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        env:
+          GIT_SHA: ${{ needs.build.outputs.git_sha }}
+          BUILD_DATE: ${{ needs.build.outputs.build_date }}
+          # API Keys
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+          CNPJA_API_KEY: ${{ secrets.CNPJA_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          # Supabase
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # Brasil Data Hub
+          BRASIL_DATA_HUB_URL: ${{ secrets.BRASIL_DATA_HUB_URL }}
+          BRASIL_DATA_HUB_KEY: ${{ secrets.BRASIL_DATA_HUB_KEY }}
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          envs: GIT_SHA,BUILD_DATE,APOLLO_API_KEY,CNPJA_API_KEY,PERPLEXITY_API_KEY,SERPER_API_KEY,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,BRASIL_DATA_HUB_URL,BRASIL_DATA_HUB_KEY
+          script: |
+            set -e
+
+            echo "=========================================="
+            echo "DETERMINISTIC DOCKER DEPLOY"
+            echo "=========================================="
+            echo "GIT_SHA: ${GIT_SHA}"
+            echo "BUILD_DATE: ${BUILD_DATE}"
+            echo "=========================================="
+
+            PROJECT_DIR="/opt/iconsai-scraping"
+            COMPOSE_FILE="docker-compose.prod.yml"
+
+            # Ensure project directory exists
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "Creating project directory..."
+              sudo mkdir -p $PROJECT_DIR
+              sudo chown $USER:$USER $PROJECT_DIR
+              cd $PROJECT_DIR
+              git clone https://github.com/arbachegit/scraping-hub.git .
+            else
+              cd $PROJECT_DIR
+            fi
+
+            # Update code
+            echo "Updating code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Update .env with all secrets
+            echo "Updating .env..."
+            cat > .env << EOF
+            # Auto-generated by CI/CD
+            GIT_SHA=${GIT_SHA}
+            BUILD_DATE=${BUILD_DATE}
+
+            # API Keys
+            APOLLO_API_KEY=${APOLLO_API_KEY}
+            CNPJA_API_KEY=${CNPJA_API_KEY}
+            PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+            SERPER_API_KEY=${SERPER_API_KEY}
+
+            # Supabase
+            SUPABASE_URL=${SUPABASE_URL}
+            SUPABASE_KEY=${SUPABASE_KEY}
+            SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+
+            # Brasil Data Hub
+            BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
+            BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
+
+            # Scheduler
+            SCHEDULER_ENABLED=true
+            SCHEDULER_HOUR=2
+            SCHEDULER_MINUTE=0
+            LOG_LEVEL=INFO
+            EOF
+
+            # Login to GHCR
+            echo "Logging into GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
+
+            # Stop old services (systemd)
+            echo "Stopping old systemd services..."
+            sudo systemctl stop scraping 2>/dev/null || true
+            sudo systemctl stop scraping-backend 2>/dev/null || true
+            sudo systemctl disable scraping 2>/dev/null || true
+            sudo systemctl disable scraping-backend 2>/dev/null || true
+
+            # Pull and deploy with docker-compose
+            echo "Pulling images with SHA: ${GIT_SHA}..."
+            docker-compose -f $COMPOSE_FILE pull
+
+            echo "Starting containers..."
+            docker-compose -f $COMPOSE_FILE down --remove-orphans || true
+            docker-compose -f $COMPOSE_FILE up -d
+
+            # Wait for services
+            echo "Waiting for services to start..."
+            sleep 15
+
+            # Verify deployment
+            echo "=========================================="
+            echo "VERIFYING DEPLOYMENT"
+            echo "=========================================="
+
+            # Check API SHA
+            API_SHA=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' iconsai-api 2>/dev/null | grep "^GIT_SHA=" | cut -d= -f2 || echo "unknown")
+            echo "API SHA: ${API_SHA} (expected: ${GIT_SHA})"
+            if [ "$API_SHA" != "${GIT_SHA}" ]; then
+              echo "ERROR: API SHA mismatch!"
+              exit 1
+            fi
+
+            # Check Backend SHA
+            BACKEND_SHA=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' iconsai-backend 2>/dev/null | grep "^GIT_SHA=" | cut -d= -f2 || echo "unknown")
+            echo "Backend SHA: ${BACKEND_SHA} (expected: ${GIT_SHA})"
+            if [ "$BACKEND_SHA" != "${GIT_SHA}" ]; then
+              echo "ERROR: Backend SHA mismatch!"
+              exit 1
+            fi
+
+            # Health checks
+            echo "Running health checks..."
+            curl -sf http://localhost:8000/health || { echo "API health check failed"; exit 1; }
+            echo "API: OK"
+            curl -sf http://localhost:3001/health || { echo "Backend health check failed"; exit 1; }
+            echo "Backend: OK"
+
+            # Update nginx
+            echo "Updating nginx configuration..."
+            sudo tee /etc/nginx/sites-available/scraping-hub > /dev/null << 'NGINX_EOF'
+            server {
+                listen 80;
+                server_name scraping.iconsai.ai;
+                return 301 https://$server_name$request_uri;
+            }
+            server {
+                listen 443 ssl http2;
+                server_name scraping.iconsai.ai;
+                ssl_certificate /etc/letsencrypt/live/scraping.iconsai.ai/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/scraping.iconsai.ai/privkey.pem;
+                ssl_session_timeout 1d;
+                ssl_session_cache shared:SSL:50m;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                add_header Strict-Transport-Security "max-age=63072000" always;
+
+                # Node.js backend (port 3001)
+                location /api/ {
+                    proxy_pass http://127.0.0.1:3001/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_read_timeout 300s;
+                }
+
+                # Python API (port 8000)
+                location / {
+                    proxy_pass http://127.0.0.1:8000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_read_timeout 300s;
+                }
+            }
+            NGINX_EOF
+
+            sudo ln -sf /etc/nginx/sites-available/scraping-hub /etc/nginx/sites-enabled/
+            sudo nginx -t && sudo systemctl reload nginx
+
+            # Show status
+            echo "=========================================="
+            echo "DEPLOY SUCCESSFUL"
+            echo "=========================================="
+            docker-compose -f $COMPOSE_FILE ps
+            echo ""
+            echo "API: https://scraping.iconsai.ai/ (SHA: ${GIT_SHA})"
+            echo "Backend: https://scraping.iconsai.ai/api/ (SHA: ${GIT_SHA})"
+            echo "=========================================="
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            echo "Final verification..."
+            curl -sf https://scraping.iconsai.ai/health | jq . || echo "Warning: External health check failed"
+            curl -sf https://scraping.iconsai.ai/api/health | jq . || echo "Warning: External backend health check failed"

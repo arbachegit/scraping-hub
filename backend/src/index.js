@@ -52,9 +52,21 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     service: 'iconsai-scraping-backend',
     timestamp: new Date().toISOString(),
+    git_sha: process.env.GIT_SHA || 'unknown',
+    build_date: process.env.BUILD_DATE || 'unknown',
     apollo_configured: !!process.env.APOLLO_API_KEY,
     fiscal_configured: !!(process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY),
     brasil_data_hub_configured: !!(process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY)
+  });
+});
+
+// Version endpoint for deployment verification
+app.get('/version', (req, res) => {
+  res.json({
+    version: process.env.npm_package_version || '1.0.0',
+    git_sha: process.env.GIT_SHA || 'unknown',
+    build_date: process.env.BUILD_DATE || 'unknown',
+    service: 'iconsai-scraping-backend'
   });
 });
 

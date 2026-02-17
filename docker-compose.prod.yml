@@ -1,0 +1,132 @@
+# Docker Compose for Production - Deterministic Deployment
+# Uses SHA-based immutable tags for guaranteed new code deployment
+#
+# IMPORTANT: pull_policy: always ensures we NEVER use cached old images
+
+version: '3.8'
+
+services:
+  # Python API (FastAPI)
+  api:
+    image: ghcr.io/arbachegit/iconsai-scraping-api:${GIT_SHA:-latest}
+    container_name: iconsai-api
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      # APIs
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - APOLLO_API_KEY=${APOLLO_API_KEY}
+      - CNPJA_API_KEY=${CNPJA_API_KEY}
+      # Brasil Data Hub
+      - BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
+      - BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
+      # Version tracking
+      - GIT_SHA=${GIT_SHA}
+      - BUILD_DATE=${BUILD_DATE}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - iconsai-network
+
+  # Node.js Backend (Express)
+  backend:
+    image: ghcr.io/arbachegit/iconsai-scraping-backend:${GIT_SHA:-latest}
+    container_name: iconsai-backend
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # Node env
+      - NODE_ENV=production
+      - BACKEND_PORT=3001
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      # APIs
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - APOLLO_API_KEY=${APOLLO_API_KEY}
+      - CNPJA_API_KEY=${CNPJA_API_KEY}
+      # Brasil Data Hub
+      - BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
+      - BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
+      # Version tracking
+      - GIT_SHA=${GIT_SHA}
+      - BUILD_DATE=${BUILD_DATE}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - iconsai-network
+
+  # Scheduler (coleta automatizada)
+  scheduler:
+    image: ghcr.io/arbachegit/iconsai-scraping-scheduler:${GIT_SHA:-latest}
+    container_name: iconsai-scheduler
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      # Environment
+      - ENVIRONMENT=production
+      - DEBUG=false
+      # APIs
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - APOLLO_API_KEY=${APOLLO_API_KEY}
+      - CNPJA_API_KEY=${CNPJA_API_KEY}
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      # Brasil Data Hub
+      - BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
+      - BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
+      # Scheduler config
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - SCHEDULER_HOUR=${SCHEDULER_HOUR:-2}
+      - SCHEDULER_MINUTE=${SCHEDULER_MINUTE:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Version tracking
+      - GIT_SHA=${GIT_SHA}
+      - BUILD_DATE=${BUILD_DATE}
+    volumes:
+      - scheduler_logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - iconsai-network
+
+volumes:
+  scheduler_logs:
+
+networks:
+  iconsai-network:
+    driver: bridge
