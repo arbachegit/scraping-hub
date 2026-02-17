@@ -128,6 +128,30 @@ export const DATA_SOURCES = {
     api_key_necessaria: false,
     confiabilidade: 'media',
     observacoes: 'Reclamações de consumidores - busca por nome de pessoa/empresa'
+  },
+  BRASIL_DATA_HUB: {
+    nome: 'Brasil Data Hub - Dados Geográficos',
+    categoria: 'geografico',
+    fonte_primaria: 'IBGE',
+    url: 'https://mnfjkegtynjtgesfphge.supabase.co',
+    documentacao_url: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/15761-areas-dos-municipios.html',
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'alta',
+    cobertura_temporal: '2010-presente',
+    observacoes: 'Dados de municipios e estados brasileiros via Supabase (geo_municipios, geo_estados)'
+  },
+  IBGE_CNAE: {
+    nome: 'IBGE - Classificação Nacional de Atividades Econômicas',
+    categoria: 'economico',
+    fonte_primaria: 'IBGE/Concla',
+    url: 'https://servicodados.ibge.gov.br/api/v2/cnae',
+    documentacao_url: 'https://cnae.ibge.gov.br',
+    formato: 'JSON',
+    api_key_necessaria: false,
+    confiabilidade: 'alta',
+    cobertura_temporal: '2006-presente',
+    observacoes: 'Tabela completa de CNAEs (seções, divisões, grupos, classes, subclasses)'
   }
 };
 

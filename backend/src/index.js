@@ -14,6 +14,7 @@ import companiesRouter from './routes/companies.js';
 import peopleRouter from './routes/people.js';
 import newsRouter from './routes/news.js';
 import politiciansRouter from './routes/politicians.js';
+import geoRouter from './routes/geo.js';
 import { logger, requestLogger } from './utils/logger.js';
 
 const app = express();
@@ -36,12 +37,14 @@ app.use('/companies', limiter);
 app.use('/people', limiter);
 app.use('/news', limiter);
 app.use('/politicians', limiter);
+app.use('/geo', limiter);
 
 // Routes (nginx strips /api/ prefix, so use /companies directly)
 app.use('/companies', companiesRouter);
 app.use('/people', peopleRouter);
 app.use('/news', newsRouter);
 app.use('/politicians', politiciansRouter);
+app.use('/geo', geoRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -50,7 +53,8 @@ app.get('/health', (req, res) => {
     service: 'iconsai-scraping-backend',
     timestamp: new Date().toISOString(),
     apollo_configured: !!process.env.APOLLO_API_KEY,
-    fiscal_configured: !!(process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY)
+    fiscal_configured: !!(process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY),
+    brasil_data_hub_configured: !!(process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY)
   });
 });
 
