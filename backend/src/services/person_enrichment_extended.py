@@ -684,10 +684,10 @@ async def enrich_persons_extended(
         "reclameaqui_found": 0,
     }
 
-    # Get people without extended enrichment (with company join)
+    # Get people without extended enrichment
     result = (
         supabase.table("dim_pessoas")
-        .select("id, nome, empresa_id, dim_empresas(razao_social)")
+        .select("id, nome")
         .is_("raw_enrichment_extended", "null")
         .limit(limit)
         .execute()
@@ -696,15 +696,11 @@ async def enrich_persons_extended(
     for pessoa in result.data:
         stats["processed"] += 1
 
-        # Get company name from join
-        empresa_data = pessoa.get("dim_empresas")
-        empresa_nome = empresa_data.get("razao_social") if empresa_data else None
-
         try:
             enrichment = await service.enrich_person_full(
                 pessoa_id=pessoa["id"],
                 nome=pessoa["nome"],
-                empresa_nome=empresa_nome,
+                empresa_nome=None,  # Company enrichment done separately
             )
 
             stats["success"] += 1
