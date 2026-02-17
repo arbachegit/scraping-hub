@@ -23,6 +23,9 @@ jobs:
           script: |
             cd /opt/iconsai-scraping
 
+            echo "=== Updating code ==="
+            git pull origin main
+
             echo "=== Running Extended Person Enrichment ==="
             echo "GitHub + Google Scholar + Google News + Reclame Aqui"
             echo "Limit: ${{ github.event.inputs.limit }}"
