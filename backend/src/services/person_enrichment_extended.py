@@ -156,7 +156,7 @@ class ExtendedPersonEnrichmentService:
         # Search for user
         query = nome.replace(" ", "+")
         if empresa_nome:
-            query += f"+location:Brazil"
+            query += "+location:Brazil"
 
         try:
             async with httpx.AsyncClient() as client:

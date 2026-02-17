@@ -146,7 +146,7 @@ def log_deploy(old_version: str, new_version: str):
         new_content = f"# Changelog\n\nTodas as mudancas notaveis do projeto iconsai-scraping.\n{log_entry}"
 
     CHANGELOG_FILE.write_text(new_content)
-    print(f"CHANGELOG.md atualizado")
+    print("CHANGELOG.md atualizado")
 
 
 def main():

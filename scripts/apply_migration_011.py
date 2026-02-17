@@ -36,7 +36,7 @@ def main():
     # Test if column exists by trying to select it
     print("\n[1/2] Checking if column exists...")
     try:
-        result = supabase.table("dim_pessoas").select("id, raw_enrichment_extended").limit(1).execute()
+        supabase.table("dim_pessoas").select("id, raw_enrichment_extended").limit(1).execute()
         print("    ✓ Column raw_enrichment_extended already exists")
     except Exception as e:
         if "column" in str(e).lower() and "does not exist" in str(e).lower():
