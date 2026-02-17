@@ -69,9 +69,10 @@ async def main(limit: int = 10):
     # Get people without extended enrichment
     print("\n[1/3] Buscando pessoas sem enriquecimento estendido...")
 
+    # Query with join to get company name
     result = (
         supabase.table("dim_pessoas")
-        .select("id, nome_completo, empresa_atual_nome")
+        .select("id, nome, empresa_id, dim_empresas(razao_social)")
         .is_("raw_enrichment_extended", "null")
         .limit(limit)
         .execute()
@@ -105,8 +106,10 @@ async def main(limit: int = 10):
     }
 
     for i, pessoa in enumerate(people, 1):
-        nome = pessoa.get("nome_completo", "Unknown")
-        empresa = pessoa.get("empresa_atual_nome")
+        nome = pessoa.get("nome", "Unknown")
+        # Get company name from join
+        empresa_data = pessoa.get("dim_empresas")
+        empresa = empresa_data.get("razao_social") if empresa_data else None
         print(f"\n      [{i}/{len(people)}] {nome}...")
 
         try:
