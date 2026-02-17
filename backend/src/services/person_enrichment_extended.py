@@ -687,7 +687,7 @@ async def enrich_persons_extended(
     # Get people without extended enrichment
     result = (
         supabase.table("dim_pessoas")
-        .select("id, nome")
+        .select("id, nome_completo")
         .is_("raw_enrichment_extended", "null")
         .limit(limit)
         .execute()
@@ -699,7 +699,7 @@ async def enrich_persons_extended(
         try:
             enrichment = await service.enrich_person_full(
                 pessoa_id=pessoa["id"],
-                nome=pessoa["nome"],
+                nome=pessoa["nome_completo"],
                 empresa_nome=None,  # Company enrichment done separately
             )
 

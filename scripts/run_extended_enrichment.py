@@ -72,7 +72,7 @@ async def main(limit: int = 10):
     # Query people without extended enrichment
     result = (
         supabase.table("dim_pessoas")
-        .select("id, nome")
+        .select("id, nome_completo")
         .is_("raw_enrichment_extended", "null")
         .limit(limit)
         .execute()
@@ -106,7 +106,7 @@ async def main(limit: int = 10):
     }
 
     for i, pessoa in enumerate(people, 1):
-        nome = pessoa.get("nome", "Unknown")
+        nome = pessoa.get("nome_completo", "Unknown")
         empresa = None  # Company enrichment done separately via fato_transacao_empresas
         print(f"\n      [{i}/{len(people)}] {nome}...")
 
