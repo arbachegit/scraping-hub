@@ -75,15 +75,150 @@
         font-size: 0.875rem;
       }
 
-      .btn-admin {
+      /* =============================================
+         SISTEMA DE BOTÕES PADRONIZADO
+         Altura igual aos inputs (padding: 0.9rem)
+         Seguindo design-audit rules
+         ============================================= */
+
+      /* Base para todos os botões */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.9rem 1.5rem;
+        border-radius: 0.75rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: none;
+        white-space: nowrap;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+
+      /* Botão Primário - Ações principais (Buscar) */
+      .btn-primary {
+        background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+      }
+
+      /* Botão Sucesso - Aprovar, Confirmar */
+      .btn-success {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+      }
+
+      .btn-success:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+      }
+
+      /* Botão Accent - Ações especiais (Sócios) */
+      .btn-accent {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+      }
+
+      .btn-accent:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+      }
+
+      /* Botão Secundário - Cancelar, Voltar */
+      .btn-secondary {
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+        color: #94a3b8;
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        background: rgba(51, 65, 85, 0.9);
+        border-color: rgba(6, 182, 212, 0.5);
+        color: #fff;
+      }
+
+      /* Botão Ghost - Links, ações sutis */
+      .btn-ghost {
+        background: rgba(148, 163, 184, 0.1);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+      }
+
+      .btn-ghost:hover:not(:disabled) {
+        background: rgba(148, 163, 184, 0.2);
+        color: #22d3ee;
+      }
+
+      /* Botão Danger - Excluir, Sair */
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+      }
+
+      .btn-danger:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.5);
+      }
+
+      /* Botão Outline Cyan - Admin */
+      .btn-outline-cyan {
         background: rgba(6, 182, 212, 0.1);
         border: 1px solid rgba(6, 182, 212, 0.3);
         color: #22d3ee;
+      }
+
+      .btn-outline-cyan:hover:not(:disabled) {
+        background: rgba(6, 182, 212, 0.2);
+        border-color: rgba(6, 182, 212, 0.5);
+      }
+
+      /* Tamanhos de botão */
+      .btn-sm {
         padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        text-decoration: none;
         font-size: 0.875rem;
-        font-weight: 500;
+      }
+
+      .btn-lg {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+      }
+
+      .btn-block {
+        width: 100%;
+      }
+
+      /* Manter compatibilidade com classes antigas */
+      .btn-admin {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: rgba(6, 182, 212, 0.1);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+        color: #22d3ee;
+        padding: 0.9rem 1.5rem;
+        border-radius: 0.75rem;
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 600;
         transition: all 0.2s;
       }
 
@@ -93,18 +228,24 @@
       }
 
       .btn-logout {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
         background: rgba(239, 68, 68, 0.1);
         border: 1px solid rgba(239, 68, 68, 0.3);
         color: #f87171;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
+        padding: 0.9rem 1.5rem;
+        border-radius: 0.75rem;
         cursor: pointer;
-        font-size: 0.875rem;
+        font-size: 0.95rem;
+        font-weight: 600;
         transition: all 0.2s;
       }
 
       .btn-logout:hover {
         background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.5);
       }
 
       .container {
@@ -259,21 +400,26 @@
       }
 
       .btn-search {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
         background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
         border: none;
         border-radius: 0.75rem;
-        padding: 0.9rem 2rem;
+        padding: 0.9rem 1.5rem;
         color: #fff;
         font-weight: 600;
         font-size: 0.95rem;
         cursor: pointer;
         transition: all 0.2s;
         box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+        white-space: nowrap;
       }
 
-      .btn-search:hover {
+      .btn-search:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(6, 182, 212, 0.35);
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
       }
 
       .btn-search:disabled {
@@ -484,10 +630,14 @@
       }
 
       .btn-approve {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
         background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
         border: none;
         border-radius: 0.75rem;
-        padding: 1rem 1.5rem;
+        padding: 0.9rem 1.5rem;
         color: #fff;
         font-weight: 600;
         font-size: 0.95rem;
@@ -495,11 +645,12 @@
         width: 100%;
         transition: all 0.2s;
         box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+        white-space: nowrap;
       }
 
-      .btn-approve:hover {
+      .btn-approve:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(34, 197, 94, 0.35);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
       }
 
       .btn-approve:disabled {
@@ -2885,11 +3036,29 @@
           return;
         }
 
+        // Get filter values
+        const fonte = document.getElementById("newsFonte").value;
+        const idioma = document.getElementById("newsIdioma").value || 'pt';
+        const pais = document.getElementById("newsPais").value || 'BR';
+        const dataInicio = document.getElementById("newsDataInicio").value;
+        const dataFim = document.getElementById("newsDataFim").value;
+
         const resultsDiv = document.getElementById("newsResults");
-        resultsDiv.innerHTML = '<div class="loading">Buscando...</div>';
+        resultsDiv.innerHTML = '<div class="loading">Buscando com IA em tempo real...</div>';
 
         try {
-          const r = await fetch(`/api/news/search?q=${encodeURIComponent(query)}`);
+          // Build query params
+          const params = new URLSearchParams({
+            q: query,
+            idioma: idioma,
+            pais: pais
+          });
+
+          if (fonte) params.append('fonte', fonte);
+          if (dataInicio) params.append('data_inicio', dataInicio);
+          if (dataFim) params.append('data_fim', dataFim);
+
+          const r = await fetch(`/api/news/search-ai?${params.toString()}`);
           const data = await r.json();
 
           if (!data.success) {
@@ -2898,15 +3067,74 @@
           }
 
           if (data.count === 0) {
-            resultsDiv.innerHTML = `<div class="no-results">Nenhuma notícia encontrada com "${query}".</div>`;
+            let msg = `<div class="no-results">Nenhuma notícia encontrada para "${query}".`;
+            if (data.transformed_query && data.transformed_query !== query) {
+              msg += `<br><small style="color: #64748b;">Query expandida: "${data.transformed_query}"</small>`;
+            }
+            msg += `</div>`;
+            resultsDiv.innerHTML = msg;
             return;
           }
 
+          // Show query transformation info
+          let infoHtml = '';
+          if (data.transformed_query && data.transformed_query !== query) {
+            infoHtml = `<div style="margin-bottom: 1rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; font-size: 0.8rem; color: #60a5fa;">
+              <strong>IA expandiu:</strong> "${data.transformed_query}"
+              ${data.query_context ? `<br><small>${data.query_context}</small>` : ''}
+            </div>`;
+          }
+
           newsList = data.news;
-          renderNewsList(data.news, data.count);
+          renderNewsListAI(data.news, data.count, infoHtml, data.citations);
         } catch (e) {
           resultsDiv.innerHTML = `<div class="error">Erro ao buscar: ${e.message}</div>`;
         }
+      }
+
+      function renderNewsListAI(news, total, infoHtml = '', citations = []) {
+        const resultsDiv = document.getElementById("newsResults");
+        let html = infoHtml;
+        html += `<div class="results-header"><strong>${total}</strong> notícia(s) encontrada(s) em tempo real</div>`;
+        html += '<div class="news-list">';
+
+        news.forEach(n => {
+          const titulo = n.titulo || 'Sem título';
+          const resumo = n.resumo ? n.resumo.substring(0, 200) + '...' : '';
+          const fonte = n.fonte || '';
+          const data = n.data ? new Date(n.data).toLocaleDateString('pt-BR') : '';
+          const url = n.url || '#';
+          const relevancia = n.relevancia || 'media';
+          const relevanciaColor = relevancia === 'alta' ? '#10b981' : relevancia === 'baixa' ? '#f59e0b' : '#64748b';
+
+          html += `
+            <div class="news-card" style="cursor: pointer;" onclick="window.open('${url}', '_blank')">
+              <div class="news-header">
+                <strong class="news-title">${titulo}</strong>
+                ${fonte ? `<span class="news-source">${fonte}</span>` : ''}
+              </div>
+              ${resumo ? `<p class="news-summary">${resumo}</p>` : ''}
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                ${data ? `<span class="news-date">${data}</span>` : ''}
+                <span style="font-size: 0.7rem; color: ${relevanciaColor}; text-transform: uppercase;">${relevancia}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+
+        // Show citations if available
+        if (citations && citations.length > 0) {
+          html += `<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 0.5rem;">
+            <strong style="font-size: 0.75rem; color: #64748b;">Fontes consultadas:</strong>
+            <div style="font-size: 0.7rem; color: #475569; margin-top: 0.25rem;">
+              ${citations.slice(0, 5).map(c => `<a href="${c}" target="_blank" style="color: #60a5fa; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c}</a>`).join('')}
+            </div>
+          </div>`;
+        }
+
+        resultsDiv.innerHTML = html;
       }
 
       function renderNewsList(news, total) {

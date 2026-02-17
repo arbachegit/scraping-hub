@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../database/supabase.js';
 import logger from '../utils/logger.js';
+import { transformToSearchPrompt } from '../services/anthropic.js';
+import { searchNews as perplexitySearchNews, getTrustedSources } from '../services/perplexity.js';
 
 const router = Router();
 
@@ -80,6 +82,92 @@ router.get('/search', async (req, res) => {
     logger.error('Error searching news', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/**
+ * GET /api/news/search-ai
+ * AI-powered news search using Claude + Perplexity
+ * Transforms keywords into optimized query and searches in real-time
+ */
+router.get('/search-ai', async (req, res) => {
+  try {
+    const q = req.query.q?.trim();
+    const fonte = req.query.fonte?.trim() || null;
+    const idioma = req.query.idioma || 'pt';
+    const pais = req.query.pais || 'BR';
+    const dataInicio = req.query.data_inicio || null;
+    const dataFim = req.query.data_fim || null;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 20);
+
+    if (!q) {
+      return res.status(400).json({ success: false, error: 'Query parameter "q" is required' });
+    }
+
+    logger.info('[NEWS-AI] Starting search', { q, fonte, idioma, pais });
+
+    // Step 1: Transform keywords using Claude
+    const transformResult = await transformToSearchPrompt(q, fonte, idioma, pais);
+
+    logger.info('[NEWS-AI] Keywords transformed', {
+      original: q,
+      transformed: transformResult.searchQuery,
+      expanded: transformResult.expanded
+    });
+
+    // Step 2: Search news using Perplexity
+    const searchResult = await perplexitySearchNews(transformResult.searchQuery, {
+      fonte,
+      idioma,
+      dataInicio,
+      dataFim,
+      limit
+    });
+
+    if (!searchResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: searchResult.error,
+        original_query: q,
+        transformed_query: transformResult.searchQuery
+      });
+    }
+
+    res.json({
+      success: true,
+      count: searchResult.total || searchResult.news?.length || 0,
+      original_query: q,
+      transformed_query: transformResult.searchQuery,
+      query_context: transformResult.context,
+      expanded_keywords: transformResult.keywords,
+      fonte_filter: fonte,
+      news: searchResult.news || [],
+      citations: searchResult.citations || [],
+      search_metadata: {
+        idioma,
+        pais,
+        data_inicio: dataInicio,
+        data_fim: dataFim,
+        ai_expanded: transformResult.expanded
+      }
+    });
+
+  } catch (error) {
+    logger.error('[NEWS-AI] Error', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/news/sources/trusted
+ * List available trusted sources for filtering
+ */
+router.get('/sources/trusted', (req, res) => {
+  const sources = getTrustedSources();
+  res.json({
+    success: true,
+    count: sources.length,
+    sources: sources.map(name => ({ nome: name, ativo: true }))
+  });
 });
 
 /**
