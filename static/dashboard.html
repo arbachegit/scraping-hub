@@ -1401,6 +1401,307 @@
         background: rgba(255, 255, 255, 0.02);
         border-radius: 0.5rem;
       }
+
+      /* Card Form Styles */
+      .card-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .card-form-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .card-form input,
+      .card-form select {
+        flex: 1;
+        min-width: 120px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        color: #fff;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+      }
+
+      .card-form input::placeholder {
+        color: rgba(148, 163, 184, 0.4);
+      }
+
+      .card-form input:focus,
+      .card-form select:focus {
+        outline: none;
+        border-color: rgba(6, 182, 212, 0.5);
+        background: rgba(6, 182, 212, 0.05);
+      }
+
+      .card-form select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1rem;
+        padding-right: 2rem;
+      }
+
+      .card-form select option {
+        background: #0f1629;
+        color: #fff;
+      }
+
+      .card-form input[type="date"] {
+        color-scheme: dark;
+      }
+
+      .card-form .form-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+        display: block;
+      }
+
+      .card-form .form-group {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .btn-list {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        width: 100%;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+        margin-top: 0.5rem;
+      }
+
+      .btn-list:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+      }
+
+      .btn-list:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Listing Modal (Stackable) */
+      .listing-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1100;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .listing-modal.show {
+        display: flex;
+      }
+
+      .listing-modal-content {
+        background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        border-radius: 1rem;
+        width: 95%;
+        max-width: 1200px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      }
+
+      .listing-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .listing-modal-header h2 {
+        color: #fff;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .listing-modal-header h2 .count-badge {
+        background: rgba(6, 182, 212, 0.15);
+        color: #22d3ee;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .listing-filters {
+        display: flex;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .listing-filters input {
+        flex: 1;
+        min-width: 200px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 0.6rem 1rem;
+        color: #fff;
+        font-size: 0.9rem;
+      }
+
+      .listing-filters input::placeholder {
+        color: #64748b;
+      }
+
+      .listing-filters input:focus {
+        outline: none;
+        border-color: rgba(6, 182, 212, 0.5);
+      }
+
+      .listing-filters .filter-info {
+        color: #64748b;
+        font-size: 0.85rem;
+      }
+
+      .listing-table-container {
+        flex: 1;
+        overflow: auto;
+        padding: 0 1.5rem 1.5rem;
+      }
+
+      .listing-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+
+      .listing-table th,
+      .listing-table td {
+        padding: 0.875rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .listing-table th {
+        background: rgba(255, 255, 255, 0.02);
+        color: #94a3b8;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        user-select: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        transition: background 0.2s;
+      }
+
+      .listing-table th:hover {
+        background: rgba(6, 182, 212, 0.1);
+      }
+
+      .listing-table th.sortable::after {
+        content: '↕';
+        margin-left: 0.5rem;
+        opacity: 0.4;
+      }
+
+      .listing-table th.sort-asc::after {
+        content: '↑';
+        opacity: 1;
+        color: #22d3ee;
+      }
+
+      .listing-table th.sort-desc::after {
+        content: '↓';
+        opacity: 1;
+        color: #22d3ee;
+      }
+
+      .listing-table td {
+        color: #d1d5db;
+        font-size: 0.9rem;
+      }
+
+      .listing-table tbody tr {
+        transition: background 0.2s;
+      }
+
+      .listing-table tbody tr:hover {
+        background: rgba(6, 182, 212, 0.05);
+      }
+
+      .listing-table .cell-link {
+        color: #22d3ee;
+        text-decoration: none;
+      }
+
+      .listing-table .cell-link:hover {
+        text-decoration: underline;
+      }
+
+      .listing-table .cell-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+
+      .listing-table .cell-badge.success {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+      }
+
+      .listing-table .cell-badge.warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+      }
+
+      .listing-table .cell-badge.info {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+      }
+
+      .listing-empty {
+        text-align: center;
+        padding: 3rem;
+        color: #64748b;
+      }
+
+      .listing-loading {
+        text-align: center;
+        padding: 3rem;
+        color: #64748b;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -1428,7 +1729,7 @@
       <h2 class="page-title">Modulos de Inteligencia</h2>
 
       <div class="cards">
-        <div class="card active" onclick="openCompanyModal()">
+        <div class="card active" onclick="event.target.closest('.card-form') ? null : openCompanyModal()">
           <div class="card-header">
             <div class="card-icon red">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1446,10 +1747,20 @@
             Busque por CNPJ via BrasilAPI + Serper. Dados oficiais da Receita
             Federal.
           </p>
+          <div class="card-form" onclick="event.stopPropagation()">
+            <div class="card-form-row">
+              <input type="text" id="cardEmpresaNome" placeholder="Nome da empresa *" required />
+              <input type="text" id="cardEmpresaCidade" placeholder="Cidade" />
+            </div>
+            <div class="card-form-row">
+              <input type="text" id="cardEmpresaSegmento" placeholder="Segmento / CNAE" />
+            </div>
+            <button class="btn-list" onclick="openEmpresasListingModal()">Listar</button>
+          </div>
           <span class="card-badge ready">Disponivel</span>
         </div>
 
-        <div class="card active" onclick="openPeopleModal()">
+        <div class="card active" onclick="event.target.closest('.card-form') ? null : openPeopleModal()">
           <div class="card-header">
             <div class="card-icon orange">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1464,6 +1775,13 @@
             <h3>Pessoas</h3>
           </div>
           <p>Pesquise perfis profissionais e analise talentos.</p>
+          <div class="card-form" onclick="event.stopPropagation()">
+            <div class="card-form-row">
+              <input type="text" id="cardPessoaNome" placeholder="Nome da pessoa *" required />
+              <input type="text" id="cardPessoaCidade" placeholder="Cidade" />
+            </div>
+            <button class="btn-list" onclick="openPessoasListingModal()">Listar</button>
+          </div>
           <span class="card-badge ready">Disponivel</span>
         </div>
 
@@ -1485,7 +1803,7 @@
           <span class="card-badge">Em desenvolvimento</span>
         </div>
 
-        <div class="card active" onclick="openNewsModal()">
+        <div class="card active" onclick="event.target.closest('.card-form') ? null : openNewsModal()">
           <div class="card-header">
             <div class="card-icon green">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1500,6 +1818,48 @@
             <h3>Noticias</h3>
           </div>
           <p>Monitore noticias e cenario economico.</p>
+          <div class="card-form" onclick="event.stopPropagation()">
+            <div class="card-form-row">
+              <input type="text" id="cardNoticiaQuery" placeholder="Termo(s) / query" style="flex: 2;" />
+            </div>
+            <div class="card-form-row">
+              <div class="form-group">
+                <label class="form-label">Data inicial</label>
+                <input type="date" id="cardNoticiaDataInicio" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Data final</label>
+                <input type="date" id="cardNoticiaDataFim" />
+              </div>
+            </div>
+            <div class="card-form-row">
+              <select id="cardNoticiaIdioma">
+                <option value="">Idioma</option>
+                <option value="pt">Português</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+              <select id="cardNoticiaPais">
+                <option value="BR" selected>Brasil</option>
+                <option value="US">Estados Unidos</option>
+                <option value="PT">Portugal</option>
+                <option value="all">Todos os países</option>
+              </select>
+            </div>
+            <div class="card-form-row">
+              <input type="text" id="cardNoticiaFonte" placeholder="Folha, G1, Reuters..." style="flex: 1;" />
+              <select id="cardNoticiaTipo" style="flex: 1;">
+                <option value="">Tipo de conteúdo</option>
+                <option value="noticia">Notícia</option>
+                <option value="opiniao">Opinião</option>
+                <option value="editorial">Editorial</option>
+                <option value="press_release">Press Release</option>
+                <option value="blog">Blog</option>
+                <option value="post_social">Post Social</option>
+              </select>
+            </div>
+            <button class="btn-list" onclick="openNoticiasListingModal()">Listar</button>
+          </div>
           <span class="card-badge ready">Disponivel</span>
         </div>
 
@@ -1720,6 +2080,97 @@
         <div id="newsDetailsView" style="display: none">
           <button class="btn-back" onclick="backToNewsSearch()">← Voltar</button>
           <div id="newsDetails"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Listing Modal - Empresas -->
+    <div class="listing-modal" id="empresasListingModal">
+      <div class="listing-modal-content">
+        <div class="listing-modal-header">
+          <h2>Empresas <span class="count-badge" id="empresasListingCount">0</span></h2>
+          <button class="modal-close" onclick="closeEmpresasListingModal()">&times;</button>
+        </div>
+        <div class="listing-filters">
+          <input type="text" id="empresasListingSearch" placeholder="Filtrar resultados..." oninput="filterEmpresasListing()" />
+          <span class="filter-info" id="empresasFilterInfo"></span>
+        </div>
+        <div class="listing-table-container">
+          <table class="listing-table" id="empresasListingTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="razao_social" onclick="sortEmpresasListing('razao_social')">Razão Social</th>
+                <th class="sortable" data-sort="nome_fantasia" onclick="sortEmpresasListing('nome_fantasia')">Nome Fantasia</th>
+                <th class="sortable" data-sort="cidade" onclick="sortEmpresasListing('cidade')">Cidade</th>
+                <th class="sortable" data-sort="estado" onclick="sortEmpresasListing('estado')">UF</th>
+                <th class="sortable" data-sort="cnae_descricao" onclick="sortEmpresasListing('cnae_descricao')">Segmento</th>
+                <th>LinkedIn</th>
+              </tr>
+            </thead>
+            <tbody id="empresasListingBody"></tbody>
+          </table>
+          <div class="listing-empty" id="empresasListingEmpty" style="display: none;">Nenhuma empresa encontrada com os filtros aplicados.</div>
+          <div class="listing-loading" id="empresasListingLoading">Carregando empresas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Listing Modal - Pessoas -->
+    <div class="listing-modal" id="pessoasListingModal">
+      <div class="listing-modal-content">
+        <div class="listing-modal-header">
+          <h2>Pessoas <span class="count-badge" id="pessoasListingCount">0</span></h2>
+          <button class="modal-close" onclick="closePessoasListingModal()">&times;</button>
+        </div>
+        <div class="listing-filters">
+          <input type="text" id="pessoasListingSearch" placeholder="Filtrar resultados..." oninput="filterPessoasListing()" />
+          <span class="filter-info" id="pessoasFilterInfo"></span>
+        </div>
+        <div class="listing-table-container">
+          <table class="listing-table" id="pessoasListingTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="nome_completo" onclick="sortPessoasListing('nome_completo')">Nome</th>
+                <th class="sortable" data-sort="email" onclick="sortPessoasListing('email')">Email</th>
+                <th class="sortable" data-sort="pais" onclick="sortPessoasListing('pais')">País</th>
+                <th class="sortable" data-sort="faixa_etaria" onclick="sortPessoasListing('faixa_etaria')">Faixa Etária</th>
+                <th>LinkedIn</th>
+              </tr>
+            </thead>
+            <tbody id="pessoasListingBody"></tbody>
+          </table>
+          <div class="listing-empty" id="pessoasListingEmpty" style="display: none;">Nenhuma pessoa encontrada com os filtros aplicados.</div>
+          <div class="listing-loading" id="pessoasListingLoading">Carregando pessoas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Listing Modal - Notícias -->
+    <div class="listing-modal" id="noticiasListingModal">
+      <div class="listing-modal-content">
+        <div class="listing-modal-header">
+          <h2>Notícias <span class="count-badge" id="noticiasListingCount">0</span></h2>
+          <button class="modal-close" onclick="closeNoticiasListingModal()">&times;</button>
+        </div>
+        <div class="listing-filters">
+          <input type="text" id="noticiasListingSearch" placeholder="Filtrar resultados..." oninput="filterNoticiasListing()" />
+          <span class="filter-info" id="noticiasFilterInfo"></span>
+        </div>
+        <div class="listing-table-container">
+          <table class="listing-table" id="noticiasListingTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="titulo" onclick="sortNoticiasListing('titulo')">Título</th>
+                <th class="sortable" data-sort="fonte_nome" onclick="sortNoticiasListing('fonte_nome')">Fonte</th>
+                <th class="sortable" data-sort="data_publicacao" onclick="sortNoticiasListing('data_publicacao')">Data</th>
+                <th class="sortable" data-sort="tipo" onclick="sortNoticiasListing('tipo')">Tipo</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="noticiasListingBody"></tbody>
+          </table>
+          <div class="listing-empty" id="noticiasListingEmpty" style="display: none;">Nenhuma notícia encontrada com os filtros aplicados.</div>
+          <div class="listing-loading" id="noticiasListingLoading">Carregando notícias...</div>
         </div>
       </div>
     </div>
@@ -2505,6 +2956,402 @@
 
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") closeNewsModal();
+      });
+
+      // ============================================
+      // LISTING MODALS - Empresas, Pessoas, Notícias
+      // ============================================
+
+      // State for listings
+      let empresasListingData = [];
+      let pessoasListingData = [];
+      let noticiasListingData = [];
+      let empresasSortColumn = null;
+      let empresasSortDirection = 'asc';
+      let pessoasSortColumn = null;
+      let pessoasSortDirection = 'asc';
+      let noticiasSortColumn = null;
+      let noticiasSortDirection = 'asc';
+
+      // ---- EMPRESAS LISTING ----
+      async function openEmpresasListingModal() {
+        document.getElementById("empresasListingModal").classList.add("show");
+        document.getElementById("empresasListingLoading").style.display = "block";
+        document.getElementById("empresasListingTable").style.display = "none";
+        document.getElementById("empresasListingEmpty").style.display = "none";
+
+        // Get filters from card
+        const nome = document.getElementById("cardEmpresaNome").value.trim();
+        const cidade = document.getElementById("cardEmpresaCidade").value.trim();
+        const segmento = document.getElementById("cardEmpresaSegmento").value.trim();
+
+        // Show filter info
+        let filterParts = [];
+        if (nome) filterParts.push(`Nome: "${nome}"`);
+        if (cidade) filterParts.push(`Cidade: "${cidade}"`);
+        if (segmento) filterParts.push(`Segmento: "${segmento}"`);
+        document.getElementById("empresasFilterInfo").textContent = filterParts.length > 0 ? `Filtros: ${filterParts.join(", ")}` : "";
+
+        try {
+          let url = "/api/companies/list?limit=500";
+          if (nome) url += `&nome=${encodeURIComponent(nome)}`;
+          if (cidade) url += `&cidade=${encodeURIComponent(cidade)}`;
+          if (segmento) url += `&segmento=${encodeURIComponent(segmento)}`;
+
+          const r = await fetch(url);
+          const data = await r.json();
+
+          if (data.success) {
+            empresasListingData = data.empresas || [];
+            document.getElementById("empresasListingCount").textContent = empresasListingData.length;
+            renderEmpresasListing();
+          } else {
+            throw new Error(data.error || "Erro ao buscar empresas");
+          }
+        } catch (e) {
+          document.getElementById("empresasListingBody").innerHTML = `<tr><td colspan="6" class="error">Erro: ${e.message}</td></tr>`;
+        } finally {
+          document.getElementById("empresasListingLoading").style.display = "none";
+          document.getElementById("empresasListingTable").style.display = "table";
+        }
+      }
+
+      function closeEmpresasListingModal() {
+        document.getElementById("empresasListingModal").classList.remove("show");
+        empresasListingData = [];
+        document.getElementById("empresasListingSearch").value = "";
+      }
+
+      function renderEmpresasListing(filteredData = null) {
+        const data = filteredData || empresasListingData;
+        const tbody = document.getElementById("empresasListingBody");
+        const empty = document.getElementById("empresasListingEmpty");
+
+        if (data.length === 0) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+        tbody.innerHTML = data.map(e => `
+          <tr>
+            <td>${e.razao_social || '-'}</td>
+            <td>${e.nome_fantasia || '-'}</td>
+            <td>${e.cidade || '-'}</td>
+            <td>${e.estado || '-'}</td>
+            <td>${e.cnae_descricao || '-'}</td>
+            <td>${e.linkedin && e.linkedin !== 'NAO_POSSUI' && e.linkedin !== 'inexistente'
+              ? `<a href="${e.linkedin}" target="_blank" class="cell-link">Ver</a>`
+              : '<span style="color:#64748b">-</span>'}</td>
+          </tr>
+        `).join("");
+      }
+
+      function filterEmpresasListing() {
+        const search = document.getElementById("empresasListingSearch").value.toLowerCase().trim();
+        if (!search) {
+          renderEmpresasListing();
+          return;
+        }
+
+        const filtered = empresasListingData.filter(e =>
+          (e.razao_social || '').toLowerCase().includes(search) ||
+          (e.nome_fantasia || '').toLowerCase().includes(search) ||
+          (e.cidade || '').toLowerCase().includes(search) ||
+          (e.cnae_descricao || '').toLowerCase().includes(search)
+        );
+        renderEmpresasListing(filtered);
+      }
+
+      function sortEmpresasListing(column) {
+        // Update sort direction
+        if (empresasSortColumn === column) {
+          empresasSortDirection = empresasSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          empresasSortColumn = column;
+          empresasSortDirection = 'asc';
+        }
+
+        // Update header classes
+        document.querySelectorAll("#empresasListingTable th").forEach(th => {
+          th.classList.remove("sort-asc", "sort-desc");
+          if (th.dataset.sort === column) {
+            th.classList.add(empresasSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+          }
+        });
+
+        // Sort data
+        empresasListingData.sort((a, b) => {
+          const valA = (a[column] || '').toString().toLowerCase();
+          const valB = (b[column] || '').toString().toLowerCase();
+          if (empresasSortDirection === 'asc') {
+            return valA.localeCompare(valB);
+          } else {
+            return valB.localeCompare(valA);
+          }
+        });
+
+        renderEmpresasListing();
+      }
+
+      // ---- PESSOAS LISTING ----
+      async function openPessoasListingModal() {
+        document.getElementById("pessoasListingModal").classList.add("show");
+        document.getElementById("pessoasListingLoading").style.display = "block";
+        document.getElementById("pessoasListingTable").style.display = "none";
+        document.getElementById("pessoasListingEmpty").style.display = "none";
+
+        // Get filters from card
+        const nome = document.getElementById("cardPessoaNome").value.trim();
+        const cidade = document.getElementById("cardPessoaCidade").value.trim();
+
+        // Show filter info
+        let filterParts = [];
+        if (nome) filterParts.push(`Nome: "${nome}"`);
+        if (cidade) filterParts.push(`Cidade: "${cidade}"`);
+        document.getElementById("pessoasFilterInfo").textContent = filterParts.length > 0 ? `Filtros: ${filterParts.join(", ")}` : "";
+
+        try {
+          let url = "/api/people/list?limit=500";
+          if (nome) url += `&nome=${encodeURIComponent(nome)}`;
+          if (cidade) url += `&cidade=${encodeURIComponent(cidade)}`;
+
+          const r = await fetch(url);
+          const data = await r.json();
+
+          if (data.success) {
+            pessoasListingData = data.people || [];
+            document.getElementById("pessoasListingCount").textContent = pessoasListingData.length;
+            renderPessoasListing();
+          } else {
+            throw new Error(data.error || "Erro ao buscar pessoas");
+          }
+        } catch (e) {
+          document.getElementById("pessoasListingBody").innerHTML = `<tr><td colspan="5" class="error">Erro: ${e.message}</td></tr>`;
+        } finally {
+          document.getElementById("pessoasListingLoading").style.display = "none";
+          document.getElementById("pessoasListingTable").style.display = "table";
+        }
+      }
+
+      function closePessoasListingModal() {
+        document.getElementById("pessoasListingModal").classList.remove("show");
+        pessoasListingData = [];
+        document.getElementById("pessoasListingSearch").value = "";
+      }
+
+      function renderPessoasListing(filteredData = null) {
+        const data = filteredData || pessoasListingData;
+        const tbody = document.getElementById("pessoasListingBody");
+        const empty = document.getElementById("pessoasListingEmpty");
+
+        if (data.length === 0) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+        tbody.innerHTML = data.map(p => `
+          <tr>
+            <td>${p.nome_completo || p.nome || '-'}</td>
+            <td>${p.email || '-'}</td>
+            <td>${p.pais || '-'}</td>
+            <td>${p.faixa_etaria || '-'}</td>
+            <td>${p.linkedin_url && p.linkedin_url !== 'inexistente'
+              ? `<a href="${p.linkedin_url}" target="_blank" class="cell-link">Ver</a>`
+              : '<span style="color:#64748b">-</span>'}</td>
+          </tr>
+        `).join("");
+      }
+
+      function filterPessoasListing() {
+        const search = document.getElementById("pessoasListingSearch").value.toLowerCase().trim();
+        if (!search) {
+          renderPessoasListing();
+          return;
+        }
+
+        const filtered = pessoasListingData.filter(p =>
+          (p.nome_completo || p.nome || '').toLowerCase().includes(search) ||
+          (p.email || '').toLowerCase().includes(search) ||
+          (p.pais || '').toLowerCase().includes(search)
+        );
+        renderPessoasListing(filtered);
+      }
+
+      function sortPessoasListing(column) {
+        if (pessoasSortColumn === column) {
+          pessoasSortDirection = pessoasSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          pessoasSortColumn = column;
+          pessoasSortDirection = 'asc';
+        }
+
+        document.querySelectorAll("#pessoasListingTable th").forEach(th => {
+          th.classList.remove("sort-asc", "sort-desc");
+          if (th.dataset.sort === column) {
+            th.classList.add(pessoasSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+          }
+        });
+
+        pessoasListingData.sort((a, b) => {
+          const valA = (a[column] || '').toString().toLowerCase();
+          const valB = (b[column] || '').toString().toLowerCase();
+          if (pessoasSortDirection === 'asc') {
+            return valA.localeCompare(valB);
+          } else {
+            return valB.localeCompare(valA);
+          }
+        });
+
+        renderPessoasListing();
+      }
+
+      // ---- NOTICIAS LISTING ----
+      async function openNoticiasListingModal() {
+        document.getElementById("noticiasListingModal").classList.add("show");
+        document.getElementById("noticiasListingLoading").style.display = "block";
+        document.getElementById("noticiasListingTable").style.display = "none";
+        document.getElementById("noticiasListingEmpty").style.display = "none";
+
+        // Get filters from card
+        const query = document.getElementById("cardNoticiaQuery").value.trim();
+        const dataInicio = document.getElementById("cardNoticiaDataInicio").value;
+        const dataFim = document.getElementById("cardNoticiaDataFim").value;
+        const idioma = document.getElementById("cardNoticiaIdioma").value;
+        const pais = document.getElementById("cardNoticiaPais").value;
+        const fonte = document.getElementById("cardNoticiaFonte").value.trim();
+        const tipo = document.getElementById("cardNoticiaTipo").value;
+
+        // Show filter info
+        let filterParts = [];
+        if (query) filterParts.push(`Query: "${query}"`);
+        if (dataInicio) filterParts.push(`De: ${dataInicio}`);
+        if (dataFim) filterParts.push(`Até: ${dataFim}`);
+        if (idioma) filterParts.push(`Idioma: ${idioma}`);
+        if (pais && pais !== 'all') filterParts.push(`País: ${pais}`);
+        if (fonte) filterParts.push(`Fonte: "${fonte}"`);
+        if (tipo) filterParts.push(`Tipo: ${tipo}`);
+        document.getElementById("noticiasFilterInfo").textContent = filterParts.length > 0 ? `Filtros: ${filterParts.join(", ")}` : "";
+
+        try {
+          let url = "/api/news/list?limit=500";
+          if (query) url += `&q=${encodeURIComponent(query)}`;
+          if (dataInicio) url += `&data_inicio=${encodeURIComponent(dataInicio)}`;
+          if (dataFim) url += `&data_fim=${encodeURIComponent(dataFim)}`;
+          if (idioma) url += `&idioma=${encodeURIComponent(idioma)}`;
+          if (pais && pais !== 'all') url += `&pais=${encodeURIComponent(pais)}`;
+          if (fonte) url += `&fonte=${encodeURIComponent(fonte)}`;
+          if (tipo) url += `&tipo=${encodeURIComponent(tipo)}`;
+
+          const r = await fetch(url);
+          const data = await r.json();
+
+          if (data.success) {
+            noticiasListingData = data.news || [];
+            document.getElementById("noticiasListingCount").textContent = noticiasListingData.length;
+            renderNoticiasListing();
+          } else {
+            throw new Error(data.error || "Erro ao buscar notícias");
+          }
+        } catch (e) {
+          document.getElementById("noticiasListingBody").innerHTML = `<tr><td colspan="5" class="error">Erro: ${e.message}</td></tr>`;
+        } finally {
+          document.getElementById("noticiasListingLoading").style.display = "none";
+          document.getElementById("noticiasListingTable").style.display = "table";
+        }
+      }
+
+      function closeNoticiasListingModal() {
+        document.getElementById("noticiasListingModal").classList.remove("show");
+        noticiasListingData = [];
+        document.getElementById("noticiasListingSearch").value = "";
+      }
+
+      function renderNoticiasListing(filteredData = null) {
+        const data = filteredData || noticiasListingData;
+        const tbody = document.getElementById("noticiasListingBody");
+        const empty = document.getElementById("noticiasListingEmpty");
+
+        if (data.length === 0) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+        tbody.innerHTML = data.map(n => {
+          const dataPub = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString('pt-BR') : '-';
+          return `
+            <tr>
+              <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${n.titulo || '-'}</td>
+              <td><span class="cell-badge info">${n.fonte_nome || n.fonte || '-'}</span></td>
+              <td>${dataPub}</td>
+              <td>${n.tipo ? `<span class="cell-badge success">${n.tipo}</span>` : '-'}</td>
+              <td>${n.url ? `<a href="${n.url}" target="_blank" class="cell-link">Abrir</a>` : '-'}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function filterNoticiasListing() {
+        const search = document.getElementById("noticiasListingSearch").value.toLowerCase().trim();
+        if (!search) {
+          renderNoticiasListing();
+          return;
+        }
+
+        const filtered = noticiasListingData.filter(n =>
+          (n.titulo || '').toLowerCase().includes(search) ||
+          (n.fonte_nome || n.fonte || '').toLowerCase().includes(search) ||
+          (n.resumo || '').toLowerCase().includes(search)
+        );
+        renderNoticiasListing(filtered);
+      }
+
+      function sortNoticiasListing(column) {
+        if (noticiasSortColumn === column) {
+          noticiasSortDirection = noticiasSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          noticiasSortColumn = column;
+          noticiasSortDirection = 'asc';
+        }
+
+        document.querySelectorAll("#noticiasListingTable th").forEach(th => {
+          th.classList.remove("sort-asc", "sort-desc");
+          if (th.dataset.sort === column) {
+            th.classList.add(noticiasSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+          }
+        });
+
+        noticiasListingData.sort((a, b) => {
+          let valA, valB;
+          if (column === 'data_publicacao') {
+            valA = a[column] ? new Date(a[column]).getTime() : 0;
+            valB = b[column] ? new Date(b[column]).getTime() : 0;
+            return noticiasSortDirection === 'asc' ? valA - valB : valB - valA;
+          }
+          valA = (a[column] || '').toString().toLowerCase();
+          valB = (b[column] || '').toString().toLowerCase();
+          if (noticiasSortDirection === 'asc') {
+            return valA.localeCompare(valB);
+          } else {
+            return valB.localeCompare(valA);
+          }
+        });
+
+        renderNoticiasListing();
+      }
+
+      // Close listing modals on ESC
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeEmpresasListingModal();
+          closePessoasListingModal();
+          closeNoticiasListingModal();
+        }
       });
 
       // ============================================
