@@ -2024,7 +2024,7 @@
               onkeypress="if (event.key === 'Enter') searchNews();"
             />
           </div>
-          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem; gap: 0.5rem;">
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem; gap: 0.5rem; align-items: flex-end;">
             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
               <label style="font-size: 0.75rem; color: #64748b;">Data inicial</label>
               <input type="date" id="newsDataInicio" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff;" />
@@ -2033,35 +2033,44 @@
               <label style="font-size: 0.75rem; color: #64748b;">Data final</label>
               <input type="date" id="newsDataFim" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff;" />
             </div>
-            <select id="newsIdioma" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
-              <option value="">Idioma</option>
-              <option value="pt">Português</option>
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-            <select id="newsPais" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
-              <option value="BR" selected>Brasil</option>
-              <option value="US">Estados Unidos</option>
-              <option value="PT">Portugal</option>
-              <option value="all">Todos</option>
-            </select>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">Idioma</label>
+              <select id="newsIdioma" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
+                <option value="pt" selected>Português</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">País</label>
+              <select id="newsPais" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 100px;">
+                <option value="BR" selected>Brasil</option>
+                <option value="US">Estados Unidos</option>
+                <option value="PT">Portugal</option>
+                <option value="">Todos</option>
+              </select>
+            </div>
           </div>
-          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem;">
-            <input
-              type="text"
-              id="newsFonte"
-              placeholder="Fonte (Folha, G1, Reuters...)"
-              style="flex: 1; min-width: 150px"
-            />
-            <select id="newsTipo" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 140px;">
-              <option value="">Tipo de conteúdo</option>
-              <option value="noticia">Notícia</option>
-              <option value="opiniao">Opinião</option>
-              <option value="editorial">Editorial</option>
-              <option value="press_release">Press Release</option>
-              <option value="blog">Blog</option>
-              <option value="post_social">Post Social</option>
-            </select>
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem; gap: 0.5rem; align-items: flex-end;">
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">Fonte</label>
+              <select id="newsFonte" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 180px;">
+                <option value="">Todas as fontes</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <label style="font-size: 0.75rem; color: #64748b;">Tipo</label>
+              <select id="newsTipo" style="padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: #fff; min-width: 140px;">
+                <option value="">Todos os tipos</option>
+                <option value="noticia">Notícia</option>
+                <option value="opiniao">Opinião</option>
+                <option value="editorial">Editorial</option>
+                <option value="press_release">Press Release</option>
+                <option value="blog">Blog</option>
+                <option value="post_social">Post Social</option>
+              </select>
+            </div>
             <button class="btn-search" onclick="searchNews()" id="btnSearchNews">
               Buscar
             </button>
@@ -2069,7 +2078,6 @@
               Listar
             </button>
           </div>
-          <div id="newsSourcesInfo" style="margin: 1rem 0; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.5rem; font-size: 0.875rem; color: #10b981;"></div>
           <div id="newsResults"></div>
         </div>
 
@@ -2796,7 +2804,16 @@
       function openNewsModal() {
         document.getElementById("newsModal").classList.add("show");
         document.getElementById("newsQuery").focus();
-        // Load sources info and initial list
+
+        // Define datas da última semana como default
+        const hoje = new Date();
+        const umaSemanaAtras = new Date();
+        umaSemanaAtras.setDate(hoje.getDate() - 7);
+
+        document.getElementById("newsDataFim").value = hoje.toISOString().split('T')[0];
+        document.getElementById("newsDataInicio").value = umaSemanaAtras.toISOString().split('T')[0];
+
+        // Load sources dropdown and initial list
         loadNewsSources();
         listAllNews();
       }
@@ -2820,9 +2837,16 @@
           const r = await fetch("/api/news/sources/list");
           const data = await r.json();
 
-          if (data.success && data.count > 0) {
-            document.getElementById("newsSourcesInfo").innerHTML =
-              `<strong>${data.count}</strong> fontes verificadas configuradas (Fact-checkers, Agências de notícias)`;
+          if (data.success && data.sources && data.sources.length > 0) {
+            const selectFonte = document.getElementById("newsFonte");
+            // Mantém a opção "Todas" e adiciona as fontes
+            selectFonte.innerHTML = '<option value="">Todas as fontes</option>';
+            data.sources.forEach(fonte => {
+              const option = document.createElement("option");
+              option.value = fonte.nome || fonte.id;
+              option.textContent = fonte.nome || fonte.url;
+              selectFonte.appendChild(option);
+            });
           }
         } catch (e) {
           console.error("Error loading news sources:", e);
