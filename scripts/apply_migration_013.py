@@ -32,7 +32,7 @@ def main():
     # Test if dim_empresas has cnae_id column
     print("\n[1/2] Verificando estrutura atual de dim_empresas...")
     try:
-        result = supabase.table("dim_empresas").select("id, cnpj, codigo_ibge").limit(1).execute()
+        supabase.table("dim_empresas").select("id, cnpj, codigo_ibge").limit(1).execute()
         print("    ✓ Tabela dim_empresas existe")
 
         # Check if cnae_id column exists
