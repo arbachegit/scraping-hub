@@ -271,14 +271,13 @@ Retorne APENAS um JSON válido no formato:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.2,
-        max_tokens: 4096,
-        return_citations: true
+        max_tokens: 4096
       })
     });
 
