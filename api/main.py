@@ -2,10 +2,9 @@
 IconsAI Scraping API - v3.0 (Clean Architecture)
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
-
-import os
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, status
