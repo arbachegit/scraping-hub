@@ -250,6 +250,95 @@ for (const [key, source] of Object.entries(DATA_SOURCES)) {
 
 ---
 
+### REGRA 10: AUTONOMIA: QUANDO EXECUTAR vs QUANDO PERGUNTAR
+
+**EXECUTAR SEM PERGUNTAR (Correções Operacionais):**
+- ✅ Adicionar porta ao CORS
+- ✅ Criar/corrigir `.env` com credenciais já conhecidas
+- ✅ Adicionar campo opcional em config (ex: nova env var)
+- ✅ Corrigir imports quebrados
+- ✅ Reiniciar serviços
+- ✅ Corrigir erros de TypeScript/lint
+- ✅ Adicionar índices em banco (sem alterar schema)
+- ✅ Instalar dependências já listadas no package.json/requirements.txt
+- ✅ Formatar código (prettier, black)
+- ✅ Atualizar tipos/interfaces para match com API existente
+- ✅ **Comandos Git**: status, add, commit, pull, push, branch, checkout, log, diff, stash
+
+**PERGUNTAR ANTES (Mudanças de Impacto):**
+- ❓ Alterar estrutura de tabelas (migrations)
+- ❓ Mudar contratos de API (novos campos obrigatórios, remover campos)
+- ❓ Alterar lógica de negócio/cálculos
+- ❓ Criar novos endpoints
+- ❓ Mudar arquitetura de componentes
+- ❓ Adicionar dependências NOVAS ao projeto
+- ❓ Alterar fluxo de autenticação
+- ❓ Deletar código/arquivos
+- ❓ Refatorar estrutura de pastas
+- ❓ Mudar configurações de build/deploy
+
+**Regra de Ouro:** Se a mudança pode quebrar algo que estava funcionando ou afeta outros desenvolvedores, PERGUNTE. Se é apenas fazer funcionar o que deveria funcionar, EXECUTE.
+
+### BI DENSITY DESIGN SYSTEM (REGRA DE OURO - UI/UX)
+
+**Princípio Fundamental:** Elementos de UI devem se adaptar ao container sem quebrar linha ou transbordar.
+
+#### Regras Obrigatórias para Componentes Responsivos:
+
+```css
+/* 1. NUNCA permitir quebra de linha em labels/valores */
+white-space: nowrap;
+
+/* 2. SEMPRE permitir encolhimento em flex children */
+min-width: 0;  /* CRÍTICO - sem isso flex não encolhe! */
+
+/* 3. Truncar quando não couber */
+text-overflow: ellipsis;
+overflow: hidden;
+
+/* 4. Fontes e espaçamentos fluidos com clamp() */
+font-size: clamp(10px, 0.8vw, 14px);
+padding: clamp(4px, 0.5vw, 8px);
+gap: clamp(2px, 0.3vw, 6px);
+
+/* 5. Números sempre alinhados */
+font-variant-numeric: tabular-nums;
+```
+
+#### Padrão para Pares Label + Valor:
+
+```css
+.bi-kpi {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--bi-gap-sm);
+  align-items: baseline;
+}
+
+.bi-kpi-label { white-space: nowrap; opacity: 0.7; }
+
+.bi-kpi-value {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+```
+
+#### Padrão para Linhas Flex:
+
+```css
+.bi-row { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--bi-gap-sm); }
+.bi-cell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bi-cell-fixed { flex-shrink: 0; white-space: nowrap; }
+```
+
+**Regra de Ouro UI:** Se um elemento pode ter texto longo, SEMPRE aplicar: `min-width: 0 + white-space: nowrap + text-overflow: ellipsis`.
+
+---
+
 ## 📁 ESTRUTURA DO PROJETO
 
 ```
