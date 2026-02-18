@@ -58,19 +58,26 @@
         }
 
         .btn-back {
-            background: rgba(6, 182, 212, 0.1);
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            color: #22d3ee;
-            padding: 0.5rem 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            height: 2.5rem;
+            background: rgba(6, 182, 212, 0.15);
+            border: 2px solid #06b6d4;
+            color: #06b6d4;
+            padding: 0 1rem;
             border-radius: 0.5rem;
             cursor: pointer;
             font-size: 0.875rem;
+            font-weight: 500;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.2s ease-in-out;
         }
 
         .btn-back:hover {
-            background: rgba(6, 182, 212, 0.2);
+            background: #06b6d4;
+            color: #fff;
         }
 
         /* Container */
@@ -192,45 +199,59 @@
             cursor: pointer;
         }
 
-        /* Buttons */
+        /* Buttons - skill-ui-button v1.0 */
         .btn {
-            padding: 0.75rem 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            height: 3rem;
+            padding: 0 1rem;
             border-radius: 0.5rem;
-            font-weight: 600;
+            font-weight: 500;
             font-size: 0.875rem;
             cursor: pointer;
-            transition: all 0.2s;
-            border: none;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid;
+            white-space: nowrap;
         }
 
-        .btn-primary {
-            background: linear-gradient(to right, #06b6d4, #3b82f6);
-            color: #fff;
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-        }
-
-        .btn-primary:disabled {
+        .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .btn-danger {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #f87171;
+        .btn-primary {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: #06b6d4;
+            color: #06b6d4;
         }
 
-        .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.2);
+        .btn-primary:hover:not(:disabled) {
+            background: #06b6d4;
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #ef4444;
+            color: #fff;
         }
 
         .btn-secondary {
-            background: rgba(100, 116, 139, 0.2);
-            border: 1px solid rgba(100, 116, 139, 0.3);
+            background: rgba(100, 116, 139, 0.15);
+            border-color: #64748b;
             color: #94a3b8;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #64748b;
+            color: #fff;
         }
 
         /* Users Table */

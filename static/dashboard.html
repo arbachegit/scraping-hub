@@ -78,9 +78,9 @@
       }
 
       /* =============================================
-         SISTEMA DE BOTÕES PADRONIZADO
-         Altura igual aos inputs (padding: 0.9rem)
-         Seguindo design-audit rules
+         SISTEMA DE BOTÕES - skill-ui-button v1.0
+         Padrão: altura 3rem, borda 2px, background claro,
+         hover intensifica cor, ícone obrigatório
          ============================================= */
 
       /* Base para todos os botões */
@@ -89,117 +89,135 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        padding: 0.9rem 1.5rem;
+        height: 3rem;
+        padding: 0 1rem;
         border-radius: 0.75rem;
         font-size: 0.95rem;
-        font-weight: 600;
+        font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s ease-in-out;
         text-decoration: none;
-        border: none;
+        border: 2px solid;
         white-space: nowrap;
       }
 
       .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none !important;
-        box-shadow: none !important;
       }
 
-      /* Botão Primário - Ações principais (Buscar) */
+      .btn svg, .btn .btn-icon {
+        width: 1.125rem;
+        height: 1.125rem;
+        flex-shrink: 0;
+      }
+
+      /* Botão Primário (cyan) - Ações principais */
       .btn-primary {
-        background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+        background: rgba(6, 182, 212, 0.15);
+        border-color: #06b6d4;
+        color: #06b6d4;
       }
 
       .btn-primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        background: #06b6d4;
+        color: #fff;
       }
 
-      /* Botão Sucesso - Aprovar, Confirmar */
+      /* Botão Sucesso (green) - Aprovar, Confirmar */
       .btn-success {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+        background: rgba(34, 197, 94, 0.15);
+        border-color: #22c55e;
+        color: #22c55e;
       }
 
       .btn-success:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+        background: #22c55e;
+        color: #fff;
       }
 
-      /* Botão Accent - Ações especiais (Sócios) */
+      /* Botão Accent (purple) - Ações especiais */
       .btn-accent {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+        background: rgba(139, 92, 246, 0.15);
+        border-color: #8b5cf6;
+        color: #8b5cf6;
       }
 
       .btn-accent:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        background: #8b5cf6;
+        color: #fff;
       }
 
-      /* Botão Secundário - Cancelar, Voltar */
+      /* Botão Secundário (slate) - Cancelar, Voltar */
       .btn-secondary {
-        background: rgba(30, 41, 59, 0.9);
-        border: 1px solid rgba(6, 182, 212, 0.3);
+        background: rgba(100, 116, 139, 0.15);
+        border-color: #64748b;
         color: #94a3b8;
       }
 
       .btn-secondary:hover:not(:disabled) {
-        background: rgba(51, 65, 85, 0.9);
-        border-color: rgba(6, 182, 212, 0.5);
+        background: #64748b;
         color: #fff;
       }
 
-      /* Botão Ghost - Links, ações sutis */
+      /* Botão Ghost (slate) - Links, ações sutis */
       .btn-ghost {
         background: rgba(148, 163, 184, 0.1);
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-color: rgba(148, 163, 184, 0.3);
         color: #94a3b8;
       }
 
       .btn-ghost:hover:not(:disabled) {
-        background: rgba(148, 163, 184, 0.2);
-        color: #22d3ee;
+        background: #475569;
+        color: #fff;
       }
 
-      /* Botão Danger - Excluir, Sair */
+      /* Botão Danger (red) - Excluir, Sair */
       .btn-danger {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #f87171;
+        background: rgba(239, 68, 68, 0.15);
+        border-color: #ef4444;
+        color: #ef4444;
       }
 
       .btn-danger:hover:not(:disabled) {
-        background: rgba(239, 68, 68, 0.2);
-        border-color: rgba(239, 68, 68, 0.5);
+        background: #ef4444;
+        color: #fff;
+      }
+
+      /* Botão Warning (yellow) - Atenção */
+      .btn-warning {
+        background: rgba(234, 179, 8, 0.15);
+        border-color: #eab308;
+        color: #eab308;
+      }
+
+      .btn-warning:hover:not(:disabled) {
+        background: #eab308;
+        color: #fff;
       }
 
       /* Botão Outline Cyan - Admin */
       .btn-outline-cyan {
-        background: rgba(6, 182, 212, 0.1);
-        border: 1px solid rgba(6, 182, 212, 0.3);
+        background: rgba(6, 182, 212, 0.15);
+        border-color: #06b6d4;
         color: #22d3ee;
       }
 
       .btn-outline-cyan:hover:not(:disabled) {
-        background: rgba(6, 182, 212, 0.2);
-        border-color: rgba(6, 182, 212, 0.5);
+        background: #06b6d4;
+        color: #fff;
       }
 
       /* Tamanhos de botão */
       .btn-sm {
-        padding: 0.5rem 1rem;
+        height: 2.25rem;
+        padding: 0 0.75rem;
         font-size: 0.875rem;
       }
 
       .btn-lg {
-        padding: 1rem 2rem;
+        height: 3.5rem;
+        padding: 0 1.5rem;
         font-size: 1rem;
       }
 
@@ -213,10 +231,11 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: rgba(6, 182, 212, 0.1);
-        border: 1px solid rgba(6, 182, 212, 0.3);
+        height: 3rem;
+        background: rgba(6, 182, 212, 0.15);
+        border: 2px solid #06b6d4;
         color: #22d3ee;
-        padding: 0.9rem 1.5rem;
+        padding: 0 1rem;
         border-radius: 0.75rem;
         text-decoration: none;
         font-size: 0.95rem;
@@ -225,8 +244,8 @@
       }
 
       .btn-admin:hover {
-        background: rgba(6, 182, 212, 0.2);
-        border-color: rgba(6, 182, 212, 0.5);
+        background: #06b6d4;
+        color: #fff;
       }
 
       .btn-logout {
@@ -234,20 +253,21 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #f87171;
-        padding: 0.9rem 1.5rem;
+        height: 3rem;
+        background: rgba(239, 68, 68, 0.15);
+        border: 2px solid #ef4444;
+        color: #ef4444;
+        padding: 0 1rem;
         border-radius: 0.75rem;
         cursor: pointer;
         font-size: 0.95rem;
-        font-weight: 600;
-        transition: all 0.2s;
+        font-weight: 500;
+        transition: all 0.2s ease-in-out;
       }
 
       .btn-logout:hover {
-        background: rgba(239, 68, 68, 0.2);
-        border-color: rgba(239, 68, 68, 0.5);
+        background: #ef4444;
+        color: #fff;
       }
 
       .container {
@@ -406,38 +426,27 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: linear-gradient(135deg, #0891b2 0%, #2563eb 100%);
-        border: 1px solid rgba(6, 182, 212, 0.5);
+        height: 3rem;
+        background: rgba(6, 182, 212, 0.15);
+        border: 2px solid #06b6d4;
         border-radius: 0.75rem;
-        padding: 0.9rem 1.75rem;
-        color: #fff;
-        font-weight: 700;
-        font-size: 1rem;
+        padding: 0 1.25rem;
+        color: #06b6d4;
+        font-weight: 600;
+        font-size: 0.95rem;
         cursor: pointer;
-        transition: all 0.25s ease;
-        box-shadow:
-          0 4px 15px rgba(6, 182, 212, 0.4),
-          0 0 0 1px rgba(6, 182, 212, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
       .btn-search:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow:
-          0 8px 25px rgba(6, 182, 212, 0.5),
-          0 0 30px rgba(6, 182, 212, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border-color: rgba(6, 182, 212, 0.8);
+        background: #06b6d4;
+        color: #fff;
       }
 
       .btn-search:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
       }
 
       .results {
@@ -645,39 +654,28 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-        border: 1px solid rgba(34, 197, 94, 0.5);
+        height: 3rem;
+        background: rgba(34, 197, 94, 0.15);
+        border: 2px solid #22c55e;
         border-radius: 0.75rem;
-        padding: 0.9rem 1.75rem;
-        color: #fff;
-        font-weight: 700;
-        font-size: 1rem;
+        padding: 0 1.25rem;
+        color: #22c55e;
+        font-weight: 600;
+        font-size: 0.95rem;
         cursor: pointer;
         width: 100%;
-        transition: all 0.25s ease;
-        box-shadow:
-          0 4px 15px rgba(34, 197, 94, 0.4),
-          0 0 0 1px rgba(34, 197, 94, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
       .btn-approve:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow:
-          0 8px 25px rgba(34, 197, 94, 0.5),
-          0 0 30px rgba(34, 197, 94, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border-color: rgba(34, 197, 94, 0.8);
+        background: #22c55e;
+        color: #fff;
       }
 
       .btn-approve:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
       }
 
       .btn-action-group {
@@ -694,22 +692,22 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: rgba(30, 41, 59, 0.9);
-        border: 1px solid rgba(6, 182, 212, 0.3);
+        height: 3rem;
+        background: rgba(100, 116, 139, 0.15);
+        border: 2px solid #64748b;
         border-radius: 0.75rem;
-        padding: 0.9rem 1.5rem;
+        padding: 0 1rem;
         color: #94a3b8;
-        font-weight: 600;
+        font-weight: 500;
         font-size: 0.95rem;
         cursor: pointer;
         width: 100%;
-        transition: all 0.2s;
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
       }
 
       .btn-secondary:hover:not(:disabled) {
-        background: rgba(51, 65, 85, 0.9);
-        border-color: rgba(6, 182, 212, 0.5);
+        background: #64748b;
         color: #fff;
       }
 
@@ -718,39 +716,28 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
-        border: 1px solid rgba(139, 92, 246, 0.5);
+        height: 3rem;
+        background: rgba(139, 92, 246, 0.15);
+        border: 2px solid #8b5cf6;
         border-radius: 0.75rem;
-        padding: 0.9rem 1.75rem;
-        color: #fff;
-        font-weight: 700;
-        font-size: 1rem;
+        padding: 0 1.25rem;
+        color: #8b5cf6;
+        font-weight: 600;
+        font-size: 0.95rem;
         cursor: pointer;
         width: 100%;
-        transition: all 0.25s ease;
-        box-shadow:
-          0 4px 15px rgba(139, 92, 246, 0.4),
-          0 0 0 1px rgba(139, 92, 246, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
       .btn-socios:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow:
-          0 8px 25px rgba(139, 92, 246, 0.5),
-          0 0 30px rgba(139, 92, 246, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border-color: rgba(139, 92, 246, 0.8);
+        background: #8b5cf6;
+        color: #fff;
       }
 
       .btn-socios:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
       }
 
       .no-linkedin {
@@ -1291,22 +1278,23 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: rgba(148, 163, 184, 0.1);
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        height: 3rem;
+        background: rgba(100, 116, 139, 0.15);
+        border: 2px solid #64748b;
         color: #94a3b8;
-        padding: 0.9rem 1.5rem;
+        padding: 0 1rem;
         border-radius: 0.75rem;
         cursor: pointer;
         font-size: 0.95rem;
-        font-weight: 600;
+        font-weight: 500;
         margin-bottom: 1rem;
-        transition: all 0.2s;
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
       }
 
       .btn-back:hover:not(:disabled) {
-        background: rgba(148, 163, 184, 0.2);
-        color: #22d3ee;
+        background: #64748b;
+        color: #fff;
       }
 
       .results-header {
@@ -1567,22 +1555,22 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        color: #60a5fa;
-        padding: 0.9rem 1.5rem;
+        height: 3rem;
+        background: rgba(59, 130, 246, 0.15);
+        border: 2px solid #3b82f6;
+        color: #3b82f6;
+        padding: 0 1rem;
         border-radius: 0.75rem;
         text-decoration: none;
         font-size: 0.95rem;
-        font-weight: 600;
-        transition: all 0.2s;
+        font-weight: 500;
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
       }
 
       .btn-link:hover {
-        background: rgba(59, 130, 246, 0.2);
-        border-color: rgba(59, 130, 246, 0.5);
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        background: #3b82f6;
+        color: #fff;
       }
 
       .loading {
@@ -1682,38 +1670,27 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        border: 1px solid rgba(16, 185, 129, 0.5);
+        height: 3rem;
+        background: rgba(16, 185, 129, 0.15);
+        border: 2px solid #10b981;
         border-radius: 0.75rem;
-        padding: 0.9rem 1.75rem;
-        color: #fff;
-        font-weight: 700;
-        font-size: 1rem;
+        padding: 0 1.25rem;
+        color: #10b981;
+        font-weight: 600;
+        font-size: 0.95rem;
         cursor: pointer;
-        transition: all 0.25s ease;
-        box-shadow:
-          0 4px 15px rgba(16, 185, 129, 0.4),
-          0 0 0 1px rgba(16, 185, 129, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        transition: all 0.2s ease-in-out;
         white-space: nowrap;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
       .btn-list:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow:
-          0 8px 25px rgba(16, 185, 129, 0.5),
-          0 0 30px rgba(16, 185, 129, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        border-color: rgba(16, 185, 129, 0.8);
+        background: #10b981;
+        color: #fff;
       }
 
       .btn-list:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
       }
 
       /* Listing Modal (Stackable) */
