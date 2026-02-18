@@ -32,6 +32,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY api/ ./api/
 COPY src/ ./src/
+COPY config/ ./config/
 COPY static/ ./static/
 COPY VERSION ./
 
