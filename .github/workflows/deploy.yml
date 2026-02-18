@@ -253,12 +253,26 @@ jobs:
             sudo systemctl disable scraping 2>/dev/null || true
             sudo systemctl disable scraping-backend 2>/dev/null || true
 
-            # Pull and deploy with docker-compose
+            # Stop existing containers FIRST
+            echo "Stopping existing containers..."
+            docker-compose -f $COMPOSE_FILE down --remove-orphans || true
+
+            # Wait for ports to be released
+            echo "Waiting for ports to be released..."
+            sleep 5
+
+            # Verify ports are free
+            if lsof -i :8000 > /dev/null 2>&1; then
+              echo "WARNING: Port 8000 still in use, killing..."
+              sudo fuser -k 8000/tcp || true
+              sleep 2
+            fi
+
+            # Pull images after stopping containers
             echo "Pulling images with SHA: ${GIT_SHA}..."
             docker-compose -f $COMPOSE_FILE pull
 
             echo "Starting containers..."
-            docker-compose -f $COMPOSE_FILE down --remove-orphans || true
             docker-compose -f $COMPOSE_FILE up -d
 
             # Wait for services
