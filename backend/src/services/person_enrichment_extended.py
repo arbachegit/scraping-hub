@@ -19,7 +19,6 @@ from typing import Any
 
 import httpx
 import structlog
-
 from supabase import Client
 
 logger = structlog.get_logger()

@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from supabase import create_client
 
 from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -25,7 +26,6 @@ from api.auth import (
 )
 from backend.src.services.person_enrichment import PersonEnrichmentService
 from config.settings import settings
-from supabase import create_client
 
 logger = structlog.get_logger()
 

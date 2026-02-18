@@ -13,6 +13,7 @@ from typing import Any
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from supabase import Client, create_client
 
 from config.settings import settings
 from mcp_servers.apollo_mcp import ApolloMCPServer
@@ -20,7 +21,6 @@ from mcp_servers.brasil_data_hub_mcp import BrasilDataHubMCPServer
 from mcp_servers.brasilapi_mcp import BrasilAPIMCPServer
 from mcp_servers.cnpja_mcp import CNPJaMCPServer
 from mcp_servers.serper_mcp import SerperMCPServer
-from supabase import Client, create_client
 
 logger = structlog.get_logger()
 
