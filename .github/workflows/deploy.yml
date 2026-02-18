@@ -97,9 +97,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.git_sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.git_sha }}
           build-args: |
             GIT_SHA=${{ steps.vars.outputs.git_sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
@@ -113,9 +111,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.git_sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.git_sha }}
           build-args: |
             GIT_SHA=${{ steps.vars.outputs.git_sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
@@ -129,9 +125,7 @@ jobs:
           context: .
           file: ./scheduler/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.git_sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.git_sha }}
           build-args: |
             GIT_SHA=${{ steps.vars.outputs.git_sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
