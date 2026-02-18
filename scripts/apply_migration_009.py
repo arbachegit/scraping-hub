@@ -23,9 +23,8 @@ from pathlib import Path
 # Adicionar diretório raiz ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from supabase import create_client
-
 from config.settings import settings
+from supabase import create_client
 
 
 def apply_migration(dry_run: bool = False) -> None:
@@ -35,7 +34,10 @@ def apply_migration(dry_run: bool = False) -> None:
     Args:
         dry_run: Se True, apenas mostra o SQL sem executar
     """
-    migration_file = Path(__file__).parent.parent / "backend/database/migrations/009_star_schema_normalization.sql"
+    migration_file = (
+        Path(__file__).parent.parent
+        / "backend/database/migrations/009_star_schema_normalization.sql"
+    )
 
     if not migration_file.exists():
         print(f"Erro: Arquivo de migration não encontrado: {migration_file}")
@@ -56,7 +58,9 @@ def apply_migration(dry_run: bool = False) -> None:
         return
 
     if not settings.has_supabase:
-        print("Erro: Supabase não configurado. Configure SUPABASE_URL e SUPABASE_SERVICE_KEY")
+        print(
+            "Erro: Supabase não configurado. Configure SUPABASE_URL e SUPABASE_SERVICE_KEY"
+        )
         sys.exit(1)
 
     print("Conectando ao Supabase...")
@@ -77,12 +81,16 @@ def apply_migration(dry_run: bool = False) -> None:
     print(f"   {migration_file}")
     print()
     print("Ou use a connection string para executar via psql:")
-    print(f"   psql {settings.supabase_url.replace('https://', 'postgresql://postgres:PASSWORD@').replace('.supabase.co', '.supabase.co:5432/postgres')}")
+    print(
+        f"   psql {settings.supabase_url.replace('https://', 'postgresql://postgres:PASSWORD@').replace('.supabase.co', '.supabase.co:5432/postgres')}"
+    )
     print()
 
     # Verificar se migration já foi aplicada
     try:
-        result = client.table("dim_regimes_tributarios").select("codigo").limit(1).execute()
+        result = (
+            client.table("dim_regimes_tributarios").select("codigo").limit(1).execute()
+        )
         if result.data:
             print("Migration já foi aplicada! Tabela dim_regimes_tributarios existe.")
             print(f"Regimes encontrados: {len(result.data)}")
@@ -109,7 +117,9 @@ def verify_migration() -> None:
 
     # 1. Verificar tabela dim_regimes_tributarios
     try:
-        result = client.table("dim_regimes_tributarios").select("codigo, nome").execute()
+        result = (
+            client.table("dim_regimes_tributarios").select("codigo, nome").execute()
+        )
         print(f"dim_regimes_tributarios: {len(result.data)} registros")
         for r in result.data:
             print(f"  - {r['codigo']}: {r['nome']}")
@@ -118,7 +128,13 @@ def verify_migration() -> None:
 
     # 2. Verificar dim_empresas (linkedin default)
     try:
-        result = client.table("dim_empresas").select("linkedin").is_("linkedin", "null").limit(1).execute()
+        result = (
+            client.table("dim_empresas")
+            .select("linkedin")
+            .is_("linkedin", "null")
+            .limit(1)
+            .execute()
+        )
         if result.data:
             print("dim_empresas: AVISO - Ainda existem registros com linkedin NULL")
         else:
@@ -128,7 +144,9 @@ def verify_migration() -> None:
 
     # 3. Verificar dim_pessoas (novos campos)
     try:
-        result = client.table("dim_pessoas").select("email, foto_url").limit(1).execute()
+        result = (
+            client.table("dim_pessoas").select("email, foto_url").limit(1).execute()
+        )
         print("dim_pessoas: OK - Campos email e foto_url existem")
     except Exception as e:
         print(f"dim_pessoas: ERRO - {e}")

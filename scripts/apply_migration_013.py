@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -32,7 +33,9 @@ def main():
     # Test if dim_empresas has cnae_id column
     print("\n[1/2] Verificando estrutura atual de dim_empresas...")
     try:
-        supabase.table("dim_empresas").select("id, cnpj, codigo_ibge").limit(1).execute()
+        supabase.table("dim_empresas").select("id, cnpj, codigo_ibge").limit(
+            1
+        ).execute()
         print("    ✓ Tabela dim_empresas existe")
 
         # Check if cnae_id column exists
@@ -50,7 +53,13 @@ def main():
     print("=" * 60)
     print("\nExecute este SQL no Supabase Studio (SQL Editor):\n")
 
-    sql_file = Path(__file__).parent.parent / "backend" / "database" / "migrations" / "013_standardize_location_cnae.sql"
+    sql_file = (
+        Path(__file__).parent.parent
+        / "backend"
+        / "database"
+        / "migrations"
+        / "013_standardize_location_cnae.sql"
+    )
     print(sql_file.read_text())
 
     print("\n" + "=" * 60)

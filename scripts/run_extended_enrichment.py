@@ -25,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv  # noqa: E402
+
 from supabase import create_client  # noqa: E402
 
 # Load environment variables
@@ -56,7 +57,9 @@ async def main(limit: int = 10):
     print("\nConfiguration:")
     print(f"  - Supabase: {supabase_url[:30]}...")
     print(f"  - Serper API: {'Configured' if serper_api_key else 'NOT CONFIGURED'}")
-    print(f"  - GitHub Token: {'Configured' if github_token else 'NOT CONFIGURED (lower rate limit)'}")
+    print(
+        f"  - GitHub Token: {'Configured' if github_token else 'NOT CONFIGURED (lower rate limit)'}"
+    )
     print(f"  - Limit: {limit} pessoas")
 
     if not serper_api_key:
@@ -176,7 +179,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Run extended person enrichment")
-    parser.add_argument("--limit", type=int, default=10, help="Number of people to process")
+    parser.add_argument(
+        "--limit", type=int, default=10, help="Number of people to process"
+    )
     args = parser.parse_args()
 
     asyncio.run(main(limit=args.limit))

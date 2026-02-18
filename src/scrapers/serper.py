@@ -47,7 +47,12 @@ class SerperClient(BaseScraper):
         return {"X-API-KEY": self.api_key, "Content-Type": "application/json"}
 
     async def search(
-        self, query: str, num: int = 10, gl: str = "br", hl: str = "pt-br", page: int = 1
+        self,
+        query: str,
+        num: int = 10,
+        gl: str = "br",
+        hl: str = "pt-br",
+        page: int = 1,
     ) -> Dict[str, Any]:
         """
         Busca Google padrão
@@ -65,7 +70,8 @@ class SerperClient(BaseScraper):
         logger.info("serper_search", query=query[:50])
 
         result = await self.post(
-            "/search", json={"q": query, "num": min(num, 100), "gl": gl, "hl": hl, "page": page}
+            "/search",
+            json={"q": query, "num": min(num, 100), "gl": gl, "hl": hl, "page": page},
         )
 
         return {
@@ -113,11 +119,15 @@ class SerperClient(BaseScraper):
             "total_results": len(result.get("news", [])),
         }
 
-    async def search_images(self, query: str, num: int = 10, gl: str = "br") -> Dict[str, Any]:
+    async def search_images(
+        self, query: str, num: int = 10, gl: str = "br"
+    ) -> Dict[str, Any]:
         """Busca de imagens"""
         logger.info("serper_images", query=query[:50])
 
-        result = await self.post("/images", json={"q": query, "num": min(num, 100), "gl": gl})
+        result = await self.post(
+            "/images", json={"q": query, "num": min(num, 100), "gl": gl}
+        )
 
         return {
             "query": query,
@@ -131,7 +141,9 @@ class SerperClient(BaseScraper):
         """Busca de lugares (Google Maps)"""
         logger.info("serper_places", query=query[:50])
 
-        result = await self.post("/places", json={"q": query, "location": location, "gl": gl})
+        result = await self.post(
+            "/places", json={"q": query, "location": location, "gl": gl}
+        )
 
         return {
             "query": query,
@@ -139,7 +151,9 @@ class SerperClient(BaseScraper):
             "total_results": len(result.get("places", [])),
         }
 
-    async def autocomplete(self, query: str, gl: str = "br", hl: str = "pt-br") -> List[str]:
+    async def autocomplete(
+        self, query: str, gl: str = "br", hl: str = "pt-br"
+    ) -> List[str]:
         """Google Autocomplete"""
         result = await self.post("/autocomplete", json={"q": query, "gl": gl, "hl": hl})
 
@@ -264,7 +278,8 @@ class SerperClient(BaseScraper):
             "search_results": main_results.get("organic", []),
             "knowledge_graph": kg,
             "news": news_results.get("news", []),
-            "website": kg.get("website") or await self.find_company_website(company_name),
+            "website": kg.get("website")
+            or await self.find_company_website(company_name),
             "description": kg.get("description"),
             "industry": kg.get("industry") or kg.get("type"),
             "founded": kg.get("founded") or kg.get("foundingDate"),
@@ -277,7 +292,9 @@ class SerperClient(BaseScraper):
     # MÉTODOS ESPECÍFICOS PARA PESSOAS
     # ===========================================
 
-    async def find_person_linkedin(self, name: str, company: Optional[str] = None) -> Optional[str]:
+    async def find_person_linkedin(
+        self, name: str, company: Optional[str] = None
+    ) -> Optional[str]:
         """
         Busca o perfil LinkedIn de uma pessoa
 
@@ -301,7 +318,9 @@ class SerperClient(BaseScraper):
 
         return None
 
-    async def find_person_info(self, name: str, context: Optional[str] = None) -> Dict[str, Any]:
+    async def find_person_info(
+        self, name: str, context: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Busca informações sobre uma pessoa
 

@@ -157,7 +157,9 @@ class PerplexityMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self._client:
             return self._error_response(

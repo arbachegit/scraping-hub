@@ -9,6 +9,7 @@ Tabela: raw.geo_municipios
 from typing import Any
 
 from mcp.types import TextContent, Tool
+
 from supabase import Client, create_client
 
 from ..base_mcp import BaseMCPServer
@@ -65,7 +66,13 @@ class BrasilDataHubMCPServer(BaseMCPServer):
                         "regiao": {
                             "type": "string",
                             "description": "Filtrar por região (opcional)",
-                            "enum": ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"],
+                            "enum": [
+                                "Norte",
+                                "Nordeste",
+                                "Centro-Oeste",
+                                "Sudeste",
+                                "Sul",
+                            ],
                         }
                     },
                 },
@@ -114,7 +121,9 @@ class BrasilDataHubMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self._client:
             return self._error_response(
@@ -193,11 +202,7 @@ class BrasilDataHubMCPServer(BaseMCPServer):
             return self._error_response("Informe codigo_ibge ou nome")
 
         try:
-            query = (
-                self._client.schema("raw")
-                .table("geo_municipios")
-                .select("*")
-            )
+            query = self._client.schema("raw").table("geo_municipios").select("*")
 
             if codigo_ibge:
                 query = query.eq("codigo_ibge", codigo_ibge)

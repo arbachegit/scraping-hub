@@ -16,6 +16,7 @@ from typing import Any
 
 import httpx
 import structlog
+
 from supabase import Client
 
 logger = structlog.get_logger()
@@ -82,14 +83,18 @@ class PersonEnrichmentService:
                 result["success"] = True
 
                 # Salvar experiências
-                await self._save_experiences(pessoa_id, result["experiences"], "emprego")
+                await self._save_experiences(
+                    pessoa_id, result["experiences"], "emprego"
+                )
                 await self._save_experiences(pessoa_id, result["education"], "educacao")
 
                 return result
 
         # 2. Fallback para Perplexity
         if self.perplexity_api_key:
-            perplexity_data = await self._fetch_from_perplexity(nome, empresa_nome, linkedin_url)
+            perplexity_data = await self._fetch_from_perplexity(
+                nome, empresa_nome, linkedin_url
+            )
             if perplexity_data:
                 result["source"] = "perplexity"
                 result["experiences"] = perplexity_data.get("experiences", [])
@@ -98,7 +103,9 @@ class PersonEnrichmentService:
                 result["success"] = True
 
                 # Salvar experiências
-                await self._save_experiences(pessoa_id, result["experiences"], "emprego")
+                await self._save_experiences(
+                    pessoa_id, result["experiences"], "emprego"
+                )
                 await self._save_experiences(pessoa_id, result["education"], "educacao")
 
                 return result
@@ -203,7 +210,11 @@ class PersonEnrichmentService:
 
                 if response.status_code == 200:
                     data = response.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                    )
 
                     # Tentar extrair JSON da resposta
                     return self._parse_perplexity_response(content)
@@ -213,7 +224,9 @@ class PersonEnrichmentService:
 
         return None
 
-    def _extract_apollo_experiences(self, person_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def _extract_apollo_experiences(
+        self, person_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Extrai experiências profissionais do Apollo.
 
@@ -229,36 +242,42 @@ class PersonEnrichmentService:
         employment_history = person_data.get("employment_history", [])
 
         for emp in employment_history:
-            experiences.append({
-                "company": emp.get("organization_name"),
-                "title": emp.get("title"),
-                "start_date": emp.get("start_date"),
-                "end_date": emp.get("end_date"),
-                "current": emp.get("current", False),
-                "description": emp.get("description"),
-                "seniority": emp.get("seniority"),
-                "department": emp.get("department"),
-            })
+            experiences.append(
+                {
+                    "company": emp.get("organization_name"),
+                    "title": emp.get("title"),
+                    "start_date": emp.get("start_date"),
+                    "end_date": emp.get("end_date"),
+                    "current": emp.get("current", False),
+                    "description": emp.get("description"),
+                    "seniority": emp.get("seniority"),
+                    "department": emp.get("department"),
+                }
+            )
 
         # Se não houver histórico, usar cargo atual
         if not experiences and person_data.get("title"):
-            experiences.append({
-                "company": person_data.get("organization_name"),
-                "title": person_data.get("title"),
-                "start_date": None,
-                "end_date": None,
-                "current": True,
-                "seniority": person_data.get("seniority"),
-                "department": (
-                    person_data.get("departments", [None])[0]
-                    if person_data.get("departments")
-                    else None
-                ),
-            })
+            experiences.append(
+                {
+                    "company": person_data.get("organization_name"),
+                    "title": person_data.get("title"),
+                    "start_date": None,
+                    "end_date": None,
+                    "current": True,
+                    "seniority": person_data.get("seniority"),
+                    "department": (
+                        person_data.get("departments", [None])[0]
+                        if person_data.get("departments")
+                        else None
+                    ),
+                }
+            )
 
         return experiences
 
-    def _extract_apollo_education(self, person_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def _extract_apollo_education(
+        self, person_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Extrai formação acadêmica do Apollo.
 
@@ -274,13 +293,16 @@ class PersonEnrichmentService:
         education_history = person_data.get("education", [])
 
         for edu in education_history:
-            education.append({
-                "institution": edu.get("school_name") or edu.get("organization_name"),
-                "degree": edu.get("degree"),
-                "field": edu.get("field_of_study"),
-                "start_year": edu.get("start_date"),
-                "end_year": edu.get("end_date"),
-            })
+            education.append(
+                {
+                    "institution": edu.get("school_name")
+                    or edu.get("organization_name"),
+                    "degree": edu.get("degree"),
+                    "field": edu.get("field_of_study"),
+                    "start_year": edu.get("start_date"),
+                    "end_year": edu.get("end_date"),
+                }
+            )
 
         return education
 
@@ -297,7 +319,7 @@ class PersonEnrichmentService:
         import json
 
         # Tentar encontrar JSON na resposta
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             try:
                 return json.loads(json_match.group())
@@ -387,7 +409,9 @@ class PersonEnrichmentService:
         try:
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d")
-            return max(1, (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month))
+            return max(
+                1, (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
+            )
         except Exception:
             return 0
 

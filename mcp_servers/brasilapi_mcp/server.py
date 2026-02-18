@@ -85,7 +85,9 @@ class BrasilAPIMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         try:
             if name == "get_company":

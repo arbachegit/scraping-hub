@@ -32,9 +32,15 @@ class PerplexityClient(BaseScraper):
     SOURCE_COVERAGE = "Pesquisa com AI, respostas com citações"
     SOURCE_DOC_URL = "https://docs.perplexity.ai"
 
-    MODELS = {"sonar": "sonar", "sonar-pro": "sonar-pro", "sonar-reasoning": "sonar-reasoning"}
+    MODELS = {
+        "sonar": "sonar",
+        "sonar-pro": "sonar-pro",
+        "sonar-reasoning": "sonar-reasoning",
+    }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "sonar", timeout: float = 60.0):
+    def __init__(
+        self, api_key: Optional[str] = None, model: str = "sonar", timeout: float = 60.0
+    ):
         super().__init__(
             api_key=api_key or settings.perplexity_api_key,
             base_url="https://api.perplexity.ai",
@@ -44,7 +50,10 @@ class PerplexityClient(BaseScraper):
         self.model = self.MODELS.get(model, model)
 
     def _get_headers(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
 
     async def chat(
         self,
@@ -111,7 +120,10 @@ class PerplexityClient(BaseScraper):
         }
 
     async def research(
-        self, topic: str, depth: str = "detailed", focus_areas: Optional[List[str]] = None
+        self,
+        topic: str,
+        depth: str = "detailed",
+        focus_areas: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Pesquisa em profundidade sobre um tópico
@@ -314,7 +326,9 @@ Considere o cenário econômico brasileiro atual.""",
         query = f"Quem é {name}"
         if context:
             query += f" ({context})"
-        query += f"? Foque em: {focus_prompts.get(focus, focus_prompts['professional'])}"
+        query += (
+            f"? Foque em: {focus_prompts.get(focus, focus_prompts['professional'])}"
+        )
 
         result = await self.chat(
             query=query,

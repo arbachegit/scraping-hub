@@ -24,9 +24,8 @@ from pathlib import Path
 # Adicionar diretório raiz ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from supabase import create_client
-
 from config.settings import settings
+from supabase import create_client
 
 
 def apply_migration(dry_run: bool = False) -> None:
@@ -108,7 +107,9 @@ def verify_migration() -> None:
 
     # 1. Verificar tabela dim_fontes_noticias
     try:
-        result = client.table("dim_fontes_noticias").select("handle, nome, tipo").execute()
+        result = (
+            client.table("dim_fontes_noticias").select("handle, nome, tipo").execute()
+        )
         print(f"dim_fontes_noticias: {len(result.data)} registros")
         for r in result.data[:5]:
             print(f"  - {r['handle']}: {r['nome']} ({r['tipo']})")
@@ -149,7 +150,9 @@ def verify_migration() -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Aplica migration 010 - Notícias Schema")
+    parser = argparse.ArgumentParser(
+        description="Aplica migration 010 - Notícias Schema"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",

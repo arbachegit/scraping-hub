@@ -82,7 +82,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns True if password matches, False otherwise.
     """
     try:
-        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
     except Exception as e:
         logger.error("password_verify_error", error=str(e))
         return False
@@ -184,7 +186,9 @@ async def get_current_user(
         permissions: list = payload.get("permissions", [])
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email, user_id=user_id, role=role, permissions=permissions)
+        token_data = TokenData(
+            email=email, user_id=user_id, role=role, permissions=permissions
+        )
     except JWTError:
         raise credentials_exception
     return token_data
@@ -205,7 +209,13 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
             return await _update_user_legacy(current_email, update_data)
 
         # Get current user
-        result = client.table("users").select("*").eq("email", current_email).limit(1).execute()
+        result = (
+            client.table("users")
+            .select("*")
+            .eq("email", current_email)
+            .limit(1)
+            .execute()
+        )
 
         if not result.data:
             return None
@@ -228,13 +238,20 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
         # Update email
         if update_data.email and update_data.email != current_email:
             # Check if new email already exists
-            existing = client.table("users").select("id").eq("email", update_data.email).execute()
+            existing = (
+                client.table("users")
+                .select("id")
+                .eq("email", update_data.email)
+                .execute()
+            )
             if existing.data:
                 return None
             updates["email"] = update_data.email
 
         # Apply updates
-        result = client.table("users").update(updates).eq("email", current_email).execute()
+        result = (
+            client.table("users").update(updates).eq("email", current_email).execute()
+        )
 
         if result.data:
             logger.info("user_updated", email=current_email)
@@ -246,7 +263,9 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
     return None
 
 
-async def _update_user_legacy(current_email: str, update_data: UserUpdate) -> Optional[dict]:
+async def _update_user_legacy(
+    current_email: str, update_data: UserUpdate
+) -> Optional[dict]:
     """
     Legacy update for in-memory store (DEPRECATED).
     """

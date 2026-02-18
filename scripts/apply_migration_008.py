@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 # Load environment
@@ -21,7 +22,10 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     exit(1)
 
 # Read migration SQL
-migration_path = Path(__file__).parent.parent / "backend/database/migrations/008_create_fontes_dados.sql"
+migration_path = (
+    Path(__file__).parent.parent
+    / "backend/database/migrations/008_create_fontes_dados.sql"
+)
 sql = migration_path.read_text()
 
 print(f"Applying migration: {migration_path.name}")
@@ -39,7 +43,9 @@ try:
     print(f"Records: {len(result.data)}")
 except Exception as e:
     if "relation" in str(e).lower() and "does not exist" in str(e).lower():
-        print("Table does not exist. Please run the SQL manually in Supabase SQL Editor:")
+        print(
+            "Table does not exist. Please run the SQL manually in Supabase SQL Editor:"
+        )
         print("-" * 50)
         print(sql)
         print("-" * 50)

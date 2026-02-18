@@ -49,7 +49,11 @@ class ApolloClient(BaseScraper):
         }
 
     async def _request_with_key(
-        self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict] = None,
+        json: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """Request com API key no header (novo padrão Apollo)"""
         if json is None:
@@ -105,9 +109,13 @@ class ApolloClient(BaseScraper):
         if organization_locations:
             payload["organization_locations"] = organization_locations
         if organization_num_employees_ranges:
-            payload["organization_num_employees_ranges"] = organization_num_employees_ranges
+            payload["organization_num_employees_ranges"] = (
+                organization_num_employees_ranges
+            )
 
-        result = await self._request_with_key("POST", "/mixed_people/search", json=payload)
+        result = await self._request_with_key(
+            "POST", "/mixed_people/search", json=payload
+        )
 
         people = result.get("people", [])
         return {
@@ -131,11 +139,14 @@ class ApolloClient(BaseScraper):
             "departments": data.get("departments", []),
             # Empresa atual
             "company": {
-                "name": data.get("organization_name") or data.get("organization", {}).get("name"),
+                "name": data.get("organization_name")
+                or data.get("organization", {}).get("name"),
                 "website": data.get("organization", {}).get("website_url"),
                 "linkedin_url": data.get("organization", {}).get("linkedin_url"),
                 "industry": data.get("organization", {}).get("industry"),
-                "employee_count": data.get("organization", {}).get("estimated_num_employees"),
+                "employee_count": data.get("organization", {}).get(
+                    "estimated_num_employees"
+                ),
             },
             # Contato
             "email": data.get("email"),
@@ -238,11 +249,15 @@ class ApolloClient(BaseScraper):
         if organization_locations:
             payload["organization_locations"] = organization_locations
         if organization_num_employees_ranges:
-            payload["organization_num_employees_ranges"] = organization_num_employees_ranges
+            payload["organization_num_employees_ranges"] = (
+                organization_num_employees_ranges
+            )
         if organization_industries:
             payload["organization_industries"] = organization_industries
 
-        result = await self._request_with_key("POST", "/mixed_companies/search", json=payload)
+        result = await self._request_with_key(
+            "POST", "/mixed_companies/search", json=payload
+        )
 
         orgs = result.get("organizations", [])
         return {
@@ -266,7 +281,9 @@ class ApolloClient(BaseScraper):
             "industry": data.get("industry"),
             "keywords": data.get("keywords", []),
             "estimated_num_employees": data.get("estimated_num_employees"),
-            "employee_count_range": self._get_employee_range(data.get("estimated_num_employees")),
+            "employee_count_range": self._get_employee_range(
+                data.get("estimated_num_employees")
+            ),
             "founded_year": data.get("founded_year"),
             "annual_revenue": data.get("annual_revenue"),
             "annual_revenue_printed": data.get("annual_revenue_printed"),
@@ -323,7 +340,9 @@ class ApolloClient(BaseScraper):
         if name:
             payload["name"] = name
 
-        result = await self._request_with_key("POST", "/organizations/enrich", json=payload)
+        result = await self._request_with_key(
+            "POST", "/organizations/enrich", json=payload
+        )
 
         org = result.get("organization")
         if org:
@@ -370,7 +389,9 @@ class ApolloClient(BaseScraper):
         if person_titles:
             payload["person_titles"] = person_titles
 
-        result = await self._request_with_key("POST", "/mixed_people/search", json=payload)
+        result = await self._request_with_key(
+            "POST", "/mixed_people/search", json=payload
+        )
 
         people = result.get("people", [])
         return {
@@ -420,7 +441,14 @@ class ApolloClient(BaseScraper):
         return await self.get_company_employees(
             organization_name=organization_name,
             domain=domain,
-            person_seniorities=["owner", "founder", "c_suite", "partner", "vp", "director"],
+            person_seniorities=[
+                "owner",
+                "founder",
+                "c_suite",
+                "partner",
+                "vp",
+                "director",
+            ],
             per_page=50,
         )
 
@@ -472,7 +500,9 @@ class ApolloClient(BaseScraper):
             per_page=per_page,
         )
 
-    def _build_employee_ranges(self, min_emp: Optional[int], max_emp: Optional[int]) -> List[str]:
+    def _build_employee_ranges(
+        self, min_emp: Optional[int], max_emp: Optional[int]
+    ) -> List[str]:
         """Constrói ranges de funcionários"""
         ranges = []
         all_ranges = [

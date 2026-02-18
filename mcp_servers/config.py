@@ -55,7 +55,11 @@ class MCPConfig:
             "apollo": bool(self.apollo_api_key),
             "cnpja": bool(self.cnpja_api_key),
             "perplexity": bool(self.perplexity_api_key),
-            "brasil_data_hub": bool(self.brasil_data_hub_url and self.brasil_data_hub_key),
+            "brasil_data_hub": bool(
+                self.brasil_data_hub_url and self.brasil_data_hub_key
+            ),
             "supabase": bool(self.supabase_url and self.supabase_key),
-            "fiscal_supabase": bool(self.fiscal_supabase_url and self.fiscal_supabase_key),
+            "fiscal_supabase": bool(
+                self.fiscal_supabase_url and self.fiscal_supabase_key
+            ),
         }

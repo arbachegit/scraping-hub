@@ -13,7 +13,6 @@ from typing import Any
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from supabase import Client, create_client
 
 from config.settings import settings
 from mcp_servers.apollo_mcp import ApolloMCPServer
@@ -21,6 +20,7 @@ from mcp_servers.brasil_data_hub_mcp import BrasilDataHubMCPServer
 from mcp_servers.brasilapi_mcp import BrasilAPIMCPServer
 from mcp_servers.cnpja_mcp import CNPJaMCPServer
 from mcp_servers.serper_mcp import SerperMCPServer
+from supabase import Client, create_client
 
 logger = structlog.get_logger()
 
@@ -273,9 +273,11 @@ class DataCollector:
                 )
                 regime_data = json.loads(regime_result[0].text)
                 if regime_data.get("success"):
-                    regime_tributario = regime_data.get("data", {}).get("regime_tributario")
-            except Exception:
-                pass
+                    regime_tributario = regime_data.get("data", {}).get(
+                        "regime_tributario"
+                    )
+            except Exception as e:
+                logger.warning("cnpja_regime_fetch_failed", cnpj=cnpj, error=str(e))
 
         # 5. Preparar dados para salvar
         empresa_data = {
@@ -312,8 +314,12 @@ class DataCollector:
                         "porte": company.get("porte"),
                         "natureza_juridica": company.get("natureza_juridica"),
                         "capital_social": company.get("capital_social"),
-                        "cnae_principal": company.get("cnae_principal", {}).get("codigo"),
-                        "cnae_descricao": company.get("cnae_principal", {}).get("descricao"),
+                        "cnae_principal": company.get("cnae_principal", {}).get(
+                            "codigo"
+                        ),
+                        "cnae_descricao": company.get("cnae_principal", {}).get(
+                            "descricao"
+                        ),
                     }
                     self._supabase.table("fato_regime_tributario").insert(
                         regime_data_to_save
@@ -337,7 +343,11 @@ class DataCollector:
                 logger.error("save_company_error", cnpj=cnpj, error=str(e))
                 return None
 
-        return {"cnpj": cnpj, "dry_run": True, "people_count": len(company.get("socios", []))}
+        return {
+            "cnpj": cnpj,
+            "dry_run": True,
+            "people_count": len(company.get("socios", [])),
+        }
 
     def _format_endereco(self, endereco: dict[str, Any]) -> str:
         """Formata endereço como string"""
@@ -443,9 +453,11 @@ class DataCollector:
             **self._stats,
             "running": self._running,
             "scheduler_enabled": settings.scheduler_enabled,
-            "next_run": str(self.scheduler.get_job("daily_collection").next_run_time)
-            if self.scheduler.get_job("daily_collection")
-            else None,
+            "next_run": (
+                str(self.scheduler.get_job("daily_collection").next_run_time)
+                if self.scheduler.get_job("daily_collection")
+                else None
+            ),
         }
 
 

@@ -62,7 +62,9 @@ class BaseMCPServer(ABC):
         pass
 
     @abstractmethod
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """
         Processa chamada de tool.
 
@@ -125,11 +127,15 @@ class BaseMCPServer(ABC):
         return [
             TextContent(
                 type="text",
-                text=json.dumps({"error": message, "success": False}, ensure_ascii=False),
+                text=json.dumps(
+                    {"error": message, "success": False}, ensure_ascii=False
+                ),
             )
         ]
 
-    def _success_response(self, data: Any, message: str = "Success") -> list[TextContent]:
+    def _success_response(
+        self, data: Any, message: str = "Success"
+    ) -> list[TextContent]:
         """
         Formata resposta de sucesso.
 

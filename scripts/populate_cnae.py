@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -192,7 +193,9 @@ def fetch_hierarchy_descriptions(cnaes: list):
         for cls in response.json():
             classes[str(cls.get("id", "")).zfill(5)] = cls.get("descricao", "")
 
-    print(f"      Divisões: {len(divisoes)}, Grupos: {len(grupos)}, Classes: {len(classes)}")
+    print(
+        f"      Divisões: {len(divisoes)}, Grupos: {len(grupos)}, Classes: {len(classes)}"
+    )
 
     # Atualizar CNAEs com descrições
     for cnae in cnaes:
@@ -216,12 +219,9 @@ def insert_cnaes(supabase, cnaes: list):
     errors = 0
 
     for i in range(0, len(cnaes), batch_size):
-        batch = cnaes[i:i + batch_size]
+        batch = cnaes[i : i + batch_size]
         try:
-            supabase.table("raw_cnae").upsert(
-                batch,
-                on_conflict="codigo"
-            ).execute()
+            supabase.table("raw_cnae").upsert(batch, on_conflict="codigo").execute()
             inserted += len(batch)
             print(f"      Inseridos: {inserted}/{len(cnaes)}")
         except Exception as e:

@@ -11,7 +11,6 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from supabase import create_client
 
 from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -26,6 +25,7 @@ from api.auth import (
 )
 from backend.src.services.person_enrichment import PersonEnrichmentService
 from config.settings import settings
+from supabase import create_client
 
 logger = structlog.get_logger()
 
@@ -69,6 +69,7 @@ if static_path.exists():
 # PAGES
 # ===========================================
 
+
 @app.get("/", include_in_schema=False)
 async def index():
     """Serve login page"""
@@ -99,6 +100,7 @@ async def admin_page():
 # ===========================================
 # AUTH ENDPOINTS
 # ===========================================
+
 
 @app.post("/auth/login", response_model=Token, tags=["Auth"])
 async def login(user_data: UserLogin):
@@ -147,6 +149,7 @@ async def update_me(update_data: UserUpdate, current_user=Depends(get_current_us
 # HEALTH
 # ===========================================
 
+
 @app.get("/health", tags=["System"])
 async def health():
     """Health check with API status"""
@@ -188,6 +191,7 @@ async def version():
 # ENRICHMENT ENDPOINTS
 # ===========================================
 
+
 @app.post("/api/enrich/people", tags=["Enrichment"])
 async def enrich_people(limit: int = 10, current_user=Depends(get_current_user)):
     """
@@ -198,7 +202,9 @@ async def enrich_people(limit: int = 10, current_user=Depends(get_current_user))
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
     if not settings.apollo_api_key and not settings.perplexity_api_key:
-        raise HTTPException(status_code=500, detail="Neither Apollo nor Perplexity API configured")
+        raise HTTPException(
+            status_code=500, detail="Neither Apollo nor Perplexity API configured"
+        )
 
     try:
         # Create Supabase client
@@ -215,7 +221,11 @@ async def enrich_people(limit: int = 10, current_user=Depends(get_current_user))
 
         people = result.data
         if not people:
-            return {"success": True, "message": "No people pending enrichment", "stats": {"processed": 0}}
+            return {
+                "success": True,
+                "message": "No people pending enrichment",
+                "stats": {"processed": 0},
+            }
 
         # Create enrichment service
         service = PersonEnrichmentService(
@@ -245,14 +255,18 @@ async def enrich_people(limit: int = 10, current_user=Depends(get_current_user))
 
                     if linkedin:
                         stats["linkedin_found"] += 1
-                        supabase.table("dim_pessoas").update({
-                            "linkedin_url": linkedin,
-                            "raw_apollo_data": raw_data,
-                        }).eq("id", pessoa["id"]).execute()
+                        supabase.table("dim_pessoas").update(
+                            {
+                                "linkedin_url": linkedin,
+                                "raw_apollo_data": raw_data,
+                            }
+                        ).eq("id", pessoa["id"]).execute()
                     else:
-                        supabase.table("dim_pessoas").update({
-                            "raw_apollo_data": raw_data,
-                        }).eq("id", pessoa["id"]).execute()
+                        supabase.table("dim_pessoas").update(
+                            {
+                                "raw_apollo_data": raw_data,
+                            }
+                        ).eq("id", pessoa["id"]).execute()
                 else:
                     stats["failed"] += 1
 
@@ -275,6 +289,7 @@ async def enrich_people(limit: int = 10, current_user=Depends(get_current_user))
 # STARTUP
 # ===========================================
 
+
 @app.on_event("startup")
 async def startup():
     logger.info("api_starting", version=APP_VERSION)
@@ -282,4 +297,5 @@ async def startup():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

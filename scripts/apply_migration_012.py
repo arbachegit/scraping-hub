@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 load_dotenv()
@@ -46,7 +47,13 @@ def main():
     print("=" * 60)
     print("\nExecute este SQL no Supabase Studio (SQL Editor):\n")
 
-    sql_file = Path(__file__).parent.parent / "backend" / "database" / "migrations" / "012_create_raw_cnae.sql"
+    sql_file = (
+        Path(__file__).parent.parent
+        / "backend"
+        / "database"
+        / "migrations"
+        / "012_create_raw_cnae.sql"
+    )
     print(sql_file.read_text())
 
     print("\n" + "=" * 60)

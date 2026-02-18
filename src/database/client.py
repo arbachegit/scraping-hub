@@ -5,9 +5,9 @@ Supabase client for database operations
 from typing import Optional
 
 import structlog
-from supabase import Client, create_client
 
 from config.settings import settings
+from supabase import Client, create_client
 
 logger = structlog.get_logger()
 
@@ -27,8 +27,7 @@ def get_supabase() -> Optional[Client]:
 
     try:
         _supabase_client = create_client(
-            settings.supabase_url,
-            settings.supabase_service_key
+            settings.supabase_url, settings.supabase_service_key
         )
         logger.info("supabase_connected")
         return _supabase_client

@@ -10,6 +10,7 @@ This migration adds:
 import os
 
 from dotenv import load_dotenv
+
 from supabase import create_client
 
 # Load environment variables
@@ -36,11 +37,15 @@ def main():
     # Test if column exists by trying to select it
     print("\n[1/2] Checking if column exists...")
     try:
-        supabase.table("dim_pessoas").select("id, raw_enrichment_extended").limit(1).execute()
+        supabase.table("dim_pessoas").select("id, raw_enrichment_extended").limit(
+            1
+        ).execute()
         print("    ✓ Column raw_enrichment_extended already exists")
     except Exception as e:
         if "column" in str(e).lower() and "does not exist" in str(e).lower():
-            print("    ⚠ Column does not exist - needs to be created via Supabase Studio")
+            print(
+                "    ⚠ Column does not exist - needs to be created via Supabase Studio"
+            )
             print("\n" + "=" * 60)
             print("MANUAL STEP REQUIRED")
             print("=" * 60)
@@ -66,7 +71,7 @@ def main():
             "formato": "JSON",
             "api_key_necessaria": False,
             "confiabilidade": "alta",
-            "observacoes": "Perfil técnico de desenvolvedores - repositórios, linguagens, contribuições"
+            "observacoes": "Perfil técnico de desenvolvedores - repositórios, linguagens, contribuições",
         },
         {
             "nome": "Google Scholar (via Serper)",
@@ -77,7 +82,7 @@ def main():
             "formato": "JSON",
             "api_key_necessaria": True,
             "confiabilidade": "alta",
-            "observacoes": "Publicações acadêmicas, citações, h-index"
+            "observacoes": "Publicações acadêmicas, citações, h-index",
         },
         {
             "nome": "Google News (via Serper)",
@@ -88,7 +93,7 @@ def main():
             "formato": "JSON",
             "api_key_necessaria": True,
             "confiabilidade": "media",
-            "observacoes": "Notícias e menções na mídia"
+            "observacoes": "Notícias e menções na mídia",
         },
         {
             "nome": "Reclame Aqui (via Serper)",
@@ -98,16 +103,13 @@ def main():
             "formato": "HTML",
             "api_key_necessaria": False,
             "confiabilidade": "media",
-            "observacoes": "Reclamações de consumidores - busca por nome de pessoa/empresa"
-        }
+            "observacoes": "Reclamações de consumidores - busca por nome de pessoa/empresa",
+        },
     ]
 
     for source in sources:
         try:
-            supabase.table("fontes_dados").upsert(
-                source,
-                on_conflict="nome"
-            ).execute()
+            supabase.table("fontes_dados").upsert(source, on_conflict="nome").execute()
             print(f"    ✓ {source['nome']}")
         except Exception as e:
             print(f"    ⚠ {source['nome']}: {str(e)[:50]}")

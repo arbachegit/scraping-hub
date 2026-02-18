@@ -65,7 +65,10 @@ class WebScraperClient:
             from src.database.fontes_repository import registrar_fonte_scraping
 
             await registrar_fonte_scraping(
-                nome=f"Website - {domain}", site=domain, url=url, cobertura="Conteúdo HTML extraído"
+                nome=f"Website - {domain}",
+                site=domain,
+                url=url,
+                cobertura="Conteúdo HTML extraído",
             )
 
             self._registered_urls.add(domain)
@@ -172,7 +175,9 @@ class WebScraperClient:
         for meta in soup.find_all("meta"):
             if not isinstance(meta, Tag):
                 continue
-            name = _get_attr(meta, "name").lower() or _get_attr(meta, "property").lower()
+            name = (
+                _get_attr(meta, "name").lower() or _get_attr(meta, "property").lower()
+            )
             content = _get_attr(meta, "content")
 
             if name == "description":
@@ -365,14 +370,18 @@ class WebScraperClient:
         for link in links.get("internal", []):
             link_lower = link.lower()
             for page_type in important_pages:
-                if page_type in link_lower or self._get_page_synonym(page_type) in link_lower:
+                if (
+                    page_type in link_lower
+                    or self._get_page_synonym(page_type) in link_lower
+                ):
                     important_pages[page_type] = link
                     break
 
         return {
             "url": url,
             "company_name": self._extract_company_name(metadata, content),
-            "description": metadata.get("description") or metadata.get("og_description"),
+            "description": metadata.get("description")
+            or metadata.get("og_description"),
             "content_summary": content.get("text", "")[:2000],
             "headings": content.get("headings", []),
             "social_media": links.get("social", {}),

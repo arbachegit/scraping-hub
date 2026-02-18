@@ -81,7 +81,9 @@ class CNPJaMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self._api_key:
             return self._error_response(
@@ -226,7 +228,9 @@ class CNPJaMCPServer(BaseMCPServer):
                         "uf": office.get("address", {}).get("state"),
                         "cep": office.get("address", {}).get("zip"),
                     },
-                    "simples_nacional": company.get("simples", {}).get("simples", False),
+                    "simples_nacional": company.get("simples", {}).get(
+                        "simples", False
+                    ),
                     "simei": company.get("simples", {}).get("simei", False),
                     "socios": socios,
                 },

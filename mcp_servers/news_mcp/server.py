@@ -199,7 +199,15 @@ class NewsMCPServer(BaseMCPServer):
                         "indicador": {
                             "type": "string",
                             "description": "Indicador específico",
-                            "enum": ["selic", "inflacao", "pib", "cambio", "emprego", "comercio_exterior", "todos"],
+                            "enum": [
+                                "selic",
+                                "inflacao",
+                                "pib",
+                                "cambio",
+                                "emprego",
+                                "comercio_exterior",
+                                "todos",
+                            ],
                             "default": "todos",
                         },
                     },
@@ -214,7 +222,13 @@ class NewsMCPServer(BaseMCPServer):
                         "categoria": {
                             "type": "string",
                             "description": "Categoria de fonte",
-                            "enum": ["agencias_checagem", "veiculos_economia", "veiculos_geral", "jornalistas_economia", "todas"],
+                            "enum": [
+                                "agencias_checagem",
+                                "veiculos_economia",
+                                "veiculos_geral",
+                                "jornalistas_economia",
+                                "todas",
+                            ],
                             "default": "todas",
                         },
                     },
@@ -222,7 +236,9 @@ class NewsMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self.config.perplexity_api_key:
             return self._error_response(
@@ -288,8 +304,7 @@ class NewsMCPServer(BaseMCPServer):
         """
         # Construir query com fontes confiáveis
         sources_str = " OR ".join(
-            TRUSTED_SOURCES["veiculos_economia"]
-            + TRUSTED_SOURCES["veiculos_geral"]
+            TRUSTED_SOURCES["veiculos_economia"] + TRUSTED_SOURCES["veiculos_geral"]
         )
 
         full_query = f"""
@@ -504,9 +519,7 @@ class NewsMCPServer(BaseMCPServer):
             message=f"Indicadores econômicos: {indicador}",
         )
 
-    async def _get_trusted_sources(
-        self, categoria: str = "todas"
-    ) -> list[TextContent]:
+    async def _get_trusted_sources(self, categoria: str = "todas") -> list[TextContent]:
         """
         Retorna lista de fontes confiáveis.
 
@@ -575,7 +588,9 @@ class NewsMCPServer(BaseMCPServer):
                     return {"error": f"Perplexity error: {response.status_code}"}
 
                 data = response.json()
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                content = (
+                    data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                )
                 citations = data.get("citations", [])
 
                 # Tentar parsear JSON da resposta
@@ -603,7 +618,7 @@ class NewsMCPServer(BaseMCPServer):
         import re
 
         # Tentar extrair JSON da resposta
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             try:
                 return json.loads(json_match.group())

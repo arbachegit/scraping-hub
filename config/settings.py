@@ -12,7 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Configuracoes do IconsAI Scraping v2.0"""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # ===========================================
     # Environment
@@ -119,7 +121,7 @@ class Settings(BaseSettings):
     # Autenticação API
     # ===========================================
 
-    jwt_secret_key: str = "your-secret-key-change-in-production"
+    jwt_secret_key: str = ""  # REQUIRED: Set via JWT_SECRET_KEY env var
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
 
@@ -129,7 +131,9 @@ class Settings(BaseSettings):
 
     # Lista de origens separadas por vírgula
     # Ex: "http://localhost:3000,https://app.iconsai.dev"
-    allowed_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+    allowed_origins: str = (
+        "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+    )
 
     # ===========================================
     # Web Scraping
@@ -203,7 +207,11 @@ class Settings(BaseSettings):
         """Retorna lista de origens permitidas para CORS"""
         if not self.allowed_origins:
             return ["http://localhost:3000"]
-        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.allowed_origins.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache()

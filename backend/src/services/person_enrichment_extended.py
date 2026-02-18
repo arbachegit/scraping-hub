@@ -19,6 +19,7 @@ from typing import Any
 
 import httpx
 import structlog
+
 from supabase import Client
 
 logger = structlog.get_logger()
@@ -114,8 +115,7 @@ class ExtendedPersonEnrichmentService:
         # Execute all enrichments in parallel
         if tasks:
             task_results = await asyncio.gather(
-                *[task[1] for task in tasks],
-                return_exceptions=True
+                *[task[1] for task in tasks], return_exceptions=True
             )
 
             for i, (source_name, _) in enumerate(tasks):
@@ -124,7 +124,7 @@ class ExtendedPersonEnrichmentService:
                     logger.error(
                         "enrichment_source_error",
                         source=source_name,
-                        error=str(task_result)
+                        error=str(task_result),
                     )
                     result[source_name] = {"error": str(task_result)}
                 else:
@@ -147,7 +147,7 @@ class ExtendedPersonEnrichmentService:
         """Busca perfil GitHub."""
         headers = {
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "iconsai-scraping"
+            "User-Agent": "iconsai-scraping",
         }
 
         if self.github_token:
@@ -208,24 +208,24 @@ class ExtendedPersonEnrichmentService:
                                     languages[lang] = languages.get(lang, 0) + 1
                                 total_stars += repo.get("stargazers_count", 0)
 
-                        profiles.append({
-                            "username": profile.get("login"),
-                            "name": profile.get("name"),
-                            "bio": profile.get("bio"),
-                            "company": profile.get("company"),
-                            "location": profile.get("location"),
-                            "email": profile.get("email"),
-                            "html_url": profile.get("html_url"),
-                            "public_repos": profile.get("public_repos"),
-                            "followers": profile.get("followers"),
-                            "total_stars": total_stars,
-                            "top_languages": sorted(
-                                languages.items(),
-                                key=lambda x: x[1],
-                                reverse=True
-                            )[:5],
-                            "created_at": profile.get("created_at"),
-                        })
+                        profiles.append(
+                            {
+                                "username": profile.get("login"),
+                                "name": profile.get("name"),
+                                "bio": profile.get("bio"),
+                                "company": profile.get("company"),
+                                "location": profile.get("location"),
+                                "email": profile.get("email"),
+                                "html_url": profile.get("html_url"),
+                                "public_repos": profile.get("public_repos"),
+                                "followers": profile.get("followers"),
+                                "total_stars": total_stars,
+                                "top_languages": sorted(
+                                    languages.items(), key=lambda x: x[1], reverse=True
+                                )[:5],
+                                "created_at": profile.get("created_at"),
+                            }
+                        )
 
                 # Try to find best match
                 best_match = None
@@ -277,13 +277,15 @@ class ExtendedPersonEnrichmentService:
                 publications = []
 
                 for item in data.get("organic", []):
-                    publications.append({
-                        "title": item.get("title"),
-                        "link": item.get("link"),
-                        "snippet": item.get("snippet"),
-                        "publication_info": item.get("publicationInfo"),
-                        "cited_by": self._extract_citations(item),
-                    })
+                    publications.append(
+                        {
+                            "title": item.get("title"),
+                            "link": item.get("link"),
+                            "snippet": item.get("snippet"),
+                            "publication_info": item.get("publicationInfo"),
+                            "cited_by": self._extract_citations(item),
+                        }
+                    )
 
                 metrics = self._calculate_academic_metrics(publications)
 
@@ -298,9 +300,7 @@ class ExtendedPersonEnrichmentService:
             logger.error("scholar_enrichment_error", error=str(e))
             return {"found": False, "error": str(e)}
 
-    async def _enrich_news(
-        self, nome: str, empresa_nome: str | None
-    ) -> dict[str, Any]:
+    async def _enrich_news(self, nome: str, empresa_nome: str | None) -> dict[str, Any]:
         """Busca notícias para análise reputacional via Serper News."""
         query = f'"{nome}"'
         if empresa_nome:
@@ -326,17 +326,18 @@ class ExtendedPersonEnrichmentService:
 
                 for item in data.get("news", []):
                     sentiment = self._analyze_sentiment(
-                        item.get("title", ""),
-                        item.get("snippet", "")
+                        item.get("title", ""), item.get("snippet", "")
                     )
-                    articles.append({
-                        "title": item.get("title"),
-                        "link": item.get("link"),
-                        "snippet": item.get("snippet"),
-                        "source": item.get("source"),
-                        "date": item.get("date"),
-                        "sentiment": sentiment,
-                    })
+                    articles.append(
+                        {
+                            "title": item.get("title"),
+                            "link": item.get("link"),
+                            "snippet": item.get("snippet"),
+                            "source": item.get("source"),
+                            "date": item.get("date"),
+                            "sentiment": sentiment,
+                        }
+                    )
 
                 metrics = self._calculate_reputation_metrics(articles)
                 negative_alerts = [a for a in articles if a["sentiment"] == "negative"]
@@ -383,11 +384,13 @@ class ExtendedPersonEnrichmentService:
                 for item in data.get("organic", []):
                     text = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
                     if nome_lower in text:
-                        mentions.append({
-                            "url": item.get("link"),
-                            "title": item.get("title"),
-                            "snippet": item.get("snippet"),
-                        })
+                        mentions.append(
+                            {
+                                "url": item.get("link"),
+                                "title": item.get("title"),
+                                "snippet": item.get("snippet"),
+                            }
+                        )
 
                 risk_level = "nenhum"
                 if len(mentions) > 2:
@@ -411,13 +414,12 @@ class ExtendedPersonEnrichmentService:
         cited_by = item.get("citedBy")
         if cited_by:
             import re
-            match = re.search(r'\d+', str(cited_by))
+
+            match = re.search(r"\d+", str(cited_by))
             return int(match.group()) if match else 0
         return 0
 
-    def _calculate_academic_metrics(
-        self, publications: list[dict]
-    ) -> dict[str, Any]:
+    def _calculate_academic_metrics(self, publications: list[dict]) -> dict[str, Any]:
         """Calcula métricas acadêmicas."""
         if not publications:
             return {
@@ -448,15 +450,39 @@ class ExtendedPersonEnrichmentService:
         text = f"{title} {snippet}".lower()
 
         negative_words = [
-            "fraude", "escândalo", "prisão", "preso", "denúncia", "corrupção",
-            "acusado", "investigado", "condenado", "processo", "crime",
-            "demitido", "afastado", "multa", "lavagem", "delação",
+            "fraude",
+            "escândalo",
+            "prisão",
+            "preso",
+            "denúncia",
+            "corrupção",
+            "acusado",
+            "investigado",
+            "condenado",
+            "processo",
+            "crime",
+            "demitido",
+            "afastado",
+            "multa",
+            "lavagem",
+            "delação",
         ]
 
         positive_words = [
-            "premiado", "sucesso", "inovação", "crescimento", "expansão",
-            "liderança", "reconhecimento", "conquista", "investimento",
-            "parceria", "destaque", "eleito", "nomeado", "promovido",
+            "premiado",
+            "sucesso",
+            "inovação",
+            "crescimento",
+            "expansão",
+            "liderança",
+            "reconhecimento",
+            "conquista",
+            "investimento",
+            "parceria",
+            "destaque",
+            "eleito",
+            "nomeado",
+            "promovido",
         ]
 
         neg_count = sum(1 for w in negative_words if w in text)
@@ -468,9 +494,7 @@ class ExtendedPersonEnrichmentService:
             return "positive"
         return "neutral"
 
-    def _calculate_reputation_metrics(
-        self, articles: list[dict]
-    ) -> dict[str, Any]:
+    def _calculate_reputation_metrics(self, articles: list[dict]) -> dict[str, Any]:
         """Calcula métricas reputacionais."""
         if not articles:
             return {
@@ -499,9 +523,7 @@ class ExtendedPersonEnrichmentService:
             "risk_level": risk_level,
         }
 
-    def _analyze_github_competencies(
-        self, profile: dict | None
-    ) -> dict[str, Any]:
+    def _analyze_github_competencies(self, profile: dict | None) -> dict[str, Any]:
         """Analisa competências técnicas do perfil GitHub."""
         if not profile:
             return {}
@@ -527,9 +549,7 @@ class ExtendedPersonEnrichmentService:
 
         return competencies
 
-    def _analyze_academic_competencies(
-        self, metrics: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _analyze_academic_competencies(self, metrics: dict[str, Any]) -> dict[str, Any]:
         """Analisa competências acadêmicas."""
         if not metrics.get("total_publications"):
             return {}
@@ -592,11 +612,13 @@ class ExtendedPersonEnrichmentService:
             risk["nivel_geral"] = news["metrics"]["risk_level"]
             risk["fatores"].append("Menções negativas na mídia")
             for alert in news.get("negative_alerts", [])[:3]:
-                risk["alertas"].append({
-                    "fonte": "Google News",
-                    "titulo": alert.get("title"),
-                    "data": alert.get("date"),
-                })
+                risk["alertas"].append(
+                    {
+                        "fonte": "Google News",
+                        "titulo": alert.get("title"),
+                        "data": alert.get("date"),
+                    }
+                )
 
         # Reclame Aqui risk
         reclameaqui = result.get("reclameaqui")
@@ -609,9 +631,7 @@ class ExtendedPersonEnrichmentService:
 
         return risk
 
-    async def _save_enrichment(
-        self, pessoa_id: str, result: dict
-    ) -> None:
+    async def _save_enrichment(self, pessoa_id: str, result: dict) -> None:
         """Salva resultado do enriquecimento no banco."""
         try:
             enrichment_data = {
@@ -626,9 +646,11 @@ class ExtendedPersonEnrichmentService:
             }
 
             # Update dim_pessoas with enrichment data
-            self.supabase.table("dim_pessoas").update({
-                "raw_enrichment_extended": enrichment_data,
-            }).eq("id", pessoa_id).execute()
+            self.supabase.table("dim_pessoas").update(
+                {
+                    "raw_enrichment_extended": enrichment_data,
+                }
+            ).eq("id", pessoa_id).execute()
 
             logger.info(
                 "person_enrichment_extended_saved",

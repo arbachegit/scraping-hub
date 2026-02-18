@@ -9,6 +9,7 @@ Tabelas: politico, mandato_politico
 from typing import Any
 
 from mcp.types import TextContent, Tool
+
 from supabase import Client, create_client
 
 from ..base_mcp import BaseMCPServer
@@ -196,7 +197,9 @@ class FiscalMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self._client:
             return self._error_response(
@@ -443,13 +446,15 @@ class FiscalMCPServer(BaseMCPServer):
             politicos = []
             for mandato in result.data:
                 politico_data = mandato.pop("politico", {})
-                politicos.append({
-                    **politico_data,
-                    "cargo": mandato["cargo"],
-                    "partido": mandato["partido_sigla"],
-                    "ano_eleicao": mandato["ano_eleicao"],
-                    "votos": mandato["votos_recebidos"],
-                })
+                politicos.append(
+                    {
+                        **politico_data,
+                        "cargo": mandato["cargo"],
+                        "partido": mandato["partido_sigla"],
+                        "ano_eleicao": mandato["ano_eleicao"],
+                        "votos": mandato["votos_recebidos"],
+                    }
+                )
 
             return self._success_response(
                 data=politicos,

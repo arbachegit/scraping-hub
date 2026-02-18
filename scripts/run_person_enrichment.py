@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv  # noqa: E402
+
 from supabase import create_client  # noqa: E402
 
 # Load environment variables
@@ -47,7 +48,9 @@ async def main(limit: int = 20):
     print("\nConfiguration:")
     print(f"  - Supabase: {supabase_url[:30]}...")
     print(f"  - Apollo API: {'Configured' if apollo_api_key else 'NOT CONFIGURED'}")
-    print(f"  - Perplexity API: {'Configured' if perplexity_api_key else 'NOT CONFIGURED'}")
+    print(
+        f"  - Perplexity API: {'Configured' if perplexity_api_key else 'NOT CONFIGURED'}"
+    )
     print(f"  - Limit: {limit} pessoas")
 
     if not apollo_api_key and not perplexity_api_key:
@@ -115,16 +118,20 @@ async def main(limit: int = 20):
                 if linkedin:
                     stats["linkedin_found"] += 1
                     # Update person with LinkedIn
-                    supabase.table("dim_pessoas").update({
-                        "linkedin_url": linkedin,
-                        "raw_apollo_data": raw_data,
-                    }).eq("id", pessoa["id"]).execute()
+                    supabase.table("dim_pessoas").update(
+                        {
+                            "linkedin_url": linkedin,
+                            "raw_apollo_data": raw_data,
+                        }
+                    ).eq("id", pessoa["id"]).execute()
                     print(f"               OK ({source}) - LinkedIn: {linkedin}")
                 else:
                     # Just save raw data
-                    supabase.table("dim_pessoas").update({
-                        "raw_apollo_data": raw_data,
-                    }).eq("id", pessoa["id"]).execute()
+                    supabase.table("dim_pessoas").update(
+                        {
+                            "raw_apollo_data": raw_data,
+                        }
+                    ).eq("id", pessoa["id"]).execute()
                     print(f"               OK ({source}) - sem LinkedIn")
             else:
                 stats["failed"] += 1
@@ -152,7 +159,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Run person enrichment")
-    parser.add_argument("--limit", type=int, default=20, help="Number of people to process")
+    parser.add_argument(
+        "--limit", type=int, default=20, help="Number of people to process"
+    )
     args = parser.parse_args()
 
     asyncio.run(main(limit=args.limit))

@@ -98,7 +98,9 @@ class TavilyClient(BaseScraper):
             "response_time": result.get("response_time"),
         }
 
-    async def search_news(self, query: str, max_results: int = 5, days: int = 7) -> Dict[str, Any]:
+    async def search_news(
+        self, query: str, max_results: int = 5, days: int = 7
+    ) -> Dict[str, Any]:
         """
         Busca de notícias recentes
 
@@ -163,7 +165,10 @@ class TavilyClient(BaseScraper):
             },
         )
 
-        return {"results": result.get("results", []), "failed_urls": result.get("failed_urls", [])}
+        return {
+            "results": result.get("results", []),
+            "failed_urls": result.get("failed_urls", []),
+        }
 
     # ===========================================
     # MÉTODOS ESPECÍFICOS PARA EMPRESAS
@@ -225,7 +230,9 @@ class TavilyClient(BaseScraper):
                 parts.append(f"**{aspect.title()}**: {data['answer']}")
         return "\n\n".join(parts)
 
-    async def get_company_news(self, company_name: str, days: int = 30) -> Dict[str, Any]:
+    async def get_company_news(
+        self, company_name: str, days: int = 30
+    ) -> Dict[str, Any]:
         """
         Busca notícias recentes sobre uma empresa
 
@@ -236,7 +243,9 @@ class TavilyClient(BaseScraper):
         Returns:
             Notícias com análise
         """
-        result = await self.search_news(query=f'"{company_name}" Brasil', max_results=10, days=days)
+        result = await self.search_news(
+            query=f'"{company_name}" Brasil', max_results=10, days=days
+        )
 
         # Categorizar notícias
         news_items = []
@@ -252,7 +261,14 @@ class TavilyClient(BaseScraper):
                 "lucro",
                 "inovação",
             ]
-            negative_words = ["crise", "demissão", "prejuízo", "processo", "escândalo", "queda"]
+            negative_words = [
+                "crise",
+                "demissão",
+                "prejuízo",
+                "processo",
+                "escândalo",
+                "queda",
+            ]
 
             sentiment = "neutral"
             if any(word in content for word in positive_words):
@@ -281,7 +297,9 @@ class TavilyClient(BaseScraper):
     # MÉTODOS ESPECÍFICOS PARA PESSOAS
     # ===========================================
 
-    async def research_person(self, name: str, context: Optional[str] = None) -> Dict[str, Any]:
+    async def research_person(
+        self, name: str, context: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Pesquisa sobre uma pessoa
 
@@ -344,7 +362,10 @@ class TavilyClient(BaseScraper):
                 search_depth="basic",
                 include_answer=True,
                 max_results=3,
-                exclude_domains=["twitter.com", "facebook.com"],  # Evitar ruído de posts
+                exclude_domains=[
+                    "twitter.com",
+                    "facebook.com",
+                ],  # Evitar ruído de posts
             )
 
             key = query.split('"')[-1].strip().split()[0] if '"' in query else "general"
@@ -372,7 +393,9 @@ class TavilyClient(BaseScraper):
     # MÉTODOS DE MERCADO
     # ===========================================
 
-    async def get_market_trends(self, industry: str, country: str = "Brasil") -> Dict[str, Any]:
+    async def get_market_trends(
+        self, industry: str, country: str = "Brasil"
+    ) -> Dict[str, Any]:
         """
         Busca tendências de mercado
 
@@ -395,7 +418,9 @@ class TavilyClient(BaseScraper):
             "follow_up_questions": result.get("follow_up_questions", []),
         }
 
-    async def get_economic_scenario(self, sector: Optional[str] = None) -> Dict[str, Any]:
+    async def get_economic_scenario(
+        self, sector: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Busca cenário econômico brasileiro
 

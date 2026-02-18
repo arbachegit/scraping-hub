@@ -198,7 +198,9 @@ class ApolloMCPServer(BaseMCPServer):
             ),
         ]
 
-    async def handle_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def handle_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Processa chamada de tool"""
         if not self._client:
             return self._error_response(
@@ -263,7 +265,9 @@ class ApolloMCPServer(BaseMCPServer):
 
     async def _enrich_person(self, args: dict[str, Any]) -> list[TextContent]:
         """Enriquece dados de uma pessoa"""
-        if not any([args.get("email"), args.get("linkedin_url"), args.get("first_name")]):
+        if not any(
+            [args.get("email"), args.get("linkedin_url"), args.get("first_name")]
+        ):
             return self._error_response(
                 "Forneça email, linkedin_url ou first_name+last_name"
             )
