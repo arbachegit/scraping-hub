@@ -162,9 +162,14 @@ class SPFullCollector:
     def save_checkpoint(self):
         """Salva checkpoint"""
         try:
+            # Converter datetime para string
+            stats_copy = self.stats.copy()
+            if isinstance(stats_copy.get("start_time"), datetime):
+                stats_copy["start_time"] = stats_copy["start_time"].isoformat()
+
             data = {
                 "cnpj_base": self.cnpj_base,
-                "stats": self.stats,
+                "stats": stats_copy,
                 "city_progress": {k: list(v) for k, v in self.city_progress.items()},
                 "saved_at": datetime.now().isoformat(),
             }
