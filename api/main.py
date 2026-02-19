@@ -188,6 +188,57 @@ async def version():
 
 
 # ===========================================
+# CNAE ENDPOINTS
+# ===========================================
+
+
+@app.get("/api/cnae", tags=["CNAE"])
+async def list_cnae(
+    search: str = "",
+    limit: int = 100,
+    offset: int = 0,
+    current_user=Depends(get_current_user),
+):
+    """
+    List CNAEs from raw_cnae table.
+    Returns: subclasse, descricao, descricao_secao, descricao_divisao,
+             descricao_grupo, descricao_classe
+    """
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+        query = supabase.table("raw_cnae").select(
+            "subclasse, codigo, descricao, descricao_secao, "
+            "descricao_divisao, descricao_grupo, descricao_classe"
+        )
+
+        if search:
+            # Search in codigo or descricao
+            query = query.or_(
+                f"codigo.ilike.%{search}%,descricao.ilike.%{search}%,"
+                f"descricao_secao.ilike.%{search}%,descricao_grupo.ilike.%{search}%"
+            )
+
+        query = query.order("codigo").range(offset, offset + limit - 1)
+        result = query.execute()
+
+        return {
+            "success": True,
+            "data": result.data,
+            "count": len(result.data),
+            "offset": offset,
+            "limit": limit,
+        }
+
+    except Exception as e:
+        logger.error("list_cnae_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===========================================
 # ENRICHMENT ENDPOINTS
 # ===========================================
 
