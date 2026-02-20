@@ -4512,10 +4512,10 @@
             return;
           }
 
-          aiCompanies = data.companies;
+          aiCompanies = data.empresas;
 
           let html = `Encontrei <strong>${data.count}</strong> empresa(s) na base:`;
-          data.companies.forEach((c, i) => {
+          data.empresas.forEach((c, i) => {
             html += `
                         <div class="ai-company-card" onclick="handleAiOption('select_company', '${c.id}')">
                             <div class="ai-company-name">${i + 1}. ${c.nome_fantasia || c.razao_social}</div>
