@@ -85,7 +85,12 @@ async def chat(
 
         # Execute query
         query_builder = create_query_builder(supabase, brasil_data_hub_client)
-        data, total_count = await query_builder.execute(intent)
+
+        # For politicos, use enriched search with mandatos
+        if intent.entity_type == "politicos":
+            data, total_count = await query_builder.search_politicos_with_mandatos(intent)
+        else:
+            data, total_count = await query_builder.execute(intent)
 
         # If no data found and we have Perplexity, search externally
         external_info = None
@@ -184,6 +189,43 @@ async def delete_session(
     return {"success": True, "message": "Sessão excluída"}
 
 
+@router.get("/politico/{politico_id}/mandatos")
+async def get_politico_mandatos(
+    politico_id: str,
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Get the mandatos history for a specific politician.
+    """
+    if not settings.has_brasil_data_hub:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Brasil Data Hub não configurado",
+        )
+
+    try:
+        brasil_data_hub_client = create_client(
+            settings.brasil_data_hub_url,
+            settings.brasil_data_hub_key,
+        )
+
+        query_builder = create_query_builder(None, brasil_data_hub_client)
+        mandatos = await query_builder.fetch_mandatos(politico_id)
+
+        return {
+            "politico_id": politico_id,
+            "mandatos": mandatos,
+            "total": len(mandatos),
+        }
+
+    except Exception as e:
+        logger.error("mandatos_error", error=str(e), politico_id=politico_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar mandatos: {str(e)}",
+        )
+
+
 @router.get("/health")
 async def agent_health():
     """
@@ -260,7 +302,7 @@ def _generate_response_message(
         "empresas": ("empresa", "empresas"),
         "pessoas": ("pessoa", "pessoas"),
         "noticias": ("notícia", "notícias"),
-        "politicos": ("político", "políticos"),
+        "politicos": ("político", "políticos"),  # dim_politicos + fato_politicos_mandatos
     }
 
     singular, plural = entity_names.get(intent.entity_type, ("item", "itens"))
@@ -319,10 +361,13 @@ def _describe_filters(intent: ParsedIntent) -> str:
             descriptions.append(f"com regime {regime_names.get(value, value)}")
         elif field == "cnae_principal":
             descriptions.append(f"do segmento {value}")
-        elif field == "partido_sigla":
-            descriptions.append(f"do partido {value}")
-        elif field == "cargo_atual":
-            descriptions.append(f"com cargo de {value}")
+        elif field == "sexo":
+            sexo_nome = "masculino" if value == "M" else "feminino"
+            descriptions.append(f"do sexo {sexo_nome}")
+        elif field == "grau_instrucao":
+            descriptions.append(f"com {value}")
+        elif field == "ocupacao":
+            descriptions.append(f"com ocupação {value}")
         else:
             descriptions.append(f"com {field}={value}")
 

@@ -41,9 +41,10 @@ SELECT_COLUMNS = {
     EntityType.NOTICIAS: (
         "id, titulo, resumo, fonte, data_publicacao, segmento, url"
     ),
+    # dim_politicos (brasil-data-hub) - Schema real
     EntityType.POLITICOS: (
-        "id, nome_completo, nome_urna, partido_sigla, cargo_atual, "
-        "uf, municipio_nome, foto_url, email"
+        "id, cpf, nome_completo, nome_urna, data_nascimento, "
+        "sexo, grau_instrucao, ocupacao"
     ),
 }
 
@@ -63,10 +64,11 @@ VALID_FIELDS = {
         "id", "titulo", "resumo", "fonte", "data_publicacao", "segmento", "url",
         "keywords"  # virtual field for searching titulo + resumo
     },
+    # dim_politicos (brasil-data-hub) - Schema real
     EntityType.POLITICOS: {
-        "id", "nome_completo", "nome_urna", "partido_sigla", "cargo_atual",
-        "uf", "municipio_nome", "foto_url", "email",
-        "nome", "partido", "cargo", "estado"  # aliases
+        "id", "cpf", "nome_completo", "nome_urna", "data_nascimento",
+        "sexo", "grau_instrucao", "ocupacao",
+        "nome"  # alias para nome_completo
     },
 }
 
@@ -96,15 +98,13 @@ FIELD_ALIASES = {
         "title": "titulo",
         "summary": "resumo",
     },
+    # dim_politicos (brasil-data-hub) - Aliases simplificados
     EntityType.POLITICOS: {
         "nome": "nome_completo",
         "name": "nome_completo",
-        "partido": "partido_sigla",
-        "cargo": "cargo_atual",
-        "estado": "uf",
-        "state": "uf",
-        "cidade": "municipio_nome",
-        "municipio": "municipio_nome",
+        "nascimento": "data_nascimento",
+        "instrucao": "grau_instrucao",
+        "escolaridade": "grau_instrucao",
     },
 }
 
@@ -191,6 +191,84 @@ class QueryBuilder:
         except Exception as e:
             logger.error("query_execution_error", error=str(e))
             return [], 0
+
+    async def fetch_mandatos(
+        self,
+        politico_id: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch mandatos history for a specific politician.
+
+        Args:
+            politico_id: The UUID of the politician
+
+        Returns:
+            List of mandatos records
+        """
+        if not self.brasil_data_hub_client:
+            logger.warning("brasil_data_hub_client_not_configured")
+            return []
+
+        try:
+            result = self.brasil_data_hub_client.table("fato_politicos_mandatos").select(
+                "id, politico_id, codigo_ibge, municipio, cargo, ano_eleicao, "
+                "turno, numero_candidato, partido_sigla, partido_nome, coligacao, "
+                "situacao_turno, eleito, data_inicio_mandato, data_fim_mandato"
+            ).eq("politico_id", politico_id).order("ano_eleicao", desc=True).execute()
+
+            data = result.data or []
+
+            logger.info(
+                "mandatos_fetched",
+                politico_id=politico_id,
+                mandatos_count=len(data),
+            )
+
+            return data
+
+        except Exception as e:
+            logger.error("mandatos_fetch_error", error=str(e), politico_id=politico_id)
+            return []
+
+    async def search_politicos_with_mandatos(
+        self,
+        intent: ParsedIntent,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Search politicians and enrich with their current/latest mandato info.
+
+        This joins dim_politicos with fato_politicos_mandatos to get
+        partido_sigla, cargo, municipio from the latest mandato.
+
+        Args:
+            intent: The parsed intent
+
+        Returns:
+            Tuple of (results list with mandato info, total count)
+        """
+        # First get the politicians
+        data, total_count = await self.execute(intent)
+
+        if not data or not self.brasil_data_hub_client:
+            return data, total_count
+
+        # Enrich each politician with their latest mandato
+        enriched_data = []
+        for politico in data:
+            politico_id = politico.get("id")
+            if politico_id:
+                mandatos = await self.fetch_mandatos(politico_id)
+                if mandatos:
+                    # Get the most recent mandato (already ordered by ano_eleicao desc)
+                    latest = mandatos[0]
+                    politico["partido_sigla"] = latest.get("partido_sigla")
+                    politico["cargo_atual"] = latest.get("cargo")
+                    politico["municipio"] = latest.get("municipio")
+                    politico["eleito"] = latest.get("eleito")
+                    politico["mandatos_count"] = len(mandatos)
+            enriched_data.append(politico)
+
+        return enriched_data, total_count
 
     def _apply_filters(self, query, intent: ParsedIntent):
         """

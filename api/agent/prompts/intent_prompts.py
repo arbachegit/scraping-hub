@@ -41,25 +41,27 @@ Campos disponíveis:
 - segmento: Segmento (tecnologia, finanças, varejo, etc)
 - url: URL da notícia
 
-### politicos (politico - banco externo via MCP)
+### politicos (dim_politicos - brasil-data-hub)
 Campos disponíveis:
 - nome_completo: Nome completo do político
 - nome_urna: Nome de urna
-- partido_sigla: Sigla do partido (PT, PSDB, MDB, PL, etc)
-- cargo_atual: Cargo atual (Prefeito, Vereador, Deputado Federal, Senador, Governador, etc)
-- uf: Estado (2 letras)
-- municipio_nome: Nome do município
-- foto_url: URL da foto
-- email: Email
+- cpf: CPF do político
+- data_nascimento: Data de nascimento
+- sexo: Sexo (M ou F)
+- grau_instrucao: Grau de instrução (Superior Completo, Médio Completo, etc)
+- ocupacao: Ocupação/profissão
 
-### mandatos (mandato_politico - relacionado a politicos)
-Campos disponíveis:
-- cargo: Cargo do mandato
+### mandatos (fato_politicos_mandatos - brasil-data-hub)
+Campos disponíveis (via enriquecimento automático):
+- cargo: Cargo do mandato (Prefeito, Vereador, Deputado Federal, Senador, Governador)
 - ano_eleicao: Ano da eleição
-- partido_sigla: Partido no período
+- partido_sigla: Partido no período (PT, PSDB, MDB, PL, etc)
+- partido_nome: Nome completo do partido
+- municipio: Nome do município
+- codigo_ibge: Código IBGE do município
 - coligacao: Coligação eleitoral
-- votos_recebidos: Votos recebidos
-- ativo: Se o mandato está ativo
+- eleito: Se foi eleito (true/false)
+- situacao_turno: Situação no turno
 
 ## Operadores Disponíveis
 - eq: igual a
