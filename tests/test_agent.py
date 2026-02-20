@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from api.agent.models import (
-    AIProviderResponse,
     ActionType,
+    AIProviderResponse,
     ChatRequest,
     EntityType,
     FilterOperator,
