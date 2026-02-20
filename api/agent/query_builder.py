@@ -22,7 +22,7 @@ TABLE_MAPPINGS = {
     EntityType.EMPRESAS: "dim_empresas",
     EntityType.PESSOAS: "dim_pessoas",
     EntityType.NOTICIAS: "dim_noticias",
-    EntityType.POLITICOS: "politico",  # Tabela no banco fiscal (externo)
+    EntityType.POLITICOS: "dim_politicos",  # Tabela no brasil-data-hub
 }
 
 # Entity types that use external database (fiscal)
@@ -112,16 +112,20 @@ FIELD_ALIASES = {
 class QueryBuilder:
     """Builds and executes Supabase queries from parsed intents."""
 
-    def __init__(self, supabase_client: Client, fiscal_client: Optional[Client] = None):
+    def __init__(
+        self,
+        supabase_client: Client,
+        brasil_data_hub_client: Optional[Client] = None,
+    ):
         """
         Initialize the query builder.
 
         Args:
             supabase_client: Supabase client instance (main database)
-            fiscal_client: Optional Supabase client for fiscal database (politicos)
+            brasil_data_hub_client: Optional Supabase client for brasil-data-hub (politicos)
         """
         self.client = supabase_client
-        self.fiscal_client = fiscal_client
+        self.brasil_data_hub_client = brasil_data_hub_client
 
     async def execute(
         self,
@@ -145,10 +149,10 @@ class QueryBuilder:
 
         # Determine which client to use
         if intent.entity_type in EXTERNAL_ENTITIES:
-            if not self.fiscal_client:
-                logger.warning("fiscal_client_not_configured")
+            if not self.brasil_data_hub_client:
+                logger.warning("brasil_data_hub_client_not_configured")
                 return [], 0
-            client = self.fiscal_client
+            client = self.brasil_data_hub_client
         else:
             client = self.client
 
@@ -284,16 +288,16 @@ class QueryBuilder:
 # Global query builder (requires supabase client)
 def create_query_builder(
     supabase_client: Client,
-    fiscal_client: Optional[Client] = None,
+    brasil_data_hub_client: Optional[Client] = None,
 ) -> QueryBuilder:
     """
     Create a query builder instance.
 
     Args:
         supabase_client: Supabase client instance (main database)
-        fiscal_client: Optional Supabase client for fiscal database (politicos)
+        brasil_data_hub_client: Optional Supabase client for brasil-data-hub (politicos)
 
     Returns:
         QueryBuilder instance
     """
-    return QueryBuilder(supabase_client, fiscal_client)
+    return QueryBuilder(supabase_client, brasil_data_hub_client)

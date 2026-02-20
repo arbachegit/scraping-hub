@@ -75,20 +75,30 @@ async def chat(
         # Create Supabase clients
         supabase = create_client(settings.supabase_url, settings.supabase_service_key)
 
-        # Create fiscal client if configured (for politicos)
-        fiscal_client = None
-        if settings.has_fiscal_supabase:
-            fiscal_client = create_client(
-                settings.fiscal_supabase_url,
-                settings.fiscal_supabase_key,
+        # Create brasil-data-hub client if configured (for politicos)
+        brasil_data_hub_client = None
+        if settings.has_brasil_data_hub:
+            brasil_data_hub_client = create_client(
+                settings.brasil_data_hub_url,
+                settings.brasil_data_hub_key,
             )
 
         # Execute query
-        query_builder = create_query_builder(supabase, fiscal_client)
+        query_builder = create_query_builder(supabase, brasil_data_hub_client)
         data, total_count = await query_builder.execute(intent)
 
+        # If no data found and we have Perplexity, search externally
+        external_info = None
+        if total_count == 0 and settings.has_perplexity:
+            external_info = await _search_external_with_perplexity(
+                request.message,
+                intent.entity_type,
+            )
+
         # Generate response message
-        response_message = _generate_response_message(intent, data, total_count)
+        response_message = _generate_response_message(
+            intent, data, total_count, external_info
+        )
 
         # Add assistant response to session
         session_manager.add_message(session.session_id, "assistant", response_message)
@@ -190,10 +200,49 @@ async def agent_health():
     }
 
 
+async def _search_external_with_perplexity(
+    user_message: str,
+    entity_type: str,
+) -> str:
+    """
+    Search externally using Perplexity AI when data is not found in the database.
+
+    Args:
+        user_message: The original user message
+        entity_type: The type of entity being searched
+
+    Returns:
+        External information from Perplexity or None
+    """
+    try:
+        from api.agent.ai_providers.chain import get_provider_chain
+
+        chain = get_provider_chain()
+
+        # Build a search prompt
+        search_prompt = f"""Busque informações sobre: {user_message}
+
+Contexto: O usuário está buscando informações sobre {entity_type} no Brasil.
+Forneça uma resposta concisa e informativa em português brasileiro.
+Se não encontrar informações específicas, indique isso claramente."""
+
+        response = await chain.complete(search_prompt)
+
+        if response.success and response.content:
+            return response.content
+
+        return None
+
+    except Exception as e:
+        logger.warning("perplexity_search_error", error=str(e))
+        return None
+
+
 def _generate_response_message(
     intent: ParsedIntent,
     data: List[Dict[str, Any]],
     total_count: int,
+    external_info: str = None,
 ) -> str:
     """
     Generate a conversational response message.
@@ -202,6 +251,7 @@ def _generate_response_message(
         intent: The parsed intent
         data: Query results
         total_count: Total count of matching records
+        external_info: External information from Perplexity (if any)
 
     Returns:
         A friendly response message in Portuguese
@@ -217,9 +267,17 @@ def _generate_response_message(
 
     if total_count == 0:
         filters_desc = _describe_filters(intent)
+        base_msg = ""
         if filters_desc:
-            return f"Não encontrei nenhum(a) {singular} {filters_desc}. Tente ajustar os filtros."
-        return f"Não encontrei nenhum(a) {singular} com esses critérios."
+            base_msg = f"Não encontrei nenhum(a) {singular} {filters_desc} na base de dados."
+        else:
+            base_msg = f"Não encontrei nenhum(a) {singular} com esses critérios na base de dados."
+
+        # Append external info if available
+        if external_info:
+            return f"{base_msg}\n\nPorém, encontrei informações externas:\n{external_info}"
+
+        return f"{base_msg} Tente ajustar os filtros."
 
     if total_count == 1:
         return f"Encontrei 1 {singular}."
