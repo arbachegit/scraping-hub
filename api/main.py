@@ -5,6 +5,7 @@ IconsAI Scraping API - v3.0 (Clean Architecture)
 import os
 import re
 from datetime import timedelta
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
@@ -13,7 +14,6 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from enum import Enum
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
