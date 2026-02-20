@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-20250514"
 
+    # OpenAI - GPT Models (fallback for agent)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+
     # ===========================================
     # APIs de Dados B2B
     # ===========================================
@@ -181,6 +185,11 @@ class Settings(BaseSettings):
     def has_anthropic(self) -> bool:
         """Verifica se Anthropic está configurado"""
         return bool(self.anthropic_api_key)
+
+    @property
+    def has_openai(self) -> bool:
+        """Verifica se OpenAI está configurado"""
+        return bool(self.openai_api_key)
 
     @property
     def has_supabase(self) -> bool:
