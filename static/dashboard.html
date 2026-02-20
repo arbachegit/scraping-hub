@@ -250,6 +250,8 @@
         font-size: 0.95rem;
         font-weight: 600;
         transition: all 0.2s;
+        white-space: nowrap;
+        width: auto;
       }
 
       .btn-admin:hover {
@@ -2843,7 +2845,7 @@
             document.getElementById("userEmail").textContent = user.name || user.email;
             if (user.role === "super_admin") {
               document.getElementById("btnAdmin").style.display =
-                "inline-block";
+                "inline-flex";
             }
           } else if (r.status === 401) {
             logout();
