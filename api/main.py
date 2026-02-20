@@ -13,7 +13,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from enum import Enum
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
 from api.auth import (
@@ -43,7 +44,7 @@ logger = structlog.get_logger()
 class CnaeListParams(BaseModel):
     """Schema para listagem de CNAEs."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     search: str = Field(default="", max_length=100)
     limit: int = Field(default=100, ge=1, le=2000)
@@ -383,25 +384,38 @@ async def enrich_people(
 # ===========================================
 
 
+class UserRole(str, Enum):
+    """Roles de usuario do sistema."""
+
+    USER = "user"
+    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+
+
 class AdminUserCreate(BaseModel):
     """Schema para criacao de usuario."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: str = Field(min_length=2, max_length=100)
-    email: str = Field(min_length=5, max_length=100)
+    email: EmailStr
     password: str = Field(min_length=6, max_length=128)
-    role: str = Field(default="user")
+    role: UserRole = Field(default=UserRole.USER)
     permissions: List[str] = Field(default_factory=list)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
 
 
 class AdminUserUpdate(BaseModel):
     """Schema para atualizacao de usuario."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
     permissions: Optional[List[str]] = None
     is_active: Optional[bool] = None
     new_password: Optional[str] = Field(default=None, min_length=6, max_length=128)
@@ -480,10 +494,10 @@ async def create_user(
 
         # Criar usuario
         new_user = {
-            "email": user_data.email.lower(),
+            "email": user_data.email,  # Já normalizado pelo validator
             "name": user_data.name,
             "password_hash": hash_password(user_data.password),
-            "role": user_data.role,
+            "role": user_data.role.value,  # Enum para string
             "permissions": user_data.permissions,
             "is_active": True,
         }
@@ -559,7 +573,7 @@ async def update_admin_user(
         if user_data.name is not None:
             updates["name"] = user_data.name
         if user_data.role is not None:
-            updates["role"] = user_data.role
+            updates["role"] = user_data.role.value  # Enum para string
         if user_data.permissions is not None:
             updates["permissions"] = user_data.permissions
         if user_data.is_active is not None:

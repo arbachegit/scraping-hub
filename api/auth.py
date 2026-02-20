@@ -48,7 +48,7 @@ class TokenData(BaseModel):
 class UserLogin(BaseModel):
     """Schema para login de usuário."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
@@ -69,7 +69,7 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     """Schema para atualização de usuário."""
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None
