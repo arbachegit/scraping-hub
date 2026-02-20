@@ -2898,9 +2898,21 @@
       async function searchCompany() {
         const nome = document.getElementById("companyName").value.trim();
         const cidade = document.getElementById("companyCidade").value.trim();
+        const segmento = document.getElementById("companySegmento").value.trim();
+        const regime = document.getElementById("companyRegime").value.trim();
 
-        if (!nome || nome.length < 2) {
-          alert("Digite pelo menos 2 caracteres no nome");
+        // Contar campos preenchidos (mínimo 2 caracteres cada)
+        const campos = [
+          { nome: "Nome", valor: nome },
+          { nome: "Cidade", valor: cidade },
+          { nome: "Segmento/CNAE", valor: segmento },
+          { nome: "Regime", valor: regime }
+        ];
+        const preenchidos = campos.filter(c => c.valor && c.valor.length >= 2);
+
+        if (preenchidos.length < 3) {
+          const vazios = campos.filter(c => !c.valor || c.valor.length < 2).map(c => c.nome);
+          alert(`Preencha pelo menos 3 dos 4 campos.\n\nCampos vazios ou incompletos: ${vazios.join(", ")}`);
           return;
         }
 
@@ -2913,8 +2925,11 @@
           '<div class="loading"><div class="loading-spinner"></div><span class="loading-text">Buscando empresas...</span></div>';
 
         try {
-          const payload = { nome };
+          const payload = {};
+          if (nome) payload.nome = nome;
           if (cidade) payload.cidade = cidade;
+          if (segmento) payload.segmento = segmento;
+          if (regime) payload.regime = regime;
 
           const r = await fetch("/api/companies/search", {
             method: "POST",

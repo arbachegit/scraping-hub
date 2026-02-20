@@ -26,33 +26,37 @@ const router = Router();
  */
 router.post('/search', validateBody(searchCompanySchema), async (req, res) => {
   try {
-    const { nome, cidade } = req.body;
+    const { nome, cidade, segmento, regime } = req.body;
 
-    // Validation already done by middleware, but keep for backwards compatibility
-    if (!nome || nome.trim().length < 2) {
-      return res.status(400).json({
-        error: 'Nome da empresa e obrigatorio (minimo 2 caracteres)'
-      });
-    }
+    // Build search query from available fields
+    const queryParts = [];
+    if (nome) queryParts.push(nome);
+    if (cidade) queryParts.push(cidade);
+    if (segmento) queryParts.push(segmento);
+    if (regime) queryParts.push(regime);
 
-    console.log(`[SEARCH] Buscando empresa: ${nome}${cidade ? ` em ${cidade}` : ''}`);
+    // Use nome for primary search, others for context
+    const searchName = nome || queryParts[0];
+    const searchCity = cidade || null;
+
+    console.log(`[SEARCH] Buscando empresa: ${queryParts.join(' | ')}`);
 
     // 1. First try: Serper (Google search)
-    let candidates = await serper.searchCompanyByName(nome.trim(), cidade?.trim() || null);
+    let candidates = await serper.searchCompanyByName(searchName, searchCity);
     let searchSource = 'serper';
 
     // 2. Fallback: Perplexity AI (if Serper found nothing)
     if (candidates.length === 0) {
       console.log(`[SEARCH] Serper não encontrou. Tentando Perplexity...`);
-      candidates = await perplexity.searchCompanyByName(nome.trim(), cidade?.trim() || null);
+      candidates = await perplexity.searchCompanyByName(searchName, searchCity);
       searchSource = 'perplexity';
     }
 
-    // 3. Fallback: Serper with exact name in quotes
+    // 3. Fallback: Serper with full query
     if (candidates.length === 0) {
-      console.log(`[SEARCH] Perplexity não encontrou. Tentando Serper com nome exato...`);
-      const exactQuery = `"${nome.trim()}" CNPJ empresa`;
-      const exactResults = await serper.search(exactQuery, 20);
+      console.log(`[SEARCH] Perplexity não encontrou. Tentando Serper com query completa...`);
+      const fullQuery = `${queryParts.join(' ')} CNPJ empresa`;
+      const exactResults = await serper.search(fullQuery, 20);
 
       // Extract CNPJs from exact search
       const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;

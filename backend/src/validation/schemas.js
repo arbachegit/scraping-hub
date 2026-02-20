@@ -9,17 +9,35 @@ const cnpjSchema = z.string()
   .transform(val => val.replace(/[^\d]/g, ''))
   .refine(val => val.length === 14, { message: 'CNPJ deve ter 14 dígitos' });
 
-// Company search request
+// Company search request - mínimo 3 de 4 campos preenchidos
 export const searchCompanySchema = z.object({
   nome: z.string()
-    .min(2, 'Nome deve ter no mínimo 2 caracteres')
     .max(200, 'Nome deve ter no máximo 200 caracteres')
-    .transform(val => val.trim()),
+    .transform(val => val?.trim())
+    .optional()
+    .nullable(),
   cidade: z.string()
     .max(100)
     .transform(val => val?.trim())
     .optional()
+    .nullable(),
+  segmento: z.string()
+    .max(200)
+    .transform(val => val?.trim())
+    .optional()
+    .nullable(),
+  regime: z.string()
+    .max(100)
+    .transform(val => val?.trim())
+    .optional()
     .nullable()
+}).refine(data => {
+  // Contar campos preenchidos com pelo menos 2 caracteres
+  const campos = [data.nome, data.cidade, data.segmento, data.regime];
+  const preenchidos = campos.filter(c => c && c.length >= 2).length;
+  return preenchidos >= 3;
+}, {
+  message: 'Preencha pelo menos 3 dos 4 campos (nome, cidade, segmento, regime)'
 });
 
 // Company details request
