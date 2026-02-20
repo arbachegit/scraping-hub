@@ -1,4 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Ensure dotenv is loaded (ESM modules load before code execution)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -246,16 +254,70 @@ export async function findCompanyByCnpj(cnpj) {
 }
 
 /**
- * List all companies
+ * List all companies with optional filters
+ * @param {Object} filters - Optional filters: nome, cidade, segmento, regime
  */
-export async function listCompanies() {
-  const { data, error } = await supabase
+export async function listCompanies(filters = {}) {
+  const { nome, cidade, segmento, regime } = filters;
+
+  // Base query with regime join
+  let query = supabase
     .from('dim_empresas')
-    .select('*')
+    .select(`
+      *,
+      fato_regime_tributario (
+        regime_tributario,
+        cnae_principal,
+        cnae_descricao,
+        ativo
+      )
+    `)
     .order('created_at', { ascending: false });
 
+  // Apply filters
+  if (nome) {
+    query = query.or(`razao_social.ilike.%${nome}%,nome_fantasia.ilike.%${nome}%`);
+  }
+
+  if (cidade) {
+    query = query.ilike('cidade', `%${cidade}%`);
+  }
+
+  const { data, error } = await query;
+
   if (error) throw error;
-  return data;
+
+  // Process results: flatten regime data and filter by segmento/regime in JS
+  // (Supabase doesn't support filtering on nested fields easily)
+  let results = (data || []).map(empresa => {
+    const regimeAtivo = (empresa.fato_regime_tributario || []).find(r => r.ativo) || empresa.fato_regime_tributario?.[0];
+    return {
+      ...empresa,
+      regime_tributario: regimeAtivo?.regime_tributario || null,
+      cnae_principal: regimeAtivo?.cnae_principal || null,
+      cnae_descricao: regimeAtivo?.cnae_descricao || null,
+      fato_regime_tributario: undefined
+    };
+  });
+
+  // Filter by segmento (CNAE) in JS
+  if (segmento) {
+    const segmentoLower = segmento.toLowerCase();
+    results = results.filter(e =>
+      (e.cnae_principal || '').toLowerCase().includes(segmentoLower) ||
+      (e.cnae_descricao || '').toLowerCase().includes(segmentoLower)
+    );
+  }
+
+  // Filter by regime in JS
+  if (regime) {
+    const regimeLower = regime.toLowerCase();
+    results = results.filter(e =>
+      (e.regime_tributario || '').toLowerCase().includes(regimeLower)
+    );
+  }
+
+  return results;
 }
 
 /**

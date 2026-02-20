@@ -629,6 +629,132 @@
         color: #64748b;
       }
 
+      /* Filtros hierárquicos CNAE */
+      .cnae-filters {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0 1.5rem 1rem;
+        flex-wrap: wrap;
+      }
+
+      .cnae-filter-select {
+        flex: 1;
+        min-width: 150px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        color: #fff;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+
+      .cnae-filter-select:focus {
+        outline: none;
+        border-color: rgba(139, 92, 246, 0.5);
+      }
+
+      .cnae-filter-select option {
+        background: #0f1629;
+        color: #fff;
+      }
+
+      /* Modal Regime Tributário */
+      .regime-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1200;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .regime-modal.show {
+        display: flex;
+      }
+
+      .regime-modal-content {
+        background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+        border-radius: 1rem;
+        width: 95%;
+        max-width: 500px;
+        overflow: hidden;
+      }
+
+      .regime-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+      }
+
+      .regime-modal-header h3 {
+        color: #fff;
+        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .regime-modal-header h3::before {
+        content: "";
+        width: 4px;
+        height: 1.25rem;
+        background: linear-gradient(180deg, #22c55e, #4ade80);
+        border-radius: 2px;
+      }
+
+      .regime-list {
+        padding: 1rem 1.5rem;
+      }
+
+      .regime-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .regime-item:hover {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.3);
+      }
+
+      .regime-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .regime-item-name {
+        font-weight: 500;
+        color: #fff;
+      }
+
+      .regime-item-limit {
+        font-size: 0.8rem;
+        color: #94a3b8;
+      }
+
+      .regime-item-code {
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: #22c55e;
+        background: rgba(34, 197, 94, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+      }
+
       .btn-search {
         display: inline-flex;
         align-items: center;
@@ -2328,9 +2454,63 @@
             oninput="filterCnaeTable()"
           />
         </div>
+        <div class="cnae-filters">
+          <select id="cnaeFilterSecao" class="cnae-filter-select" onchange="filterCnaeByHierarchy()">
+            <option value="">Todas as Seções</option>
+          </select>
+          <select id="cnaeFilterDivisao" class="cnae-filter-select" onchange="filterCnaeByHierarchy()">
+            <option value="">Todas as Divisões</option>
+          </select>
+          <select id="cnaeFilterGrupo" class="cnae-filter-select" onchange="filterCnaeByHierarchy()">
+            <option value="">Todos os Grupos</option>
+          </select>
+          <select id="cnaeFilterClasse" class="cnae-filter-select" onchange="filterCnaeByHierarchy()">
+            <option value="">Todas as Classes</option>
+          </select>
+        </div>
         <div class="cnae-table-container">
           <div id="cnaeTableContent">
             <div class="cnae-loading">Carregando CNAEs...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Regime Tributário -->
+    <div class="regime-modal" id="regimeModal">
+      <div class="regime-modal-content">
+        <div class="regime-modal-header">
+          <h3>Regime Tributário</h3>
+          <button class="modal-close" onclick="closeRegimeModal()">&times;</button>
+        </div>
+        <div class="regime-list">
+          <div class="regime-item" onclick="selectRegime('MEI', 'Microempreendedor Individual')">
+            <div>
+              <div class="regime-item-name">Microempreendedor Individual</div>
+              <div class="regime-item-limit">Limite: R$ 81.000/ano</div>
+            </div>
+            <div class="regime-item-code">MEI</div>
+          </div>
+          <div class="regime-item" onclick="selectRegime('SIMPLES_NACIONAL', 'Simples Nacional')">
+            <div>
+              <div class="regime-item-name">Simples Nacional</div>
+              <div class="regime-item-limit">Limite: R$ 4.800.000/ano</div>
+            </div>
+            <div class="regime-item-code">SIMPLES</div>
+          </div>
+          <div class="regime-item" onclick="selectRegime('LUCRO_PRESUMIDO', 'Lucro Presumido')">
+            <div>
+              <div class="regime-item-name">Lucro Presumido</div>
+              <div class="regime-item-limit">Limite: R$ 78.000.000/ano</div>
+            </div>
+            <div class="regime-item-code">PRESUMIDO</div>
+          </div>
+          <div class="regime-item" onclick="selectRegime('LUCRO_REAL', 'Lucro Real')">
+            <div>
+              <div class="regime-item-name">Lucro Real</div>
+              <div class="regime-item-limit">Obrigatório acima de R$ 78 milhões</div>
+            </div>
+            <div class="regime-item-code">REAL</div>
           </div>
         </div>
       </div>
@@ -2378,6 +2558,22 @@
                 Listar CNAE
               </button>
             </div>
+            <div class="input-with-button">
+              <input
+                type="text"
+                id="companyRegime"
+                placeholder="Regime Tributário"
+                onkeypress="if (event.key === 'Enter') searchCompany();"
+              />
+              <button class="btn-inside-input" onclick="openRegimeModal()" type="button" style="background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.3); color: #4ade80;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18M3 12h18M3 18h18"/>
+                </svg>
+                Listar
+              </button>
+            </div>
+          </div>
+          <div class="search-box" style="flex-wrap: wrap; margin-top: 0.5rem;">
             <button class="btn-search" onclick="searchCompany()" id="btnSearch">
               Buscar
             </button>
@@ -2541,6 +2737,7 @@
                 <th class="sortable" data-sort="cidade" onclick="sortEmpresasListing('cidade')">Cidade</th>
                 <th class="sortable" data-sort="estado" onclick="sortEmpresasListing('estado')">UF</th>
                 <th class="sortable" data-sort="cnae_descricao" onclick="sortEmpresasListing('cnae_descricao')">Segmento</th>
+                <th class="sortable" data-sort="regime_tributario" onclick="sortEmpresasListing('regime_tributario')">Regime</th>
                 <th>LinkedIn</th>
               </tr>
             </thead>
@@ -2675,6 +2872,8 @@
         document.getElementById("searchResults").innerHTML = "";
         document.getElementById("companyName").value = "";
         document.getElementById("companyCidade").value = "";
+        document.getElementById("companySegmento").value = "";
+        document.getElementById("companyRegime").value = "";
         document.getElementById("searchView").style.display = "block";
         document.getElementById("detailsView").style.display = "none";
         currentEmpresa = null;
@@ -3534,6 +3733,7 @@
           allCnaes = data.data || [];
           cnaeLoaded = true;
           renderCnaeTable(allCnaes);
+          populateCnaeFilters();
         } catch (error) {
           container.innerHTML = `<div class="cnae-empty">Erro: ${error.message}</div>`;
         }
@@ -3612,6 +3812,127 @@
         if (e.target === e.currentTarget) closeCnaeModal();
       });
 
+      // ---- CNAE HIERARCHY FILTERS ----
+      function populateCnaeFilters() {
+        if (allCnaes.length === 0) return;
+
+        // Extract unique values for each level
+        const secoes = [...new Set(allCnaes.map(c => c.descricao_secao).filter(Boolean))].sort();
+
+        const secaoSelect = document.getElementById("cnaeFilterSecao");
+        secaoSelect.innerHTML = '<option value="">Todas as Seções</option>';
+        secoes.forEach(s => {
+          secaoSelect.innerHTML += `<option value="${s}">${s.substring(0, 50)}${s.length > 50 ? '...' : ''}</option>`;
+        });
+      }
+
+      function filterCnaeByHierarchy() {
+        const secao = document.getElementById("cnaeFilterSecao").value;
+        const divisao = document.getElementById("cnaeFilterDivisao").value;
+        const grupo = document.getElementById("cnaeFilterGrupo").value;
+        const classe = document.getElementById("cnaeFilterClasse").value;
+        const search = document.getElementById("cnaeSearchInput").value.toLowerCase().trim();
+
+        let filtered = allCnaes;
+
+        // Apply hierarchy filters
+        if (secao) {
+          filtered = filtered.filter(c => c.descricao_secao === secao);
+          // Update divisão options
+          const divisoes = [...new Set(filtered.map(c => c.descricao_divisao).filter(Boolean))].sort();
+          const divisaoSelect = document.getElementById("cnaeFilterDivisao");
+          divisaoSelect.innerHTML = '<option value="">Todas as Divisões</option>';
+          divisoes.forEach(d => {
+            divisaoSelect.innerHTML += `<option value="${d}" ${d === divisao ? 'selected' : ''}>${d.substring(0, 40)}${d.length > 40 ? '...' : ''}</option>`;
+          });
+        } else {
+          document.getElementById("cnaeFilterDivisao").innerHTML = '<option value="">Todas as Divisões</option>';
+          document.getElementById("cnaeFilterGrupo").innerHTML = '<option value="">Todos os Grupos</option>';
+          document.getElementById("cnaeFilterClasse").innerHTML = '<option value="">Todas as Classes</option>';
+        }
+
+        if (divisao) {
+          filtered = filtered.filter(c => c.descricao_divisao === divisao);
+          // Update grupo options
+          const grupos = [...new Set(filtered.map(c => c.descricao_grupo).filter(Boolean))].sort();
+          const grupoSelect = document.getElementById("cnaeFilterGrupo");
+          grupoSelect.innerHTML = '<option value="">Todos os Grupos</option>';
+          grupos.forEach(g => {
+            grupoSelect.innerHTML += `<option value="${g}" ${g === grupo ? 'selected' : ''}>${g.substring(0, 40)}${g.length > 40 ? '...' : ''}</option>`;
+          });
+        } else if (secao) {
+          document.getElementById("cnaeFilterGrupo").innerHTML = '<option value="">Todos os Grupos</option>';
+          document.getElementById("cnaeFilterClasse").innerHTML = '<option value="">Todas as Classes</option>';
+        }
+
+        if (grupo) {
+          filtered = filtered.filter(c => c.descricao_grupo === grupo);
+          // Update classe options
+          const classes = [...new Set(filtered.map(c => c.descricao_classe).filter(Boolean))].sort();
+          const classeSelect = document.getElementById("cnaeFilterClasse");
+          classeSelect.innerHTML = '<option value="">Todas as Classes</option>';
+          classes.forEach(cl => {
+            classeSelect.innerHTML += `<option value="${cl}" ${cl === classe ? 'selected' : ''}>${cl.substring(0, 40)}${cl.length > 40 ? '...' : ''}</option>`;
+          });
+        } else if (divisao) {
+          document.getElementById("cnaeFilterClasse").innerHTML = '<option value="">Todas as Classes</option>';
+        }
+
+        if (classe) {
+          filtered = filtered.filter(c => c.descricao_classe === classe);
+        }
+
+        // Apply text search on filtered results
+        if (search) {
+          filtered = filtered.filter(cnae => {
+            return (
+              (cnae.codigo || '').toLowerCase().includes(search) ||
+              (cnae.subclasse || '').toLowerCase().includes(search) ||
+              (cnae.descricao || '').toLowerCase().includes(search)
+            );
+          });
+        }
+
+        renderCnaeTable(filtered);
+      }
+
+      // Override filterCnaeTable to work with hierarchy
+      function filterCnaeTable() {
+        filterCnaeByHierarchy();
+      }
+
+      // ---- REGIME TRIBUTARIO MODAL ----
+      function openRegimeModal() {
+        document.getElementById("regimeModal").classList.add("show");
+      }
+
+      function closeRegimeModal() {
+        document.getElementById("regimeModal").classList.remove("show");
+      }
+
+      function selectRegime(codigo, descricao) {
+        document.getElementById("companyRegime").value = codigo;
+        closeRegimeModal();
+      }
+
+      // Close Regime modal on outside click
+      document.getElementById("regimeModal").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closeRegimeModal();
+      });
+
+      // Format regime for display
+      function formatRegime(regime) {
+        if (!regime) return '<span style="color:#64748b">-</span>';
+        const regimeMap = {
+          'MEI': '<span style="color:#22c55e">MEI</span>',
+          'SIMPLES_NACIONAL': '<span style="color:#3b82f6">Simples</span>',
+          'LUCRO_PRESUMIDO': '<span style="color:#f59e0b">Presumido</span>',
+          'LUCRO_REAL': '<span style="color:#ef4444">Real</span>',
+          'DESCONHECIDO': '<span style="color:#64748b">?</span>'
+        };
+        return regimeMap[regime] || `<span style="color:#94a3b8">${regime}</span>`;
+      }
+
       // ---- EMPRESAS LISTING ----
       async function openEmpresasListingModal() {
         document.getElementById("empresasListingModal").classList.add("show");
@@ -3623,12 +3944,14 @@
         const nome = document.getElementById("companyName").value.trim();
         const cidade = document.getElementById("companyCidade").value.trim();
         const segmento = (document.getElementById("companySegmento")?.value || "").trim();
+        const regime = (document.getElementById("companyRegime")?.value || "").trim();
 
         // Show filter info
         let filterParts = [];
         if (nome) filterParts.push(`Nome: "${nome}"`);
         if (cidade) filterParts.push(`Cidade: "${cidade}"`);
         if (segmento) filterParts.push(`Segmento: "${segmento}"`);
+        if (regime) filterParts.push(`Regime: "${regime}"`);
         document.getElementById("empresasFilterInfo").textContent = filterParts.length > 0 ? `Filtros: ${filterParts.join(", ")}` : "";
 
         try {
@@ -3636,6 +3959,7 @@
           if (nome) url += `&nome=${encodeURIComponent(nome)}`;
           if (cidade) url += `&cidade=${encodeURIComponent(cidade)}`;
           if (segmento) url += `&segmento=${encodeURIComponent(segmento)}`;
+          if (regime) url += `&regime=${encodeURIComponent(regime)}`;
 
           const r = await fetch(url);
           const data = await r.json();
@@ -3648,7 +3972,7 @@
             throw new Error(data.error || "Erro ao buscar empresas");
           }
         } catch (e) {
-          document.getElementById("empresasListingBody").innerHTML = `<tr><td colspan="6" class="error">Erro: ${e.message}</td></tr>`;
+          document.getElementById("empresasListingBody").innerHTML = `<tr><td colspan="7" class="error">Erro: ${e.message}</td></tr>`;
         } finally {
           document.getElementById("empresasListingLoading").style.display = "none";
           document.getElementById("empresasListingTable").style.display = "table";
@@ -3680,6 +4004,7 @@
             <td>${e.cidade || '-'}</td>
             <td>${e.estado || '-'}</td>
             <td>${e.cnae_descricao || '-'}</td>
+            <td>${formatRegime(e.regime_tributario)}</td>
             <td>${e.linkedin && e.linkedin !== 'NAO_POSSUI' && e.linkedin !== 'inexistente'
               ? `<a href="${e.linkedin}" target="_blank" class="cell-link">Ver</a>`
               : '<span style="color:#64748b">-</span>'}</td>
@@ -3698,7 +4023,8 @@
           (e.razao_social || '').toLowerCase().includes(search) ||
           (e.nome_fantasia || '').toLowerCase().includes(search) ||
           (e.cidade || '').toLowerCase().includes(search) ||
-          (e.cnae_descricao || '').toLowerCase().includes(search)
+          (e.cnae_descricao || '').toLowerCase().includes(search) ||
+          (e.regime_tributario || '').toLowerCase().includes(search)
         );
         renderEmpresasListing(filtered);
       }

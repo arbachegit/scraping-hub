@@ -565,15 +565,30 @@ router.post('/approve', validateBody(approveCompanySchema), async (req, res) => 
 
 /**
  * GET /api/companies/list
- * List all approved companies
+ * List all approved companies with optional filters
+ * Query params: nome, cidade, segmento, regime, limit
  */
 router.get('/list', async (req, res) => {
   try {
-    const companies = await listCompanies();
+    const { nome, cidade, segmento, regime, limit } = req.query;
+
+    const filters = {};
+    if (nome) filters.nome = nome;
+    if (cidade) filters.cidade = cidade;
+    if (segmento) filters.segmento = segmento;
+    if (regime) filters.regime = regime;
+
+    let companies = await listCompanies(filters);
+
+    // Apply limit if specified
+    if (limit && !isNaN(parseInt(limit))) {
+      companies = companies.slice(0, parseInt(limit));
+    }
+
     return res.json({
       success: true,
       count: companies.length,
-      companies: companies
+      empresas: companies
     });
   } catch (error) {
     console.error('[LIST ERROR]', error);
