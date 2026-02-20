@@ -22,7 +22,11 @@ TABLE_MAPPINGS = {
     EntityType.EMPRESAS: "dim_empresas",
     EntityType.PESSOAS: "dim_pessoas",
     EntityType.NOTICIAS: "dim_noticias",
+    EntityType.POLITICOS: "politico",  # Tabela no banco fiscal (externo)
 }
+
+# Entity types that use external database (fiscal)
+EXTERNAL_ENTITIES = {EntityType.POLITICOS}
 
 # Default columns to select for each entity type
 SELECT_COLUMNS = {
@@ -36,6 +40,10 @@ SELECT_COLUMNS = {
     ),
     EntityType.NOTICIAS: (
         "id, titulo, resumo, fonte, data_publicacao, segmento, url"
+    ),
+    EntityType.POLITICOS: (
+        "id, nome_completo, nome_urna, partido_sigla, cargo_atual, "
+        "uf, municipio_nome, foto_url, email"
     ),
 }
 
@@ -54,6 +62,11 @@ VALID_FIELDS = {
     EntityType.NOTICIAS: {
         "id", "titulo", "resumo", "fonte", "data_publicacao", "segmento", "url",
         "keywords"  # virtual field for searching titulo + resumo
+    },
+    EntityType.POLITICOS: {
+        "id", "nome_completo", "nome_urna", "partido_sigla", "cargo_atual",
+        "uf", "municipio_nome", "foto_url", "email",
+        "nome", "partido", "cargo", "estado"  # aliases
     },
 }
 
@@ -83,20 +96,32 @@ FIELD_ALIASES = {
         "title": "titulo",
         "summary": "resumo",
     },
+    EntityType.POLITICOS: {
+        "nome": "nome_completo",
+        "name": "nome_completo",
+        "partido": "partido_sigla",
+        "cargo": "cargo_atual",
+        "estado": "uf",
+        "state": "uf",
+        "cidade": "municipio_nome",
+        "municipio": "municipio_nome",
+    },
 }
 
 
 class QueryBuilder:
     """Builds and executes Supabase queries from parsed intents."""
 
-    def __init__(self, supabase_client: Client):
+    def __init__(self, supabase_client: Client, fiscal_client: Optional[Client] = None):
         """
         Initialize the query builder.
 
         Args:
-            supabase_client: Supabase client instance
+            supabase_client: Supabase client instance (main database)
+            fiscal_client: Optional Supabase client for fiscal database (politicos)
         """
         self.client = supabase_client
+        self.fiscal_client = fiscal_client
 
     async def execute(
         self,
@@ -118,9 +143,18 @@ class QueryBuilder:
 
         select_columns = SELECT_COLUMNS.get(intent.entity_type, "*")
 
+        # Determine which client to use
+        if intent.entity_type in EXTERNAL_ENTITIES:
+            if not self.fiscal_client:
+                logger.warning("fiscal_client_not_configured")
+                return [], 0
+            client = self.fiscal_client
+        else:
+            client = self.client
+
         try:
             # Start building the query
-            query = self.client.table(table_name).select(select_columns, count="exact")
+            query = client.table(table_name).select(select_columns, count="exact")
 
             # Apply filters
             query = self._apply_filters(query, intent)
@@ -248,14 +282,18 @@ class QueryBuilder:
 
 
 # Global query builder (requires supabase client)
-def create_query_builder(supabase_client: Client) -> QueryBuilder:
+def create_query_builder(
+    supabase_client: Client,
+    fiscal_client: Optional[Client] = None,
+) -> QueryBuilder:
     """
     Create a query builder instance.
 
     Args:
-        supabase_client: Supabase client instance
+        supabase_client: Supabase client instance (main database)
+        fiscal_client: Optional Supabase client for fiscal database (politicos)
 
     Returns:
         QueryBuilder instance
     """
-    return QueryBuilder(supabase_client)
+    return QueryBuilder(supabase_client, fiscal_client)

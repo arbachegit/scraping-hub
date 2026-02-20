@@ -72,9 +72,19 @@ async def chat(
             provider=provider_used,
         )
 
-        # Execute query
+        # Create Supabase clients
         supabase = create_client(settings.supabase_url, settings.supabase_service_key)
-        query_builder = create_query_builder(supabase)
+
+        # Create fiscal client if configured (for politicos)
+        fiscal_client = None
+        if settings.has_fiscal_supabase:
+            fiscal_client = create_client(
+                settings.fiscal_supabase_url,
+                settings.fiscal_supabase_key,
+            )
+
+        # Execute query
+        query_builder = create_query_builder(supabase, fiscal_client)
         data, total_count = await query_builder.execute(intent)
 
         # Generate response message
@@ -200,6 +210,7 @@ def _generate_response_message(
         "empresas": ("empresa", "empresas"),
         "pessoas": ("pessoa", "pessoas"),
         "noticias": ("notícia", "notícias"),
+        "politicos": ("político", "políticos"),
     }
 
     singular, plural = entity_names.get(intent.entity_type, ("item", "itens"))
@@ -237,7 +248,7 @@ def _describe_filters(intent: ParsedIntent) -> str:
         field = f.field
         value = f.value
 
-        if field in ("estado", "uf", "cidade"):
+        if field in ("estado", "uf", "cidade", "municipio_nome"):
             descriptions.append(f"em {value}")
         elif field == "porte":
             descriptions.append(f"de porte {value}")
@@ -250,6 +261,10 @@ def _describe_filters(intent: ParsedIntent) -> str:
             descriptions.append(f"com regime {regime_names.get(value, value)}")
         elif field == "cnae_principal":
             descriptions.append(f"do segmento {value}")
+        elif field == "partido_sigla":
+            descriptions.append(f"do partido {value}")
+        elif field == "cargo_atual":
+            descriptions.append(f"com cargo de {value}")
         else:
             descriptions.append(f"com {field}={value}")
 

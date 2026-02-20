@@ -1359,7 +1359,7 @@
         right: 2rem;
         width: 1000px;
         max-width: calc(100vw - 4rem);
-        height: 500px;
+        height: 800px;
         max-height: calc(100vh - 8rem);
         background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
         border: 1px solid rgba(59, 130, 246, 0.3);
@@ -1511,6 +1511,96 @@
       .ai-option-btn:hover {
         background: rgba(59, 130, 246, 0.2);
         border-color: rgba(59, 130, 246, 0.6);
+      }
+
+      /* AI Badges Grid */
+      .ai-badges-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+      }
+
+      .ai-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        font-size: 0.9rem;
+      }
+
+      .ai-badge svg {
+        flex-shrink: 0;
+      }
+
+      .ai-badge-empresas {
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        color: #60a5fa;
+      }
+      .ai-badge-empresas:hover {
+        background: rgba(59, 130, 246, 0.25);
+        transform: translateY(-2px);
+      }
+
+      .ai-badge-pessoas {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #4ade80;
+      }
+      .ai-badge-pessoas:hover {
+        background: rgba(34, 197, 94, 0.25);
+        transform: translateY(-2px);
+      }
+
+      .ai-badge-noticias {
+        background: rgba(249, 115, 22, 0.15);
+        border: 1px solid rgba(249, 115, 22, 0.4);
+        color: #fb923c;
+      }
+      .ai-badge-noticias:hover {
+        background: rgba(249, 115, 22, 0.25);
+        transform: translateY(-2px);
+      }
+
+      .ai-badge-politicos {
+        background: rgba(168, 85, 247, 0.15);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        color: #c084fc;
+      }
+      .ai-badge-politicos:hover {
+        background: rgba(168, 85, 247, 0.25);
+        transform: translateY(-2px);
+      }
+
+      /* Info box para políticos */
+      .ai-politicos-info {
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        text-align: center;
+      }
+
+      .ai-politicos-info .ai-politicos-icon {
+        margin-bottom: 0.5rem;
+        color: #c084fc;
+      }
+
+      .ai-politicos-info h4 {
+        color: #e9d5ff;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+      }
+
+      .ai-politicos-info p {
+        color: #d8b4fe;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
       }
 
       .ai-chat-input {
@@ -4358,6 +4448,8 @@
       let aiState = "idle";
       let aiCompanies = [];
       let aiSelectedCompany = null;
+      let aiCurrentModule = null; // empresas, pessoas, noticias, politicos
+      let aiUserName = null; // Nome do usuário logado
 
       function toggleAiChat() {
         aiChatOpen = !aiChatOpen;
@@ -4412,33 +4504,178 @@
 
       function startAiConversation() {
         aiState = "greeting";
+        // Obter nome do usuário do header
+        const userDisplay = document.getElementById("userEmail").textContent;
+        aiUserName = userDisplay && userDisplay !== "-" ? userDisplay.split(" ")[0] : null;
+
         setTimeout(() => {
           addAiMessage(
-            "Ola! Eu sou o <strong>Atlas</strong>, seu assistente de inteligencia empresarial. Estou aqui para ajuda-lo a explorar dados de <strong>empresas</strong>, <strong>pessoas</strong> e <strong>noticias</strong>.",
+            "Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. O que gostaria de saber?",
           );
           setTimeout(() => {
             showMainMenu();
             aiState = "awaiting_selection";
-          }, 800);
-        }, 500);
+          }, 500);
+        }, 300);
       }
 
       function showMainMenu() {
-        addAiMessage(
-          "O que gostaria de explorar?",
-          true,
-          [
-            { label: "Empresas", action: "list_companies" },
-            { label: "Pessoas", action: "list_people" },
-            { label: "Politicos", action: "list_politicians" },
-            { label: "Noticias", action: "list_news" },
-            { label: "Modelo VAR", action: "show_var" },
-          ],
-        );
+        // Badges iniciais clicáveis
+        const html = `
+          <div class="ai-badges-container">
+            <div class="ai-badge ai-badge-empresas" onclick="handleAiOption('enter_empresas', '')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              <span>Empresas</span>
+            </div>
+            <div class="ai-badge ai-badge-pessoas" onclick="handleAiOption('enter_pessoas', '')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Pessoas</span>
+            </div>
+            <div class="ai-badge ai-badge-noticias" onclick="handleAiOption('enter_noticias', '')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+              <span>Noticias</span>
+            </div>
+            <div class="ai-badge ai-badge-politicos" onclick="handleAiOption('enter_politicos', '')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <span>Politicos</span>
+            </div>
+          </div>
+        `;
+        addAiMessage(html);
+      }
+
+      // ============================================
+      // ENTRADA NOS MÓDULOS COM CUMPRIMENTO
+      // ============================================
+      function enterModuleEmpresas() {
+        addAiMessage("Empresas", false);
+        const greeting = aiUserName
+          ? `Ola ${aiUserName}, tudo bem? Como voce esta? 🤘`
+          : `Ola, tudo bem? Como voce esta? 🤘`;
+
+        setTimeout(() => {
+          addAiMessage(greeting);
+          setTimeout(() => {
+            addAiMessage(
+              "Quais dados voce precisa a respeito de <strong>empresas</strong>? Quer que eu liste por algum <strong>CNAE</strong>, <strong>cidade</strong>, <strong>nome</strong> ou outra informacao?",
+              true,
+              [
+                { label: "Listar todas", action: "list_companies" },
+                { label: "Buscar por nome", action: "ask_company_name" },
+                { label: "Filtrar por cidade", action: "ask_company_city" },
+                { label: "Filtrar por CNAE", action: "ask_company_cnae" },
+                { label: "Voltar", action: "back_to_menu" },
+              ],
+            );
+            aiState = "module_empresas";
+          }, 600);
+        }, 400);
+      }
+
+      function enterModulePessoas() {
+        addAiMessage("Pessoas", false);
+        const greeting = aiUserName
+          ? `Ola ${aiUserName}, tudo bem? 🤘`
+          : `Ola, tudo bem? 🤘`;
+
+        setTimeout(() => {
+          addAiMessage(greeting);
+          setTimeout(() => {
+            addAiMessage(
+              "Quais dados voce precisa sobre <strong>pessoas</strong>? Posso buscar por <strong>nome</strong>, <strong>cargo</strong> ou <strong>empresa</strong>.",
+              true,
+              [
+                { label: "Listar todas", action: "list_people" },
+                { label: "Buscar por nome", action: "ask_person_name" },
+                { label: "Voltar", action: "back_to_menu" },
+              ],
+            );
+            aiState = "module_pessoas";
+          }, 600);
+        }, 400);
+      }
+
+      function enterModuleNoticias() {
+        addAiMessage("Noticias", false);
+        const greeting = aiUserName
+          ? `Ola ${aiUserName}, tudo bem? 🤘`
+          : `Ola, tudo bem? 🤘`;
+
+        setTimeout(() => {
+          addAiMessage(greeting);
+          setTimeout(() => {
+            addAiMessage(
+              "Quais <strong>noticias</strong> voce gostaria de ver? Posso filtrar por <strong>empresa</strong>, <strong>segmento</strong> ou mostrar as mais recentes.",
+              true,
+              [
+                { label: "Noticias recentes", action: "list_news" },
+                { label: "Buscar por empresa", action: "ask_news_company" },
+                { label: "Voltar", action: "back_to_menu" },
+              ],
+            );
+            aiState = "module_noticias";
+          }, 600);
+        }, 400);
+      }
+
+      function enterModulePoliticos() {
+        addAiMessage("Politicos", false);
+        // Modal informativo para políticos
+        const modalHtml = `
+          <div class="ai-politicos-info">
+            <div class="ai-politicos-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <h4>Assistente de Politicos</h4>
+            <p>Acesse o assistente para buscar dados e mandatos de politicos brasileiros.</p>
+            <p style="font-size: 0.8rem; opacity: 0.7;">Dados obtidos do TSE via IconsAI Fiscal.</p>
+          </div>
+        `;
+
+        setTimeout(() => {
+          addAiMessage(modalHtml);
+          setTimeout(() => {
+            const greeting = aiUserName
+              ? `${aiUserName}, o que voce gostaria de saber sobre politicos? 🤘`
+              : `O que voce gostaria de saber sobre politicos? 🤘`;
+
+            addAiMessage(
+              greeting,
+              true,
+              [
+                { label: "Listar politicos", action: "list_politicians" },
+                { label: "Buscar por nome", action: "ask_politician_name" },
+                { label: "Filtrar por cargo", action: "ask_politician_cargo" },
+                { label: "Filtrar por partido", action: "ask_politician_partido" },
+                { label: "Voltar", action: "back_to_menu" },
+              ],
+            );
+            aiState = "module_politicos";
+          }, 600);
+        }, 400);
       }
 
       async function handleAiOption(action, value) {
         switch (action) {
+          // Entrada nos módulos com cumprimento personalizado
+          case "enter_empresas":
+            aiCurrentModule = "empresas";
+            enterModuleEmpresas();
+            break;
+          case "enter_pessoas":
+            aiCurrentModule = "pessoas";
+            enterModulePessoas();
+            break;
+          case "enter_noticias":
+            aiCurrentModule = "noticias";
+            enterModuleNoticias();
+            break;
+          case "enter_politicos":
+            aiCurrentModule = "politicos";
+            enterModulePoliticos();
+            break;
           case "list_companies":
             addAiMessage("Sim, listar empresas", false);
             await listAiCompanies();
@@ -4490,7 +4727,15 @@
             await selectAiPolitician(value);
             break;
           case "back_to_menu":
-            showMainMenu();
+            aiCurrentModule = null;
+            aiSelectedCompany = null;
+            aiSelectedPerson = null;
+            aiSelectedPolitician = null;
+            addAiMessage("Voltar ao menu", false);
+            setTimeout(() => {
+              addAiMessage("Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. O que gostaria de saber?");
+              setTimeout(() => showMainMenu(), 300);
+            }, 300);
             break;
         }
       }
@@ -5328,9 +5573,11 @@
       }
 
       // ============================================
-      // NLP MELHORADO
+      // NLP MELHORADO - COM SUPORTE A MÓDULOS
       // ============================================
-      function sendAiMessage() {
+      let aiSessionId = null;
+
+      async function sendAiMessage() {
         const input = document.getElementById("aiChatInput");
         const text = input.value.trim();
 
@@ -5339,82 +5586,213 @@
         addAiMessage(text, false);
         input.value = "";
 
-        // Simple NLP
         const lower = text.toLowerCase();
 
-        // Pessoas
-        if (lower.includes("pessoa") || lower.includes("socios") || lower.includes("fundador")) {
-          if (aiSelectedCompany && (lower.includes("empresa") || lower.includes("desta"))) {
-            showCompanyPeople();
-          } else {
-            listAiPeople();
-          }
+        // Se estiver em um módulo específico, usa API do agente para NLP avançado
+        if (aiCurrentModule) {
+          await processModuleQuery(text, lower);
+          return;
         }
-        // Noticias
-        else if (lower.includes("noticia") || lower.includes("news")) {
-          if (aiSelectedCompany && (lower.includes("empresa") || lower.includes("desta"))) {
-            showCompanyNews();
-          } else {
-            listAiNews();
-          }
-        }
-        // Politicos
-        else if (lower.includes("politico") || lower.includes("prefeito") || lower.includes("vereador") ||
-                 lower.includes("deputado") || lower.includes("senador") || lower.includes("governador") ||
-                 lower.includes("mandato")) {
-          listAiPoliticians();
-        }
-        // Empresas
-        else if (lower.includes("empresa") || lower.includes("listar") || lower.includes("lista")) {
-          listAiCompanies();
-        }
-        // Regime
-        else if (lower.includes("regime") || lower.includes("tributar")) {
-          if (aiSelectedCompany) {
-            showCompanyRegime();
-          } else {
-            addAiMessage(
-              "Primeiro selecione uma empresa para ver o regime tributario.",
-              true,
-              [{ label: "Listar empresas", action: "list_companies" }],
-            );
-          }
-        }
-        // Crescimento/VAR
-        else if (lower.includes("crescimento") || lower.includes("projecao") || lower.includes("var")) {
-          if (aiSelectedCompany) {
-            showGrowthProjection();
-          } else {
-            addAiMessage(
-              "Primeiro selecione uma empresa para ver a projecao.",
-              true,
-              [{ label: "Listar empresas", action: "list_companies" }],
-            );
-          }
-        }
-        // Saudacao
-        else if (lower.includes("ola") || lower.includes("oi") || lower.includes("hey")) {
-          addAiMessage("Ola! Como posso ajuda-lo hoje?", true, [
-            { label: "Empresas", action: "list_companies" },
-            { label: "Pessoas", action: "list_people" },
-            { label: "Noticias", action: "list_news" },
-          ]);
-        }
-        // Menu
-        else if (lower.includes("menu") || lower.includes("opcoes") || lower.includes("inicio")) {
+
+        // Menu ou navegação
+        if (lower.includes("menu") || lower.includes("opcoes") || lower.includes("inicio") || lower.includes("voltar")) {
+          aiCurrentModule = null;
           showMainMenu();
+          return;
         }
-        // Default
-        else {
+
+        // Saudação
+        if (lower.includes("ola") || lower.includes("oi") || lower.includes("hey") || lower.includes("bom dia") || lower.includes("boa tarde")) {
+          const greeting = aiUserName ? `Ola ${aiUserName}! 🤘` : "Ola! 🤘";
+          addAiMessage(greeting + " Como posso ajuda-lo hoje?");
+          setTimeout(() => showMainMenu(), 500);
+          return;
+        }
+
+        // Detecta módulo pela mensagem
+        if (lower.includes("empresa") || lower.includes("cnpj") || lower.includes("cnae")) {
+          aiCurrentModule = "empresas";
+          enterModuleEmpresas();
+        } else if (lower.includes("pessoa") || lower.includes("socio") || lower.includes("fundador")) {
+          aiCurrentModule = "pessoas";
+          enterModulePessoas();
+        } else if (lower.includes("noticia") || lower.includes("news")) {
+          aiCurrentModule = "noticias";
+          enterModuleNoticias();
+        } else if (lower.includes("politico") || lower.includes("prefeito") || lower.includes("vereador") ||
+                   lower.includes("deputado") || lower.includes("senador") || lower.includes("governador") ||
+                   lower.includes("mandato") || lower.includes("partido")) {
+          aiCurrentModule = "politicos";
+          enterModulePoliticos();
+        } else {
+          // Default - mostra menu
           addAiMessage(
-            "Posso ajuda-lo com informacoes sobre empresas, pessoas e noticias. O que gostaria de saber?",
-            true,
-            [
-              { label: "Empresas", action: "list_companies" },
-              { label: "Pessoas", action: "list_people" },
-              { label: "Noticias", action: "list_news" },
-            ],
+            "Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. Escolha um tema:",
           );
+          setTimeout(() => showMainMenu(), 300);
+        }
+      }
+
+      async function processModuleQuery(text, lower) {
+        // Verificar se quer sair do módulo
+        if (lower.includes("menu") || lower.includes("voltar") || lower.includes("sair") || lower.includes("outro")) {
+          aiCurrentModule = null;
+          addAiMessage("Voltando ao menu principal...");
+          setTimeout(() => showMainMenu(), 300);
+          return;
+        }
+
+        showAiTyping();
+
+        try {
+          // Chama API do agente com contexto do módulo
+          const token = localStorage.getItem("token");
+          const response = await fetch("/api/agent/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              message: text,
+              session_id: aiSessionId,
+              module: aiCurrentModule, // Contexto do módulo
+            }),
+          });
+
+          hideAiTyping();
+
+          if (!response.ok) {
+            throw new Error("Erro na API do agente");
+          }
+
+          const data = await response.json();
+          aiSessionId = data.session_id;
+
+          // Exibe resposta do agente
+          addAiMessage(data.message);
+
+          // Se retornou dados, exibe
+          if (data.data && data.data.length > 0) {
+            displayAgentResults(data.data, data.intent?.entity_type);
+          }
+
+          // Opções contextuais baseadas no módulo
+          setTimeout(() => {
+            showModuleOptions();
+          }, 500);
+
+        } catch (e) {
+          hideAiTyping();
+          // Fallback para NLP local se API falhar
+          processLocalNLP(text, lower);
+        }
+      }
+
+      function displayAgentResults(data, entityType) {
+        let html = "";
+
+        if (entityType === "empresas") {
+          aiCompanies = data;
+          data.slice(0, 10).forEach((c, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_company', '${c.id}')">
+                <div class="ai-company-name">${i + 1}. ${c.nome_fantasia || c.razao_social}</div>
+                <div class="ai-company-cnpj">${formatCnpj(c.cnpj)} - ${c.cidade}/${c.estado}</div>
+              </div>
+            `;
+          });
+        } else if (entityType === "pessoas") {
+          aiPeople = data;
+          data.slice(0, 10).forEach((p, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_person', '${p.id}')">
+                <div class="ai-company-name">${i + 1}. ${p.nome_completo}</div>
+                <div class="ai-company-cnpj">${p.cargo || ""} ${p.empresa_nome ? `- ${p.empresa_nome}` : ""}</div>
+              </div>
+            `;
+          });
+        } else if (entityType === "politicos") {
+          aiPoliticians = data;
+          data.slice(0, 10).forEach((p, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
+                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
+                <div class="ai-company-cnpj">${p.cargo_atual || ""} - ${p.partido_sigla || ""} ${p.uf ? `(${p.uf})` : ""}</div>
+              </div>
+            `;
+          });
+        } else if (entityType === "noticias") {
+          aiNews = data;
+          data.slice(0, 10).forEach((n, i) => {
+            html += `
+              <div class="ai-company-card" onclick="handleAiOption('select_news', '${n.id}')">
+                <div class="ai-company-name">${i + 1}. ${n.titulo}</div>
+                <div class="ai-company-cnpj">${n.fonte || ""} - ${n.data_publicacao || ""}</div>
+              </div>
+            `;
+          });
+        }
+
+        if (html) {
+          addAiMessage(html);
+        }
+      }
+
+      function showModuleOptions() {
+        const moduleOptions = {
+          empresas: [
+            { label: "Listar todas", action: "list_companies" },
+            { label: "Nova busca", action: "enter_empresas" },
+            { label: "Voltar ao menu", action: "back_to_menu" },
+          ],
+          pessoas: [
+            { label: "Listar todas", action: "list_people" },
+            { label: "Nova busca", action: "enter_pessoas" },
+            { label: "Voltar ao menu", action: "back_to_menu" },
+          ],
+          noticias: [
+            { label: "Listar recentes", action: "list_news" },
+            { label: "Nova busca", action: "enter_noticias" },
+            { label: "Voltar ao menu", action: "back_to_menu" },
+          ],
+          politicos: [
+            { label: "Listar politicos", action: "list_politicians" },
+            { label: "Nova busca", action: "enter_politicos" },
+            { label: "Voltar ao menu", action: "back_to_menu" },
+          ],
+        };
+
+        const options = moduleOptions[aiCurrentModule] || [{ label: "Menu", action: "back_to_menu" }];
+        addAiMessage("O que mais gostaria de saber?", true, options);
+      }
+
+      function processLocalNLP(text, lower) {
+        // Fallback para NLP local quando API falha
+        if (aiCurrentModule === "empresas") {
+          if (lower.includes("regime") || lower.includes("tributar")) {
+            if (aiSelectedCompany) {
+              showCompanyRegime();
+            } else {
+              listAiCompanies();
+            }
+          } else if (lower.includes("crescimento") || lower.includes("projecao") || lower.includes("var")) {
+            if (aiSelectedCompany) {
+              showGrowthProjection();
+            } else {
+              listAiCompanies();
+            }
+          } else {
+            listAiCompanies();
+          }
+        } else if (aiCurrentModule === "pessoas") {
+          listAiPeople();
+        } else if (aiCurrentModule === "noticias") {
+          listAiNews();
+        } else if (aiCurrentModule === "politicos") {
+          listAiPoliticians();
+        } else {
+          showMainMenu();
         }
       }
     </script>

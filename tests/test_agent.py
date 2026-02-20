@@ -235,6 +235,7 @@ class TestEntityTypes:
         assert EntityType.EMPRESAS.value == "empresas"
         assert EntityType.PESSOAS.value == "pessoas"
         assert EntityType.NOTICIAS.value == "noticias"
+        assert EntityType.POLITICOS.value == "politicos"
 
     def test_action_types(self):
         """Test all action types exist."""

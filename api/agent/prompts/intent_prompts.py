@@ -41,6 +41,26 @@ Campos disponíveis:
 - segmento: Segmento (tecnologia, finanças, varejo, etc)
 - url: URL da notícia
 
+### politicos (politico - banco externo via MCP)
+Campos disponíveis:
+- nome_completo: Nome completo do político
+- nome_urna: Nome de urna
+- partido_sigla: Sigla do partido (PT, PSDB, MDB, PL, etc)
+- cargo_atual: Cargo atual (Prefeito, Vereador, Deputado Federal, Senador, Governador, etc)
+- uf: Estado (2 letras)
+- municipio_nome: Nome do município
+- foto_url: URL da foto
+- email: Email
+
+### mandatos (mandato_politico - relacionado a politicos)
+Campos disponíveis:
+- cargo: Cargo do mandato
+- ano_eleicao: Ano da eleição
+- partido_sigla: Partido no período
+- coligacao: Coligação eleitoral
+- votos_recebidos: Votos recebidos
+- ativo: Se o mandato está ativo
+
 ## Operadores Disponíveis
 - eq: igual a
 - neq: diferente de
@@ -89,7 +109,7 @@ Campos disponíveis:
 Responda APENAS com JSON válido (sem markdown, sem explicações):
 
 {{
-  "entity_type": "empresas" | "pessoas" | "noticias",
+  "entity_type": "empresas" | "pessoas" | "noticias" | "politicos",
   "action": "list" | "count" | "detail" | "aggregate",
   "filters": [
     {{

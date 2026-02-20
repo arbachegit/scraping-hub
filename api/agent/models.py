@@ -16,6 +16,7 @@ class EntityType(str, Enum):
     EMPRESAS = "empresas"
     PESSOAS = "pessoas"
     NOTICIAS = "noticias"
+    POLITICOS = "politicos"
 
 
 class ActionType(str, Enum):
@@ -74,6 +75,10 @@ class ChatRequest(BaseModel):
 
     message: str = Field(..., min_length=1, max_length=2000, description="User message")
     session_id: Optional[str] = Field(default=None, description="Optional session ID")
+    module: Optional[str] = Field(
+        default=None,
+        description="Current module context: empresas, pessoas, noticias, politicos",
+    )
 
 
 class ChatResponse(BaseModel):
