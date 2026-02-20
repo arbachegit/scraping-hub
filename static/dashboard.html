@@ -2580,7 +2580,7 @@
           <p>Pesquise perfis profissionais e analise talentos.</p>
         </div>
 
-        <div class="card">
+        <div class="card active" onclick="openPoliticosFromCard()">
           <div class="card-header">
             <div class="card-icon blue">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2595,7 +2595,7 @@
             <h3>Politicos</h3>
           </div>
           <p>Perfis de politicos e percepcao publica.</p>
-          <span class="card-badge">Em desenvolvimento</span>
+          <span class="card-badge ready">Ativo</span>
         </div>
 
         <div class="card active" onclick="openNewsModal()">
@@ -3840,6 +3840,21 @@
       // ============================================
       let currentNews = null;
       let newsList = [];
+
+      function openPoliticosFromCard() {
+        // Abre o chat AI e entra no módulo de políticos
+        const chatWindow = document.getElementById("aiChatWindow");
+        if (!chatWindow.classList.contains("show")) {
+          chatWindow.classList.add("show");
+          aiChatOpen = true;
+          startAiConversation();
+        }
+        // Entra no módulo de políticos após um pequeno delay
+        setTimeout(() => {
+          aiCurrentModule = "politicos";
+          enterModulePoliticos();
+        }, 800);
+      }
 
       function openNewsModal() {
         document.getElementById("newsModal").classList.add("show");
