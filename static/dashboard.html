@@ -3723,7 +3723,7 @@
         container.innerHTML = '<div class="cnae-loading">Carregando CNAEs...</div>';
 
         try {
-          const response = await fetchAuth("/api/cnae?limit=2000");
+          const response = await fetch("/api/cnae?limit=2000");
           const data = await response.json();
 
           if (!response.ok) {
