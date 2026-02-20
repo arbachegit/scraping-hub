@@ -926,7 +926,7 @@ router.get('/segments', async (req, res) => {
 
 /**
  * GET /api/companies/cnae
- * List CNAEs from raw_cnae table (fiscal Supabase)
+ * List CNAEs from raw_cnae table (main Supabase)
  */
 router.get('/cnae', async (req, res) => {
   try {
@@ -937,21 +937,8 @@ router.get('/cnae', async (req, res) => {
     // Sanitize search input (remove SQL metacharacters)
     const sanitizedSearch = search.replace(/[%_\\]/g, '').trim().slice(0, 100);
 
-    // Connect to fiscal Supabase for raw_cnae
-    const fiscalUrl = process.env.FISCAL_SUPABASE_URL;
-    const fiscalKey = process.env.FISCAL_SUPABASE_KEY;
-
-    if (!fiscalUrl || !fiscalKey) {
-      return res.status(500).json({
-        success: false,
-        error: 'Fiscal Supabase not configured'
-      });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const fiscalSupabase = createClient(fiscalUrl, fiscalKey);
-
-    let query = fiscalSupabase
+    // Use main Supabase (raw_cnae is in scraping DB, not fiscal)
+    let query = supabase
       .from('raw_cnae')
       .select('subclasse, codigo, descricao, descricao_secao, descricao_divisao, descricao_grupo, descricao_classe')
       .order('codigo', { ascending: true })
