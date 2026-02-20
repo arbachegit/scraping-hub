@@ -3,23 +3,21 @@ Tests for the AI Agent module.
 """
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from api.agent.models import (
+    AIProviderResponse,
     ActionType,
     ChatRequest,
-    ChatResponse,
     EntityType,
     FilterOperator,
     ParsedIntent,
     QueryFilter,
-    SessionMessage,
-    ConversationSession,
-    AIProviderResponse,
 )
-from api.agent.session_manager import SessionManager
 from api.agent.prompts import get_intent_prompt, get_response_prompt
+from api.agent.session_manager import SessionManager
 
 
 class TestModels:
