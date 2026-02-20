@@ -3,14 +3,16 @@ IconsAI Scraping API - v3.0 (Clean Architecture)
 """
 
 import os
+import re
 from datetime import timedelta
 from pathlib import Path
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from supabase import create_client
 
 from api.auth import (
@@ -28,6 +30,38 @@ from backend.src.services.person_enrichment import PersonEnrichmentService
 from config.settings import settings
 
 logger = structlog.get_logger()
+
+
+# ===========================================
+# QUERY PARAM SCHEMAS (Pydantic Validation)
+# ===========================================
+
+
+class CnaeListParams(BaseModel):
+    """Schema para listagem de CNAEs."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    search: str = Field(default="", max_length=100)
+    limit: int = Field(default=100, ge=1, le=2000)
+    offset: int = Field(default=0, ge=0)
+
+    @field_validator("search")
+    @classmethod
+    def sanitize_search(cls, v: str) -> str:
+        """Remove caracteres especiais que podem causar SQL injection via ilike."""
+        if not v:
+            return ""
+        # Remove %, _, \ que são metacaracteres do LIKE/ILIKE
+        return re.sub(r"[%_\\]", "", v.strip())[:100]
+
+
+class EnrichPeopleParams(BaseModel):
+    """Schema para enriquecimento de pessoas."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    limit: int = Field(default=10, ge=1, le=100)
 
 
 def get_version() -> str:
@@ -194,9 +228,9 @@ async def version():
 
 @app.get("/api/cnae", tags=["CNAE"])
 async def list_cnae(
-    search: str = "",
-    limit: int = 100,
-    offset: int = 0,
+    search: str = Query(default="", max_length=100),
+    limit: int = Query(default=100, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     current_user=Depends(get_current_user),
 ):
     """
@@ -207,6 +241,9 @@ async def list_cnae(
     if not settings.supabase_url or not settings.supabase_service_key:
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
+    # Sanitize search input (remove SQL metacharacters)
+    sanitized_search = re.sub(r"[%_\\]", "", search.strip())[:100] if search else ""
+
     try:
         supabase = create_client(settings.supabase_url, settings.supabase_service_key)
 
@@ -215,11 +252,11 @@ async def list_cnae(
             "descricao_divisao, descricao_grupo, descricao_classe"
         )
 
-        if search:
-            # Search in codigo or descricao
+        if sanitized_search:
+            # Search in codigo or descricao (sanitized input)
             query = query.or_(
-                f"codigo.ilike.%{search}%,descricao.ilike.%{search}%,"
-                f"descricao_secao.ilike.%{search}%,descricao_grupo.ilike.%{search}%"
+                f"codigo.ilike.%{sanitized_search}%,descricao.ilike.%{sanitized_search}%,"
+                f"descricao_secao.ilike.%{sanitized_search}%,descricao_grupo.ilike.%{sanitized_search}%"
             )
 
         query = query.order("codigo").range(offset, offset + limit - 1)
@@ -244,7 +281,10 @@ async def list_cnae(
 
 
 @app.post("/api/enrich/people", tags=["Enrichment"])
-async def enrich_people(limit: int = 10, current_user=Depends(get_current_user)):
+async def enrich_people(
+    limit: int = Query(default=10, ge=1, le=100),
+    current_user=Depends(get_current_user),
+):
     """
     Enrich people data using Apollo/Perplexity.
     Requires authentication.
@@ -253,9 +293,7 @@ async def enrich_people(limit: int = 10, current_user=Depends(get_current_user))
         raise HTTPException(status_code=500, detail="Supabase not configured")
 
     if not settings.apollo_api_key and not settings.perplexity_api_key:
-        raise HTTPException(
-            status_code=500, detail="Neither Apollo nor Perplexity API configured"
-        )
+        raise HTTPException(status_code=500, detail="Neither Apollo nor Perplexity API configured")
 
     try:
         # Create Supabase client

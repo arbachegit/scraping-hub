@@ -8,6 +8,7 @@ SECURITY NOTES:
 - Users are stored in Supabase database
 """
 
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -16,7 +17,7 @@ import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from config.settings import settings
 
@@ -44,8 +45,17 @@ class TokenData(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    """Schema para login de usuário."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
 
 
 class UserResponse(BaseModel):
@@ -56,10 +66,32 @@ class UserResponse(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    current_password: Optional[str] = None
-    new_password: Optional[str] = None
+    """Schema para atualização de usuário."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
+    current_password: Optional[str] = Field(default=None, min_length=6)
+    new_password: Optional[str] = Field(default=None, min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return v.lower().strip()
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Senha deve ter ao menos 1 letra maiúscula")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Senha deve ter ao menos 1 número")
+        return v
 
 
 def hash_password(password: str) -> str:
@@ -82,9 +114,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns True if password matches, False otherwise.
     """
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
-        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except Exception as e:
         logger.error("password_verify_error", error=str(e))
         return False
@@ -186,9 +216,7 @@ async def get_current_user(
         permissions: list = payload.get("permissions", [])
         if email is None:
             raise credentials_exception
-        token_data = TokenData(
-            email=email, user_id=user_id, role=role, permissions=permissions
-        )
+        token_data = TokenData(email=email, user_id=user_id, role=role, permissions=permissions)
     except JWTError:
         raise credentials_exception
     return token_data
@@ -209,13 +237,7 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
             return await _update_user_legacy(current_email, update_data)
 
         # Get current user
-        result = (
-            client.table("users")
-            .select("*")
-            .eq("email", current_email)
-            .limit(1)
-            .execute()
-        )
+        result = client.table("users").select("*").eq("email", current_email).limit(1).execute()
 
         if not result.data:
             return None
@@ -238,20 +260,13 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
         # Update email
         if update_data.email and update_data.email != current_email:
             # Check if new email already exists
-            existing = (
-                client.table("users")
-                .select("id")
-                .eq("email", update_data.email)
-                .execute()
-            )
+            existing = client.table("users").select("id").eq("email", update_data.email).execute()
             if existing.data:
                 return None
             updates["email"] = update_data.email
 
         # Apply updates
-        result = (
-            client.table("users").update(updates).eq("email", current_email).execute()
-        )
+        result = client.table("users").update(updates).eq("email", current_email).execute()
 
         if result.data:
             logger.info("user_updated", email=current_email)
@@ -263,9 +278,7 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
     return None
 
 
-async def _update_user_legacy(
-    current_email: str, update_data: UserUpdate
-) -> Optional[dict]:
+async def _update_user_legacy(current_email: str, update_data: UserUpdate) -> Optional[dict]:
     """
     Legacy update for in-memory store (DEPRECATED).
     """
