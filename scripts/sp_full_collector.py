@@ -18,15 +18,13 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
 import aiohttp
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.database.client import get_supabase
 from sp_cities_data import SP_ALL_CITIES
+from src.database.client import get_supabase
 
 # Prefixos CNPJ mais comuns em SP
 SP_CNPJ_PREFIXES = ["35", "33", "32", "34", "31", "30", "29", "28"]
@@ -249,11 +247,11 @@ class SPFullCollector:
         w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
         w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
 
-        s1 = sum(int(d) * w for d, w in zip(partial, w1))
+        s1 = sum(int(d) * w for d, w in zip(partial, w1, strict=True))
         d1 = 11 - (s1 % 11)
         d1 = 0 if d1 >= 10 else d1
 
-        s2 = sum(int(d) * w for d, w in zip(partial + str(d1), w2))
+        s2 = sum(int(d) * w for d, w in zip(partial + str(d1), w2, strict=True))
         d2 = 11 - (s2 % 11)
         d2 = 0 if d2 >= 10 else d2
 
