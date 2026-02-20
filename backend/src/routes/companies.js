@@ -924,4 +924,66 @@ router.get('/segments', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/companies/cnae
+ * List CNAEs from raw_cnae table (fiscal Supabase)
+ */
+router.get('/cnae', async (req, res) => {
+  try {
+    const { search = '', limit = 100, offset = 0 } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit) || 100, 1), 2000);
+    const parsedOffset = Math.max(parseInt(offset) || 0, 0);
+
+    // Sanitize search input (remove SQL metacharacters)
+    const sanitizedSearch = search.replace(/[%_\\]/g, '').trim().slice(0, 100);
+
+    // Connect to fiscal Supabase for raw_cnae
+    const fiscalUrl = process.env.FISCAL_SUPABASE_URL;
+    const fiscalKey = process.env.FISCAL_SUPABASE_KEY;
+
+    if (!fiscalUrl || !fiscalKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Fiscal Supabase not configured'
+      });
+    }
+
+    const { createClient } = await import('@supabase/supabase-js');
+    const fiscalSupabase = createClient(fiscalUrl, fiscalKey);
+
+    let query = fiscalSupabase
+      .from('raw_cnae')
+      .select('subclasse, codigo, descricao, descricao_secao, descricao_divisao, descricao_grupo, descricao_classe')
+      .order('codigo', { ascending: true })
+      .range(parsedOffset, parsedOffset + parsedLimit - 1);
+
+    if (sanitizedSearch) {
+      query = query.or(
+        `codigo.ilike.%${sanitizedSearch}%,descricao.ilike.%${sanitizedSearch}%,` +
+        `descricao_secao.ilike.%${sanitizedSearch}%,descricao_grupo.ilike.%${sanitizedSearch}%`
+      );
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      offset: parsedOffset,
+      limit: parsedLimit
+    });
+
+  } catch (error) {
+    console.error('[CNAE ERROR]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao listar CNAEs',
+      details: error.message
+    });
+  }
+});
+
 export default router;
