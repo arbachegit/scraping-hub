@@ -19,17 +19,16 @@ import asyncio
 import json
 import random
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import httpx
 import structlog
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import settings
 from src.database.client import get_supabase
 
 logger = structlog.get_logger()
@@ -250,7 +249,7 @@ class MultiSourceClient:
         """Adiciona dígitos verificadores ao CNPJ"""
 
         def calc_digit(cnpj_part: str, weights: list) -> int:
-            total = sum(int(d) * w for d, w in zip(cnpj_part, weights))
+            total = sum(int(d) * w for d, w in zip(cnpj_part, weights, strict=False))
             remainder = total % 11
             return 0 if remainder < 2 else 11 - remainder
 

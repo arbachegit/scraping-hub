@@ -14,7 +14,6 @@ Author: IconsAI Scraping
 """
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -45,7 +44,7 @@ async def check_supabase_connection():
 
     try:
         # Tentar uma query simples
-        result = supabase.table("dim_empresas").select("count").limit(1).execute()
+        supabase.table("dim_empresas").select("count").limit(1).execute()
         print("   ✅ Conexão OK")
         return True
     except Exception as e:
@@ -247,9 +246,9 @@ async def print_summary():
         seconds = remaining / 50
         hours = seconds / 3600
 
-        print(f"\n📊 ESTIMATIVA (50 req/s):")
+        print("\n📊 ESTIMATIVA (50 req/s):")
         print(f"   Tempo estimado: {hours:.1f} horas")
-        print(f"   Meta: ~1.465.000 empresas")
+        print("   Meta: ~1.465.000 empresas")
     else:
         print("  ⚠️  Supabase não configurado - usando fallbacks")
 

@@ -59,7 +59,6 @@ MAIORES_CIDADES_POPULACAO = {
     "2800308": 664908,    # Aracaju
     "3205309": 365855,    # Vitória
     "3301702": 509293,    # Duque de Caxias
-    "3301702": 509293,    # Duque de Caxias
     "4205407": 508826,    # Florianópolis
     "2910800": 609779,    # Feira de Santana
     "3118601": 523794,    # Contagem
@@ -193,22 +192,6 @@ async def populate_cities():
 async def create_geo_municipios_table(supabase):
     """Cria tabela geo_municipios se não existir"""
     # Executar via SQL direto
-    create_sql = """
-    CREATE TABLE IF NOT EXISTS geo_municipios (
-        id SERIAL PRIMARY KEY,
-        codigo_ibge VARCHAR(7) UNIQUE NOT NULL,
-        nome VARCHAR(255) NOT NULL,
-        uf VARCHAR(2),
-        uf_nome VARCHAR(100),
-        regiao VARCHAR(100),
-        populacao INTEGER DEFAULT 0,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_geo_municipios_uf ON geo_municipios(uf);
-    CREATE INDEX IF NOT EXISTS idx_geo_municipios_populacao ON geo_municipios(populacao DESC);
-    """
 
     try:
         # Supabase não permite DDL direto via client, precisaria via migrations

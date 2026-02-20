@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database.client import get_supabase
 
+
 def main():
     supabase = get_supabase()
     if not supabase:
@@ -78,7 +79,7 @@ def main():
             total_errors += 1
             print(f"❌ {filepath.name}: {e}")
 
-    print(f"\n📊 RESUMO:")
+    print("\n📊 RESUMO:")
     print(f"   Total inseridas: {total_inserted}")
     print(f"   Erros: {total_errors}")
 

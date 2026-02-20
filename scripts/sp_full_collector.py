@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import random
 import re
 import signal
@@ -18,12 +17,14 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
 import aiohttp
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from sp_cities_data import SP_ALL_CITIES
+
 from src.database.client import get_supabase
 
 # Prefixos CNPJ mais comuns em SP

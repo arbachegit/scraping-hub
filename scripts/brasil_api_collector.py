@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import httpx
 import structlog
@@ -100,7 +100,7 @@ class CollectionStats:
 def calcular_digitos_verificadores(cnpj_base: str) -> str:
     """Calcula os dígitos verificadores do CNPJ"""
     def calc_digito(cnpj_parte: str, pesos: List[int]) -> int:
-        total = sum(int(d) * p for d, p in zip(cnpj_parte, pesos))
+        total = sum(int(d) * p for d, p in zip(cnpj_parte, pesos, strict=False))
         resto = total % 11
         return 0 if resto < 2 else 11 - resto
 

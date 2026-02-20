@@ -7,15 +7,12 @@ Processa cidades da maior para menor população
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
-import os
 import random
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import aiohttp
 
@@ -253,12 +250,12 @@ class SPCollector:
         weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
         weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
 
-        sum1 = sum(int(d) * w for d, w in zip(partial, weights1))
+        sum1 = sum(int(d) * w for d, w in zip(partial, weights1, strict=False))
         d1 = 11 - (sum1 % 11)
         d1 = 0 if d1 >= 10 else d1
 
         partial_with_d1 = partial + str(d1)
-        sum2 = sum(int(d) * w for d, w in zip(partial_with_d1, weights2))
+        sum2 = sum(int(d) * w for d, w in zip(partial_with_d1, weights2, strict=False))
         d2 = 11 - (sum2 % 11)
         d2 = 0 if d2 >= 10 else d2
 
@@ -291,10 +288,7 @@ class SPCollector:
             return False
 
         # Já temos este CNAE para esta cidade?
-        if cnae in self.city_cnaes[city]:
-            return False
-
-        return True
+        return cnae not in self.city_cnaes[city]
 
     def is_city_complete(self, city: str) -> bool:
         """Verifica se já coletamos todos os CNAEs para esta cidade"""
@@ -459,7 +453,7 @@ class SPCollector:
             city_progress = "N/A"
 
         print(f"\n{'='*60}")
-        print(f"SP COLLECTOR - STATUS")
+        print("SP COLLECTOR - STATUS")
         print(f"{'='*60}")
         print(f"Tempo decorrido: {elapsed/60:.1f} min")
         print(f"Requisições: {self.stats['total_requests']:,} ({req_per_sec:.1f}/s)")
@@ -476,7 +470,7 @@ class SPCollector:
         print("="*60)
         print(f"Cidades: {len(SP_CITIES_BY_POPULATION)}")
         print(f"CNAEs: {len(self.cnae_set)}")
-        print(f"Meta por cidade: 1332 empresas (1 por CNAE)")
+        print("Meta por cidade: 1332 empresas (1 por CNAE)")
         print("="*60 + "\n")
 
         await self.setup()

@@ -104,7 +104,7 @@ def main():
 
         offset += batch_size
 
-    print(f"\n📊 RESUMO:")
+    print("\n📊 RESUMO:")
     print(f"   Sócios inseridos: {total_socios}")
     print(f"   Titulares MEI/EI: {total_titulares}")
     print(f"   Total: {total_socios + total_titulares}")

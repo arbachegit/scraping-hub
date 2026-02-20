@@ -23,7 +23,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import httpx
 import structlog
@@ -55,7 +55,7 @@ class Stats:
 def calcular_dv(cnpj_base: str) -> str:
     """Calcula dígitos verificadores"""
     def calc(s: str, pesos: List[int]) -> int:
-        total = sum(int(d) * p for d, p in zip(s, pesos))
+        total = sum(int(d) * p for d, p in zip(s, pesos, strict=False))
         r = total % 11
         return 0 if r < 2 else 11 - r
 
