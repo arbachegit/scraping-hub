@@ -6,6 +6,7 @@ import os
 import re
 from datetime import timedelta
 from pathlib import Path
+from typing import List, Optional
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query, status
@@ -18,12 +19,14 @@ from supabase import create_client
 from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     Token,
+    TokenData,
     UserLogin,
     UserResponse,
     UserUpdate,
     authenticate_user,
     create_access_token,
     get_current_user,
+    hash_password,
     update_user,
 )
 from backend.src.services.person_enrichment import PersonEnrichmentService
@@ -372,6 +375,251 @@ async def enrich_people(
 
     except Exception as e:
         logger.error("enrich_people_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===========================================
+# ADMIN ENDPOINTS
+# ===========================================
+
+
+class AdminUserCreate(BaseModel):
+    """Schema para criacao de usuario."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=2, max_length=100)
+    email: str = Field(min_length=5, max_length=100)
+    password: str = Field(min_length=6, max_length=128)
+    role: str = Field(default="user")
+    permissions: List[str] = Field(default_factory=list)
+
+
+class AdminUserUpdate(BaseModel):
+    """Schema para atualizacao de usuario."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    role: Optional[str] = None
+    permissions: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    new_password: Optional[str] = Field(default=None, min_length=6, max_length=128)
+
+
+class AdminUserResponse(BaseModel):
+    """Schema de resposta de usuario."""
+
+    id: int
+    email: str
+    name: Optional[str]
+    role: str
+    permissions: List[str]
+    is_active: bool
+
+
+def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Dependency que requer role super_admin."""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Requer permissao de administrador.",
+        )
+    return current_user
+
+
+@app.get("/admin/users", tags=["Admin"])
+async def list_users(current_user: TokenData = Depends(require_admin)):
+    """Lista todos os usuarios."""
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+        result = supabase.table("users").select("*").order("created_at").execute()
+
+        users = []
+        for user in result.data:
+            users.append({
+                "id": user.get("id"),
+                "email": user.get("email"),
+                "name": user.get("name"),
+                "role": user.get("role", "user"),
+                "permissions": user.get("permissions", []),
+                "is_active": user.get("is_active", True),
+            })
+
+        return {"users": users}
+
+    except Exception as e:
+        logger.error("list_users_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/users", tags=["Admin"])
+async def create_user(
+    user_data: AdminUserCreate,
+    current_user: TokenData = Depends(require_admin),
+):
+    """Cria novo usuario."""
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+        # Verificar se email ja existe
+        existing = (
+            supabase.table("users")
+            .select("id")
+            .eq("email", user_data.email.lower())
+            .execute()
+        )
+        if existing.data:
+            raise HTTPException(status_code=400, detail="Email ja cadastrado")
+
+        # Criar usuario
+        new_user = {
+            "email": user_data.email.lower(),
+            "name": user_data.name,
+            "password_hash": hash_password(user_data.password),
+            "role": user_data.role,
+            "permissions": user_data.permissions,
+            "is_active": True,
+        }
+
+        result = supabase.table("users").insert(new_user).execute()
+
+        if result.data:
+            logger.info("user_created", email=user_data.email, by=current_user.email)
+            return {"success": True, "user": result.data[0]}
+
+        raise HTTPException(status_code=500, detail="Erro ao criar usuario")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("create_user_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/users/{user_id}", tags=["Admin"])
+async def get_user(
+    user_id: int,
+    current_user: TokenData = Depends(require_admin),
+):
+    """Busca usuario por ID."""
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+        result = supabase.table("users").select("*").eq("id", user_id).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+        user = result.data[0]
+        return {
+            "id": user.get("id"),
+            "email": user.get("email"),
+            "name": user.get("name"),
+            "role": user.get("role", "user"),
+            "permissions": user.get("permissions", []),
+            "is_active": user.get("is_active", True),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("get_user_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/admin/users/{user_id}", tags=["Admin"])
+async def update_admin_user(
+    user_id: int,
+    user_data: AdminUserUpdate,
+    current_user: TokenData = Depends(require_admin),
+):
+    """Atualiza usuario."""
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+        # Verificar se usuario existe
+        existing = supabase.table("users").select("id").eq("id", user_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+        # Montar updates
+        updates = {}
+        if user_data.name is not None:
+            updates["name"] = user_data.name
+        if user_data.role is not None:
+            updates["role"] = user_data.role
+        if user_data.permissions is not None:
+            updates["permissions"] = user_data.permissions
+        if user_data.is_active is not None:
+            updates["is_active"] = user_data.is_active
+        if user_data.new_password:
+            updates["password_hash"] = hash_password(user_data.new_password)
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
+
+        result = supabase.table("users").update(updates).eq("id", user_id).execute()
+
+        if result.data:
+            logger.info("user_updated", user_id=user_id, by=current_user.email)
+            return {"success": True, "user": result.data[0]}
+
+        raise HTTPException(status_code=500, detail="Erro ao atualizar usuario")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("update_user_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/users/{user_id}", tags=["Admin"])
+async def delete_user(
+    user_id: int,
+    current_user: TokenData = Depends(require_admin),
+):
+    """Desativa usuario (soft delete)."""
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+        # Nao permitir auto-exclusao
+        existing = supabase.table("users").select("email").eq("id", user_id).execute()
+        if existing.data and existing.data[0]["email"] == current_user.email:
+            raise HTTPException(status_code=400, detail="Nao pode desativar a si mesmo")
+
+        # Soft delete - apenas desativar
+        result = (
+            supabase.table("users")
+            .update({"is_active": False})
+            .eq("id", user_id)
+            .execute()
+        )
+
+        if result.data:
+            logger.info("user_deactivated", user_id=user_id, by=current_user.email)
+            return {"success": True, "message": "Usuario desativado"}
+
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("delete_user_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
