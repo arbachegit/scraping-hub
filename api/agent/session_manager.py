@@ -4,8 +4,8 @@ Session Manager for conversation history.
 Uses in-memory cache with TTL. Can be extended to use Redis for persistence.
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, Optional
+from datetime import datetime
+from typing import Optional
 
 from cachetools import TTLCache
 

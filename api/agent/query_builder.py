@@ -8,7 +8,6 @@ import structlog
 from supabase import Client
 
 from api.agent.models import (
-    ActionType,
     EntityType,
     FilterOperator,
     ParsedIntent,

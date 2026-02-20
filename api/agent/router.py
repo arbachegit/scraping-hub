@@ -2,7 +2,6 @@
 Agent Router - Endpoints for the conversational AI agent.
 """
 
-import json
 from typing import Any, Dict, List
 
 import structlog
@@ -238,9 +237,7 @@ def _describe_filters(intent: ParsedIntent) -> str:
         field = f.field
         value = f.value
 
-        if field in ("estado", "uf"):
-            descriptions.append(f"em {value}")
-        elif field == "cidade":
+        if field in ("estado", "uf", "cidade"):
             descriptions.append(f"em {value}")
         elif field == "porte":
             descriptions.append(f"de porte {value}")
