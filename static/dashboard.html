@@ -73,8 +73,17 @@
       }
 
       .user-email {
-        color: #94a3b8;
-        font-size: 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 3rem;
+        padding: 0 1rem;
+        background: rgba(100, 116, 139, 0.15);
+        border: 2px solid #64748b;
+        border-radius: 0.75rem;
+        color: #e2e8f0;
+        font-size: 0.95rem;
+        font-weight: 500;
       }
 
       /* =============================================
@@ -2246,9 +2255,15 @@
         <span class="version-badge" id="versionBadge">v1.14.2026</span>
       </div>
       <div class="header-right">
-        <a href="/admin" class="btn-admin" id="btnAdmin" style="display: none"
-          >Gerenciar Usuarios</a
-        >
+        <a href="/admin" class="btn-admin" id="btnAdmin" style="display: none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Gerenciar Usuarios
+        </a>
         <span class="user-email" id="userEmail">-</span>
         <button class="btn-logout" onclick="logout()">Sair</button>
       </div>
@@ -2825,7 +2840,7 @@
           const r = await fetchWithAuth("/auth/me");
           if (r.ok) {
             const user = await r.json();
-            document.getElementById("userEmail").textContent = user.email;
+            document.getElementById("userEmail").textContent = user.name || user.email;
             if (user.role === "super_admin") {
               document.getElementById("btnAdmin").style.display =
                 "inline-block";
@@ -3723,7 +3738,7 @@
         container.innerHTML = '<div class="cnae-loading">Carregando CNAEs...</div>';
 
         try {
-          const response = await fetch("/companies/cnae?limit=2000");
+          const response = await fetch("/api/companies/cnae?limit=2000");
           const data = await response.json();
 
           if (!response.ok) {

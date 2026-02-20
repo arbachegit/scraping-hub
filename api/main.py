@@ -150,6 +150,7 @@ async def login(user_data: UserLogin):
         data={
             "sub": user["email"],
             "user_id": user.get("id"),
+            "name": user.get("name"),
             "role": user.get("role", "user"),
             "permissions": user.get("permissions", []),
         },
@@ -165,7 +166,7 @@ async def get_me(current_user=Depends(get_current_user)):
     return {
         "id": current_user.user_id or 0,
         "email": current_user.email,
-        "name": None,
+        "name": current_user.name,
         "role": current_user.role or "user",
     }
 
