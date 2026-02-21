@@ -4742,7 +4742,9 @@
         if (options && options.length > 0) {
           html += '<div class="ai-message-options">';
           options.forEach((opt, i) => {
-            html += `<button class="ai-option-btn" onclick="handleAiOption('${opt.action}', '${opt.value || ""}')">${opt.label}</button>`;
+            // For ask_question actions, include the full question as data attribute
+            const dataAttr = opt.question ? ` data-question="${opt.question.replace(/"/g, '&quot;')}"` : '';
+            html += `<button class="ai-option-btn"${dataAttr} onclick="handleAiOption('${opt.action}', '${opt.value || ""}')">${opt.label}</button>`;
           });
           html += "</div>";
         }
@@ -5913,7 +5915,7 @@
         try {
           // Chama API do agente com contexto do módulo
           const token = localStorage.getItem("token");
-          const response = await fetch("/api/agent/chat", {
+          const response = await fetch("/api/atlas/chat", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -5921,8 +5923,7 @@
             },
             body: JSON.stringify({
               message: text,
-              session_id: aiSessionId,
-              module: aiCurrentModule, // Contexto do módulo
+              sessionId: aiSessionId,
             }),
           });
 
@@ -5932,23 +5933,31 @@
             throw new Error("Erro na API do agente");
           }
 
-          const data = await response.json();
-          aiSessionId = data.session_id;
+          const result = await response.json();
+
+          // Parse Atlas response format
+          aiSessionId = result.sessionId;
           aiLastSearchQuery = text;
-          aiLastTotalCount = data.total_count || 0;
+
+          const responseData = result.response?.data || [];
+          const responseText = result.response?.text || "Não foi possível processar a consulta.";
+          const suggestions = result.response?.suggestions || [];
+          const entityType = result.metadata?.intent || aiCurrentModule;
+
+          aiLastTotalCount = responseData.length;
 
           // Exibe resposta do agente
-          addAiMessage(data.message);
+          addAiMessage(responseText);
 
           // Se retornou dados, exibe
-          if (data.data && data.data.length > 0) {
-            displayAgentResults(data.data, data.intent?.entity_type);
+          if (responseData.length > 0) {
+            displayAgentResults(responseData, entityType);
 
             // Para empresas: se muitos resultados, oferecer modal de filtros
-            if (aiCurrentModule === "empresas" && data.total_count > AI_FILTER_THRESHOLD) {
+            if (aiCurrentModule === "empresas" && responseData.length > AI_FILTER_THRESHOLD) {
               setTimeout(() => {
                 addAiMessage(
-                  `Encontrei <strong>${data.total_count}</strong> empresas. Deseja refinar a busca?`,
+                  `Encontrei <strong>${responseData.length}</strong> empresas. Deseja refinar a busca?`,
                   true,
                   [
                     { label: "Refinar filtros", action: "open_filter_modal" },
@@ -5961,6 +5970,19 @@
             }
           }
 
+          // Exibe sugestões do Atlas se houver
+          if (suggestions.length > 0) {
+            setTimeout(() => {
+              const suggestionButtons = suggestions.map(s => ({
+                label: s.length > 40 ? s.substring(0, 37) + "..." : s,
+                action: "ask_question",
+                question: s
+              }));
+              addAiMessage("Posso ajudar com mais alguma coisa?", true, suggestionButtons);
+            }, 500);
+            return;
+          }
+
           // Opções contextuais baseadas no módulo
           setTimeout(() => {
             showModuleOptions();
@@ -5968,6 +5990,7 @@
 
         } catch (e) {
           hideAiTyping();
+          console.error("Atlas API error:", e);
           // Fallback para NLP local se API falhar
           processLocalNLP(text, lower);
         }
@@ -6144,7 +6167,7 @@
 
         try {
           const token = localStorage.getItem("token");
-          const response = await fetch("/api/agent/chat", {
+          const response = await fetch("/api/atlas/chat", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -6152,8 +6175,7 @@
             },
             body: JSON.stringify({
               message: queryText,
-              session_id: aiSessionId,
-              module: "empresas",
+              sessionId: aiSessionId,
             }),
           });
 
@@ -6163,19 +6185,22 @@
             throw new Error("Erro na API");
           }
 
-          const data = await response.json();
-          aiSessionId = data.session_id;
+          const result = await response.json();
+          aiSessionId = result.sessionId;
 
-          addAiMessage(data.message);
+          const responseData = result.response?.data || [];
+          const responseText = result.response?.text || "Não foi possível processar.";
 
-          if (data.data && data.data.length > 0) {
-            displayAgentResults(data.data, "empresas");
+          addAiMessage(responseText);
+
+          if (responseData.length > 0) {
+            displayAgentResults(responseData, "empresas");
 
             // If still too many results, offer to filter more
-            if (data.total_count > AI_FILTER_THRESHOLD) {
+            if (responseData.length > AI_FILTER_THRESHOLD) {
               setTimeout(() => {
                 addAiMessage(
-                  `Ainda temos ${data.total_count} resultados. Deseja refinar mais?`,
+                  `Ainda temos ${responseData.length} resultados. Deseja refinar mais?`,
                   true,
                   [
                     { label: "Refinar filtros", action: "open_filter_modal" },
@@ -6206,7 +6231,7 @@
         }
       }
 
-      // Add handler for filter modal action
+      // Add handler for filter modal action and Atlas suggestions
       const originalHandleAiOption = handleAiOption;
       handleAiOption = async function(action, value) {
         if (action === "open_filter_modal") {
@@ -6218,6 +6243,17 @@
             { label: "Nova busca", action: "enter_empresas" },
             { label: "Voltar ao menu", action: "back_to_menu" },
           ]);
+          return;
+        }
+        // Handle Atlas suggestion clicks - find the question from button attributes
+        if (action === "ask_question") {
+          // Get the actual button that was clicked
+          const clickedBtn = event?.target;
+          const question = clickedBtn?.getAttribute('data-question') || value;
+          if (question) {
+            addAiMessage(question, false);
+            processModuleQuery(question, question.toLowerCase());
+          }
           return;
         }
         return originalHandleAiOption(action, value);
