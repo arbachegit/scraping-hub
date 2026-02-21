@@ -68,6 +68,8 @@ services:
       # Brasil Data Hub
       - BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
       - BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
+      # Atlas LLM
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # Version tracking
       - GIT_SHA=${GIT_SHA}
       - BUILD_DATE=${BUILD_DATE}
