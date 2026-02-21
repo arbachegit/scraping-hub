@@ -4,9 +4,9 @@ import logger from '../utils/logger.js';
 
 const router = Router();
 
-// Cliente Supabase para iconsai-fiscal
-const fiscalSupabase = process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY
-  ? createClient(process.env.FISCAL_SUPABASE_URL, process.env.FISCAL_SUPABASE_KEY)
+// Cliente Supabase para brasil-data-hub (dim_politicos, fato_politicos_mandatos)
+const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY
+  ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
   : null;
 
 /**
@@ -15,32 +15,87 @@ const fiscalSupabase = process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUP
  */
 router.get('/list', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
-    const { partido, uf, cargo } = req.query;
+    const { partido, cargo, municipio, ano_eleicao } = req.query;
 
-    let query = fiscalSupabase
-      .from('politico')
-      .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual, uf, municipio_nome, foto_url', { count: 'exact' })
+    // Se tem filtros de mandato, buscar via fato_politicos_mandatos
+    if (partido || cargo || municipio || ano_eleicao) {
+      let query = brasilDataHub
+        .from('fato_politicos_mandatos')
+        .select(`
+          id, cargo, partido_sigla, partido_nome, municipio, codigo_ibge,
+          ano_eleicao, eleito, situacao_turno,
+          politico:politico_id (id, nome_completo, nome_urna, sexo, ocupacao)
+        `, { count: 'exact' })
+        .order('ano_eleicao', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (partido) {
+        query = query.eq('partido_sigla', partido.toUpperCase());
+      }
+      if (cargo) {
+        query = query.ilike('cargo', `%${cargo}%`);
+      }
+      if (municipio) {
+        query = query.ilike('municipio', `%${municipio}%`);
+      }
+      if (ano_eleicao) {
+        query = query.eq('ano_eleicao', parseInt(ano_eleicao));
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        logger.error('Error listing politicians via mandatos', { error: error.message });
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      // Flatten data and remove duplicates
+      const seen = new Set();
+      const politicians = [];
+      for (const mandato of data || []) {
+        const politico = mandato.politico || {};
+        const politicoId = politico.id;
+        if (politicoId && !seen.has(politicoId)) {
+          seen.add(politicoId);
+          politicians.push({
+            id: politicoId,
+            nome_completo: politico.nome_completo,
+            nome_urna: politico.nome_urna,
+            sexo: politico.sexo,
+            ocupacao: politico.ocupacao,
+            partido_sigla: mandato.partido_sigla,
+            cargo_atual: mandato.cargo,
+            municipio: mandato.municipio,
+            codigo_ibge: mandato.codigo_ibge,
+            ano_eleicao: mandato.ano_eleicao,
+            eleito: mandato.eleito
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        count: politicians.length,
+        total: count,
+        politicians
+      });
+    }
+
+    // Sem filtros de mandato, buscar direto em dim_politicos
+    let query = brasilDataHub
+      .from('dim_politicos')
+      .select('id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao', { count: 'exact' })
       .order('nome_completo', { ascending: true })
       .range(offset, offset + limit - 1);
-
-    if (partido) {
-      query = query.eq('partido_sigla', partido.toUpperCase());
-    }
-    if (uf) {
-      query = query.eq('uf', uf.toUpperCase());
-    }
-    if (cargo) {
-      query = query.eq('cargo_atual', cargo);
-    }
 
     const { data, error, count } = await query;
 
@@ -67,14 +122,14 @@ router.get('/list', async (req, res) => {
  */
 router.get('/search', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
-    const { nome, partido, uf, cargo } = req.query;
+    const { nome } = req.query;
 
     if (!nome || nome.trim().length < 2) {
       return res.status(400).json({
@@ -83,33 +138,43 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    let query = fiscalSupabase
-      .from('politico')
-      .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual, uf, municipio_nome, foto_url')
-      .ilike('nome_completo', `%${nome.trim()}%`)
+    // Search in dim_politicos
+    const { data: politicos, error } = await brasilDataHub
+      .from('dim_politicos')
+      .select('id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao')
+      .or(`nome_completo.ilike.%${nome.trim()}%,nome_urna.ilike.%${nome.trim()}%`)
       .limit(20);
-
-    if (partido) {
-      query = query.eq('partido_sigla', partido.toUpperCase());
-    }
-    if (uf) {
-      query = query.eq('uf', uf.toUpperCase());
-    }
-    if (cargo) {
-      query = query.eq('cargo_atual', cargo);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       logger.error('Error searching politicians', { error: error.message });
       return res.status(500).json({ success: false, error: error.message });
     }
 
+    // Enrich with latest mandato
+    const enrichedPoliticians = [];
+    for (const politico of politicos || []) {
+      const { data: mandatos } = await brasilDataHub
+        .from('fato_politicos_mandatos')
+        .select('cargo, partido_sigla, municipio, ano_eleicao, eleito')
+        .eq('politico_id', politico.id)
+        .order('ano_eleicao', { ascending: false })
+        .limit(1);
+
+      const latest = mandatos?.[0] || {};
+      enrichedPoliticians.push({
+        ...politico,
+        partido_sigla: latest.partido_sigla,
+        cargo_atual: latest.cargo,
+        municipio: latest.municipio,
+        ano_eleicao: latest.ano_eleicao,
+        eleito: latest.eleito
+      });
+    }
+
     res.json({
       success: true,
-      count: data.length,
-      politicians: data
+      count: enrichedPoliticians.length,
+      politicians: enrichedPoliticians
     });
 
   } catch (error) {
@@ -124,19 +189,19 @@ router.get('/search', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
     const { id } = req.params;
 
-    // Get politician data
-    const { data: politico, error: politicoError } = await fiscalSupabase
-      .from('politico')
-      .select('*')
+    // Get politician data from dim_politicos
+    const { data: politico, error: politicoError } = await brasilDataHub
+      .from('dim_politicos')
+      .select('id, nome_completo, nome_urna, data_nascimento, sexo, grau_instrucao, ocupacao')
       .eq('id', id)
       .single();
 
@@ -144,16 +209,14 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Politician not found' });
     }
 
-    // Mask CPF if present
-    if (politico.cpf) {
-      politico.cpf_masked = `***.***.${politico.cpf.slice(-5, -2)}-**`;
-      delete politico.cpf;
-    }
-
-    // Get mandates
-    const { data: mandatos } = await fiscalSupabase
-      .from('mandato_politico')
-      .select('*')
+    // Get mandates from fato_politicos_mandatos
+    const { data: mandatos } = await brasilDataHub
+      .from('fato_politicos_mandatos')
+      .select(`
+        id, cargo, partido_sigla, partido_nome, municipio, codigo_ibge,
+        ano_eleicao, turno, numero_candidato, eleito, coligacao, situacao_turno,
+        data_inicio_mandato, data_fim_mandato
+      `)
       .eq('politico_id', id)
       .order('ano_eleicao', { ascending: false });
 
@@ -175,28 +238,30 @@ router.get('/:id', async (req, res) => {
  */
 router.get('/by-municipio/:codigoIbge', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
     const { codigoIbge } = req.params;
-    const apenasAtivos = req.query.ativos !== 'false';
+    const apenasEleitos = req.query.eleitos !== 'false';
+    const ano = req.query.ano ? parseInt(req.query.ano) : null;
 
-    let query = fiscalSupabase
-      .from('mandato_politico')
+    let query = brasilDataHub
+      .from('fato_politicos_mandatos')
       .select(`
-        id, cargo, partido_sigla, ano_eleicao, votos_recebidos, ativo,
-        politico:politico_id (
-          id, nome_completo, nome_urna, foto_url
-        )
+        id, cargo, partido_sigla, ano_eleicao, eleito, situacao_turno,
+        politico:politico_id (id, nome_completo, nome_urna, sexo)
       `)
-      .eq('municipio_codigo_ibge', codigoIbge);
+      .eq('codigo_ibge', codigoIbge);
 
-    if (apenasAtivos) {
-      query = query.eq('ativo', true);
+    if (apenasEleitos) {
+      query = query.eq('eleito', true);
+    }
+    if (ano) {
+      query = query.eq('ano_eleicao', ano);
     }
 
     const { data, error } = await query.order('cargo');
@@ -207,18 +272,22 @@ router.get('/by-municipio/:codigoIbge', async (req, res) => {
     }
 
     // Flatten data
-    const politicians = data.map(mandato => ({
-      ...mandato.politico,
+    const politicians = (data || []).map(mandato => ({
+      id: mandato.politico?.id,
+      nome_completo: mandato.politico?.nome_completo,
+      nome_urna: mandato.politico?.nome_urna,
+      sexo: mandato.politico?.sexo,
       cargo: mandato.cargo,
-      partido: mandato.partido_sigla,
+      partido_sigla: mandato.partido_sigla,
       ano_eleicao: mandato.ano_eleicao,
-      votos: mandato.votos_recebidos,
-      ativo: mandato.ativo
+      eleito: mandato.eleito,
+      situacao_turno: mandato.situacao_turno
     }));
 
     res.json({
       success: true,
       count: politicians.length,
+      codigo_ibge: codigoIbge,
       politicians
     });
 
@@ -234,42 +303,66 @@ router.get('/by-municipio/:codigoIbge', async (req, res) => {
  */
 router.get('/by-partido/:sigla', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
     const { sigla } = req.params;
-    const { uf, cargo } = req.query;
+    const { cargo, ano_eleicao } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
 
-    let query = fiscalSupabase
-      .from('politico')
-      .select('id, nome_completo, nome_urna, cargo_atual, uf, municipio_nome, foto_url')
+    let query = brasilDataHub
+      .from('fato_politicos_mandatos')
+      .select(`
+        id, cargo, partido_sigla, municipio, ano_eleicao, eleito,
+        politico:politico_id (id, nome_completo, nome_urna, sexo)
+      `)
       .eq('partido_sigla', sigla.toUpperCase())
       .limit(limit);
 
-    if (uf) {
-      query = query.eq('uf', uf.toUpperCase());
-    }
     if (cargo) {
-      query = query.eq('cargo_atual', cargo);
+      query = query.ilike('cargo', `%${cargo}%`);
+    }
+    if (ano_eleicao) {
+      query = query.eq('ano_eleicao', parseInt(ano_eleicao));
     }
 
-    const { data, error } = await query;
+    const { data, error } = await query.order('municipio');
 
     if (error) {
       logger.error('Error fetching party politicians', { error: error.message });
       return res.status(500).json({ success: false, error: error.message });
     }
 
+    // Flatten and deduplicate
+    const seen = new Set();
+    const politicians = [];
+    for (const mandato of data || []) {
+      const politico = mandato.politico || {};
+      const politicoId = politico.id;
+      if (politicoId && !seen.has(politicoId)) {
+        seen.add(politicoId);
+        politicians.push({
+          id: politicoId,
+          nome_completo: politico.nome_completo,
+          nome_urna: politico.nome_urna,
+          sexo: politico.sexo,
+          cargo: mandato.cargo,
+          municipio: mandato.municipio,
+          ano_eleicao: mandato.ano_eleicao,
+          eleito: mandato.eleito
+        });
+      }
+    }
+
     res.json({
       success: true,
-      count: data.length,
+      count: politicians.length,
       partido: sigla.toUpperCase(),
-      politicians: data
+      politicians
     });
 
   } catch (error) {
@@ -284,17 +377,17 @@ router.get('/by-partido/:sigla', async (req, res) => {
  */
 router.get('/partidos/list', async (req, res) => {
   try {
-    if (!fiscalSupabase) {
+    if (!brasilDataHub) {
       return res.status(503).json({
         success: false,
-        error: 'Fiscal Supabase not configured'
+        error: 'Brasil Data Hub not configured. Set BRASIL_DATA_HUB_URL and BRASIL_DATA_HUB_KEY.'
       });
     }
 
-    // Get distinct parties with counts
-    const { data, error } = await fiscalSupabase
-      .from('politico')
-      .select('partido_sigla')
+    // Get distinct parties from mandatos
+    const { data, error } = await brasilDataHub
+      .from('fato_politicos_mandatos')
+      .select('partido_sigla, partido_nome')
       .not('partido_sigla', 'is', null);
 
     if (error) {
@@ -304,14 +397,22 @@ router.get('/partidos/list', async (req, res) => {
 
     // Count by party
     const partyCounts = {};
-    for (const row of data) {
-      const partido = row.partido_sigla;
-      partyCounts[partido] = (partyCounts[partido] || 0) + 1;
+    const partyNames = {};
+    for (const row of data || []) {
+      const sigla = row.partido_sigla;
+      partyCounts[sigla] = (partyCounts[sigla] || 0) + 1;
+      if (row.partido_nome) {
+        partyNames[sigla] = row.partido_nome;
+      }
     }
 
     // Convert to array and sort
     const parties = Object.entries(partyCounts)
-      .map(([sigla, count]) => ({ sigla, count }))
+      .map(([sigla, count]) => ({
+        sigla,
+        nome: partyNames[sigla] || sigla,
+        count
+      }))
       .sort((a, b) => b.count - a.count);
 
     res.json({
