@@ -262,10 +262,14 @@ export function parseIntent(message, context = {}) {
     for (const pattern of PATTERNS.byMunicipality) {
       const match = normalizedMessage.match(pattern);
       if (match) {
-        result.intent = INTENTS.BY_MUNICIPALITY;
-        result.entities.municipio = cleanName(match[1]);
-        result.confidence = 0.85;
-        break;
+        const municipio = cleanName(match[1]);
+        // Don't treat years as municipalities
+        if (municipio && !/^\d{4}$/.test(municipio)) {
+          result.intent = INTENTS.BY_MUNICIPALITY;
+          result.entities.municipio = municipio;
+          result.confidence = 0.85;
+          break;
+        }
       }
     }
   }
