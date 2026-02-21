@@ -90,6 +90,8 @@ class ChatResponse(BaseModel):
     total_count: int = Field(default=0, description="Total count of matching records")
     intent: Optional[ParsedIntent] = Field(default=None, description="Parsed intent")
     ai_provider_used: str = Field(default="unknown", description="AI provider that processed the request")
+    suggestions: List[str] = Field(default_factory=list, description="Follow-up question suggestions")
+    highlights: List[str] = Field(default_factory=list, description="Key highlights from the data")
 
 
 class SessionMessage(BaseModel):

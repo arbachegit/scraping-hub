@@ -11,6 +11,7 @@ from supabase import create_client
 from api.agent.intent_parser import get_intent_parser
 from api.agent.models import ChatRequest, ChatResponse, ParsedIntent
 from api.agent.query_builder import create_query_builder
+from api.agent.response_formatter import generate_conversational_response
 from api.agent.session_manager import session_manager
 from api.auth import TokenData, get_current_user
 from config.settings import settings
@@ -100,10 +101,17 @@ async def chat(
                 intent.entity_type,
             )
 
-        # Generate response message
-        response_message = _generate_response_message(
-            intent, data, total_count, external_info
+        # Generate conversational response using LLM
+        response_data = await generate_conversational_response(
+            intent=intent,
+            data=data,
+            total_count=total_count,
+            external_info=external_info,
         )
+
+        response_message = response_data.get("text", "")
+        suggestions = response_data.get("suggestions", [])
+        highlights = response_data.get("highlights", [])
 
         # Add assistant response to session
         session_manager.add_message(session.session_id, "assistant", response_message)
@@ -115,6 +123,8 @@ async def chat(
             total_count=total_count,
             intent=intent,
             ai_provider_used=provider_used,
+            suggestions=suggestions,
+            highlights=highlights,
         )
 
     except Exception as e:
