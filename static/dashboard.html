@@ -1260,13 +1260,13 @@
         }
       }
 
-      /* AI Agent Floating Button */
-      .ai-agent-fab {
+      /* Atlas Agent Styles */
+      .atlas-fab {
         position: fixed;
         bottom: 2rem;
         right: 2rem;
-        width: 64px;
-        height: 64px;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: none;
@@ -1276,90 +1276,21 @@
         justify-content: center;
         z-index: 1000;
         box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
-        transition:
-          transform 0.3s ease,
-          box-shadow 0.3s ease;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
-
-      .ai-agent-fab:hover {
+      .atlas-fab:hover {
         transform: scale(1.1);
         box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6);
       }
+      .atlas-fab svg { width: 28px; height: 28px; color: white; }
 
-      .ai-agent-fab svg {
-        width: 32px;
-        height: 32px;
-        fill: white;
-      }
-
-      .ai-robot-icon {
-        width: 44px;
-        height: 44px;
-      }
-
-      .ai-robot-icon-small {
-        width: 32px;
-        height: 32px;
-      }
-
-      /* Multi-ring effect */
-      .ai-agent-fab::before,
-      .ai-agent-fab::after {
-        content: "";
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        border: 2px solid rgba(59, 130, 246, 0.4);
-        animation: pulse-ring 2s infinite;
-      }
-
-      .ai-agent-fab::after {
-        animation-delay: 1s;
-      }
-
-      @keyframes pulse-ring {
-        0% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        100% {
-          transform: scale(1.8);
-          opacity: 0;
-        }
-      }
-
-      /* Beacon notification */
-      .ai-beacon {
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        width: 16px;
-        height: 16px;
-        background: #ef4444;
-        border-radius: 50%;
-        border: 2px solid #0a0e1a;
-        animation: beacon-pulse 1.5s infinite;
-      }
-
-      @keyframes beacon-pulse {
-        0%,
-        100% {
-          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-        }
-        50% {
-          box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
-        }
-      }
-
-      /* Chat Window */
-      .ai-chat-window {
+      .atlas-window {
         position: fixed;
         bottom: 6rem;
         right: 2rem;
-        width: 1000px;
+        width: 500px;
         max-width: calc(100vw - 4rem);
-        height: 800px;
+        height: 600px;
         max-height: calc(100vh - 8rem);
         background: linear-gradient(180deg, #0f1629 0%, #0a0e1a 100%);
         border: 1px solid rgba(59, 130, 246, 0.3);
@@ -1370,83 +1301,31 @@
         z-index: 999;
         overflow: hidden;
       }
+      .atlas-window.show { display: flex; }
 
-      .ai-chat-window.show {
-        display: flex;
-        animation: chat-slide-up 0.3s ease;
-      }
-
-      @keyframes chat-slide-up {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .ai-chat-header {
+      .atlas-header {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         padding: 1rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
       }
-
-      .ai-avatar {
-        width: 40px;
-        height: 40px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .ai-avatar svg {
-        width: 24px;
-        height: 24px;
-        fill: white;
-      }
-
-      .ai-header-info {
-        flex: 1;
-      }
-
-      .ai-header-info h3 {
-        color: white;
-        font-size: 1rem;
-        font-weight: 600;
-        margin: 0;
-      }
-
-      .ai-header-info span {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 0.75rem;
-      }
-
-      .ai-close-btn {
-        background: rgba(255, 255, 255, 0.1);
+      .atlas-header-info { flex: 1; }
+      .atlas-header-info h3 { color: white; font-size: 1rem; font-weight: 600; margin: 0; }
+      .atlas-header-info span { color: rgba(255,255,255,0.7); font-size: 0.75rem; }
+      .atlas-close {
+        background: rgba(255,255,255,0.1);
         border: none;
         color: white;
         width: 32px;
         height: 32px;
         border-radius: 50%;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         font-size: 1.25rem;
-        transition: background 0.2s;
       }
+      .atlas-close:hover { background: rgba(255,255,255,0.2); }
 
-      .ai-close-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      .ai-chat-messages {
+      .atlas-messages {
         flex: 1;
         overflow-y: auto;
         padding: 1rem;
@@ -1454,360 +1333,70 @@
         flex-direction: column;
         gap: 0.75rem;
       }
-
-      .ai-message {
+      .atlas-msg {
         max-width: 85%;
         padding: 0.75rem 1rem;
         border-radius: 1rem;
         font-size: 0.9rem;
         line-height: 1.5;
-        animation: message-fade-in 0.3s ease;
       }
-
-      @keyframes message-fade-in {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .ai-message.bot {
+      .atlas-msg.bot {
         background: rgba(59, 130, 246, 0.15);
         border: 1px solid rgba(59, 130, 246, 0.3);
         color: #e2e8f0;
         align-self: flex-start;
         border-bottom-left-radius: 0.25rem;
       }
-
-      .ai-message.user {
+      .atlas-msg.user {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         color: white;
         align-self: flex-end;
         border-bottom-right-radius: 0.25rem;
       }
 
-      .ai-message-options {
+      .atlas-badges {
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
-        margin-top: 0.5rem;
+        margin-top: 0.75rem;
       }
-
-      .ai-option-btn {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.4);
-        color: #60a5fa;
-        padding: 0.5rem 1rem;
-        border-radius: 1rem;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .ai-option-btn:hover {
-        background: rgba(59, 130, 246, 0.2);
-        border-color: rgba(59, 130, 246, 0.6);
-      }
-
-      /* AI Badges Grid - Horizontal layout */
-      .ai-badges-container {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-        justify-content: center;
-      }
-
-      .ai-badge {
+      .atlas-badge {
         display: flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.6rem 0.9rem;
-        border-radius: 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-weight: 500;
-        font-size: 0.85rem;
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .ai-badge svg {
-        flex-shrink: 0;
-      }
-
-      .ai-badge-empresas {
-        background: rgba(59, 130, 246, 0.15);
-        border: 1px solid rgba(59, 130, 246, 0.4);
-        color: #60a5fa;
-      }
-      .ai-badge-empresas:hover {
-        background: rgba(59, 130, 246, 0.25);
-        transform: translateY(-2px);
-      }
-
-      .ai-badge-pessoas {
-        background: rgba(34, 197, 94, 0.15);
-        border: 1px solid rgba(34, 197, 94, 0.4);
-        color: #4ade80;
-      }
-      .ai-badge-pessoas:hover {
-        background: rgba(34, 197, 94, 0.25);
-        transform: translateY(-2px);
-      }
-
-      .ai-badge-noticias {
-        background: rgba(249, 115, 22, 0.15);
-        border: 1px solid rgba(249, 115, 22, 0.4);
-        color: #fb923c;
-      }
-      .ai-badge-noticias:hover {
-        background: rgba(249, 115, 22, 0.25);
-        transform: translateY(-2px);
-      }
-
-      .ai-badge-politicos {
-        background: rgba(168, 85, 247, 0.15);
-        border: 1px solid rgba(168, 85, 247, 0.4);
-        color: #c084fc;
-      }
-      .ai-badge-politicos:hover {
-        background: rgba(168, 85, 247, 0.25);
-        transform: translateY(-2px);
-      }
-
-      /* Info box para políticos */
-      .ai-politicos-info {
-        background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-        border: 1px solid rgba(168, 85, 247, 0.3);
-        border-radius: 0.75rem;
-        padding: 1rem;
-        text-align: center;
-      }
-
-      .ai-politicos-info .ai-politicos-icon {
-        margin-bottom: 0.5rem;
-        color: #c084fc;
-      }
-
-      .ai-politicos-info h4 {
-        color: #e9d5ff;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-      }
-
-      .ai-politicos-info p {
-        color: #d8b4fe;
-        font-size: 0.85rem;
-        margin-bottom: 0.25rem;
-      }
-
-      /* AI Filter Modal - Stacked over chat */
-      .ai-filter-modal {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.85);
-        display: none;
-        flex-direction: column;
-        z-index: 10;
-        border-radius: 1rem;
-        overflow: hidden;
-      }
-
-      .ai-filter-modal.show {
-        display: flex;
-      }
-
-      .ai-filter-header {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-        padding: 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .ai-filter-header h3 {
-        color: white;
-        font-size: 1rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .ai-filter-close {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-      }
-
-      .ai-filter-close:hover {
-        background: rgba(255, 255, 255, 0.3);
-      }
-
-      .ai-filter-body {
-        flex: 1;
-        padding: 1rem;
-        overflow-y: auto;
-      }
-
-      .ai-filter-info {
-        background: rgba(139, 92, 246, 0.15);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 0.75rem;
-        padding: 0.75rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .ai-filter-info svg {
-        flex-shrink: 0;
-        color: #a78bfa;
-      }
-
-      .ai-filter-info span {
-        color: #c4b5fd;
-        font-size: 0.85rem;
-      }
-
-      .ai-filter-info strong {
-        color: #e9d5ff;
-      }
-
-      .ai-filter-group {
-        margin-bottom: 1rem;
-      }
-
-      .ai-filter-group label {
-        display: block;
-        color: #94a3b8;
-        font-size: 0.8rem;
-        margin-bottom: 0.4rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .ai-filter-group input,
-      .ai-filter-group select {
-        width: 100%;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.5rem 0.75rem;
         border-radius: 0.5rem;
-        padding: 0.6rem 0.8rem;
-        color: white;
-        font-size: 0.9rem;
-        transition: border-color 0.2s;
-      }
-
-      .ai-filter-group input:focus,
-      .ai-filter-group select:focus {
-        outline: none;
-        border-color: rgba(139, 92, 246, 0.5);
-      }
-
-      .ai-filter-group input::placeholder {
-        color: #64748b;
-      }
-
-      .ai-filter-group select option {
-        background: #1e293b;
-        color: white;
-      }
-
-      .ai-filter-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-      }
-
-      .ai-filter-footer {
-        padding: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        display: flex;
-        gap: 0.5rem;
-      }
-
-      .ai-filter-btn {
-        flex: 1;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        font-weight: 500;
         cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
         transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
+        border: 1px solid;
       }
+      .atlas-badge svg { width: 16px; height: 16px; flex-shrink: 0; }
+      .atlas-badge-empresas { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #60a5fa; }
+      .atlas-badge-pessoas { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #4ade80; }
+      .atlas-badge-noticias { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.4); color: #fb923c; }
+      .atlas-badge-politicos { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.4); color: #c084fc; }
+      .atlas-badge:hover { transform: translateY(-2px); }
 
-      .ai-filter-btn-apply {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-        border: none;
-        color: white;
-      }
-
-      .ai-filter-btn-apply:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-      }
-
-      .ai-filter-btn-clear {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #94a3b8;
-      }
-
-      .ai-filter-btn-clear:hover {
-        border-color: rgba(255, 255, 255, 0.4);
-        color: white;
-      }
-
-      .ai-chat-input {
+      .atlas-input {
         padding: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255,255,255,0.05);
         display: flex;
         gap: 0.5rem;
       }
-
-      .ai-chat-input input {
+      .atlas-input input {
         flex: 1;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
         border-radius: 1.5rem;
         padding: 0.75rem 1rem;
         color: white;
         font-size: 0.9rem;
       }
-
-      .ai-chat-input input::placeholder {
-        color: #64748b;
-      }
-
-      .ai-chat-input input:focus {
-        outline: none;
-        border-color: rgba(59, 130, 246, 0.5);
-      }
-
-      .ai-send-btn {
+      .atlas-input input::placeholder { color: #64748b; }
+      .atlas-input input:focus { outline: none; border-color: rgba(59,130,246,0.5); }
+      .atlas-send {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: none;
         color: white;
@@ -1818,80 +1407,59 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.2s;
       }
+      .atlas-send:hover { transform: scale(1.1); }
+      .atlas-send svg { width: 18px; height: 18px; }
 
-      .ai-send-btn:hover {
-        transform: scale(1.1);
-      }
-
-      .ai-typing {
+      .atlas-typing {
         display: flex;
         gap: 4px;
         padding: 0.5rem;
       }
-
-      .ai-typing span {
+      .atlas-typing span {
         width: 8px;
         height: 8px;
         background: #60a5fa;
         border-radius: 50%;
-        animation: typing-bounce 1.4s infinite;
+        animation: atlas-bounce 1.4s infinite;
+      }
+      .atlas-typing span:nth-child(2) { animation-delay: 0.2s; }
+      .atlas-typing span:nth-child(3) { animation-delay: 0.4s; }
+      @keyframes atlas-bounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-8px); }
       }
 
-      .ai-typing span:nth-child(2) {
-        animation-delay: 0.2s;
-      }
-
-      .ai-typing span:nth-child(3) {
-        animation-delay: 0.4s;
-      }
-
-      @keyframes typing-bounce {
-        0%,
-        60%,
-        100% {
-          transform: translateY(0);
-        }
-        30% {
-          transform: translateY(-8px);
-        }
-      }
-
-      .ai-company-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 0.75rem;
-        padding: 0.75rem;
+      .atlas-result {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
         margin-top: 0.5rem;
         cursor: pointer;
         transition: all 0.2s;
       }
+      .atlas-result:hover { border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.05); }
+      .atlas-result-name { color: #e2e8f0; font-weight: 500; font-size: 0.85rem; }
+      .atlas-result-meta { color: #64748b; font-size: 0.75rem; }
 
-      .ai-company-card:hover {
-        border-color: rgba(59, 130, 246, 0.4);
-        background: rgba(59, 130, 246, 0.05);
+      .atlas-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
       }
-
-      .ai-company-name {
-        color: #e2e8f0;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-
-      .ai-company-cnpj {
-        color: #64748b;
+      .atlas-suggestion {
+        background: rgba(59,130,246,0.1);
+        border: 1px solid rgba(59,130,246,0.3);
+        color: #60a5fa;
+        padding: 0.4rem 0.75rem;
+        border-radius: 1rem;
         font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
       }
-
-      .ai-chart-container {
-        width: 100%;
-        height: 200px;
-        margin: 1rem 0;
-        padding: 0.5rem;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 0.5rem;
-      }
+      .atlas-suggestion:hover { background: rgba(59,130,246,0.2); }
 
       /* People & News Modal Styles */
       .btn-back {
@@ -2618,180 +2186,31 @@
       </div>
     </div>
 
-    <!-- AI Agent Floating Button -->
-    <button class="ai-agent-fab" id="aiAgentFab" onclick="toggleAiChat()">
-      <div class="ai-beacon"></div>
-      <svg class="ai-robot-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Antenna -->
-        <circle cx="32" cy="6" r="4" fill="#60a5fa"/>
-        <rect x="30" y="8" width="4" height="8" fill="#60a5fa"/>
-        <!-- Head (square) -->
-        <rect x="12" y="16" width="40" height="32" rx="4" fill="white"/>
-        <!-- Eyes -->
-        <rect x="18" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
-        <rect x="36" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
-        <!-- Eye shine -->
-        <circle cx="21" cy="29" r="2" fill="white"/>
-        <circle cx="39" cy="29" r="2" fill="white"/>
-        <!-- Mouth -->
-        <rect x="22" y="40" width="20" height="4" rx="2" fill="#3b82f6"/>
-        <!-- Ears -->
-        <rect x="6" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
-        <rect x="52" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
-        <!-- Body hint -->
-        <rect x="24" y="48" width="16" height="8" rx="2" fill="#60a5fa"/>
+    <!-- Atlas Agent FAB -->
+    <button class="atlas-fab" id="atlasFab" onclick="Atlas.toggle()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+        <line x1="9" y1="9" x2="9.01" y2="9"/>
+        <line x1="15" y1="9" x2="15.01" y2="9"/>
       </svg>
     </button>
 
-    <!-- AI Chat Window -->
-    <div class="ai-chat-window" id="aiChatWindow">
-      <div class="ai-chat-header">
-        <div class="ai-avatar">
-          <svg class="ai-robot-icon-small" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="32" cy="6" r="4" fill="#60a5fa"/>
-            <rect x="30" y="8" width="4" height="8" fill="#60a5fa"/>
-            <rect x="12" y="16" width="40" height="32" rx="4" fill="white"/>
-            <rect x="18" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
-            <rect x="36" y="26" width="10" height="10" rx="2" fill="#3b82f6"/>
-            <circle cx="21" cy="29" r="2" fill="white"/>
-            <circle cx="39" cy="29" r="2" fill="white"/>
-            <rect x="22" y="40" width="20" height="4" rx="2" fill="#3b82f6"/>
-            <rect x="6" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
-            <rect x="52" y="26" width="6" height="12" rx="2" fill="#60a5fa"/>
-          </svg>
-        </div>
-        <div class="ai-header-info">
+    <!-- Atlas Chat Window -->
+    <div class="atlas-window" id="atlasWindow">
+      <div class="atlas-header">
+        <div class="atlas-header-info">
           <h3>Atlas</h3>
           <span>Assistente de Inteligencia</span>
         </div>
-        <button class="ai-close-btn" onclick="toggleAiChat()">&times;</button>
+        <button class="atlas-close" onclick="Atlas.toggle()">&times;</button>
       </div>
-      <div class="ai-chat-messages" id="aiChatMessages"></div>
-
-      <!-- Filter Modal (stacked inside chat) -->
-      <div class="ai-filter-modal" id="aiFilterModal">
-        <div class="ai-filter-header">
-          <h3>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-            </svg>
-            Refinar Busca
-          </h3>
-          <button class="ai-filter-close" onclick="closeAiFilterModal()">&times;</button>
-        </div>
-        <div class="ai-filter-body">
-          <div class="ai-filter-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            <span>Encontramos <strong id="aiFilterCount">0</strong> resultados. Use os filtros para refinar.</span>
-          </div>
-
-          <div class="ai-filter-group">
-            <label>Nome da Empresa</label>
-            <input type="text" id="aiFilterNome" placeholder="Ex: Acme, Tecnologia...">
-          </div>
-
-          <div class="ai-filter-row">
-            <div class="ai-filter-group">
-              <label>Cidade</label>
-              <input type="text" id="aiFilterCidade" placeholder="Ex: Sao Paulo">
-            </div>
-            <div class="ai-filter-group">
-              <label>Estado</label>
-              <select id="aiFilterEstado">
-                <option value="">Todos</option>
-                <option value="AC">AC</option>
-                <option value="AL">AL</option>
-                <option value="AP">AP</option>
-                <option value="AM">AM</option>
-                <option value="BA">BA</option>
-                <option value="CE">CE</option>
-                <option value="DF">DF</option>
-                <option value="ES">ES</option>
-                <option value="GO">GO</option>
-                <option value="MA">MA</option>
-                <option value="MT">MT</option>
-                <option value="MS">MS</option>
-                <option value="MG">MG</option>
-                <option value="PA">PA</option>
-                <option value="PB">PB</option>
-                <option value="PR">PR</option>
-                <option value="PE">PE</option>
-                <option value="PI">PI</option>
-                <option value="RJ">RJ</option>
-                <option value="RN">RN</option>
-                <option value="RS">RS</option>
-                <option value="RO">RO</option>
-                <option value="RR">RR</option>
-                <option value="SC">SC</option>
-                <option value="SP">SP</option>
-                <option value="SE">SE</option>
-                <option value="TO">TO</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="ai-filter-group">
-            <label>CNAE Principal</label>
-            <input type="text" id="aiFilterCnae" placeholder="Ex: 6201, 62 (tecnologia)">
-          </div>
-
-          <div class="ai-filter-row">
-            <div class="ai-filter-group">
-              <label>Porte</label>
-              <select id="aiFilterPorte">
-                <option value="">Todos</option>
-                <option value="MEI">MEI</option>
-                <option value="ME">ME - Microempresa</option>
-                <option value="EPP">EPP - Pequeno Porte</option>
-                <option value="DEMAIS">Demais</option>
-              </select>
-            </div>
-            <div class="ai-filter-group">
-              <label>Regime Tributario</label>
-              <select id="aiFilterRegime">
-                <option value="">Todos</option>
-                <option value="SIMPLES_NACIONAL">Simples Nacional</option>
-                <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
-                <option value="LUCRO_REAL">Lucro Real</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="ai-filter-footer">
-          <button class="ai-filter-btn ai-filter-btn-clear" onclick="clearAiFilters()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            Limpar
-          </button>
-          <button class="ai-filter-btn ai-filter-btn-apply" onclick="applyAiFilters()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-            </svg>
-            Aplicar Filtros
-          </button>
-        </div>
-      </div>
-
-      <div class="ai-chat-input">
-        <input
-          type="text"
-          id="aiChatInput"
-          placeholder="Digite sua mensagem..."
-          onkeypress="if (event.key === 'Enter') sendAiMessage();"
-        />
-        <button class="ai-send-btn" onclick="sendAiMessage()">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+      <div class="atlas-messages" id="atlasMessages"></div>
+      <div class="atlas-input">
+        <input type="text" id="atlasInput" placeholder="Digite sua mensagem..." onkeypress="if(event.key==='Enter')Atlas.send()"/>
+        <button class="atlas-send" onclick="Atlas.send()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
           </svg>
         </button>
       </div>
@@ -3807,18 +3226,8 @@
       let newsList = [];
 
       function openPoliticosFromCard() {
-        // Abre o chat AI e entra no módulo de políticos
-        const chatWindow = document.getElementById("aiChatWindow");
-        if (!chatWindow.classList.contains("show")) {
-          chatWindow.classList.add("show");
-          aiChatOpen = true;
-          startAiConversation();
-        }
-        // Entra no módulo de políticos após um pequeno delay
-        setTimeout(() => {
-          aiCurrentModule = "politicos";
-          enterModulePoliticos();
-        }, 800);
+        // Atlas agent stub - will be implemented in Phase 4
+        console.log('Atlas: Politicos module clicked');
       }
 
       function openNewsModal() {
@@ -4704,1560 +4113,195 @@
           closeEmpresasListingModal();
           closePessoasListingModal();
           closeNoticiasListingModal();
+          Atlas.close();
         }
       });
 
       // ============================================
-      // AI AGENT - Atlas
+      // ATLAS AGENT
       // ============================================
-      let aiChatOpen = false;
-      let aiState = "idle";
-      let aiCompanies = [];
-      let aiSelectedCompany = null;
-      let aiCurrentModule = null; // empresas, pessoas, noticias, politicos
-      let aiUserName = null; // Nome do usuário logado
+      const Atlas = {
+        isOpen: false,
+        sessionId: null,
+        currentModule: null,
 
-      function toggleAiChat() {
-        aiChatOpen = !aiChatOpen;
-        const chatWindow = document.getElementById("aiChatWindow");
-        const beacon = document.querySelector(".ai-beacon");
-
-        if (aiChatOpen) {
-          chatWindow.classList.add("show");
-          beacon.style.display = "none";
-          if (aiState === "idle") {
-            startAiConversation();
+        toggle() {
+          this.isOpen = !this.isOpen;
+          document.getElementById('atlasWindow').classList.toggle('show', this.isOpen);
+          if (this.isOpen && !document.getElementById('atlasMessages').children.length) {
+            this.showGreeting();
           }
-        } else {
-          chatWindow.classList.remove("show");
-        }
-      }
+        },
 
-      function addAiMessage(text, isBot = true, options = null) {
-        const messages = document.getElementById("aiChatMessages");
-        const msgDiv = document.createElement("div");
-        msgDiv.className = `ai-message ${isBot ? "bot" : "user"}`;
+        close() {
+          if (this.isOpen) {
+            this.isOpen = false;
+            document.getElementById('atlasWindow').classList.remove('show');
+          }
+        },
 
-        let html = text;
-        if (options && options.length > 0) {
-          html += '<div class="ai-message-options">';
-          options.forEach((opt, i) => {
-            // For ask_question actions, include the full question as data attribute
-            const dataAttr = opt.question ? ` data-question="${opt.question.replace(/"/g, '&quot;')}"` : '';
-            html += `<button class="ai-option-btn"${dataAttr} onclick="handleAiOption('${opt.action}', '${opt.value || ""}')">${opt.label}</button>`;
-          });
-          html += "</div>";
-        }
-
-        msgDiv.innerHTML = html;
-        messages.appendChild(msgDiv);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      function showAiTyping() {
-        const messages = document.getElementById("aiChatMessages");
-        const typingDiv = document.createElement("div");
-        typingDiv.id = "aiTyping";
-        typingDiv.className = "ai-message bot";
-        typingDiv.innerHTML =
-          '<div class="ai-typing"><span></span><span></span><span></span></div>';
-        messages.appendChild(typingDiv);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      function hideAiTyping() {
-        const typing = document.getElementById("aiTyping");
-        if (typing) typing.remove();
-      }
-
-      function startAiConversation() {
-        aiState = "greeting";
-        // Obter nome do usuário do header
-        const userDisplay = document.getElementById("userEmail").textContent;
-        aiUserName = userDisplay && userDisplay !== "-" ? userDisplay.split(" ")[0] : null;
-
-        setTimeout(() => {
-          addAiMessage(
-            "Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. O que gostaria de saber?",
+        showGreeting() {
+          this.addMessage(
+            'Posso ajuda-lo com informacoes sobre empresas, pessoas, politicos, seus mandatos e noticias em tempo real. O que gostaria de saber?',
+            true
           );
-          setTimeout(() => {
-            showMainMenu();
-            aiState = "awaiting_selection";
-          }, 500);
-        }, 300);
-      }
+          this.showBadges();
+        },
 
-      function showMainMenu() {
-        // Badges iniciais clicáveis
-        const html = `
-          <div class="ai-badges-container">
-            <div class="ai-badge ai-badge-empresas" onclick="handleAiOption('enter_empresas', '')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-              <span>Empresas</span>
+        showBadges() {
+          const badges = `
+            <div class="atlas-badges">
+              <div class="atlas-badge atlas-badge-empresas" onclick="Atlas.enterModule('empresas')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                <span>Empresas</span>
+              </div>
+              <div class="atlas-badge atlas-badge-pessoas" onclick="Atlas.enterModule('pessoas')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span>Pessoas</span>
+              </div>
+              <div class="atlas-badge atlas-badge-noticias" onclick="Atlas.enterModule('noticias')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16"/><path d="M18 14h-8"/><path d="M15 18h-5"/></svg>
+                <span>Noticias</span>
+              </div>
+              <div class="atlas-badge atlas-badge-politicos" onclick="Atlas.enterModule('politicos')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+                <span>Politicos</span>
+              </div>
             </div>
-            <div class="ai-badge ai-badge-pessoas" onclick="handleAiOption('enter_pessoas', '')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span>Pessoas</span>
-            </div>
-            <div class="ai-badge ai-badge-noticias" onclick="handleAiOption('enter_noticias', '')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
-              <span>Noticias</span>
-            </div>
-            <div class="ai-badge ai-badge-politicos" onclick="handleAiOption('enter_politicos', '')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-              <span>Politicos</span>
-            </div>
-          </div>
-        `;
-        addAiMessage(html);
-      }
+          `;
+          this.addMessage(badges, true);
+        },
 
-      // ============================================
-      // ENTRADA NOS MÓDULOS COM CUMPRIMENTO
-      // ============================================
-      function enterModuleEmpresas() {
-        addAiMessage("Empresas", false);
-        const greeting = aiUserName
-          ? `Ola ${aiUserName}, tudo bem? Como voce esta? 🤘`
-          : `Ola, tudo bem? Como voce esta? 🤘`;
+        enterModule(module) {
+          this.currentModule = module;
+          this.addMessage(module.charAt(0).toUpperCase() + module.slice(1), false);
 
-        setTimeout(() => {
-          addAiMessage(greeting);
-          setTimeout(() => {
-            addAiMessage(
-              "Quais dados voce precisa a respeito de <strong>empresas</strong>? Quer que eu liste por algum <strong>CNAE</strong>, <strong>cidade</strong>, <strong>nome</strong> ou outra informacao?",
-              true,
-              [
-                { label: "Listar todas", action: "list_companies" },
-                { label: "Buscar por nome", action: "ask_company_name" },
-                { label: "Filtrar por cidade", action: "ask_company_city" },
-                { label: "Filtrar por CNAE", action: "ask_company_cnae" },
-                { label: "Voltar", action: "back_to_menu" },
-              ],
-            );
-            aiState = "module_empresas";
-          }, 600);
-        }, 400);
-      }
-
-      function enterModulePessoas() {
-        addAiMessage("Pessoas", false);
-        const greeting = aiUserName
-          ? `Ola ${aiUserName}, tudo bem? 🤘`
-          : `Ola, tudo bem? 🤘`;
-
-        setTimeout(() => {
-          addAiMessage(greeting);
-          setTimeout(() => {
-            addAiMessage(
-              "Quais dados voce precisa sobre <strong>pessoas</strong>? Posso buscar por <strong>nome</strong>, <strong>cargo</strong> ou <strong>empresa</strong>.",
-              true,
-              [
-                { label: "Listar todas", action: "list_people" },
-                { label: "Buscar por nome", action: "ask_person_name" },
-                { label: "Voltar", action: "back_to_menu" },
-              ],
-            );
-            aiState = "module_pessoas";
-          }, 600);
-        }, 400);
-      }
-
-      function enterModuleNoticias() {
-        addAiMessage("Noticias", false);
-        const greeting = aiUserName
-          ? `Ola ${aiUserName}, tudo bem? 🤘`
-          : `Ola, tudo bem? 🤘`;
-
-        setTimeout(() => {
-          addAiMessage(greeting);
-          setTimeout(() => {
-            addAiMessage(
-              "Quais <strong>noticias</strong> voce gostaria de ver? Posso filtrar por <strong>empresa</strong>, <strong>segmento</strong> ou mostrar as mais recentes.",
-              true,
-              [
-                { label: "Noticias recentes", action: "list_news" },
-                { label: "Buscar por empresa", action: "ask_news_company" },
-                { label: "Voltar", action: "back_to_menu" },
-              ],
-            );
-            aiState = "module_noticias";
-          }, 600);
-        }, 400);
-      }
-
-      function enterModulePoliticos() {
-        addAiMessage("Politicos", false);
-        // Modal informativo para políticos
-        const modalHtml = `
-          <div class="ai-politicos-info">
-            <div class="ai-politicos-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
-            <h4>Assistente de Politicos</h4>
-            <p>Acesse o assistente para buscar dados e mandatos de politicos brasileiros.</p>
-            <p style="font-size: 0.8rem; opacity: 0.7;">Dados obtidos do TSE via IconsAI Fiscal.</p>
-          </div>
-        `;
-
-        setTimeout(() => {
-          addAiMessage(modalHtml);
-          setTimeout(() => {
-            const greeting = aiUserName
-              ? `${aiUserName}, o que voce gostaria de saber sobre politicos? 🤘`
-              : `O que voce gostaria de saber sobre politicos? 🤘`;
-
-            addAiMessage(
-              greeting,
-              true,
-              [
-                { label: "Listar politicos", action: "list_politicians" },
-                { label: "Buscar por nome", action: "ask_politician_name" },
-                { label: "Filtrar por cargo", action: "ask_politician_cargo" },
-                { label: "Filtrar por partido", action: "ask_politician_partido" },
-                { label: "Voltar", action: "back_to_menu" },
-              ],
-            );
-            aiState = "module_politicos";
-          }, 600);
-        }, 400);
-      }
-
-      async function handleAiOption(action, value) {
-        switch (action) {
-          // Entrada nos módulos com cumprimento personalizado
-          case "enter_empresas":
-            aiCurrentModule = "empresas";
-            enterModuleEmpresas();
-            break;
-          case "enter_pessoas":
-            aiCurrentModule = "pessoas";
-            enterModulePessoas();
-            break;
-          case "enter_noticias":
-            aiCurrentModule = "noticias";
-            enterModuleNoticias();
-            break;
-          case "enter_politicos":
-            aiCurrentModule = "politicos";
-            enterModulePoliticos();
-            break;
-          case "list_companies":
-            addAiMessage("Sim, listar empresas", false);
-            await listAiCompanies();
-            break;
-          case "show_var":
-            addAiMessage("Ver modelo VAR", false);
-            await showVarModel();
-            break;
-          case "select_company":
-            await selectAiCompany(value);
-            break;
-          case "show_regime":
-            await showCompanyRegime();
-            break;
-          case "show_founders":
-            await showFoundersHistory();
-            break;
-          case "show_growth":
-            await showGrowthProjection();
-            break;
-          case "back_to_list":
-            await listAiCompanies();
-            break;
-          case "list_people":
-            addAiMessage("Listar pessoas", false);
-            await listAiPeople();
-            break;
-          case "select_person":
-            await selectAiPerson(value);
-            break;
-          case "show_company_people":
-            await showCompanyPeople();
-            break;
-          case "show_company_news":
-            await showCompanyNews();
-            break;
-          case "list_news":
-            addAiMessage("Listar notícias", false);
-            await listAiNews();
-            break;
-          case "select_news":
-            await selectAiNews(value);
-            break;
-          case "list_politicians":
-            addAiMessage("Listar politicos", false);
-            await listAiPoliticians();
-            break;
-          case "select_politician":
-            await selectAiPolitician(value);
-            break;
-          case "back_to_menu":
-            aiCurrentModule = null;
-            aiSelectedCompany = null;
-            aiSelectedPerson = null;
-            aiSelectedPolitician = null;
-            addAiMessage("Voltar ao menu", false);
-            setTimeout(() => {
-              addAiMessage("Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. O que gostaria de saber?");
-              setTimeout(() => showMainMenu(), 300);
-            }, 300);
-            break;
-        }
-      }
-
-      async function listAiCompanies() {
-        showAiTyping();
-
-        try {
-          const r = await fetch("/api/companies/list");
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage(
-              "Ainda nao temos empresas cadastradas na base. Que tal adicionar uma?",
-              true,
-              [{ label: "Adicionar empresa", action: "add_company" }],
-            );
-            return;
-          }
-
-          aiCompanies = data.empresas;
-
-          let html = `Encontrei <strong>${data.count}</strong> empresa(s) na base:`;
-          data.empresas.forEach((c, i) => {
-            html += `
-                        <div class="ai-company-card" onclick="handleAiOption('select_company', '${c.id}')">
-                            <div class="ai-company-name">${i + 1}. ${c.nome_fantasia || c.razao_social}</div>
-                            <div class="ai-company-cnpj">${formatCnpj(c.cnpj)} - ${c.cidade}/${c.estado}</div>
-                        </div>
-                    `;
-          });
-
-          addAiMessage(html);
-          setTimeout(() => {
-            addAiMessage("Clique em uma empresa para ver todos os detalhes.");
-            aiState = "awaiting_company_selection";
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage(
-            "Desculpe, ocorreu um erro ao buscar as empresas: " + e.message,
-          );
-        }
-      }
-
-      async function selectAiCompany(companyId) {
-        const company = aiCompanies.find((c) => c.id === companyId);
-        if (!company) return;
-
-        aiSelectedCompany = company;
-        addAiMessage(`${company.nome_fantasia || company.razao_social}`, false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/companies/${companyId}/analysis`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success) {
-            addAiMessage("Erro ao buscar dados da empresa.");
-            return;
-          }
-
-          const emp = data.empresa;
-          const inf = data.inferencia;
-          const socios = data.socios || [];
-
-          let html = `<strong>${emp.nome_fantasia || emp.razao_social}</strong><br><br>`;
-          html += `<strong>Dados Cadastrais:</strong><br>`;
-          html += `CNPJ: ${formatCnpj(emp.cnpj)}<br>`;
-          html += `Situacao: ${emp.situacao_cadastral}<br>`;
-          html += `Endereco: ${emp.cidade}/${emp.estado}<br>`;
-          html += `Fundacao: ${emp.data_fundacao || emp.data_abertura}<br>`;
-
-          if (emp.website)
-            html += `Website: <a href="${emp.website}" target="_blank">${emp.website}</a><br>`;
-          if (emp.linkedin_url && emp.linkedin_url !== "NAO_POSSUI") {
-            html += `LinkedIn: <a href="${emp.linkedin_url}" target="_blank">Ver perfil</a><br>`;
-          }
-
-          html += `<br><strong>Fundadores/Socios (${socios.length}):</strong><br>`;
-          socios.forEach((s) => {
-            const pessoa = s.dim_pessoas;
-            if (pessoa) {
-              html += `- ${pessoa.nome_completo}`;
-              if (pessoa.linkedin_url) {
-                html += ` <a href="${pessoa.linkedin_url}" target="_blank">[LinkedIn]</a>`;
-              }
-              if (pessoa.email) {
-                html += ` (${pessoa.email})`;
-              }
-              html += `<br>`;
-            }
-          });
-
-          addAiMessage(html);
+          const greetings = {
+            empresas: 'Quais dados voce precisa sobre empresas? Posso buscar por nome, CNAE, cidade ou segmento.',
+            pessoas: 'Quais dados voce precisa sobre pessoas? Posso buscar por nome, cargo ou empresa.',
+            noticias: 'Quais noticias voce gostaria de ver? Posso filtrar por empresa ou mostrar as mais recentes.',
+            politicos: 'Aqui consigo buscar qualquer politico do Brasil - nome, cargo, partido, mandatos. Me diz o que voce precisa?'
+          };
 
           setTimeout(() => {
-            addAiMessage(
-              "O que mais gostaria de saber sobre esta empresa?",
-              true,
-              [
-                { label: "Pessoas", action: "show_company_people" },
-                { label: "Noticias", action: "show_company_news" },
-                { label: "Regime Tributario", action: "show_regime" },
-                { label: "Crescimento", action: "show_growth" },
-              ],
-            );
-            aiState = "company_details";
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar detalhes: " + e.message);
-        }
-      }
+            this.addMessage(greetings[module] || 'Como posso ajudar?', true);
+          }, 300);
+        },
 
-      async function showCompanyRegime() {
-        if (!aiSelectedCompany) return;
-        addAiMessage("Regime Tributario", false);
-        showAiTyping();
+        addMessage(content, isBot = true) {
+          const container = document.getElementById('atlasMessages');
+          const div = document.createElement('div');
+          div.className = 'atlas-msg ' + (isBot ? 'bot' : 'user');
+          div.innerHTML = content;
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
+        },
 
-        try {
-          const r = await fetch(
-            `/api/companies/${aiSelectedCompany.id}/analysis`,
-          );
-          const data = await r.json();
-          hideAiTyping();
+        showTyping() {
+          const container = document.getElementById('atlasMessages');
+          const div = document.createElement('div');
+          div.id = 'atlasTyping';
+          div.className = 'atlas-msg bot';
+          div.innerHTML = '<div class="atlas-typing"><span></span><span></span><span></span></div>';
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
+        },
 
-          const inf = data.inferencia;
-          const regimes = data.regimes || [];
+        hideTyping() {
+          const typing = document.getElementById('atlasTyping');
+          if (typing) typing.remove();
+        },
 
-          let html = `<strong>Regime Tributario Atual:</strong><br>`;
-          html += `Regime: ${inf.variaveis_correlacionadas?.regime_atual || "Nao identificado"}<br>`;
-          html += `Simples Nacional: ${inf.variaveis_correlacionadas?.simples_optante ? "Sim" : "Nao"}<br>`;
-          html += `MEI: ${inf.variaveis_correlacionadas?.mei_optante ? "Sim" : "Nao"}<br><br>`;
+        async send() {
+          const input = document.getElementById('atlasInput');
+          const message = input.value.trim();
+          if (!message) return;
 
-          if (regimes.length > 0) {
-            html += `<strong>Historico de Regimes:</strong><br>`;
-            regimes.forEach((r) => {
-              html += `- ${r.regime_tributario} (desde ${r.data_inicio || "N/A"})`;
-              if (!r.ativo) html += ` [Encerrado]`;
-              html += `<br>`;
+          input.value = '';
+          this.addMessage(message, false);
+          this.showTyping();
+
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/atlas/chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({
+                message: message,
+                sessionId: this.sessionId
+              })
             });
-          } else {
-            html += `<em>Sem historico de mudancas de regime.</em><br>`;
-          }
 
-          html += `<br><strong>Sinais identificados:</strong><br>`;
-          if (inf.sinais && inf.sinais.length > 0) {
-            inf.sinais.forEach((s) => {
-              html += `- ${s}<br>`;
-            });
-          } else {
-            html += `<em>Nenhum sinal de alerta.</em>`;
-          }
+            this.hideTyping();
 
-          addAiMessage(html);
+            if (!response.ok) throw new Error('API error');
 
-          setTimeout(() => {
-            addAiMessage("Deseja ver mais informacoes?", true, [
-              { label: "Crescimento Projetado", action: "show_growth" },
-              { label: "Fundadores", action: "show_founders" },
-              { label: "Voltar a lista", action: "back_to_list" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
+            const result = await response.json();
+            this.sessionId = result.sessionId;
 
-      let growthChart = null;
+            // Show response text
+            this.addMessage(result.response?.text || 'Nao foi possivel processar a consulta.', true);
 
-      async function showGrowthProjection() {
-        if (!aiSelectedCompany) return;
-        addAiMessage("Crescimento Projetado", false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(
-            `/api/companies/${aiSelectedCompany.id}/analysis`,
-          );
-          const data = await r.json();
-          hideAiTyping();
-
-          const inf = data.inferencia;
-          const vars = inf.variaveis_correlacionadas || {};
-
-          const fatMin = inf.faturamento_estimado_min || 0;
-          const fatMedio = inf.faturamento_estimado_medio || 0;
-          const fatMax = inf.faturamento_estimado_max || 0;
-          const probMudanca = inf.probabilidade_mudanca_regime || 0;
-
-          let html = `<strong>Analise VAR - ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}</strong><br><br>`;
-
-          html += `<div class="ai-chart-container"><canvas id="growthChart"></canvas></div>`;
-
-          html += `<strong>Variaveis do Modelo:</strong><br>`;
-          html += `- Funcionarios: ${vars.qtd_funcionarios || 0}<br>`;
-          html += `- Capital Social: R$ ${(vars.capital_social || 0).toLocaleString("pt-BR")}<br>`;
-          html += `- Anos Operando: ${vars.anos_operando || 0}<br>`;
-          html += `- Socios: ${vars.qtd_socios || 0}<br>`;
-          html += `- Mudancas de Regime: ${vars.qtd_mudancas_regime || 0}<br>`;
-          html += `- Setor: ${vars.setor || "N/A"}<br><br>`;
-
-          html += `<strong>Projecao:</strong><br>`;
-          html += `Faturamento Estimado: R$ ${fatMedio.toLocaleString("pt-BR")}/ano<br>`;
-          html += `Limite do Regime: R$ ${fatMax.toLocaleString("pt-BR")}<br>`;
-          html += `Probabilidade de Mudanca: ${probMudanca}%<br>`;
-          html += `Proximo Regime Provavel: ${inf.regime_provavel_proximo || "N/A"}<br>`;
-          html += `Confianca: ${inf.confianca || "baixa"}<br>`;
-
-          if (inf.tempo_estimado_mudanca_meses) {
-            html += `Tempo Estimado: ${inf.tempo_estimado_mudanca_meses} meses<br>`;
-          }
-
-          addAiMessage(html);
-
-          // Create chart after DOM update
-          setTimeout(() => {
-            const ctx = document.getElementById("growthChart");
-            if (ctx) {
-              if (growthChart) {
-                growthChart.destroy();
-              }
-              growthChart = new Chart(ctx, {
-                type: "bar",
-                data: {
-                  labels: ["Faturamento Min", "Faturamento Estimado", "Limite Regime"],
-                  datasets: [{
-                    label: "Valores (R$)",
-                    data: [fatMin / 1000, fatMedio / 1000, fatMax / 1000],
-                    backgroundColor: [
-                      "rgba(96, 165, 250, 0.6)",
-                      "rgba(59, 130, 246, 0.8)",
-                      "rgba(239, 68, 68, 0.6)"
-                    ],
-                    borderColor: [
-                      "rgba(96, 165, 250, 1)",
-                      "rgba(59, 130, 246, 1)",
-                      "rgba(239, 68, 68, 1)"
-                    ],
-                    borderWidth: 2,
-                    borderRadius: 6
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: (ctx) => `R$ ${(ctx.raw * 1000).toLocaleString("pt-BR")}`
-                      }
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      grid: { color: "rgba(255,255,255,0.1)" },
-                      ticks: {
-                        color: "#94a3b8",
-                        callback: (v) => `R$ ${v}k`
-                      }
-                    },
-                    x: {
-                      grid: { display: false },
-                      ticks: { color: "#94a3b8", font: { size: 10 } }
-                    }
-                  }
-                }
-              });
+            // Show data results if any
+            if (result.response?.data && Array.isArray(result.response.data) && result.response.data.length > 0) {
+              this.showResults(result.response.data, result.metadata?.intent);
             }
-          }, 100);
 
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Regime Tributario", action: "show_regime" },
-              { label: "Fundadores", action: "show_founders" },
-              { label: "Voltar a lista", action: "back_to_list" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      async function showFoundersHistory() {
-        if (!aiSelectedCompany) return;
-        addAiMessage("Outras empresas dos fundadores", false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(
-            `/api/companies/${aiSelectedCompany.id}/founders-history`,
-          );
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success) {
-            addAiMessage("Erro ao buscar historico dos fundadores.");
-            return;
-          }
-
-          let html = `<strong>Historico dos Fundadores:</strong><br><br>`;
-
-          let foundOther = false;
-          data.fundadores.forEach((f) => {
-            html += `<strong>${f.pessoa.nome}</strong><br>`;
-
-            if (f.empresas_anteriores && f.empresas_anteriores.length > 0) {
-              foundOther = true;
-              html += `Outras empresas:<br>`;
-              f.empresas_anteriores.forEach((e) => {
-                html += `- ${e.razao_social} (${e.cargo})<br>`;
-              });
-            } else {
-              html += `<em>Nenhuma outra empresa encontrada na base.</em><br>`;
+            // Show suggestions if any
+            if (result.response?.suggestions && result.response.suggestions.length > 0) {
+              this.showSuggestions(result.response.suggestions);
             }
-            html += `<br>`;
-          });
 
-          if (!foundOther) {
-            html += `<br><em>Nenhum dos fundadores possui outras empresas cadastradas na base. Isso pode significar que esta e a primeira empresa deles ou que as outras empresas ainda nao foram adicionadas.</em>`;
+          } catch (e) {
+            this.hideTyping();
+            this.addMessage('Desculpe, ocorreu um erro ao processar sua mensagem.', true);
+            console.error('Atlas error:', e);
           }
+        },
 
-          addAiMessage(html);
+        showResults(data, intent) {
+          const items = data.slice(0, 10);
+          let html = '';
+          for (const item of items) {
+            const name = item.nome_completo || item.nome_urna || item.nome_fantasia || item.razao_social || 'Sem nome';
+            const meta = [];
+            if (item.partido_sigla) meta.push(item.partido_sigla);
+            if (item.cargo) meta.push(item.cargo);
+            if (item.municipio) meta.push(item.municipio);
+            if (item.cidade) meta.push(item.cidade);
+            html += '<div class="atlas-result"><div class="atlas-result-name">' + name + '</div>';
+            if (meta.length) html += '<div class="atlas-result-meta">' + meta.join(' - ') + '</div>';
+            html += '</div>';
+          }
+          if (html) this.addMessage(html, true);
+        },
 
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Regime Tributario", action: "show_regime" },
-              { label: "Crescimento", action: "show_growth" },
-              { label: "Voltar a lista", action: "back_to_list" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
+        showSuggestions(suggestions) {
+          let html = '<div class="atlas-suggestions">';
+          for (const s of suggestions.slice(0, 3)) {
+            html += '<button class="atlas-suggestion" onclick="Atlas.askQuestion(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>';
+          }
+          html += '</div>';
+          this.addMessage(html, true);
+        },
+
+        askQuestion(question) {
+          document.getElementById('atlasInput').value = question;
+          this.send();
         }
-      }
-
-      async function showVarModel() {
-        showAiTyping();
-
-        try {
-          const r = await fetch("/api/companies/var-model");
-          const data = await r.json();
-          hideAiTyping();
-
-          let html = `<strong>Modelo VAR - Vector Autoregression</strong><br><br>`;
-          html += `Este modelo estima o faturamento e preve mudancas de regime tributario baseado em variaveis publicas.<br><br>`;
-
-          html += `<strong>Pesos das Variaveis:</strong><br>`;
-          for (const [key, value] of Object.entries(data.pesos)) {
-            html += `- ${key}: ${(value * 100).toFixed(0)}%<br>`;
-          }
-
-          html += `<br><strong>Limites dos Regimes:</strong><br>`;
-          html += `- MEI: R$ ${data.limites.MEI.toLocaleString("pt-BR")}/ano<br>`;
-          html += `- Simples ME: R$ ${data.limites.SIMPLES_ME.toLocaleString("pt-BR")}/ano<br>`;
-          html += `- Simples EPP: R$ ${data.limites.SIMPLES_EPP.toLocaleString("pt-BR")}/ano<br>`;
-          html += `- Lucro Presumido: ate R$ ${data.limites.LUCRO_PRESUMIDO.toLocaleString("pt-BR")}/ano<br>`;
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Gostaria de ver as empresas cadastradas?", true, [
-              { label: "Listar empresas", action: "list_companies" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      // ============================================
-      // PESSOAS
-      // ============================================
-      let aiPeople = [];
-      let aiSelectedPerson = null;
-
-      async function listAiPeople() {
-        showAiTyping();
-
-        try {
-          const r = await fetch("/api/people/list?limit=20");
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage(
-              "Ainda nao temos pessoas cadastradas na base.",
-              true,
-              [{ label: "Voltar ao menu", action: "back_to_menu" }],
-            );
-            return;
-          }
-
-          aiPeople = data.people;
-
-          let html = `Encontrei <strong>${data.count}</strong> pessoa(s) na base:`;
-          data.people.slice(0, 10).forEach((p, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_person', '${p.id}')">
-                <div class="ai-company-name">${i + 1}. ${p.nome_completo}</div>
-                <div class="ai-company-cnpj">${p.cargo_atual || ""} ${p.empresa_atual_nome ? "@ " + p.empresa_atual_nome : ""}</div>
-              </div>
-            `;
-          });
-
-          addAiMessage(html);
-          setTimeout(() => {
-            addAiMessage("Clique em uma pessoa para ver detalhes.", true, [
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar pessoas: " + e.message);
-        }
-      }
-
-      async function selectAiPerson(personId) {
-        const person = aiPeople.find((p) => p.id === personId);
-        if (!person) return;
-
-        aiSelectedPerson = person;
-        addAiMessage(`${person.nome_completo}`, false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/people/${personId}`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success) {
-            addAiMessage("Erro ao buscar dados da pessoa.");
-            return;
-          }
-
-          const p = data.pessoa;
-          const exp = data.experiencias || [];
-          const emp = data.empresas || [];
-
-          let html = `<strong>${p.nome_completo}</strong><br><br>`;
-          if (p.cargo_atual) html += `Cargo: ${p.cargo_atual}<br>`;
-          if (p.empresa_atual_nome) html += `Empresa: ${p.empresa_atual_nome}<br>`;
-          if (p.email) html += `Email: ${p.email}<br>`;
-          if (p.linkedin_url && p.linkedin_url !== "inexistente") {
-            html += `LinkedIn: <a href="${p.linkedin_url}" target="_blank">Ver perfil</a><br>`;
-          }
-          if (p.cidade) html += `Local: ${p.cidade}/${p.estado || ""}<br>`;
-
-          if (exp.length > 0) {
-            html += `<br><strong>Experiencias (${exp.length}):</strong><br>`;
-            exp.slice(0, 5).forEach((e) => {
-              html += `- ${e.titulo || "Cargo"} @ ${e.instituicao || "Empresa"}`;
-              if (e.atual) html += " (atual)";
-              html += `<br>`;
-            });
-          }
-
-          if (emp.length > 0) {
-            html += `<br><strong>Empresas relacionadas (${emp.length}):</strong><br>`;
-            emp.slice(0, 5).forEach((e) => {
-              const empresa = e.dim_empresas;
-              if (empresa) {
-                html += `- ${empresa.nome_fantasia || empresa.razao_social}`;
-                if (e.cargo) html += ` (${e.cargo})`;
-                html += `<br>`;
-              }
-            });
-          }
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Listar pessoas", action: "list_people" },
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      async function showCompanyPeople() {
-        if (!aiSelectedCompany) return;
-        addAiMessage("Pessoas da empresa", false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/people/by-company/${aiSelectedCompany.id}`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage("Nenhuma pessoa encontrada para esta empresa.", true, [
-              { label: "Voltar", action: "back_to_list" },
-            ]);
-            return;
-          }
-
-          let html = `<strong>Pessoas de ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}:</strong><br><br>`;
-          data.people.forEach((p) => {
-            html += `- <strong>${p.nome_completo}</strong>`;
-            if (p.cargo) html += ` (${p.cargo})`;
-            if (p.linkedin_url && p.linkedin_url !== "inexistente") {
-              html += ` <a href="${p.linkedin_url}" target="_blank">[LinkedIn]</a>`;
-            }
-            html += `<br>`;
-          });
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Noticias da empresa", action: "show_company_news" },
-              { label: "Regime tributario", action: "show_regime" },
-              { label: "Voltar a lista", action: "back_to_list" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      // ============================================
-      // NOTICIAS
-      // ============================================
-      let aiNews = [];
-      let aiSelectedNews = null;
-
-      async function listAiNews() {
-        showAiTyping();
-
-        try {
-          const r = await fetch("/api/news/list?limit=15");
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage(
-              "Ainda nao temos noticias cadastradas na base.",
-              true,
-              [{ label: "Voltar ao menu", action: "back_to_menu" }],
-            );
-            return;
-          }
-
-          aiNews = data.news;
-
-          let html = `Encontrei <strong>${data.count}</strong> noticia(s) recentes:`;
-          data.news.slice(0, 10).forEach((n, i) => {
-            const data = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString("pt-BR") : "";
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_news', '${n.id}')">
-                <div class="ai-company-name">${i + 1}. ${n.titulo?.substring(0, 80) || "Sem titulo"}${n.titulo?.length > 80 ? "..." : ""}</div>
-                <div class="ai-company-cnpj">${n.fonte_nome || "Fonte desconhecida"} - ${data} ${n.segmento ? `[${n.segmento}]` : ""}</div>
-              </div>
-            `;
-          });
-
-          addAiMessage(html);
-          setTimeout(() => {
-            addAiMessage("Clique em uma noticia para ver detalhes.", true, [
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar noticias: " + e.message);
-        }
-      }
-
-      async function selectAiNews(newsId) {
-        const news = aiNews.find((n) => n.id === newsId);
-        if (!news) return;
-
-        aiSelectedNews = news;
-        addAiMessage(`${news.titulo?.substring(0, 50)}...`, false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/news/${newsId}`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success) {
-            addAiMessage("Erro ao buscar noticia.");
-            return;
-          }
-
-          const n = data.noticia;
-          const topicos = data.topicos || [];
-          const empresas = data.empresas || [];
-
-          let html = `<strong>${n.titulo}</strong><br><br>`;
-          if (n.resumo) html += `${n.resumo}<br><br>`;
-          html += `Fonte: ${n.fonte_nome || "Desconhecida"}<br>`;
-          if (n.data_publicacao) {
-            html += `Data: ${new Date(n.data_publicacao).toLocaleDateString("pt-BR")}<br>`;
-          }
-          if (n.url) {
-            html += `<a href="${n.url}" target="_blank">Ver noticia completa</a><br>`;
-          }
-
-          if (topicos.length > 0) {
-            html += `<br><strong>Topicos:</strong><br>`;
-            topicos.forEach((t) => {
-              html += `- ${t.topico} (relevancia: ${t.relevancia}/10)`;
-              if (t.sentimento) html += ` [${t.sentimento}]`;
-              html += `<br>`;
-            });
-          }
-
-          if (empresas.length > 0) {
-            html += `<br><strong>Empresas mencionadas:</strong><br>`;
-            empresas.forEach((e) => {
-              html += `- ${e.nome_fantasia || e.razao_social}<br>`;
-            });
-          }
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Listar noticias", action: "list_news" },
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      async function showCompanyNews() {
-        if (!aiSelectedCompany) return;
-        addAiMessage("Noticias da empresa", false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/news/by-company/${aiSelectedCompany.id}?limit=10`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage("Nenhuma noticia encontrada para esta empresa.", true, [
-              { label: "Pessoas da empresa", action: "show_company_people" },
-              { label: "Voltar", action: "back_to_list" },
-            ]);
-            return;
-          }
-
-          let html = `<strong>Noticias sobre ${aiSelectedCompany.nome_fantasia || aiSelectedCompany.razao_social}:</strong><br><br>`;
-          data.news.forEach((n, i) => {
-            const data = n.data_publicacao ? new Date(n.data_publicacao).toLocaleDateString("pt-BR") : "";
-            html += `${i + 1}. <strong>${n.titulo?.substring(0, 60) || "Sem titulo"}...</strong><br>`;
-            html += `   ${n.fonte_nome || ""} - ${data}`;
-            if (n.sentimento) html += ` [${n.sentimento}]`;
-            html += `<br><br>`;
-          });
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Pessoas da empresa", action: "show_company_people" },
-              { label: "Regime tributario", action: "show_regime" },
-              { label: "Voltar a lista", action: "back_to_list" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      // ============================================
-      // POLITICOS
-      // ============================================
-      let aiPoliticians = [];
-      let aiSelectedPolitician = null;
-
-      async function listAiPoliticians() {
-        showAiTyping();
-
-        try {
-          const r = await fetch("/api/politicians/list?limit=15");
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage(
-              "Ainda nao temos politicos cadastrados na base. Configure as credenciais do Fiscal Supabase.",
-              true,
-              [{ label: "Voltar ao menu", action: "back_to_menu" }],
-            );
-            return;
-          }
-
-          aiPoliticians = data.politicians;
-
-          let html = `Encontrei <strong>${data.count}</strong> politico(s):`;
-          data.politicians.slice(0, 10).forEach((p, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
-                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
-                <div class="ai-company-cnpj">${p.cargo_atual || "Cargo desconhecido"} - ${p.partido_sigla || ""} ${p.municipio_nome ? `(${p.municipio_nome}/${p.uf})` : ""}</div>
-              </div>
-            `;
-          });
-
-          addAiMessage(html);
-          setTimeout(() => {
-            addAiMessage("Clique em um politico para ver detalhes.", true, [
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar politicos: " + e.message);
-        }
-      }
-
-      async function selectAiPolitician(politicoId) {
-        const pol = aiPoliticians.find((p) => p.id === politicoId);
-        if (!pol) return;
-
-        aiSelectedPolitician = pol;
-        addAiMessage(`${pol.nome_urna || pol.nome_completo}`, false);
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/politicians/${politicoId}`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success) {
-            addAiMessage("Erro ao buscar politico.");
-            return;
-          }
-
-          const p = data.politico;
-          const mandatos = data.mandatos || [];
-
-          let html = `<strong>${p.nome_completo}</strong><br><br>`;
-          html += `Nome de urna: ${p.nome_urna || "-"}<br>`;
-          html += `Cargo atual: ${p.cargo_atual || "-"}<br>`;
-          html += `Partido: ${p.partido_sigla || "-"}<br>`;
-          if (p.municipio_nome) {
-            html += `Municipio: ${p.municipio_nome}/${p.uf}<br>`;
-          }
-          if (p.email) {
-            html += `Email: ${p.email}<br>`;
-          }
-          if (p.cpf_masked) {
-            html += `CPF: ${p.cpf_masked}<br>`;
-          }
-
-          if (mandatos.length > 0) {
-            html += `<br><strong>Historico de Mandatos:</strong><br>`;
-            mandatos.forEach((m) => {
-              html += `- ${m.cargo} (${m.ano_eleicao}) - ${m.partido_sigla}`;
-              if (m.ativo) html += ` <span style="color: #22c55e;">[ATIVO]</span>`;
-              if (m.votos_recebidos) html += ` - ${m.votos_recebidos.toLocaleString("pt-BR")} votos`;
-              html += `<br>`;
-            });
-          }
-
-          addAiMessage(html);
-
-          setTimeout(() => {
-            addAiMessage("Mais opcoes:", true, [
-              { label: "Listar politicos", action: "list_politicians" },
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro: " + e.message);
-        }
-      }
-
-      async function searchPoliticians(nome) {
-        showAiTyping();
-
-        try {
-          const r = await fetch(`/api/politicians/search?nome=${encodeURIComponent(nome)}`);
-          const data = await r.json();
-          hideAiTyping();
-
-          if (!data.success || data.count === 0) {
-            addAiMessage(
-              `Nenhum politico encontrado com o nome "${nome}".`,
-              true,
-              [
-                { label: "Listar todos", action: "list_politicians" },
-                { label: "Voltar ao menu", action: "back_to_menu" },
-              ],
-            );
-            return;
-          }
-
-          aiPoliticians = data.politicians;
-
-          let html = `Encontrei <strong>${data.count}</strong> politico(s) com "${nome}":`;
-          data.politicians.forEach((p, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
-                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
-                <div class="ai-company-cnpj">${p.cargo_atual || ""} - ${p.partido_sigla || ""} ${p.municipio_nome ? `(${p.municipio_nome}/${p.uf})` : ""}</div>
-              </div>
-            `;
-          });
-
-          addAiMessage(html);
-          setTimeout(() => {
-            addAiMessage("Clique em um politico para ver detalhes.", true, [
-              { label: "Voltar ao menu", action: "back_to_menu" },
-            ]);
-          }, 500);
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar politicos: " + e.message);
-        }
-      }
-
-      // ============================================
-      // NLP MELHORADO - COM SUPORTE A MÓDULOS
-      // ============================================
-      let aiSessionId = null;
-
-      async function sendAiMessage() {
-        const input = document.getElementById("aiChatInput");
-        const text = input.value.trim();
-
-        if (!text) return;
-
-        addAiMessage(text, false);
-        input.value = "";
-
-        const lower = text.toLowerCase();
-
-        // Se estiver em um módulo específico, usa API do agente para NLP avançado
-        if (aiCurrentModule) {
-          await processModuleQuery(text, lower);
-          return;
-        }
-
-        // Menu ou navegação
-        if (lower.includes("menu") || lower.includes("opcoes") || lower.includes("inicio") || lower.includes("voltar")) {
-          aiCurrentModule = null;
-          showMainMenu();
-          return;
-        }
-
-        // Saudação
-        if (lower.includes("ola") || lower.includes("oi") || lower.includes("hey") || lower.includes("bom dia") || lower.includes("boa tarde")) {
-          const greeting = aiUserName ? `Ola ${aiUserName}! 🤘` : "Ola! 🤘";
-          addAiMessage(greeting + " Como posso ajuda-lo hoje?");
-          setTimeout(() => showMainMenu(), 500);
-          return;
-        }
-
-        // Detecta módulo pela mensagem
-        if (lower.includes("empresa") || lower.includes("cnpj") || lower.includes("cnae")) {
-          aiCurrentModule = "empresas";
-          enterModuleEmpresas();
-        } else if (lower.includes("pessoa") || lower.includes("socio") || lower.includes("fundador")) {
-          aiCurrentModule = "pessoas";
-          enterModulePessoas();
-        } else if (lower.includes("noticia") || lower.includes("news")) {
-          aiCurrentModule = "noticias";
-          enterModuleNoticias();
-        } else if (lower.includes("politico") || lower.includes("prefeito") || lower.includes("vereador") ||
-                   lower.includes("deputado") || lower.includes("senador") || lower.includes("governador") ||
-                   lower.includes("mandato") || lower.includes("partido")) {
-          aiCurrentModule = "politicos";
-          enterModulePoliticos();
-        } else {
-          // Default - mostra menu
-          addAiMessage(
-            "Posso ajuda-lo com informacoes sobre <strong>empresas</strong>, <strong>pessoas</strong>, <strong>noticias</strong> e <strong>politicos</strong>. Escolha um tema:",
-          );
-          setTimeout(() => showMainMenu(), 300);
-        }
-      }
-
-      async function processModuleQuery(text, lower) {
-        // Verificar se quer sair do módulo
-        if (lower.includes("menu") || lower.includes("voltar") || lower.includes("sair") || lower.includes("outro")) {
-          aiCurrentModule = null;
-          addAiMessage("Voltando ao menu principal...");
-          setTimeout(() => showMainMenu(), 300);
-          return;
-        }
-
-        showAiTyping();
-
-        try {
-          // Chama API do agente com contexto do módulo
-          const token = localStorage.getItem("token");
-          const response = await fetch("/api/atlas/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              message: text,
-              sessionId: aiSessionId,
-            }),
-          });
-
-          hideAiTyping();
-
-          if (!response.ok) {
-            throw new Error("Erro na API do agente");
-          }
-
-          const result = await response.json();
-
-          // Parse Atlas response format
-          aiSessionId = result.sessionId;
-          aiLastSearchQuery = text;
-
-          const responseData = result.response?.data || [];
-          const responseText = result.response?.text || "Não foi possível processar a consulta.";
-          const suggestions = result.response?.suggestions || [];
-          const entityType = result.metadata?.intent || aiCurrentModule;
-
-          aiLastTotalCount = responseData.length;
-
-          // Exibe resposta do agente
-          addAiMessage(responseText);
-
-          // Se retornou dados, exibe
-          if (responseData.length > 0) {
-            displayAgentResults(responseData, entityType);
-
-            // Para empresas: se muitos resultados, oferecer modal de filtros
-            if (aiCurrentModule === "empresas" && responseData.length > AI_FILTER_THRESHOLD) {
-              setTimeout(() => {
-                addAiMessage(
-                  `Encontrei <strong>${responseData.length}</strong> empresas. Deseja refinar a busca?`,
-                  true,
-                  [
-                    { label: "Refinar filtros", action: "open_filter_modal" },
-                    { label: "Ver estes resultados", action: "keep_results" },
-                    { label: "Voltar ao menu", action: "back_to_menu" },
-                  ]
-                );
-              }, 500);
-              return;
-            }
-          }
-
-          // Exibe sugestões do Atlas se houver
-          if (suggestions.length > 0) {
-            setTimeout(() => {
-              const suggestionButtons = suggestions.map(s => ({
-                label: s.length > 40 ? s.substring(0, 37) + "..." : s,
-                action: "ask_question",
-                question: s
-              }));
-              addAiMessage("Posso ajudar com mais alguma coisa?", true, suggestionButtons);
-            }, 500);
-            return;
-          }
-
-          // Opções contextuais baseadas no módulo
-          setTimeout(() => {
-            showModuleOptions();
-          }, 500);
-
-        } catch (e) {
-          hideAiTyping();
-          console.error("Atlas API error:", e);
-          // Fallback para NLP local se API falhar
-          processLocalNLP(text, lower);
-        }
-      }
-
-      function displayAgentResults(data, entityType) {
-        let html = "";
-
-        if (entityType === "empresas") {
-          aiCompanies = data;
-          data.slice(0, 10).forEach((c, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_company', '${c.id}')">
-                <div class="ai-company-name">${i + 1}. ${c.nome_fantasia || c.razao_social}</div>
-                <div class="ai-company-cnpj">${formatCnpj(c.cnpj)} - ${c.cidade}/${c.estado}</div>
-              </div>
-            `;
-          });
-        } else if (entityType === "pessoas") {
-          aiPeople = data;
-          data.slice(0, 10).forEach((p, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_person', '${p.id}')">
-                <div class="ai-company-name">${i + 1}. ${p.nome_completo}</div>
-                <div class="ai-company-cnpj">${p.cargo || ""} ${p.empresa_nome ? `- ${p.empresa_nome}` : ""}</div>
-              </div>
-            `;
-          });
-        } else if (entityType === "politicos") {
-          aiPoliticians = data;
-          data.slice(0, 10).forEach((p, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_politician', '${p.id}')">
-                <div class="ai-company-name">${i + 1}. ${p.nome_urna || p.nome_completo}</div>
-                <div class="ai-company-cnpj">${p.cargo_atual || ""} - ${p.partido_sigla || ""} ${p.uf ? `(${p.uf})` : ""}</div>
-              </div>
-            `;
-          });
-        } else if (entityType === "noticias") {
-          aiNews = data;
-          data.slice(0, 10).forEach((n, i) => {
-            html += `
-              <div class="ai-company-card" onclick="handleAiOption('select_news', '${n.id}')">
-                <div class="ai-company-name">${i + 1}. ${n.titulo}</div>
-                <div class="ai-company-cnpj">${n.fonte || ""} - ${n.data_publicacao || ""}</div>
-              </div>
-            `;
-          });
-        }
-
-        if (html) {
-          addAiMessage(html);
-        }
-      }
-
-      function showModuleOptions() {
-        const moduleOptions = {
-          empresas: [
-            { label: "Listar todas", action: "list_companies" },
-            { label: "Nova busca", action: "enter_empresas" },
-            { label: "Voltar ao menu", action: "back_to_menu" },
-          ],
-          pessoas: [
-            { label: "Listar todas", action: "list_people" },
-            { label: "Nova busca", action: "enter_pessoas" },
-            { label: "Voltar ao menu", action: "back_to_menu" },
-          ],
-          noticias: [
-            { label: "Listar recentes", action: "list_news" },
-            { label: "Nova busca", action: "enter_noticias" },
-            { label: "Voltar ao menu", action: "back_to_menu" },
-          ],
-          politicos: [
-            { label: "Listar politicos", action: "list_politicians" },
-            { label: "Nova busca", action: "enter_politicos" },
-            { label: "Voltar ao menu", action: "back_to_menu" },
-          ],
-        };
-
-        const options = moduleOptions[aiCurrentModule] || [{ label: "Menu", action: "back_to_menu" }];
-        addAiMessage("O que mais gostaria de saber?", true, options);
-      }
-
-      function processLocalNLP(text, lower) {
-        // Fallback para NLP local quando API falha
-        if (aiCurrentModule === "empresas") {
-          if (lower.includes("regime") || lower.includes("tributar")) {
-            if (aiSelectedCompany) {
-              showCompanyRegime();
-            } else {
-              listAiCompanies();
-            }
-          } else if (lower.includes("crescimento") || lower.includes("projecao") || lower.includes("var")) {
-            if (aiSelectedCompany) {
-              showGrowthProjection();
-            } else {
-              listAiCompanies();
-            }
-          } else {
-            listAiCompanies();
-          }
-        } else if (aiCurrentModule === "pessoas") {
-          listAiPeople();
-        } else if (aiCurrentModule === "noticias") {
-          listAiNews();
-        } else if (aiCurrentModule === "politicos") {
-          listAiPoliticians();
-        } else {
-          showMainMenu();
-        }
-      }
-
-      // ============================================
-      // MODAL DE FILTROS PARA EMPRESAS
-      // ============================================
-      let aiLastSearchQuery = "";
-      let aiLastTotalCount = 0;
-      const AI_FILTER_THRESHOLD = 20; // Mostrar modal se > 20 resultados
-
-      function openAiFilterModal(totalCount, originalQuery = "") {
-        aiLastTotalCount = totalCount;
-        aiLastSearchQuery = originalQuery;
-        document.getElementById("aiFilterCount").textContent = totalCount.toLocaleString("pt-BR");
-        document.getElementById("aiFilterModal").classList.add("show");
-
-        // Pre-fill nome if we have the original query
-        if (originalQuery && !originalQuery.toLowerCase().includes("listar") && !originalQuery.toLowerCase().includes("todas")) {
-          document.getElementById("aiFilterNome").value = originalQuery;
-        }
-      }
-
-      function closeAiFilterModal() {
-        document.getElementById("aiFilterModal").classList.remove("show");
-      }
-
-      function clearAiFilters() {
-        document.getElementById("aiFilterNome").value = "";
-        document.getElementById("aiFilterCidade").value = "";
-        document.getElementById("aiFilterEstado").value = "";
-        document.getElementById("aiFilterCnae").value = "";
-        document.getElementById("aiFilterPorte").value = "";
-        document.getElementById("aiFilterRegime").value = "";
-      }
-
-      async function applyAiFilters() {
-        const nome = document.getElementById("aiFilterNome").value.trim();
-        const cidade = document.getElementById("aiFilterCidade").value.trim();
-        const estado = document.getElementById("aiFilterEstado").value;
-        const cnae = document.getElementById("aiFilterCnae").value.trim();
-        const porte = document.getElementById("aiFilterPorte").value;
-        const regime = document.getElementById("aiFilterRegime").value;
-
-        // Build query description
-        let queryParts = [];
-        if (nome) queryParts.push(`nome "${nome}"`);
-        if (cidade) queryParts.push(`cidade ${cidade}`);
-        if (estado) queryParts.push(`estado ${estado}`);
-        if (cnae) queryParts.push(`CNAE ${cnae}`);
-        if (porte) queryParts.push(`porte ${porte}`);
-        if (regime) queryParts.push(`regime ${regime.replace("_", " ")}`);
-
-        if (queryParts.length === 0) {
-          addAiMessage("Por favor, preencha pelo menos um filtro.");
-          return;
-        }
-
-        closeAiFilterModal();
-
-        // Build natural language query for the agent
-        const queryText = `empresas com ${queryParts.join(", ")}`;
-        addAiMessage(queryText, false);
-
-        showAiTyping();
-
-        try {
-          const token = localStorage.getItem("token");
-          const response = await fetch("/api/atlas/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              message: queryText,
-              sessionId: aiSessionId,
-            }),
-          });
-
-          hideAiTyping();
-
-          if (!response.ok) {
-            throw new Error("Erro na API");
-          }
-
-          const result = await response.json();
-          aiSessionId = result.sessionId;
-
-          const responseData = result.response?.data || [];
-          const responseText = result.response?.text || "Não foi possível processar.";
-
-          addAiMessage(responseText);
-
-          if (responseData.length > 0) {
-            displayAgentResults(responseData, "empresas");
-
-            // If still too many results, offer to filter more
-            if (responseData.length > AI_FILTER_THRESHOLD) {
-              setTimeout(() => {
-                addAiMessage(
-                  `Ainda temos ${responseData.length} resultados. Deseja refinar mais?`,
-                  true,
-                  [
-                    { label: "Refinar filtros", action: "open_filter_modal" },
-                    { label: "Ver estes resultados", action: "keep_results" },
-                    { label: "Voltar ao menu", action: "back_to_menu" },
-                  ]
-                );
-              }, 500);
-            } else {
-              setTimeout(() => showModuleOptions(), 500);
-            }
-          } else {
-            setTimeout(() => {
-              addAiMessage(
-                "Nenhuma empresa encontrada com esses filtros.",
-                true,
-                [
-                  { label: "Ajustar filtros", action: "open_filter_modal" },
-                  { label: "Nova busca", action: "enter_empresas" },
-                  { label: "Voltar ao menu", action: "back_to_menu" },
-                ]
-              );
-            }, 300);
-          }
-        } catch (e) {
-          hideAiTyping();
-          addAiMessage("Erro ao buscar empresas: " + e.message);
-        }
-      }
-
-      // Add handler for filter modal action and Atlas suggestions
-      const originalHandleAiOption = handleAiOption;
-      handleAiOption = async function(action, value) {
-        if (action === "open_filter_modal") {
-          openAiFilterModal(aiLastTotalCount, aiLastSearchQuery);
-          return;
-        }
-        if (action === "keep_results") {
-          addAiMessage("Certo! Clique em uma empresa para ver detalhes.", true, [
-            { label: "Nova busca", action: "enter_empresas" },
-            { label: "Voltar ao menu", action: "back_to_menu" },
-          ]);
-          return;
-        }
-        // Handle Atlas suggestion clicks - find the question from button attributes
-        if (action === "ask_question") {
-          // Get the actual button that was clicked
-          const clickedBtn = event?.target;
-          const question = clickedBtn?.getAttribute('data-question') || value;
-          if (question) {
-            addAiMessage(question, false);
-            processModuleQuery(question, question.toLowerCase());
-          }
-          return;
-        }
-        return originalHandleAiOption(action, value);
       };
+
+      // Update openPoliticosFromCard to use Atlas
+      function openPoliticosFromCard() {
+        Atlas.toggle();
+        if (Atlas.isOpen) {
+          setTimeout(() => Atlas.enterModule('politicos'), 500);
+        }
+      }
+
     </script>
   </body>
 </html>
