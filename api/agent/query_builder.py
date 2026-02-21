@@ -68,8 +68,18 @@ VALID_FIELDS = {
     EntityType.POLITICOS: {
         "id", "cpf", "nome_completo", "nome_urna", "data_nascimento",
         "sexo", "grau_instrucao", "ocupacao",
-        "nome"  # alias para nome_completo
+        "nome",  # alias para nome_completo
+        # Campos de mandatos (fato_politicos_mandatos) - buscados via join
+        "cargo", "partido_sigla", "partido_nome", "municipio", "codigo_ibge",
+        "ano_eleicao", "eleito", "coligacao", "situacao_turno",
     },
+}
+
+# Campos que pertencem a fato_politicos_mandatos (não dim_politicos)
+MANDATO_FIELDS = {
+    "cargo", "partido_sigla", "partido_nome", "municipio", "codigo_ibge",
+    "ano_eleicao", "eleito", "coligacao", "situacao_turno", "turno",
+    "numero_candidato", "data_inicio_mandato", "data_fim_mandato",
 }
 
 # Field aliases (map common names to actual column names)
@@ -105,6 +115,8 @@ FIELD_ALIASES = {
         "nascimento": "data_nascimento",
         "instrucao": "grau_instrucao",
         "escolaridade": "grau_instrucao",
+        "partido": "partido_sigla",
+        "cidade": "municipio",
     },
 }
 
@@ -237,8 +249,10 @@ class QueryBuilder:
         """
         Search politicians and enrich with their current/latest mandato info.
 
-        This joins dim_politicos with fato_politicos_mandatos to get
-        partido_sigla, cargo, municipio from the latest mandato.
+        This handles two scenarios:
+        1. If filters include mandato fields (cargo, partido, municipio), search
+           fato_politicos_mandatos first and join with dim_politicos
+        2. Otherwise, search dim_politicos first and enrich with mandato info
 
         Args:
             intent: The parsed intent
@@ -246,10 +260,31 @@ class QueryBuilder:
         Returns:
             Tuple of (results list with mandato info, total count)
         """
-        # First get the politicians
+        if not self.brasil_data_hub_client:
+            logger.warning("brasil_data_hub_client_not_configured")
+            return [], 0
+
+        # Separate filters: politico fields vs mandato fields
+        politico_filters = []
+        mandato_filters = []
+
+        for f in intent.filters:
+            resolved_field = self._resolve_field(intent.entity_type, f.field)
+            if resolved_field and resolved_field in MANDATO_FIELDS:
+                mandato_filters.append((resolved_field, f))
+            else:
+                politico_filters.append(f)
+
+        # If we have mandato filters, search mandatos first
+        if mandato_filters:
+            return await self._search_via_mandatos(
+                mandato_filters, politico_filters, intent.limit
+            )
+
+        # Otherwise, search politicos first and enrich
         data, total_count = await self.execute(intent)
 
-        if not data or not self.brasil_data_hub_client:
+        if not data:
             return data, total_count
 
         # Enrich each politician with their latest mandato
@@ -269,6 +304,94 @@ class QueryBuilder:
             enriched_data.append(politico)
 
         return enriched_data, total_count
+
+    async def _search_via_mandatos(
+        self,
+        mandato_filters: List[Tuple[str, QueryFilter]],
+        politico_filters: List[QueryFilter],
+        limit: int,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Search politicians by first querying fato_politicos_mandatos.
+
+        Args:
+            mandato_filters: Filters for mandato fields (already resolved)
+            politico_filters: Filters for politico fields
+            limit: Maximum results to return
+
+        Returns:
+            Tuple of (results list with mandato info, total count)
+        """
+        try:
+            # Build query on fato_politicos_mandatos with join to dim_politicos
+            query = self.brasil_data_hub_client.table("fato_politicos_mandatos").select(
+                "id, cargo, partido_sigla, partido_nome, municipio, codigo_ibge, "
+                "ano_eleicao, turno, numero_candidato, eleito, coligacao, situacao_turno, "
+                "politico:politico_id (id, cpf, nome_completo, nome_urna, "
+                "data_nascimento, sexo, grau_instrucao, ocupacao)",
+                count="exact",
+            )
+
+            # Apply mandato filters
+            for resolved_field, f in mandato_filters:
+                query = self._apply_single_filter(query, resolved_field, f)
+
+            # Apply politico filters via nested filter
+            for f in politico_filters:
+                resolved_field = self._resolve_field(EntityType.POLITICOS, f.field)
+                if resolved_field and resolved_field not in MANDATO_FIELDS:
+                    # For nested politico fields, use the nested filter syntax
+                    nested_field = f"politico.{resolved_field}"
+                    if f.operator in (FilterOperator.LIKE, FilterOperator.ILIKE):
+                        query = query.ilike(nested_field, f"%{f.value}%")
+                    elif f.operator == FilterOperator.EQ:
+                        query = query.eq(nested_field, f.value)
+
+            # Order by most recent election
+            query = query.order("ano_eleicao", desc=True).limit(limit)
+
+            result = query.execute()
+            data = result.data or []
+            total_count = result.count or len(data)
+
+            # Flatten the data structure
+            flattened = []
+            seen_politicos = set()
+
+            for mandato in data:
+                politico_data = mandato.pop("politico", {}) or {}
+                politico_id = politico_data.get("id")
+
+                # Avoid duplicates (same politico with multiple mandatos)
+                if politico_id and politico_id in seen_politicos:
+                    continue
+                seen_politicos.add(politico_id)
+
+                flattened.append({
+                    **politico_data,
+                    "partido_sigla": mandato.get("partido_sigla"),
+                    "cargo_atual": mandato.get("cargo"),
+                    "municipio": mandato.get("municipio"),
+                    "codigo_ibge": mandato.get("codigo_ibge"),
+                    "ano_eleicao": mandato.get("ano_eleicao"),
+                    "eleito": mandato.get("eleito"),
+                    "coligacao": mandato.get("coligacao"),
+                    "situacao_turno": mandato.get("situacao_turno"),
+                })
+
+            logger.info(
+                "search_via_mandatos_executed",
+                mandato_filters_count=len(mandato_filters),
+                politico_filters_count=len(politico_filters),
+                results_count=len(flattened),
+                total_count=total_count,
+            )
+
+            return flattened, len(flattened)
+
+        except Exception as e:
+            logger.error("search_via_mandatos_error", error=str(e))
+            return [], 0
 
     def _apply_filters(self, query, intent: ParsedIntent):
         """

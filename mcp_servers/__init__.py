@@ -11,6 +11,7 @@ Servers disponíveis:
 - perplexity_mcp: AI Research
 - news_mcp: Notícias econômicas via Perplexity + Twitter
 - fiscal_mcp: Políticos e mandatos (iconsai-fiscal)
+- politicos_mcp: Políticos e mandatos (brasil-data-hub)
 """
 
 from .config import MCPConfig
