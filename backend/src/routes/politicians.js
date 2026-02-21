@@ -1,6 +1,17 @@
 import { Router } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import logger from '../utils/logger.js';
+import {
+  validateQuery,
+  validateParams,
+  politiciansListSchema,
+  politiciansSearchSchema,
+  politicosByMunicipioSchema,
+  politicosByMunicipioQuerySchema,
+  politicosByPartidoSchema,
+  politicosByPartidoQuerySchema,
+  uuidParamSchema
+} from '../validation/schemas.js';
 
 const router = Router();
 
@@ -13,7 +24,7 @@ const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA
  * GET /api/politicians/list
  * List politicians with optional filters
  */
-router.get('/list', async (req, res) => {
+router.get('/list', validateQuery(politiciansListSchema), async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -22,9 +33,8 @@ router.get('/list', async (req, res) => {
       });
     }
 
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const offset = parseInt(req.query.offset) || 0;
-    const { partido, cargo, municipio, ano_eleicao } = req.query;
+    // Query params already validated and transformed by Zod
+    const { limit, offset, partido, cargo, municipio, ano_eleicao } = req.query;
 
     // Se tem filtros de mandato, buscar via fato_politicos_mandatos
     if (partido || cargo || municipio || ano_eleicao) {
@@ -38,17 +48,18 @@ router.get('/list', async (req, res) => {
         .order('ano_eleicao', { ascending: false })
         .range(offset, offset + limit - 1);
 
+      // All query params already validated and sanitized by Zod
       if (partido) {
-        query = query.eq('partido_sigla', partido.toUpperCase());
+        query = query.eq('partido_sigla', partido);  // Already uppercase from Zod
       }
       if (cargo) {
-        query = query.ilike('cargo', `%${cargo}%`);
+        query = query.ilike('cargo', `%${cargo}%`);  // Sanitized by Zod
       }
       if (municipio) {
-        query = query.ilike('municipio', `%${municipio}%`);
+        query = query.ilike('municipio', `%${municipio}%`);  // Sanitized by Zod
       }
       if (ano_eleicao) {
-        query = query.eq('ano_eleicao', parseInt(ano_eleicao));
+        query = query.eq('ano_eleicao', ano_eleicao);  // Already number from Zod
       }
 
       const { data, error, count } = await query;
@@ -120,7 +131,7 @@ router.get('/list', async (req, res) => {
  * GET /api/politicians/search
  * Search politicians by name
  */
-router.get('/search', async (req, res) => {
+router.get('/search', validateQuery(politiciansSearchSchema), async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -129,20 +140,14 @@ router.get('/search', async (req, res) => {
       });
     }
 
+    // Query params already validated by Zod (nome >= 2 chars, sanitized)
     const { nome } = req.query;
 
-    if (!nome || nome.trim().length < 2) {
-      return res.status(400).json({
-        success: false,
-        error: 'Nome is required (minimum 2 characters)'
-      });
-    }
-
-    // Search in dim_politicos
+    // Search in dim_politicos (nome already sanitized by Zod)
     const { data: politicos, error } = await brasilDataHub
       .from('dim_politicos')
       .select('id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao')
-      .or(`nome_completo.ilike.%${nome.trim()}%,nome_urna.ilike.%${nome.trim()}%`)
+      .or(`nome_completo.ilike.%${nome}%,nome_urna.ilike.%${nome}%`)
       .limit(20);
 
     if (error) {
@@ -187,7 +192,7 @@ router.get('/search', async (req, res) => {
  * GET /api/politicians/:id
  * Get politician details with mandates
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', validateParams(uuidParamSchema), async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -196,6 +201,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // ID already validated as UUID by Zod
     const { id } = req.params;
 
     // Get politician data from dim_politicos
@@ -236,7 +242,10 @@ router.get('/:id', async (req, res) => {
  * GET /api/politicians/by-municipio/:codigoIbge
  * Get politicians by municipality
  */
-router.get('/by-municipio/:codigoIbge', async (req, res) => {
+router.get('/by-municipio/:codigoIbge',
+  validateParams(politicosByMunicipioSchema),
+  validateQuery(politicosByMunicipioQuerySchema),
+  async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -245,9 +254,10 @@ router.get('/by-municipio/:codigoIbge', async (req, res) => {
       });
     }
 
+    // Params and query already validated by Zod
     const { codigoIbge } = req.params;
     const apenasEleitos = req.query.eleitos !== 'false';
-    const ano = req.query.ano ? parseInt(req.query.ano) : null;
+    const ano = req.query.ano || null;
 
     let query = brasilDataHub
       .from('fato_politicos_mandatos')
@@ -301,7 +311,10 @@ router.get('/by-municipio/:codigoIbge', async (req, res) => {
  * GET /api/politicians/by-partido/:sigla
  * Get politicians by party
  */
-router.get('/by-partido/:sigla', async (req, res) => {
+router.get('/by-partido/:sigla',
+  validateParams(politicosByPartidoSchema),
+  validateQuery(politicosByPartidoQuerySchema),
+  async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -310,24 +323,27 @@ router.get('/by-partido/:sigla', async (req, res) => {
       });
     }
 
+    // Params and query already validated by Zod (sigla transformed to uppercase)
     const { sigla } = req.params;
-    const { cargo, ano_eleicao } = req.query;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const { cargo, ano_eleicao, limit } = req.query;
 
+    // sigla already transformed to uppercase by Zod
     let query = brasilDataHub
       .from('fato_politicos_mandatos')
       .select(`
         id, cargo, partido_sigla, municipio, ano_eleicao, eleito,
         politico:politico_id (id, nome_completo, nome_urna, sexo)
       `)
-      .eq('partido_sigla', sigla.toUpperCase())
+      .eq('partido_sigla', sigla)
       .limit(limit);
 
+    // cargo already sanitized by Zod (no SQL injection chars)
     if (cargo) {
       query = query.ilike('cargo', `%${cargo}%`);
     }
+    // ano_eleicao already validated as number by Zod
     if (ano_eleicao) {
-      query = query.eq('ano_eleicao', parseInt(ano_eleicao));
+      query = query.eq('ano_eleicao', ano_eleicao);
     }
 
     const { data, error } = await query.order('municipio');
@@ -361,7 +377,7 @@ router.get('/by-partido/:sigla', async (req, res) => {
     res.json({
       success: true,
       count: politicians.length,
-      partido: sigla.toUpperCase(),
+      partido: sigla,  // Already uppercase from Zod
       politicians
     });
 

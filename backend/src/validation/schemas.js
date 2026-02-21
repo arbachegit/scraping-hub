@@ -118,6 +118,104 @@ export const uuidParamSchema = z.object({
   id: z.string().uuid('ID inválido')
 });
 
+// ============================================
+// POLITICIANS SCHEMAS
+// ============================================
+
+// Safe string for SQL queries (prevents SQL injection via ilike)
+const safeStringSchema = z.string()
+  .max(200)
+  .transform(val => val?.trim())
+  .refine(val => !val || !/[%_\\]/.test(val), {
+    message: 'Caracteres especiais não permitidos'
+  });
+
+// Código IBGE (7 dígitos)
+const codigoIbgeSchema = z.string()
+  .regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos');
+
+// Sigla de partido (2-10 letras maiúsculas)
+const partidoSiglaSchema = z.string()
+  .min(2).max(10)
+  .transform(val => val?.toUpperCase())
+  .refine(val => /^[A-Z]+$/.test(val), {
+    message: 'Sigla deve conter apenas letras'
+  });
+
+// Ano de eleição (1990-2030)
+const anoEleicaoSchema = z.coerce
+  .number()
+  .int()
+  .min(1990, 'Ano mínimo: 1990')
+  .max(2030, 'Ano máximo: 2030');
+
+// Politicians list query params
+export const politiciansListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  partido: partidoSiglaSchema.optional(),
+  cargo: safeStringSchema.optional(),
+  municipio: safeStringSchema.optional(),
+  ano_eleicao: anoEleicaoSchema.optional()
+});
+
+// Politicians search query params
+export const politiciansSearchSchema = z.object({
+  nome: safeStringSchema
+    .refine(val => val && val.length >= 2, {
+      message: 'Nome deve ter pelo menos 2 caracteres'
+    })
+});
+
+// Politicians by municipality params
+export const politicosByMunicipioSchema = z.object({
+  codigoIbge: codigoIbgeSchema
+});
+
+// Politicians by municipality query
+export const politicosByMunicipioQuerySchema = z.object({
+  eleitos: z.enum(['true', 'false']).optional().default('true'),
+  ano: anoEleicaoSchema.optional()
+});
+
+// Politicians by party params
+export const politicosByPartidoSchema = z.object({
+  sigla: partidoSiglaSchema
+});
+
+// Politicians by party query
+export const politicosByPartidoQuerySchema = z.object({
+  cargo: safeStringSchema.optional(),
+  ano_eleicao: anoEleicaoSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+/**
+ * Validate request query with Zod schema
+ * @param {z.ZodSchema} schema - Zod schema to validate against
+ * @returns {Function} Express middleware
+ */
+export function validateQuery(schema) {
+  return (req, res, next) => {
+    try {
+      req.query = schema.parse(req.query);
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Query params inválidos',
+          details: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        });
+      }
+      next(error);
+    }
+  };
+}
+
 /**
  * Validate request body with Zod schema
  * @param {z.ZodSchema} schema - Zod schema to validate against
