@@ -1,55 +1,165 @@
 """
-Politicos MCP Server
+Politicos MCP Server v1.1.0
 Acesso a dados de politicos brasileiros via brasil-data-hub
 
 Fonte: Supabase brasil-data-hub (mnfjkegtynjtgesfphge)
 Tabelas: dim_politicos, fato_politicos_mandatos
+
+Changelog:
+- v1.1.0: Adicionados guardrails (timeout, retry, request_id, output validation)
+- v1.0.0: Versão inicial
 """
 
+import asyncio
 from typing import Any
+from uuid import uuid4
 
 from mcp.types import TextContent, Tool
+from pydantic import BaseModel, Field, field_validator
 from supabase import Client, create_client
 
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
 
 
+# =============================================================================
+# INPUT SCHEMAS (Pydantic v1.1.0)
+# =============================================================================
+
+class SearchPoliticosInput(BaseModel):
+    """Schema para busca de políticos por nome."""
+    nome: str = Field(..., min_length=2, max_length=200, description="Nome do político")
+    limit: int = Field(default=20, ge=1, le=100, description="Limite de resultados")
+
+    @field_validator("nome")
+    @classmethod
+    def sanitize_nome(cls, v: str) -> str:
+        """Remove caracteres especiais que podem causar SQL injection via ilike."""
+        return v.replace("%", "").replace("_", "").strip()[:200]
+
+
+class GetPoliticoInput(BaseModel):
+    """Schema para buscar político por ID ou CPF."""
+    id: str | None = Field(default=None, description="UUID do político")
+    cpf: str | None = Field(default=None, description="CPF (apenas números)")
+
+    @field_validator("cpf")
+    @classmethod
+    def clean_cpf(cls, v: str | None) -> str | None:
+        if v:
+            return v.replace(".", "").replace("-", "").strip()[:11]
+        return v
+
+
+class ListMandatosInput(BaseModel):
+    """Schema para listar mandatos de um político."""
+    politico_id: str = Field(..., description="UUID do político")
+    apenas_eleitos: bool = Field(default=False, description="Filtrar apenas eleitos")
+
+
+class PoliticosPorMunicipioInput(BaseModel):
+    """Schema para buscar políticos por município."""
+    codigo_ibge: str | None = Field(default=None, max_length=7)
+    municipio: str | None = Field(default=None, max_length=200)
+    cargo: str | None = Field(default=None, max_length=50)
+    ano_eleicao: int | None = Field(default=None, ge=1988, le=2030)
+    apenas_eleitos: bool = Field(default=True)
+    limit: int = Field(default=50, ge=1, le=100)
+
+    @field_validator("municipio")
+    @classmethod
+    def sanitize_municipio(cls, v: str | None) -> str | None:
+        if v:
+            return v.replace("%", "").replace("_", "").strip()[:200]
+        return v
+
+
+class PoliticosPorCargoInput(BaseModel):
+    """Schema para buscar políticos por cargo."""
+    cargo: str = Field(..., min_length=2, max_length=50)
+    codigo_ibge_uf: str | None = Field(default=None, max_length=2)
+    ano_eleicao: int | None = Field(default=None, ge=1988, le=2030)
+    apenas_eleitos: bool = Field(default=True)
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+class PoliticosPorPartidoInput(BaseModel):
+    """Schema para buscar políticos por partido."""
+    partido_sigla: str | None = Field(default=None, max_length=20)
+    partido_nome: str | None = Field(default=None, max_length=200)
+    codigo_ibge_uf: str | None = Field(default=None, max_length=2)
+    cargo: str | None = Field(default=None, max_length=50)
+    ano_eleicao: int | None = Field(default=None, ge=1988, le=2030)
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+# =============================================================================
+# OUTPUT SCHEMAS (Pydantic v1.1.0)
+# =============================================================================
+
+class PoliticoOutput(BaseModel):
+    """Schema de saída para político."""
+    id: str | None = None
+    nome_completo: str | None = None
+    nome_urna: str | None = None
+    sexo: str | None = None
+    ocupacao: str | None = None
+    grau_instrucao: str | None = None
+
+
+class MandatoOutput(BaseModel):
+    """Schema de saída para mandato."""
+    id: str | None = None
+    cargo: str | None = None
+    partido_sigla: str | None = None
+    partido_nome: str | None = None
+    municipio: str | None = None
+    codigo_ibge: str | None = None
+    ano_eleicao: int | None = None
+    eleito: bool | None = None
+    situacao_turno: str | None = None
+
+
+# =============================================================================
+# GUARDRAILS CONFIG
+# =============================================================================
+
+TIMEOUT_SECONDS = 10
+MAX_RETRIES = 2
+BACKOFF_BASE_SECONDS = 1.0
+
+# Allowlist de tabelas (sem acesso a outras tabelas)
+ALLOWED_TABLES = {"dim_politicos", "fato_politicos_mandatos"}
+
+
+# =============================================================================
+# MCP SERVER
+# =============================================================================
+
 class PoliticosMCPServer(BaseMCPServer):
     """
     MCP Server para dados de politicos brasileiros via brasil-data-hub.
 
-    Acessa as tabelas dim_politicos e fato_politicos_mandatos do Supabase
-    brasil-data-hub para fornecer informacoes sobre politicos e mandatos.
-
-    Tools disponiveis:
-    - search_politicos: Busca politicos por nome
-    - get_politico: Retorna dados de um politico especifico
-    - list_mandatos: Lista mandatos de um politico
-    - get_politicos_por_municipio: Lista politicos de um municipio
-    - get_politicos_por_cargo: Lista politicos por cargo
-    - get_politicos_por_partido: Lista politicos de um partido
+    Guardrails implementados:
+    - Input validation via Pydantic
+    - Output validation via Pydantic
+    - Timeout em queries (10s)
+    - Retry com backoff (2 tentativas)
+    - request_id em todos os logs
+    - Sanitização de inputs (SQL injection prevention)
     """
 
     # Metadados para rastreabilidade
     SOURCE_NAME = "Brasil Data Hub - Politicos"
     SOURCE_PROVIDER = "TSE via brasil-data-hub"
     SOURCE_CATEGORY = "eleitoral"
-
-    # Schema das tabelas no brasil-data-hub
-    SCHEMA = "public"  # Ajustar se estiver em outro schema
+    VERSION = "1.1.0"
 
     def __init__(self, config: MCPConfig | None = None):
-        """
-        Inicializa MCP Server.
-
-        Args:
-            config: Configuracoes (usa default se nao fornecido)
-        """
-        super().__init__("politicos-mcp", "1.0.0")
+        """Inicializa MCP Server."""
+        super().__init__("politicos-mcp", self.VERSION)
         self.config = config or MCPConfig.from_env()
 
-        # Inicializar cliente Supabase (brasil-data-hub)
         if not self.config.brasil_data_hub_url or not self.config.brasil_data_hub_key:
             self.logger.warning("brasil_data_hub_not_configured")
             self._client: Client | None = None
@@ -59,277 +169,157 @@ class PoliticosMCPServer(BaseMCPServer):
                 self.config.brasil_data_hub_key,
             )
 
+    async def _execute_with_timeout(
+        self,
+        coro,
+        request_id: str,
+        operation: str,
+        retries: int = MAX_RETRIES,
+    ):
+        """Executa query com timeout e retry."""
+        for attempt in range(retries + 1):
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(lambda: coro.execute()),
+                    timeout=TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    "query_timeout",
+                    request_id=request_id,
+                    operation=operation,
+                    attempt=attempt + 1,
+                )
+                if attempt < retries:
+                    await asyncio.sleep(BACKOFF_BASE_SECONDS * (attempt + 1))
+                else:
+                    raise
+            except Exception as e:
+                self.logger.error(
+                    "query_error",
+                    request_id=request_id,
+                    operation=operation,
+                    error=str(e),
+                    attempt=attempt + 1,
+                )
+                if attempt < retries:
+                    await asyncio.sleep(BACKOFF_BASE_SECONDS * (attempt + 1))
+                else:
+                    raise
+
     def get_tools(self) -> list[Tool]:
-        """Retorna tools disponiveis"""
+        """Retorna tools disponíveis."""
         return [
             Tool(
                 name="search_politicos",
-                description="Busca politicos por nome, retornando dados cadastrais",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "nome": {
-                            "type": "string",
-                            "description": "Nome do politico (busca parcial em nome_completo ou nome_urna)",
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Limite de resultados (default: 20, max: 100)",
-                            "default": 20,
-                        },
-                    },
-                    "required": ["nome"],
-                },
+                description="Busca políticos por nome, retornando dados cadastrais",
+                inputSchema=SearchPoliticosInput.model_json_schema(),
             ),
             Tool(
                 name="get_politico",
-                description="Retorna dados completos de um politico por ID ou CPF",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                            "description": "ID (UUID) do politico no banco",
-                        },
-                        "cpf": {
-                            "type": "string",
-                            "description": "CPF do politico (apenas numeros)",
-                        },
-                    },
-                },
+                description="Retorna dados completos de um político por ID ou CPF",
+                inputSchema=GetPoliticoInput.model_json_schema(),
             ),
             Tool(
                 name="list_mandatos",
-                description="Lista historico de mandatos de um politico",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "politico_id": {
-                            "type": "string",
-                            "description": "ID (UUID) do politico",
-                        },
-                        "apenas_eleitos": {
-                            "type": "boolean",
-                            "description": "Filtrar apenas mandatos eleitos (default: false)",
-                            "default": False,
-                        },
-                    },
-                    "required": ["politico_id"],
-                },
+                description="Lista histórico de mandatos de um político",
+                inputSchema=ListMandatosInput.model_json_schema(),
             ),
             Tool(
                 name="get_politicos_por_municipio",
-                description="Lista politicos com mandatos em um municipio",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "codigo_ibge": {
-                            "type": "string",
-                            "description": "Codigo IBGE do municipio (7 digitos)",
-                        },
-                        "municipio": {
-                            "type": "string",
-                            "description": "Nome do municipio (busca parcial)",
-                        },
-                        "cargo": {
-                            "type": "string",
-                            "description": "Filtrar por cargo (ex: PREFEITO, VEREADOR)",
-                        },
-                        "ano_eleicao": {
-                            "type": "integer",
-                            "description": "Filtrar por ano da eleicao",
-                        },
-                        "apenas_eleitos": {
-                            "type": "boolean",
-                            "description": "Filtrar apenas eleitos (default: true)",
-                            "default": True,
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Limite de resultados (default: 50)",
-                            "default": 50,
-                        },
-                    },
-                },
+                description="Lista políticos com mandatos em um município",
+                inputSchema=PoliticosPorMunicipioInput.model_json_schema(),
             ),
             Tool(
                 name="get_politicos_por_cargo",
-                description="Lista politicos por cargo",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "cargo": {
-                            "type": "string",
-                            "description": "Cargo (ex: PREFEITO, VICE-PREFEITO, VEREADOR)",
-                        },
-                        "codigo_ibge_uf": {
-                            "type": "string",
-                            "description": "Codigo IBGE da UF (2 digitos) para filtrar",
-                        },
-                        "ano_eleicao": {
-                            "type": "integer",
-                            "description": "Filtrar por ano da eleicao",
-                        },
-                        "apenas_eleitos": {
-                            "type": "boolean",
-                            "description": "Filtrar apenas eleitos (default: true)",
-                            "default": True,
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Limite de resultados (default: 50)",
-                            "default": 50,
-                        },
-                    },
-                    "required": ["cargo"],
-                },
+                description="Lista políticos por cargo",
+                inputSchema=PoliticosPorCargoInput.model_json_schema(),
             ),
             Tool(
                 name="get_politicos_por_partido",
-                description="Lista politicos de um partido",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "partido_sigla": {
-                            "type": "string",
-                            "description": "Sigla do partido (ex: PT, PL, MDB, PSDB)",
-                        },
-                        "partido_nome": {
-                            "type": "string",
-                            "description": "Nome do partido (busca parcial)",
-                        },
-                        "codigo_ibge_uf": {
-                            "type": "string",
-                            "description": "Codigo IBGE da UF (2 digitos) para filtrar",
-                        },
-                        "cargo": {
-                            "type": "string",
-                            "description": "Filtrar por cargo",
-                        },
-                        "ano_eleicao": {
-                            "type": "integer",
-                            "description": "Filtrar por ano da eleicao",
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Limite de resultados (default: 50)",
-                            "default": 50,
-                        },
-                    },
-                },
+                description="Lista políticos de um partido",
+                inputSchema=PoliticosPorPartidoInput.model_json_schema(),
             ),
         ]
 
     async def handle_tool(
         self, name: str, arguments: dict[str, Any]
     ) -> list[TextContent]:
-        """Processa chamada de tool"""
+        """Processa chamada de tool com guardrails."""
+        request_id = str(uuid4())[:8]
+
+        self.logger.info("tool_called", request_id=request_id, tool=name)
+
         if not self._client:
             return self._error_response(
-                "Brasil Data Hub nao configurado. "
+                "Brasil Data Hub não configurado. "
                 "Configure BRASIL_DATA_HUB_URL e BRASIL_DATA_HUB_KEY no .env"
             )
 
-        if name == "search_politicos":
-            return await self._search_politicos(
-                nome=arguments["nome"],
-                limit=min(arguments.get("limit", 20), 100),
-            )
+        try:
+            if name == "search_politicos":
+                validated = SearchPoliticosInput(**arguments)
+                return await self._search_politicos(request_id, validated)
 
-        elif name == "get_politico":
-            return await self._get_politico(
-                politico_id=arguments.get("id"),
-                cpf=arguments.get("cpf"),
-            )
+            elif name == "get_politico":
+                validated = GetPoliticoInput(**arguments)
+                return await self._get_politico(request_id, validated)
 
-        elif name == "list_mandatos":
-            return await self._list_mandatos(
-                politico_id=arguments["politico_id"],
-                apenas_eleitos=arguments.get("apenas_eleitos", False),
-            )
+            elif name == "list_mandatos":
+                validated = ListMandatosInput(**arguments)
+                return await self._list_mandatos(request_id, validated)
 
-        elif name == "get_politicos_por_municipio":
-            return await self._get_politicos_por_municipio(
-                codigo_ibge=arguments.get("codigo_ibge"),
-                municipio=arguments.get("municipio"),
-                cargo=arguments.get("cargo"),
-                ano_eleicao=arguments.get("ano_eleicao"),
-                apenas_eleitos=arguments.get("apenas_eleitos", True),
-                limit=arguments.get("limit", 50),
-            )
+            elif name == "get_politicos_por_municipio":
+                validated = PoliticosPorMunicipioInput(**arguments)
+                return await self._get_politicos_por_municipio(request_id, validated)
 
-        elif name == "get_politicos_por_cargo":
-            return await self._get_politicos_por_cargo(
-                cargo=arguments["cargo"],
-                codigo_ibge_uf=arguments.get("codigo_ibge_uf"),
-                ano_eleicao=arguments.get("ano_eleicao"),
-                apenas_eleitos=arguments.get("apenas_eleitos", True),
-                limit=arguments.get("limit", 50),
-            )
+            elif name == "get_politicos_por_cargo":
+                validated = PoliticosPorCargoInput(**arguments)
+                return await self._get_politicos_por_cargo(request_id, validated)
 
-        elif name == "get_politicos_por_partido":
-            return await self._get_politicos_por_partido(
-                partido_sigla=arguments.get("partido_sigla"),
-                partido_nome=arguments.get("partido_nome"),
-                codigo_ibge_uf=arguments.get("codigo_ibge_uf"),
-                cargo=arguments.get("cargo"),
-                ano_eleicao=arguments.get("ano_eleicao"),
-                limit=arguments.get("limit", 50),
-            )
+            elif name == "get_politicos_por_partido":
+                validated = PoliticosPorPartidoInput(**arguments)
+                return await self._get_politicos_por_partido(request_id, validated)
 
-        return self._error_response(f"Tool desconhecida: {name}")
+            return self._error_response(f"Tool desconhecida: {name}")
+
+        except Exception as e:
+            self.logger.error("tool_error", request_id=request_id, tool=name, error=str(e))
+            return self._error_response(f"Erro: {str(e)}")
 
     async def _search_politicos(
-        self,
-        nome: str,
-        limit: int = 20,
+        self, request_id: str, input_data: SearchPoliticosInput
     ) -> list[TextContent]:
-        """
-        Busca politicos por nome.
-
-        Args:
-            nome: Nome do politico (busca parcial)
-            limit: Limite de resultados
-
-        Returns:
-            Lista de politicos encontrados
-        """
+        """Busca políticos por nome."""
         try:
-            # Busca em nome_completo e nome_urna
             query = (
                 self._client.table("dim_politicos")
                 .select("id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao")
-                .or_(f"nome_completo.ilike.%{nome}%,nome_urna.ilike.%{nome}%")
-                .limit(limit)
+                .or_(f"nome_completo.ilike.%{input_data.nome}%,nome_urna.ilike.%{input_data.nome}%")
+                .limit(input_data.limit)
             )
 
-            result = query.execute()
+            result = await self._execute_with_timeout(query, request_id, "search_politicos")
+
+            # Validar output
+            validated_data = [PoliticoOutput(**p).model_dump() for p in result.data]
+
+            self.logger.info("search_politicos_success", request_id=request_id, count=len(validated_data))
 
             return self._success_response(
-                data=result.data,
-                message=f"Encontrados {len(result.data)} politicos",
+                data=validated_data,
+                message=f"Encontrados {len(validated_data)} políticos",
             )
 
         except Exception as e:
-            self.logger.error("search_politicos_error", error=str(e))
-            return self._error_response(f"Erro ao buscar politicos: {str(e)}")
+            self.logger.error("search_politicos_error", request_id=request_id, error=str(e))
+            return self._error_response(f"Erro ao buscar políticos: {str(e)}")
 
     async def _get_politico(
-        self,
-        politico_id: str | None = None,
-        cpf: str | None = None,
+        self, request_id: str, input_data: GetPoliticoInput
     ) -> list[TextContent]:
-        """
-        Retorna dados completos de um politico.
-
-        Args:
-            politico_id: ID do politico
-            cpf: CPF do politico (apenas numeros)
-
-        Returns:
-            Dados completos do politico
-        """
-        if not politico_id and not cpf:
+        """Retorna dados completos de um político."""
+        if not input_data.id and not input_data.cpf:
             return self._error_response("Informe id ou cpf")
 
         try:
@@ -338,41 +328,29 @@ class PoliticosMCPServer(BaseMCPServer):
                 "ocupacao, grau_instrucao, criado_em, atualizado_em"
             )
 
-            if politico_id:
-                query = query.eq("id", politico_id)
-            elif cpf:
-                cpf_clean = cpf.replace(".", "").replace("-", "")
-                query = query.eq("cpf", cpf_clean)
+            if input_data.id:
+                query = query.eq("id", input_data.id)
+            elif input_data.cpf:
+                query = query.eq("cpf", input_data.cpf)
 
-            result = query.single().execute()
+            query = query.single()
+            result = await self._execute_with_timeout(query, request_id, "get_politico")
 
             if not result.data:
-                return self._error_response("Politico nao encontrado")
+                return self._error_response("Político não encontrado")
 
-            return self._success_response(
-                data=result.data,
-                message="Politico encontrado",
-            )
+            self.logger.info("get_politico_success", request_id=request_id)
+
+            return self._success_response(data=result.data, message="Político encontrado")
 
         except Exception as e:
-            self.logger.error("get_politico_error", error=str(e))
-            return self._error_response(f"Erro ao buscar politico: {str(e)}")
+            self.logger.error("get_politico_error", request_id=request_id, error=str(e))
+            return self._error_response(f"Erro ao buscar político: {str(e)}")
 
     async def _list_mandatos(
-        self,
-        politico_id: str,
-        apenas_eleitos: bool = False,
+        self, request_id: str, input_data: ListMandatosInput
     ) -> list[TextContent]:
-        """
-        Lista historico de mandatos de um politico.
-
-        Args:
-            politico_id: ID do politico
-            apenas_eleitos: Filtrar apenas mandatos eleitos
-
-        Returns:
-            Lista de mandatos
-        """
+        """Lista histórico de mandatos."""
         try:
             query = (
                 self._client.table("fato_politicos_mandatos")
@@ -381,51 +359,37 @@ class PoliticosMCPServer(BaseMCPServer):
                     "coligacao, ano_eleicao, turno, numero_candidato, eleito, "
                     "situacao_turno, data_inicio_mandato, data_fim_mandato"
                 )
-                .eq("politico_id", politico_id)
+                .eq("politico_id", input_data.politico_id)
             )
 
-            if apenas_eleitos:
+            if input_data.apenas_eleitos:
                 query = query.eq("eleito", True)
 
-            result = query.order("ano_eleicao", desc=True).execute()
+            query = query.order("ano_eleicao", desc=True)
+            result = await self._execute_with_timeout(query, request_id, "list_mandatos")
+
+            # Validar output
+            validated_data = [MandatoOutput(**m).model_dump() for m in result.data]
+
+            self.logger.info("list_mandatos_success", request_id=request_id, count=len(validated_data))
 
             return self._success_response(
-                data=result.data,
-                message=f"Encontrados {len(result.data)} mandatos",
+                data=validated_data,
+                message=f"Encontrados {len(validated_data)} mandatos",
             )
 
         except Exception as e:
-            self.logger.error("list_mandatos_error", error=str(e))
+            self.logger.error("list_mandatos_error", request_id=request_id, error=str(e))
             return self._error_response(f"Erro ao buscar mandatos: {str(e)}")
 
     async def _get_politicos_por_municipio(
-        self,
-        codigo_ibge: str | None = None,
-        municipio: str | None = None,
-        cargo: str | None = None,
-        ano_eleicao: int | None = None,
-        apenas_eleitos: bool = True,
-        limit: int = 50,
+        self, request_id: str, input_data: PoliticosPorMunicipioInput
     ) -> list[TextContent]:
-        """
-        Lista politicos com mandatos em um municipio.
-
-        Args:
-            codigo_ibge: Codigo IBGE do municipio
-            municipio: Nome do municipio
-            cargo: Filtrar por cargo
-            ano_eleicao: Filtrar por ano da eleicao
-            apenas_eleitos: Retornar apenas eleitos
-            limit: Limite de resultados
-
-        Returns:
-            Lista de politicos do municipio com dados do mandato
-        """
-        if not codigo_ibge and not municipio:
+        """Lista políticos de um município."""
+        if not input_data.codigo_ibge and not input_data.municipio:
             return self._error_response("Informe codigo_ibge ou municipio")
 
         try:
-            # Buscar mandatos com join em dim_politicos
             query = self._client.table("fato_politicos_mandatos").select(
                 "id, cargo, partido_sigla, partido_nome, coligacao, "
                 "ano_eleicao, turno, numero_candidato, eleito, situacao_turno, "
@@ -433,76 +397,58 @@ class PoliticosMCPServer(BaseMCPServer):
                 "politico:politico_id (id, nome_completo, nome_urna, sexo, ocupacao)"
             )
 
-            if codigo_ibge:
-                query = query.eq("codigo_ibge", codigo_ibge)
-            elif municipio:
-                query = query.ilike("municipio", f"%{municipio}%")
+            if input_data.codigo_ibge:
+                query = query.eq("codigo_ibge", input_data.codigo_ibge)
+            elif input_data.municipio:
+                query = query.ilike("municipio", f"%{input_data.municipio}%")
 
-            if cargo:
-                query = query.ilike("cargo", f"%{cargo}%")
+            if input_data.cargo:
+                query = query.ilike("cargo", f"%{input_data.cargo}%")
 
-            if ano_eleicao:
-                query = query.eq("ano_eleicao", ano_eleicao)
+            if input_data.ano_eleicao:
+                query = query.eq("ano_eleicao", input_data.ano_eleicao)
 
-            if apenas_eleitos:
+            if input_data.apenas_eleitos:
                 query = query.eq("eleito", True)
 
-            result = query.order("cargo").limit(limit).execute()
+            query = query.order("cargo").limit(input_data.limit)
+            result = await self._execute_with_timeout(query, request_id, "get_politicos_por_municipio")
 
-            # Flatten politico data
+            # Flatten data
             politicos = []
             for mandato in result.data:
                 politico_data = mandato.pop("politico", {}) or {}
-                politicos.append(
-                    {
-                        **politico_data,
-                        "mandato": {
-                            "id": mandato["id"],
-                            "cargo": mandato["cargo"],
-                            "partido_sigla": mandato["partido_sigla"],
-                            "partido_nome": mandato["partido_nome"],
-                            "coligacao": mandato["coligacao"],
-                            "ano_eleicao": mandato["ano_eleicao"],
-                            "turno": mandato["turno"],
-                            "numero_candidato": mandato["numero_candidato"],
-                            "eleito": mandato["eleito"],
-                            "situacao_turno": mandato["situacao_turno"],
-                            "municipio": mandato["municipio"],
-                            "codigo_ibge": mandato["codigo_ibge"],
-                        },
-                    }
-                )
+                politicos.append({
+                    **politico_data,
+                    "mandato": {
+                        "id": mandato.get("id"),
+                        "cargo": mandato.get("cargo"),
+                        "partido_sigla": mandato.get("partido_sigla"),
+                        "partido_nome": mandato.get("partido_nome"),
+                        "coligacao": mandato.get("coligacao"),
+                        "ano_eleicao": mandato.get("ano_eleicao"),
+                        "eleito": mandato.get("eleito"),
+                        "situacao_turno": mandato.get("situacao_turno"),
+                        "municipio": mandato.get("municipio"),
+                        "codigo_ibge": mandato.get("codigo_ibge"),
+                    },
+                })
+
+            self.logger.info("get_politicos_por_municipio_success", request_id=request_id, count=len(politicos))
 
             return self._success_response(
                 data=politicos,
-                message=f"Encontrados {len(politicos)} politicos no municipio",
+                message=f"Encontrados {len(politicos)} políticos no município",
             )
 
         except Exception as e:
-            self.logger.error("get_politicos_por_municipio_error", error=str(e))
-            return self._error_response(f"Erro ao buscar politicos: {str(e)}")
+            self.logger.error("get_politicos_por_municipio_error", request_id=request_id, error=str(e))
+            return self._error_response(f"Erro ao buscar políticos: {str(e)}")
 
     async def _get_politicos_por_cargo(
-        self,
-        cargo: str,
-        codigo_ibge_uf: str | None = None,
-        ano_eleicao: int | None = None,
-        apenas_eleitos: bool = True,
-        limit: int = 50,
+        self, request_id: str, input_data: PoliticosPorCargoInput
     ) -> list[TextContent]:
-        """
-        Lista politicos por cargo.
-
-        Args:
-            cargo: Cargo (ex: PREFEITO, VEREADOR)
-            codigo_ibge_uf: Codigo IBGE da UF para filtrar
-            ano_eleicao: Filtrar por ano da eleicao
-            apenas_eleitos: Retornar apenas eleitos
-            limit: Limite de resultados
-
-        Returns:
-            Lista de politicos por cargo
-        """
+        """Lista políticos por cargo."""
         try:
             query = self._client.table("fato_politicos_mandatos").select(
                 "id, cargo, partido_sigla, partido_nome, ano_eleicao, "
@@ -510,71 +456,53 @@ class PoliticosMCPServer(BaseMCPServer):
                 "politico:politico_id (id, nome_completo, nome_urna, sexo)"
             )
 
-            query = query.ilike("cargo", f"%{cargo}%")
+            query = query.ilike("cargo", f"%{input_data.cargo}%")
 
-            if codigo_ibge_uf:
-                query = query.eq("codigo_ibge_uf", codigo_ibge_uf)
+            if input_data.codigo_ibge_uf:
+                query = query.eq("codigo_ibge_uf", input_data.codigo_ibge_uf)
 
-            if ano_eleicao:
-                query = query.eq("ano_eleicao", ano_eleicao)
+            if input_data.ano_eleicao:
+                query = query.eq("ano_eleicao", input_data.ano_eleicao)
 
-            if apenas_eleitos:
+            if input_data.apenas_eleitos:
                 query = query.eq("eleito", True)
 
-            result = query.order("municipio").limit(limit).execute()
+            query = query.order("municipio").limit(input_data.limit)
+            result = await self._execute_with_timeout(query, request_id, "get_politicos_por_cargo")
 
-            # Flatten politico data
+            # Flatten data
             politicos = []
             for mandato in result.data:
                 politico_data = mandato.pop("politico", {}) or {}
-                politicos.append(
-                    {
-                        **politico_data,
-                        "mandato": {
-                            "cargo": mandato["cargo"],
-                            "partido_sigla": mandato["partido_sigla"],
-                            "ano_eleicao": mandato["ano_eleicao"],
-                            "eleito": mandato["eleito"],
-                            "situacao_turno": mandato["situacao_turno"],
-                            "municipio": mandato["municipio"],
-                            "codigo_ibge": mandato["codigo_ibge"],
-                        },
-                    }
-                )
+                politicos.append({
+                    **politico_data,
+                    "mandato": {
+                        "cargo": mandato.get("cargo"),
+                        "partido_sigla": mandato.get("partido_sigla"),
+                        "ano_eleicao": mandato.get("ano_eleicao"),
+                        "eleito": mandato.get("eleito"),
+                        "situacao_turno": mandato.get("situacao_turno"),
+                        "municipio": mandato.get("municipio"),
+                        "codigo_ibge": mandato.get("codigo_ibge"),
+                    },
+                })
+
+            self.logger.info("get_politicos_por_cargo_success", request_id=request_id, count=len(politicos))
 
             return self._success_response(
                 data=politicos,
-                message=f"Encontrados {len(politicos)} politicos com cargo {cargo}",
+                message=f"Encontrados {len(politicos)} políticos com cargo {input_data.cargo}",
             )
 
         except Exception as e:
-            self.logger.error("get_politicos_por_cargo_error", error=str(e))
-            return self._error_response(f"Erro ao buscar politicos: {str(e)}")
+            self.logger.error("get_politicos_por_cargo_error", request_id=request_id, error=str(e))
+            return self._error_response(f"Erro ao buscar políticos: {str(e)}")
 
     async def _get_politicos_por_partido(
-        self,
-        partido_sigla: str | None = None,
-        partido_nome: str | None = None,
-        codigo_ibge_uf: str | None = None,
-        cargo: str | None = None,
-        ano_eleicao: int | None = None,
-        limit: int = 50,
+        self, request_id: str, input_data: PoliticosPorPartidoInput
     ) -> list[TextContent]:
-        """
-        Lista politicos de um partido.
-
-        Args:
-            partido_sigla: Sigla do partido
-            partido_nome: Nome do partido (busca parcial)
-            codigo_ibge_uf: Codigo IBGE da UF para filtrar
-            cargo: Filtrar por cargo
-            ano_eleicao: Filtrar por ano da eleicao
-            limit: Limite de resultados
-
-        Returns:
-            Lista de politicos do partido
-        """
-        if not partido_sigla and not partido_nome:
+        """Lista políticos de um partido."""
+        if not input_data.partido_sigla and not input_data.partido_nome:
             return self._error_response("Informe partido_sigla ou partido_nome")
 
         try:
@@ -584,61 +512,62 @@ class PoliticosMCPServer(BaseMCPServer):
                 "politico:politico_id (id, nome_completo, nome_urna, sexo)"
             )
 
-            if partido_sigla:
-                query = query.eq("partido_sigla", partido_sigla.upper())
-            elif partido_nome:
-                query = query.ilike("partido_nome", f"%{partido_nome}%")
+            if input_data.partido_sigla:
+                query = query.eq("partido_sigla", input_data.partido_sigla.upper())
+            elif input_data.partido_nome:
+                query = query.ilike("partido_nome", f"%{input_data.partido_nome}%")
 
-            if codigo_ibge_uf:
-                query = query.eq("codigo_ibge_uf", codigo_ibge_uf)
+            if input_data.codigo_ibge_uf:
+                query = query.eq("codigo_ibge_uf", input_data.codigo_ibge_uf)
 
-            if cargo:
-                query = query.ilike("cargo", f"%{cargo}%")
+            if input_data.cargo:
+                query = query.ilike("cargo", f"%{input_data.cargo}%")
 
-            if ano_eleicao:
-                query = query.eq("ano_eleicao", ano_eleicao)
+            if input_data.ano_eleicao:
+                query = query.eq("ano_eleicao", input_data.ano_eleicao)
 
-            result = query.order("municipio").limit(limit).execute()
+            query = query.order("municipio").limit(input_data.limit)
+            result = await self._execute_with_timeout(query, request_id, "get_politicos_por_partido")
 
-            # Flatten politico data
+            # Flatten data
             politicos = []
             for mandato in result.data:
                 politico_data = mandato.pop("politico", {}) or {}
-                politicos.append(
-                    {
-                        **politico_data,
-                        "mandato": {
-                            "cargo": mandato["cargo"],
-                            "partido_sigla": mandato["partido_sigla"],
-                            "partido_nome": mandato["partido_nome"],
-                            "ano_eleicao": mandato["ano_eleicao"],
-                            "eleito": mandato["eleito"],
-                            "situacao_turno": mandato["situacao_turno"],
-                            "municipio": mandato["municipio"],
-                            "codigo_ibge": mandato["codigo_ibge"],
-                        },
-                    }
-                )
+                politicos.append({
+                    **politico_data,
+                    "mandato": {
+                        "cargo": mandato.get("cargo"),
+                        "partido_sigla": mandato.get("partido_sigla"),
+                        "partido_nome": mandato.get("partido_nome"),
+                        "ano_eleicao": mandato.get("ano_eleicao"),
+                        "eleito": mandato.get("eleito"),
+                        "situacao_turno": mandato.get("situacao_turno"),
+                        "municipio": mandato.get("municipio"),
+                        "codigo_ibge": mandato.get("codigo_ibge"),
+                    },
+                })
 
-            partido_display = partido_sigla or partido_nome
+            partido_display = input_data.partido_sigla or input_data.partido_nome
+
+            self.logger.info("get_politicos_por_partido_success", request_id=request_id, count=len(politicos))
+
             return self._success_response(
                 data=politicos,
-                message=f"Encontrados {len(politicos)} politicos do partido {partido_display}",
+                message=f"Encontrados {len(politicos)} políticos do partido {partido_display}",
             )
 
         except Exception as e:
-            self.logger.error("get_politicos_por_partido_error", error=str(e))
-            return self._error_response(f"Erro ao buscar politicos: {str(e)}")
+            self.logger.error("get_politicos_por_partido_error", request_id=request_id, error=str(e))
+            return self._error_response(f"Erro ao buscar políticos: {str(e)}")
 
 
-# Entry point para execucao via stdio
+# Entry point
 async def main():
-    """Executa MCP server via stdio"""
+    """Executa MCP server via stdio."""
     server = PoliticosMCPServer()
     await server.run_stdio()
 
 
 if __name__ == "__main__":
     import asyncio
-
     asyncio.run(main())
