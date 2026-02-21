@@ -10,7 +10,7 @@ import {
   politicosByMunicipioQuerySchema,
   politicosByPartidoSchema,
   politicosByPartidoQuerySchema,
-  uuidParamSchema
+  integerIdParamSchema
 } from '../validation/schemas.js';
 
 const router = Router();
@@ -192,7 +192,7 @@ router.get('/search', validateQuery(politiciansSearchSchema), async (req, res) =
  * GET /api/politicians/:id
  * Get politician details with mandates
  */
-router.get('/:id', validateParams(uuidParamSchema), async (req, res) => {
+router.get('/:id', validateParams(integerIdParamSchema), async (req, res) => {
   try {
     if (!brasilDataHub) {
       return res.status(503).json({
@@ -201,7 +201,7 @@ router.get('/:id', validateParams(uuidParamSchema), async (req, res) => {
       });
     }
 
-    // ID already validated as UUID by Zod
+    // ID already validated as integer by Zod
     const { id } = req.params;
 
     // Get politician data from dim_politicos

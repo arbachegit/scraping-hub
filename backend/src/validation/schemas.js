@@ -118,6 +118,11 @@ export const uuidParamSchema = z.object({
   id: z.string().uuid('ID inválido')
 });
 
+// Integer ID param validation (for politicians)
+export const integerIdParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID deve ser um número positivo')
+});
+
 // ============================================
 // POLITICIANS SCHEMAS
 // ============================================
