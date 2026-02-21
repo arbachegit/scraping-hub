@@ -21,7 +21,6 @@ from supabase import Client, create_client
 from ..base_mcp import BaseMCPServer
 from ..config import MCPConfig
 
-
 # =============================================================================
 # INPUT SCHEMAS (Pydantic v1.1.0)
 # =============================================================================
