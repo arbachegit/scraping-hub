@@ -15,6 +15,7 @@ import peopleRouter from './routes/people.js';
 import newsRouter from './routes/news.js';
 import politiciansRouter from './routes/politicians.js';
 import geoRouter from './routes/geo.js';
+import atlasRouter from './routes/atlas.js';
 import { logger, requestLogger } from './utils/logger.js';
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/people', limiter);
 app.use('/news', limiter);
 app.use('/politicians', limiter);
 app.use('/geo', limiter);
+app.use('/atlas', limiter);
 
 // Routes (nginx strips /api/ prefix, so use /companies directly)
 app.use('/companies', companiesRouter);
@@ -45,6 +47,7 @@ app.use('/people', peopleRouter);
 app.use('/news', newsRouter);
 app.use('/politicians', politiciansRouter);
 app.use('/geo', geoRouter);
+app.use('/atlas', atlasRouter);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -56,7 +59,8 @@ app.get('/health', (req, res) => {
     build_date: process.env.BUILD_DATE || 'unknown',
     apollo_configured: !!process.env.APOLLO_API_KEY,
     fiscal_configured: !!(process.env.FISCAL_SUPABASE_URL && process.env.FISCAL_SUPABASE_KEY),
-    brasil_data_hub_configured: !!(process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY)
+    brasil_data_hub_configured: !!(process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY),
+    atlas_llm_configured: !!(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY)
   });
 });
 

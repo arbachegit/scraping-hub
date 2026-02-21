@@ -270,3 +270,21 @@ export function validateParams(schema) {
     }
   };
 }
+
+// ============================================
+// ATLAS CHAT SCHEMAS
+// ============================================
+
+// Atlas chat request validation
+export const atlasChatSchema = z.object({
+  message: z.string()
+    .min(1, 'Mensagem não pode estar vazia')
+    .max(1000, 'Mensagem muito longa (máximo 1000 caracteres)')
+    .transform(val => val.trim()),
+  sessionId: z.string().uuid().optional().nullable()
+});
+
+// Atlas clear session request
+export const atlasClearSessionSchema = z.object({
+  sessionId: z.string().uuid('Session ID inválido')
+});
