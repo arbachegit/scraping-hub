@@ -17,7 +17,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
-from api.agent import agent_router
 from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     Token,
@@ -96,9 +95,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Include routers
-app.include_router(agent_router)
 
 # Static files
 static_path = Path(__file__).resolve().parent.parent / "static"

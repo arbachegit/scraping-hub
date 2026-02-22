@@ -1,0 +1,23 @@
+{
+  "name": "iconsai-scraping",
+  "version": "1.118.2026",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev:all",
+    "dev:web": "npm run dev --workspace=iconsai-scraping-web",
+    "dev:backend": "npm run dev --workspace=iconsai-scraping-backend",
+    "dev:all": "npm run dev:backend & npm run dev:web",
+    "build": "npm run build --workspace=iconsai-scraping-web",
+    "lint": "npm run lint --workspace=iconsai-scraping-web",
+    "format": "npm run format --workspace=iconsai-scraping-web",
+    "start:web": "npm run start --workspace=iconsai-scraping-web",
+    "start:backend": "npm run start --workspace=iconsai-scraping-backend"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -11,6 +11,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/web/lib/
 lib64/
 parts/
 sdist/
@@ -70,10 +71,21 @@ data/
 !frontend/**/*.json
 !backend/*.json
 !backend/**/*.json
+!apps/**/*.json
+!package.json
+!package-lock.json
 *.xlsx
 *.parquet
 
-# Frontend (Next.js) - Ignorar builds mas nao config
+# Root Node.js
+node_modules/
+
+# Frontend (Next.js) - apps/web
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+
+# Legacy frontend
 frontend/node_modules/
 frontend/.next/
 frontend/out/
@@ -102,3 +114,12 @@ credentials/
 MANIFEST
 supabase/.temp/
 .mass_collector.pid
+.sp_collector.pid
+.sp_full_collector.pid
+
+# Normalization artifacts
+console_evidence.txt
+normalization_report.json
+
+# Legacy frontend (archived)
+static.legacy/
