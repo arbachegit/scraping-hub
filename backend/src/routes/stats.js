@@ -1,22 +1,41 @@
 import { Router } from 'express';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../database/supabase.js';
 import logger from '../utils/logger.js';
 
 const router = Router();
 
+// Cliente Supabase para brasil-data-hub (políticos e mandatos)
+const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY
+  ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
+  : null;
+
 /**
  * GET /stats
  * Returns counts for all main entities
+ * - empresas, pessoas, noticias: from local Supabase
+ * - politicos, mandatos: from brasil-data-hub
  */
 router.get('/', async (req, res) => {
   try {
-    // Run all counts in parallel
-    const [empresas, pessoas, politicos, mandatos, noticias] = await Promise.all([
+    // Local Supabase counts
+    const localPromises = [
       supabase.from('dim_empresas').select('id', { count: 'exact', head: true }),
       supabase.from('dim_pessoas').select('id', { count: 'exact', head: true }),
-      supabase.from('dim_politicos').select('id', { count: 'exact', head: true }),
-      supabase.from('fato_mandatos').select('id', { count: 'exact', head: true }),
       supabase.from('fato_noticias').select('id', { count: 'exact', head: true }),
+    ];
+
+    // Brasil Data Hub counts (if configured)
+    const brasilDataHubPromises = brasilDataHub
+      ? [
+          brasilDataHub.from('dim_politicos').select('id', { count: 'exact', head: true }),
+          brasilDataHub.from('fato_politicos_mandatos').select('id', { count: 'exact', head: true }),
+        ]
+      : [Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 })];
+
+    const [empresas, pessoas, noticias, politicos, mandatos] = await Promise.all([
+      ...localPromises,
+      ...brasilDataHubPromises,
     ]);
 
     const stats = {
@@ -32,6 +51,10 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       stats,
+      sources: {
+        local: ['empresas', 'pessoas', 'noticias'],
+        brasil_data_hub: brasilDataHub ? ['politicos', 'mandatos'] : [],
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

@@ -72,6 +72,7 @@ data/
 !backend/*.json
 !backend/**/*.json
 !apps/**/*.json
+!mcp-servers/**/*.json
 !package.json
 !package-lock.json
 *.xlsx
