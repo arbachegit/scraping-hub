@@ -92,7 +92,7 @@ jobs:
 
       # Build Web (Next.js) image
       - name: Build and push Web image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./apps/web
           file: ./apps/web/Dockerfile
@@ -107,7 +107,7 @@ jobs:
 
       # Build API image
       - name: Build and push API image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -121,7 +121,7 @@ jobs:
 
       # Build Backend image
       - name: Build and push Backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
@@ -135,7 +135,7 @@ jobs:
 
       # Build Scheduler image
       - name: Build and push Scheduler image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./scheduler/Dockerfile
