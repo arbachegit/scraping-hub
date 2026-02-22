@@ -3,9 +3,38 @@
 #
 # IMPORTANT: pull_policy: always ensures we NEVER use cached old images
 
-version: '3.8'
-
 services:
+  # Next.js Frontend
+  web:
+    image: ghcr.io/arbachegit/iconsai-scraping-web:${GIT_SHA:-latest}
+    container_name: iconsai-web
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PYTHON_API_URL=http://api:8000
+      - NODEJS_API_URL=http://backend:3001
+      - GIT_SHA=${GIT_SHA}
+      - BUILD_DATE=${BUILD_DATE}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      - api
+      - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - iconsai-network
+
   # Python API (FastAPI)
   api:
     image: ghcr.io/arbachegit/iconsai-scraping-api:${GIT_SHA:-latest}

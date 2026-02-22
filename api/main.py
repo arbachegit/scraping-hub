@@ -12,7 +12,6 @@ from typing import List, Optional
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
@@ -95,32 +94,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Note: Frontend moved to Next.js (apps/web on port 3000)
-
-
-# ===========================================
-# PAGES (Redirect to Next.js frontend)
-# ===========================================
-
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
-
-@app.get("/", include_in_schema=False)
-async def index():
-    """Redirect to Next.js login page"""
-    return RedirectResponse(url=FRONTEND_URL, status_code=302)
-
-
-@app.get("/dashboard", include_in_schema=False)
-async def dashboard():
-    """Redirect to Next.js dashboard page"""
-    return RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
-
-
-@app.get("/admin", include_in_schema=False)
-async def admin_page():
-    """Redirect to Next.js admin page"""
-    return RedirectResponse(url=f"{FRONTEND_URL}/admin", status_code=302)
+# Note: Frontend is served by Next.js container (port 3000)
+# Nginx routes / to Next.js, /api/* to backends
 
 
 # ===========================================
