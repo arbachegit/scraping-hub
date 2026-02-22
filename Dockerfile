@@ -34,7 +34,6 @@ COPY api/ ./api/
 COPY src/ ./src/
 COPY config/ ./config/
 COPY backend/ ./backend/
-COPY static/ ./static/
 COPY VERSION ./
 
 # Build arguments for version tracking
