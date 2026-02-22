@@ -149,10 +149,10 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
   const isSaving = saveMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <div className="w-full max-w-2xl flex flex-col rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl" style={{ maxHeight: '85vh' }}>
+        {/* Header - fixed */}
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-white/5">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <span className="w-1 h-5 bg-gradient-to-b from-orange-400 to-orange-600 rounded" />
             Buscar Pessoa
@@ -165,7 +165,8 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+        {/* Scrollable content */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           {view === 'search' ? (
             <>
               {/* Search Form */}
