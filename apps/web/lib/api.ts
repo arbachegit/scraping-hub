@@ -51,6 +51,32 @@ export async function getHealth(): Promise<{ version: string; status: string }> 
 }
 
 // ============================================
+// STATS API
+// ============================================
+
+export interface StatsResponse {
+  success: boolean;
+  stats: {
+    empresas: number;
+    pessoas: number;
+    politicos: number;
+    mandatos: number;
+    noticias: number;
+  };
+}
+
+export async function getStats(): Promise<StatsResponse> {
+  const res = await fetch(`${API_BASE}/stats`);
+  if (!res.ok) {
+    return {
+      success: false,
+      stats: { empresas: 0, pessoas: 0, politicos: 0, mandatos: 0, noticias: 0 },
+    };
+  }
+  return res.json();
+}
+
+// ============================================
 // ATLAS CHAT API
 // ============================================
 

@@ -3,8 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Users, Flag, Newspaper, LogOut, Shield } from 'lucide-react';
-import { getUser, getHealth } from '@/lib/api';
+import {
+  Building2,
+  Users,
+  Flag,
+  Newspaper,
+  LogOut,
+  Shield,
+  Vote,
+} from 'lucide-react';
+import { getUser, getHealth, getStats } from '@/lib/api';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';
@@ -75,6 +83,13 @@ export default function DashboardPage() {
     }
   }, [healthQuery.data]);
 
+  // Load stats
+  const statsQuery = useQuery({
+    queryKey: ['stats'],
+    queryFn: getStats,
+    refetchInterval: 60000, // Refresh every minute
+  });
+
   function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('tokenType');
@@ -137,7 +152,41 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-8 py-8">
-        <h2 className="text-2xl font-bold text-slate-300 mb-8">Modulos de Inteligencia</h2>
+        <h2 className="text-2xl font-bold text-slate-300 mb-4">Modulos de Inteligencia</h2>
+
+        {/* Stats Badges */}
+        <div className="flex flex-wrap gap-3 mb-8">
+          <StatBadge
+            icon={Building2}
+            label="Empresas"
+            value={statsQuery.data?.stats.empresas ?? 0}
+            color="red"
+          />
+          <StatBadge
+            icon={Users}
+            label="Pessoas"
+            value={statsQuery.data?.stats.pessoas ?? 0}
+            color="orange"
+          />
+          <StatBadge
+            icon={Flag}
+            label="Politicos"
+            value={statsQuery.data?.stats.politicos ?? 0}
+            color="blue"
+          />
+          <StatBadge
+            icon={Vote}
+            label="Mandatos"
+            value={statsQuery.data?.stats.mandatos ?? 0}
+            color="purple"
+          />
+          <StatBadge
+            icon={Newspaper}
+            label="Noticias"
+            value={statsQuery.data?.stats.noticias ?? 0}
+            color="green"
+          />
+        </div>
 
         {/* Module Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -280,6 +329,52 @@ function ModuleCard({
           {badge}
         </span>
       )}
+    </div>
+  );
+}
+
+function StatBadge({
+  icon: Icon,
+  label,
+  value,
+  color,
+}: {
+  icon: typeof Building2;
+  label: string;
+  value: number;
+  color: 'red' | 'orange' | 'blue' | 'green' | 'cyan' | 'purple';
+}) {
+  const colorMap = {
+    red: 'bg-red-500/10 border-red-500/30 text-red-400',
+    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
+    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    green: 'bg-green-500/10 border-green-500/30 text-green-400',
+    cyan: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
+    purple: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
+  };
+
+  const iconColorMap = {
+    red: 'text-red-400',
+    orange: 'text-orange-400',
+    blue: 'text-blue-400',
+    green: 'text-green-400',
+    cyan: 'text-cyan-400',
+    purple: 'text-purple-400',
+  };
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString('pt-BR');
+  };
+
+  return (
+    <div
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${colorMap[color]}`}
+    >
+      <Icon className={`w-4 h-4 ${iconColorMap[color]}`} />
+      <span className="text-sm font-medium tabular-nums">{formatNumber(value)}</span>
+      <span className="text-xs opacity-70">{label}</span>
     </div>
   );
 }
