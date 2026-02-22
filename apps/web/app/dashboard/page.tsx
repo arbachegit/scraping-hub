@@ -2,222 +2,289 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
-  LayoutDashboard,
   Building2,
   Users,
-  FileText,
-  Settings,
+  Flag,
+  Newspaper,
   LogOut,
-  TrendingUp,
-  Activity,
+  Shield,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getUser, getHealth } from '@/lib/api';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
-
-interface Stats {
-  totalCompanies: number;
-  totalPeople: number;
-  pendingAnalysis: number;
-  completedToday: number;
-}
+import { CompanyModal } from '@/components/modals/company-modal';
+import { CnaeModal } from '@/components/modals/cnae-modal';
+import { RegimeModal } from '@/components/modals/regime-modal';
+import { PeopleModal } from '@/components/modals/people-modal';
+import { NewsModal } from '@/components/modals/news-modal';
+import {
+  EmpresasListingModal,
+  PessoasListingModal,
+  NoticiasListingModal,
+} from '@/components/modals/listing-modal';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats>({
-    totalCompanies: 0,
-    totalPeople: 0,
-    pendingAnalysis: 0,
-    completedToday: 0,
-  });
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [version, setVersion] = useState('v1.14.2026');
 
+  // Modal states
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [cnaeModalOpen, setCnaeModalOpen] = useState(false);
+  const [regimeModalOpen, setRegimeModalOpen] = useState(false);
+  const [peopleModalOpen, setPeopleModalOpen] = useState(false);
+  const [newsModalOpen, setNewsModalOpen] = useState(false);
+  const [empresasListingOpen, setEmpresasListingOpen] = useState(false);
+  const [pessoasListingOpen, setPessoasListingOpen] = useState(false);
+  const [noticiasListingOpen, setNoticiasListingOpen] = useState(false);
+
+  // Selected values from picker modals
+  const [selectedCnae, setSelectedCnae] = useState<string>('');
+  const [selectedRegime, setSelectedRegime] = useState<string>('');
+
+  // Auth check
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/');
       return;
     }
-
-    // Fetch dashboard stats (optional - uses placeholders if unavailable)
-    fetch('/api/companies/stats', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then((data) => {
-        if (data) setStats(data);
-      })
-      .catch(() => {
-        // Stats endpoint not available - use default values
-      });
   }, [router]);
+
+  // Load user info
+  const userQuery = useQuery({
+    queryKey: ['user'],
+    queryFn: getUser,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (userQuery.data) {
+      setUserName(userQuery.data.name || userQuery.data.email);
+      setUserRole(userQuery.data.role);
+    }
+    if (userQuery.isError) {
+      handleLogout();
+    }
+  }, [userQuery.data, userQuery.isError]);
+
+  // Load version
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: getHealth,
+  });
+
+  useEffect(() => {
+    if (healthQuery.data?.version) {
+      setVersion('v' + healthQuery.data.version);
+    }
+  }, [healthQuery.data]);
 
   function handleLogout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('tokenType');
     router.push('/');
   }
 
+  function handleCnaeSelect(codigo: string) {
+    setSelectedCnae(codigo);
+  }
+
+  function handleRegimeSelect(codigo: string) {
+    setSelectedRegime(codigo);
+  }
+
+  function openPoliticosFromCard() {
+    // Atlas agent stub - will be implemented
+    console.log('Atlas: Politicos module clicked');
+  }
+
   return (
-    <div className="min-h-screen bg-grid bg-glow">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 border-r border-cyan-500/20 bg-[#0f1629]/95 backdrop-blur-xl">
-        <div className="p-6 border-b border-cyan-500/20">
-          <div className="flex items-center gap-3">
-            <img src="/iconsai-logo.png" alt="Iconsai" className="h-10 w-auto" />
-            <div>
-              <h1 className="font-bold text-gradient">Scraping Hub</h1>
-              <p className="text-xs text-muted-foreground">Business Intelligence</p>
-            </div>
+    <div className="min-h-screen bg-[#0a0e1a]">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-[#0f1629]/80 backdrop-blur-xl border-b border-cyan-500/10">
+        <div className="flex items-center justify-between px-8 py-4">
+          <div className="flex items-center gap-4">
+            <picture>
+              <source srcSet="/iconsai-logo.webp" type="image/webp" />
+              <img src="/iconsai-logo.png" alt="Iconsai" className="h-10 w-auto" />
+            </picture>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+              Scraping Hub
+            </h1>
+            <span className="px-2 py-1 text-xs text-slate-400 bg-slate-400/10 border border-slate-400/20 rounded">
+              {version}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {userRole === 'super_admin' && (
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-2 h-12 px-4 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 rounded-xl text-sm font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
+              >
+                <Shield className="h-4 w-4" />
+                <span>Gerenciar Usuarios</span>
+              </a>
+            )}
+            <span className="inline-flex items-center justify-center h-12 px-4 bg-slate-400/15 border-2 border-slate-400 rounded-xl text-slate-200 text-sm font-medium">
+              {userName || '-'}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 h-12 px-4 bg-red-500/15 border-2 border-red-500 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500 hover:text-white transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
           </div>
         </div>
-
-        <nav className="p-4 space-y-1">
-          <NavItem icon={LayoutDashboard} label="Dashboard" active />
-          <NavItem icon={Building2} label="Empresas" />
-          <NavItem icon={Users} label="Pessoas" />
-          <NavItem icon={FileText} label="Relatorios" />
-          <NavItem icon={Settings} label="Configuracoes" />
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-cyan-500/20">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
-        </div>
-      </aside>
+      </header>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visao geral do sistema de scraping</p>
-        </div>
+      <main className="max-w-5xl mx-auto px-8 py-8">
+        <h2 className="text-2xl font-bold text-slate-300 mb-8">Modulos de Inteligencia</h2>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="Empresas"
-            value={stats.totalCompanies}
+        {/* Module Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Empresas */}
+          <ModuleCard
             icon={Building2}
-            trend="+12%"
+            iconColor="red"
+            title="Empresas"
+            description="Busque por CNPJ via BrasilAPI + Serper. Dados oficiais da Receita Federal."
+            onClick={() => setCompanyModalOpen(true)}
           />
-          <StatCard
-            title="Pessoas"
-            value={stats.totalPeople}
+
+          {/* Pessoas */}
+          <ModuleCard
             icon={Users}
-            trend="+8%"
+            iconColor="orange"
+            title="Pessoas"
+            description="Pesquise perfis profissionais e analise talentos."
+            onClick={() => setPeopleModalOpen(true)}
           />
-          <StatCard
-            title="Pendentes"
-            value={stats.pendingAnalysis}
-            icon={Activity}
-            trend="-5%"
+
+          {/* Politicos */}
+          <ModuleCard
+            icon={Flag}
+            iconColor="blue"
+            title="Politicos"
+            description="Perfis de politicos e percepcao publica."
+            badge="Ativo"
+            onClick={openPoliticosFromCard}
           />
-          <StatCard
-            title="Hoje"
-            value={stats.completedToday}
-            icon={TrendingUp}
-            trend="+25%"
+
+          {/* Noticias */}
+          <ModuleCard
+            icon={Newspaper}
+            iconColor="green"
+            title="Noticias"
+            description="Monitore noticias e cenario economico."
+            onClick={() => setNewsModalOpen(true)}
           />
         </div>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Acoes Rapidas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <Building2 className="h-6 w-6" />
-                <span>Nova Busca de Empresa</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <Users className="h-6 w-6" />
-                <span>Enriquecer Socios</span>
-              </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <FileText className="h-6 w-6" />
-                <span>Gerar Relatorio</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </main>
 
       {/* Atlas Chat */}
       <AtlasChat />
+
+      {/* Modals */}
+      <CompanyModal
+        isOpen={companyModalOpen}
+        onClose={() => setCompanyModalOpen(false)}
+        onOpenCnaeModal={() => setCnaeModalOpen(true)}
+        onOpenRegimeModal={() => setRegimeModalOpen(true)}
+        onOpenListingModal={() => setEmpresasListingOpen(true)}
+        userName={userName}
+        selectedCnae={selectedCnae}
+        selectedRegime={selectedRegime}
+      />
+
+      <CnaeModal
+        isOpen={cnaeModalOpen}
+        onClose={() => setCnaeModalOpen(false)}
+        onSelect={handleCnaeSelect}
+      />
+
+      <RegimeModal
+        isOpen={regimeModalOpen}
+        onClose={() => setRegimeModalOpen(false)}
+        onSelect={handleRegimeSelect}
+      />
+
+      <PeopleModal
+        isOpen={peopleModalOpen}
+        onClose={() => setPeopleModalOpen(false)}
+        onOpenListingModal={() => setPessoasListingOpen(true)}
+      />
+
+      <NewsModal
+        isOpen={newsModalOpen}
+        onClose={() => setNewsModalOpen(false)}
+        onOpenListingModal={() => setNoticiasListingOpen(true)}
+      />
+
+      <EmpresasListingModal
+        isOpen={empresasListingOpen}
+        onClose={() => setEmpresasListingOpen(false)}
+      />
+
+      <PessoasListingModal
+        isOpen={pessoasListingOpen}
+        onClose={() => setPessoasListingOpen(false)}
+      />
+
+      <NoticiasListingModal
+        isOpen={noticiasListingOpen}
+        onClose={() => setNoticiasListingOpen(false)}
+      />
     </div>
   );
 }
 
-function NavItem({
+function ModuleCard({
   icon: Icon,
-  label,
-  active = false,
-}: {
-  icon: typeof LayoutDashboard;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-        active
-          ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-          : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-      }`}
-    >
-      <Icon className="h-5 w-5" />
-      {label}
-    </button>
-  );
-}
-
-function StatCard({
+  iconColor,
   title,
-  value,
-  icon: Icon,
-  trend,
+  description,
+  badge,
+  onClick,
 }: {
-  title: string;
-  value: number;
   icon: typeof Building2;
-  trend: string;
+  iconColor: 'red' | 'orange' | 'blue' | 'green' | 'cyan' | 'purple';
+  title: string;
+  description: string;
+  badge?: string;
+  onClick: () => void;
 }) {
-  const isPositive = trend.startsWith('+');
+  const iconColorMap = {
+    red: 'bg-red-500/10 text-red-400',
+    orange: 'bg-orange-500/10 text-orange-400',
+    blue: 'bg-blue-500/10 text-blue-400',
+    green: 'bg-green-500/10 text-green-400',
+    cyan: 'bg-cyan-500/10 text-cyan-400',
+    purple: 'bg-purple-500/10 text-purple-400',
+  };
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold text-foreground mt-1">
-              {value.toLocaleString('pt-BR')}
-            </p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/10">
-            <Icon className="h-6 w-6 text-cyan-400" />
-          </div>
+    <div
+      onClick={onClick}
+      className="bg-[#0f1629]/80 border border-white/5 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
+    >
+      <div className="flex items-center gap-4 mb-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconColorMap[iconColor]}`}>
+          <Icon className="w-6 h-6" />
         </div>
-        <div className="mt-4 flex items-center gap-1">
-          <span
-            className={`text-sm font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}
-          >
-            {trend}
-          </span>
-          <span className="text-xs text-muted-foreground">vs mes anterior</span>
-        </div>
-      </CardContent>
-    </Card>
+        <h3 className="text-lg font-semibold text-slate-300">{title}</h3>
+      </div>
+      <p className="text-slate-400/80 text-sm leading-relaxed">{description}</p>
+      {badge && (
+        <span className="inline-block mt-3 px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 text-green-400 rounded">
+          {badge}
+        </span>
+      )}
+    </div>
   );
 }

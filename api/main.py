@@ -12,8 +12,7 @@ from typing import List, Optional
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
@@ -96,43 +95,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files
-static_path = Path(__file__).resolve().parent.parent / "static"
-if static_path.exists():
-    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
-    logger.info("static_files_mounted", path=str(static_path))
+# Note: Frontend moved to Next.js (apps/web on port 3000)
 
 
 # ===========================================
-# PAGES
+# PAGES (Redirect to Next.js frontend)
 # ===========================================
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
 @app.get("/", include_in_schema=False)
 async def index():
-    """Serve login page"""
-    index_file = static_path / "index.html"
-    if index_file.exists():
-        return FileResponse(str(index_file), media_type="text/html")
-    return {"error": "index.html not found"}
+    """Redirect to Next.js login page"""
+    return RedirectResponse(url=FRONTEND_URL, status_code=302)
 
 
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard():
-    """Serve dashboard page"""
-    dashboard_file = static_path / "dashboard.html"
-    if dashboard_file.exists():
-        return FileResponse(str(dashboard_file), media_type="text/html")
-    return {"error": "dashboard.html not found"}
+    """Redirect to Next.js dashboard page"""
+    return RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
 
 
 @app.get("/admin", include_in_schema=False)
 async def admin_page():
-    """Serve admin page"""
-    admin_file = static_path / "admin.html"
-    if admin_file.exists():
-        return FileResponse(str(admin_file), media_type="text/html")
-    return {"error": "admin.html not found"}
+    """Redirect to Next.js admin page"""
+    return RedirectResponse(url=f"{FRONTEND_URL}/admin", status_code=302)
 
 
 # ===========================================
