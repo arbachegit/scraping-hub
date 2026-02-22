@@ -67,14 +67,24 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
 
   function handleSearch() {
     const cpfDigits = cpf.replace(/\D/g, '');
+    const hasCpf = cpfDigits.length === 11;
+    const hasNome = nome.trim().length >= 2;
 
-    if (cpfDigits.length !== 11) {
+    if (!hasCpf && !hasNome) {
+      setMessage({ type: 'error', text: 'Preencha pelo menos CPF ou nome (mínimo 2 caracteres)' });
+      return;
+    }
+
+    if (cpfDigits.length > 0 && cpfDigits.length !== 11) {
       setMessage({ type: 'error', text: 'CPF deve ter 11 dígitos' });
       return;
     }
 
     setMessage(null);
-    searchMutation.mutate({ cpf: cpfDigits, nome: nome || undefined });
+    searchMutation.mutate({
+      cpf: hasCpf ? cpfDigits : undefined,
+      nome: hasNome ? nome.trim() : undefined
+    });
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -131,7 +141,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                     value={cpf}
                     onChange={handleCpfChange}
                     onKeyDown={handleKeyDown}
-                    placeholder="CPF (000.000.000-00) *"
+                    placeholder="CPF (000.000.000-00)"
                     maxLength={14}
                     className="flex-1"
                   />
@@ -139,10 +149,11 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Nome (opcional)"
+                    placeholder="Nome da pessoa"
                     className="flex-1"
                   />
                 </div>
+                <p className="text-slate-500 text-xs">Preencha pelo menos um campo para buscar</p>
                 <div className="flex gap-3">
                   <Button
                     onClick={handleSearch}

@@ -275,15 +275,23 @@ export function validateParams(schema) {
 // ATLAS CHAT SCHEMAS
 // ============================================
 
-// CPF validation (11 digits)
-const cpfSchema = z.string()
+// CPF validation (11 digits) - optional
+const cpfSchemaOptional = z.string()
   .transform(val => val.replace(/[^\d]/g, ''))
-  .refine(val => val.length === 11, { message: 'CPF deve ter 11 dígitos' });
+  .refine(val => val.length === 0 || val.length === 11, { message: 'CPF deve ter 11 dígitos' })
+  .optional()
+  .nullable();
 
-// Person search by CPF request
+// Person search request - at least CPF or nome required
 export const searchPersonByCpfSchema = z.object({
-  cpf: cpfSchema,
+  cpf: cpfSchemaOptional,
   nome: z.string().max(200).optional().nullable()
+}).refine(data => {
+  const hasCpf = data.cpf && data.cpf.length === 11;
+  const hasNome = data.nome && data.nome.trim().length >= 2;
+  return hasCpf || hasNome;
+}, {
+  message: 'Preencha pelo menos CPF ou nome (mínimo 2 caracteres)'
 });
 
 // Atlas chat request validation

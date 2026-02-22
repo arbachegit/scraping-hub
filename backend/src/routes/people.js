@@ -260,22 +260,42 @@ router.post('/search', async (req, res) => {
 
 /**
  * POST /api/people/search-cpf
- * Search for person by CPF using LinkedIn (Apollo) and Perplexity
+ * Search for person by CPF and/or nome using LinkedIn (Apollo) and Perplexity
  */
 router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, res) => {
   try {
     const { cpf, nome } = req.body;
+    const hasCpf = cpf && cpf.length === 11;
+    const hasNome = nome && nome.trim().length >= 2;
 
-    logger.info('Searching person by CPF', { cpf: `***${cpf.slice(-4)}`, nome });
+    logger.info('Searching person', {
+      cpf: hasCpf ? `***${cpf.slice(-4)}` : null,
+      nome: hasNome ? nome : null
+    });
 
-    // First check if person exists in database
-    const { data: existingPerson, error: dbError } = await supabase
-      .from('dim_pessoas')
-      .select('*')
-      .eq('cpf', cpf)
-      .single();
+    // First check if person exists in database (by CPF or nome)
+    let existingPerson = null;
 
-    if (existingPerson && !dbError) {
+    if (hasCpf) {
+      const { data, error } = await supabase
+        .from('dim_pessoas')
+        .select('*')
+        .eq('cpf', cpf)
+        .single();
+      if (data && !error) existingPerson = data;
+    }
+
+    if (!existingPerson && hasNome) {
+      const { data, error } = await supabase
+        .from('dim_pessoas')
+        .select('*')
+        .or(`nome_completo.ilike.%${nome.trim()}%,nome.ilike.%${nome.trim()}%`)
+        .limit(1)
+        .single();
+      if (data && !error) existingPerson = data;
+    }
+
+    if (existingPerson) {
       logger.info('Person found in database', { id: existingPerson.id });
       return res.json({
         success: true,
@@ -287,7 +307,7 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     }
 
     // Search using Perplexity (AI-powered search)
-    const perplexityResult = await searchPersonPerplexity(nome || 'pessoa', cpf);
+    const perplexityResult = await searchPersonPerplexity(nome || 'pessoa', hasCpf ? cpf : null);
 
     if (perplexityResult.success && perplexityResult.found && perplexityResult.pessoa) {
       logger.info('Person found via Perplexity', { nome: perplexityResult.pessoa.nome_completo });

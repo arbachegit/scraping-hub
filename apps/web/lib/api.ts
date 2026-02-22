@@ -443,7 +443,7 @@ export async function getPersonDetails(personId: string): Promise<PersonDetailsR
 }
 
 export interface CpfSearchRequest {
-  cpf: string;
+  cpf?: string;
   nome?: string;
 }
 
