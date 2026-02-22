@@ -358,4 +358,92 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
   }
 });
 
+/**
+ * POST /api/people/save
+ * Save a person to the database
+ */
+router.post('/save', async (req, res) => {
+  try {
+    const { pessoa, experiencias, aprovado_por } = req.body;
+
+    if (!pessoa || !pessoa.nome_completo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dados da pessoa são obrigatórios'
+      });
+    }
+
+    logger.info('Saving person', { nome: pessoa.nome_completo, aprovado_por });
+
+    // Check if person already exists by CPF or nome
+    if (pessoa.cpf) {
+      const { data: existing } = await supabase
+        .from('dim_pessoas')
+        .select('id')
+        .eq('cpf', pessoa.cpf)
+        .single();
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          error: 'Pessoa já cadastrada com este CPF',
+          pessoa_id: existing.id
+        });
+      }
+    }
+
+    // Insert person
+    const { data: novaPessoa, error: pessoaError } = await supabase
+      .from('dim_pessoas')
+      .insert({
+        nome: pessoa.nome_completo?.split(' ')[0] || pessoa.nome_completo,
+        nome_completo: pessoa.nome_completo,
+        cpf: pessoa.cpf || null,
+        email: pessoa.email || null,
+        linkedin_url: pessoa.linkedin_url || null,
+        foto_url: pessoa.foto_url || null,
+        pais: pessoa.localizacao?.includes(',') ? pessoa.localizacao.split(',').pop()?.trim() : 'Brasil',
+        aprovado_por: aprovado_por || 'sistema'
+      })
+      .select()
+      .single();
+
+    if (pessoaError) {
+      logger.error('Error saving person', { error: pessoaError.message });
+      return res.status(500).json({ success: false, error: pessoaError.message });
+    }
+
+    // Insert experiences if provided
+    if (experiencias && experiencias.length > 0) {
+      const eventosToInsert = experiencias.map(exp => ({
+        pessoa_id: novaPessoa.id,
+        titulo: exp.cargo || null,
+        instituicao: exp.empresa || null,
+        tipo: 'experiencia_profissional',
+        descricao: exp.periodo || null
+      }));
+
+      const { error: eventosError } = await supabase
+        .from('fato_eventos_pessoa')
+        .insert(eventosToInsert);
+
+      if (eventosError) {
+        logger.warn('Error saving experiences', { error: eventosError.message });
+      }
+    }
+
+    logger.info('Person saved successfully', { id: novaPessoa.id });
+
+    res.json({
+      success: true,
+      pessoa: novaPessoa,
+      message: 'Pessoa cadastrada com sucesso'
+    });
+
+  } catch (error) {
+    logger.error('Error saving person', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

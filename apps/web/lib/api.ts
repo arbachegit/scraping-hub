@@ -520,6 +520,37 @@ export async function getCreditBureaus(): Promise<CreditBureausResponse> {
   return res.json();
 }
 
+export interface SavePersonRequest {
+  pessoa: CpfSearchPessoa;
+  experiencias?: CpfSearchExperiencia[];
+  aprovado_por: string;
+}
+
+export interface SavePersonResponse {
+  success: boolean;
+  pessoa?: {
+    id: string;
+    nome_completo: string;
+  };
+  message?: string;
+  error?: string;
+}
+
+export async function savePerson(data: SavePersonRequest): Promise<SavePersonResponse> {
+  const res = await fetch(`${API_BASE}/people/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Save failed' }));
+    throw new Error(error.error || 'Save failed');
+  }
+
+  return res.json();
+}
+
 // ============================================
 // NEWS API
 // ============================================

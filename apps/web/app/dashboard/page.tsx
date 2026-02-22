@@ -260,6 +260,7 @@ export default function DashboardPage() {
         isOpen={peopleModalOpen}
         onClose={() => setPeopleModalOpen(false)}
         onOpenListingModal={() => setPessoasListingOpen(true)}
+        userName={userName}
       />
 
       <NewsModal

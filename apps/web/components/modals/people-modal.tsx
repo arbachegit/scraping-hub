@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
-import { X, Search, ArrowLeft, Loader2, ExternalLink, User, Building2, Briefcase, AlertCircle } from 'lucide-react';
+import { X, Search, ArrowLeft, Loader2, ExternalLink, User, Building2, Briefcase, AlertCircle, Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   searchPersonByCpf,
+  savePerson,
   type CpfSearchResponse,
   type CpfSearchPessoa,
   type CpfSearchExperiencia,
@@ -19,16 +20,18 @@ interface PeopleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenListingModal: () => void;
+  userName?: string;
 }
 
 type ViewState = 'search' | 'details';
 
-export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModalProps) {
+export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 'sistema' }: PeopleModalProps) {
   const [view, setView] = useState<ViewState>('search');
   const [cpf, setCpf] = useState('');
   const [nome, setNome] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [searchResult, setSearchResult] = useState<CpfSearchResponse | null>(null);
+  const [saved, setSaved] = useState(false);
   const cpfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,11 +44,29 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
     mutationFn: searchPersonByCpf,
     onSuccess: (data) => {
       setSearchResult(data);
+      setSaved(false);
       if (data.found && data.pessoa) {
         setView('details');
         setMessage(null);
+        // If from database, mark as already saved
+        if (data.source === 'database') {
+          setSaved(true);
+        }
       } else {
         setMessage({ type: 'info', text: data.message || 'Pessoa não encontrada nas fontes disponíveis' });
+      }
+    },
+    onError: (error: Error) => {
+      setMessage({ type: 'error', text: error.message });
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: savePerson,
+    onSuccess: (data) => {
+      if (data.success) {
+        setSaved(true);
+        setMessage({ type: 'success', text: data.message || 'Pessoa cadastrada com sucesso!' });
       }
     },
     onError: (error: Error) => {
@@ -87,6 +108,16 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
     });
   }
 
+  function handleSave() {
+    if (!searchResult?.pessoa) return;
+
+    saveMutation.mutate({
+      pessoa: searchResult.pessoa,
+      experiencias: searchResult.experiencias,
+      aprovado_por: userName
+    });
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -97,6 +128,8 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
   function handleBack() {
     setView('search');
     setSearchResult(null);
+    setSaved(false);
+    setMessage(null);
   }
 
   function handleClose() {
@@ -105,19 +138,22 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
     setNome('');
     setSearchResult(null);
     setMessage(null);
+    setSaved(false);
     searchMutation.reset();
+    saveMutation.reset();
     onClose();
   }
 
   if (!isOpen) return null;
 
   const isLoading = searchMutation.isPending;
+  const isSaving = saveMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
+        <div className="flex items-center justify-between p-6 border-b border-white/5 flex-shrink-0">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <span className="w-1 h-5 bg-gradient-to-b from-orange-400 to-orange-600 rounded" />
             Buscar Pessoa
@@ -130,7 +166,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
           </button>
         </div>
 
-        <ScrollArea className="p-6 max-h-[calc(85vh-80px)]">
+        <ScrollArea className="flex-1 p-6">
           {view === 'search' ? (
             <>
               {/* Search Form */}
@@ -220,6 +256,22 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                 Voltar
               </Button>
 
+              {/* Success/Error Message */}
+              {message && (
+                <div
+                  className={cn(
+                    'p-4 rounded-lg mb-4',
+                    message.type === 'success'
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                      : message.type === 'error'
+                      ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+                      : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+                  )}
+                >
+                  {message.text}
+                </div>
+              )}
+
               {searchResult?.pessoa && (
                 <PersonDetailsView
                   pessoa={searchResult.pessoa}
@@ -229,6 +281,29 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                   fontes={searchResult.fontes}
                 />
               )}
+
+              {/* Save Button */}
+              <div className="mt-6 pt-4 border-t border-white/5">
+                {saved ? (
+                  <div className="flex items-center justify-center gap-2 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400">
+                    <Check className="h-5 w-5" />
+                    <span className="font-semibold">Pessoa já cadastrada no banco de dados</span>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving || !searchResult?.pessoa}
+                    className="w-full h-12 bg-green-500/15 border-2 border-green-500 text-green-400 hover:bg-green-500 hover:text-white"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    {isSaving ? 'Salvando...' : 'Cadastrar Pessoa'}
+                  </Button>
+                )}
+              </div>
             </>
           )}
         </ScrollArea>
