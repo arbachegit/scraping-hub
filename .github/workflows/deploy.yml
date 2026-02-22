@@ -258,19 +258,35 @@ jobs:
             sudo systemctl disable scraping 2>/dev/null || true
             sudo systemctl disable scraping-backend 2>/dev/null || true
 
-            # Stop existing containers FIRST
-            echo "Stopping existing containers..."
-            docker-compose -f $COMPOSE_FILE down --remove-orphans || true
+            # Stop ALL existing containers FIRST (not just this compose)
+            echo "Stopping ALL existing containers..."
+            docker stop $(docker ps -aq) 2>/dev/null || true
+            docker rm $(docker ps -aq) 2>/dev/null || true
+            docker-compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+
+            # Kill any process using ports 8000 and 3001
+            echo "Releasing ports..."
+            sudo fuser -k 8000/tcp 2>/dev/null || true
+            sudo fuser -k 3001/tcp 2>/dev/null || true
+
+            # Also kill any uvicorn/gunicorn/node processes
+            sudo pkill -f "uvicorn" 2>/dev/null || true
+            sudo pkill -f "gunicorn" 2>/dev/null || true
+            sudo pkill -f "node.*3001" 2>/dev/null || true
 
             # Wait for ports to be released
             echo "Waiting for ports to be released..."
             sleep 5
 
-            # Verify ports are free
-            if lsof -i :8000 > /dev/null 2>&1; then
-              echo "WARNING: Port 8000 still in use, killing..."
-              sudo fuser -k 8000/tcp || true
-              sleep 2
+            # Final verification that ports are free
+            if lsof -i :8000 > /dev/null 2>&1 || lsof -i :3001 > /dev/null 2>&1; then
+              echo "WARNING: Ports still in use after cleanup"
+              lsof -i :8000 2>/dev/null || true
+              lsof -i :3001 2>/dev/null || true
+              echo "Forcing kill..."
+              sudo fuser -k 8000/tcp 2>/dev/null || true
+              sudo fuser -k 3001/tcp 2>/dev/null || true
+              sleep 3
             fi
 
             # Pull images after stopping containers
