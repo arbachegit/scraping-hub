@@ -151,9 +151,9 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl flex flex-col">
+      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-white/5">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <span className="w-1 h-5 bg-gradient-to-b from-orange-400 to-orange-600 rounded" />
             Buscar Pessoa
@@ -166,7 +166,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
           </button>
         </div>
 
-        <ScrollArea className="flex-1 p-6">
+        <ScrollArea className="p-6 max-h-[calc(85vh-80px)]">
           {view === 'search' ? (
             <>
               {/* Search Form */}
