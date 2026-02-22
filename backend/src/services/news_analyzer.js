@@ -249,7 +249,7 @@ export async function processAndSaveNews(noticias, segmento = 'geral') {
 
         if (pessoa) {
           await supabase
-            .from('fato_pessoas')
+            .from('fato_noticias_pessoas')
             .insert({
               noticia_id: savedNoticia.id,
               pessoa_id: pessoa.id,

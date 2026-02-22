@@ -214,7 +214,7 @@ router.get('/:id', async (req, res) => {
 
     // Get related people
     const { data: pessoas } = await supabase
-      .from('fato_pessoas')
+      .from('fato_noticias_pessoas')
       .select(`
         tipo_relacao,
         dim_pessoas (
