@@ -12,12 +12,23 @@ export interface LoginResponse {
 
 export interface AtlasChatRequest {
   message: string;
-  session_id?: string;
+  sessionId?: string;
+}
+
+interface AtlasBackendResponse {
+  success: boolean;
+  sessionId: string;
+  response: {
+    text: string;
+    data?: unknown[];
+    suggestions?: string[];
+  };
+  error?: string;
 }
 
 export interface AtlasChatResponse {
-  response: string;
-  session_id: string;
+  text: string;
+  sessionId: string;
   data?: unknown[];
   suggestions?: string[];
 }
@@ -54,5 +65,16 @@ export async function atlasChat(data: AtlasChatRequest): Promise<AtlasChatRespon
     throw new Error(error.detail || 'Chat failed');
   }
 
-  return res.json();
+  const result: AtlasBackendResponse = await res.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Chat failed');
+  }
+
+  return {
+    text: result.response.text,
+    sessionId: result.sessionId,
+    data: result.response.data,
+    suggestions: result.response.suggestions,
+  };
 }

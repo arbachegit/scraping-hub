@@ -39,16 +39,20 @@ export default function DashboardPage() {
       return;
     }
 
-    // Fetch dashboard stats
+    // Fetch dashboard stats (optional - uses placeholders if unavailable)
     fetch('/api/companies/stats', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch stats');
+        if (!res.ok) return null;
         return res.json();
       })
-      .then(setStats)
-      .catch(console.error);
+      .then((data) => {
+        if (data) setStats(data);
+      })
+      .catch(() => {
+        // Stats endpoint not available - use default values
+      });
   }, [router]);
 
   function handleLogout() {

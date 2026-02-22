@@ -70,13 +70,13 @@ export function AtlasChat() {
   const chatMutation = useMutation({
     mutationFn: atlasChat,
     onSuccess: (data: AtlasChatResponse) => {
-      setSessionId(data.session_id);
+      setSessionId(data.sessionId);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          content: data.response,
+          content: data.text,
           data: data.data,
           suggestions: data.suggestions,
         },
@@ -114,7 +114,7 @@ export function AtlasChat() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    chatMutation.mutate({ message: input, session_id: sessionId });
+    chatMutation.mutate({ message: input, sessionId });
     setInput('');
   }
 
