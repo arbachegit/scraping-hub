@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { X, Search, ArrowLeft, Loader2, ExternalLink, User, Building2, Briefcase, AlertCircle, Check, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   searchPersonByCpf,
@@ -166,7 +165,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
           </button>
         </div>
 
-        <ScrollArea className="p-6 max-h-[calc(85vh-80px)]">
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 80px)' }}>
           {view === 'search' ? (
             <>
               {/* Search Form */}
@@ -306,7 +305,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
               </div>
             </>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
