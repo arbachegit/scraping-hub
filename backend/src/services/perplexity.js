@@ -329,6 +329,131 @@ Retorne APENAS um JSON válido no formato:
 }
 
 /**
+ * Search for person information using Perplexity AI
+ * @param {string} nome - Person name
+ * @param {string} cpf - Person CPF (optional)
+ * @returns {Promise<Object>} Person information
+ */
+export async function searchPerson(nome, cpf = null) {
+  if (!PERPLEXITY_API_KEY) {
+    logger.warn('[PERPLEXITY] API key not configured');
+    return { success: false, error: 'Perplexity API not configured' };
+  }
+
+  try {
+    let query = `Busque informações sobre a pessoa "${nome}"`;
+    if (cpf) {
+      const cpfFormatted = formatCpf(cpf);
+      query += ` com CPF ${cpfFormatted}`;
+    }
+    query += ` no Brasil. Retorne: nome completo, cargo/profissão atual, empresa onde trabalha, LinkedIn (se disponível), email profissional (se público), histórico profissional resumido.`;
+
+    logger.info('[PERPLEXITY] Searching person', { nome, hasCpf: !!cpf });
+
+    const response = await fetch(`${PERPLEXITY_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: `Você é um assistente especializado em buscar informações profissionais de pessoas brasileiras.
+Busque em fontes públicas como LinkedIn, sites de empresas, notícias.
+Retorne APENAS um JSON válido no formato especificado.
+Se não encontrar informações, retorne um JSON com found: false.`
+          },
+          {
+            role: 'user',
+            content: `${query}
+
+Retorne APENAS um JSON válido no formato:
+{
+  "found": true/false,
+  "pessoa": {
+    "nome_completo": "Nome completo",
+    "cargo_atual": "Cargo atual",
+    "empresa_atual": "Empresa onde trabalha",
+    "linkedin_url": "URL do LinkedIn ou null",
+    "email": "Email profissional ou null",
+    "localizacao": "Cidade/Estado",
+    "resumo_profissional": "Breve resumo da carreira"
+  },
+  "experiencias": [
+    {
+      "cargo": "Cargo",
+      "empresa": "Empresa",
+      "periodo": "2020-2024"
+    }
+  ],
+  "fontes": ["URLs das fontes consultadas"]
+}`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('[PERPLEXITY] API error', { status: response.status, error: errorText });
+      return { success: false, error: `Perplexity API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+
+    logger.info('[PERPLEXITY] Person search response', { contentLength: content.length });
+
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          success: true,
+          found: parsed.found,
+          pessoa: parsed.pessoa || null,
+          experiencias: parsed.experiencias || [],
+          fontes: parsed.fontes || citations,
+          raw_response: content
+        };
+      } catch (parseError) {
+        logger.error('[PERPLEXITY] JSON parse error', { error: parseError.message });
+      }
+    }
+
+    return {
+      success: true,
+      found: false,
+      pessoa: null,
+      experiencias: [],
+      fontes: citations,
+      raw_response: content,
+      parse_error: 'Could not parse structured response'
+    };
+
+  } catch (error) {
+    logger.error('[PERPLEXITY] Error searching person', { error: error.message });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Format CPF with punctuation
+ */
+function formatCpf(cpf) {
+  const digits = cpf.replace(/[^\d]/g, '');
+  if (digits.length !== 11) return cpf;
+  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+}
+
+/**
  * Check if Perplexity is configured
  */
 export function isConfigured() {

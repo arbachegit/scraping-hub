@@ -9,7 +9,7 @@ const cnpjSchema = z.string()
   .transform(val => val.replace(/[^\d]/g, ''))
   .refine(val => val.length === 14, { message: 'CNPJ deve ter 14 dígitos' });
 
-// Company search request - mínimo 3 de 4 campos preenchidos
+// Company search request - mínimo 1 campo preenchido
 export const searchCompanySchema = z.object({
   nome: z.string()
     .max(200, 'Nome deve ter no máximo 200 caracteres')
@@ -35,9 +35,9 @@ export const searchCompanySchema = z.object({
   // Contar campos preenchidos com pelo menos 2 caracteres
   const campos = [data.nome, data.cidade, data.segmento, data.regime];
   const preenchidos = campos.filter(c => c && c.length >= 2).length;
-  return preenchidos >= 3;
+  return preenchidos >= 1;
 }, {
-  message: 'Preencha pelo menos 3 dos 4 campos (nome, cidade, segmento, regime)'
+  message: 'Preencha pelo menos 1 campo para buscar'
 });
 
 // Company details request
@@ -274,6 +274,17 @@ export function validateParams(schema) {
 // ============================================
 // ATLAS CHAT SCHEMAS
 // ============================================
+
+// CPF validation (11 digits)
+const cpfSchema = z.string()
+  .transform(val => val.replace(/[^\d]/g, ''))
+  .refine(val => val.length === 11, { message: 'CPF deve ter 11 dígitos' });
+
+// Person search by CPF request
+export const searchPersonByCpfSchema = z.object({
+  cpf: cpfSchema,
+  nome: z.string().max(200).optional().nullable()
+});
 
 // Atlas chat request validation
 export const atlasChatSchema = z.object({

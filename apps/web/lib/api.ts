@@ -442,6 +442,84 @@ export async function getPersonDetails(personId: string): Promise<PersonDetailsR
   return res.json();
 }
 
+export interface CpfSearchRequest {
+  cpf: string;
+  nome?: string;
+}
+
+export interface CpfSearchPessoa {
+  cpf: string;
+  nome_completo?: string;
+  cargo_atual?: string;
+  empresa_atual?: string;
+  linkedin_url?: string;
+  email?: string;
+  localizacao?: string;
+  resumo_profissional?: string;
+  foto_url?: string;
+}
+
+export interface CpfSearchExperiencia {
+  cargo: string;
+  empresa: string;
+  periodo: string;
+}
+
+export interface CpfSearchResponse {
+  success: boolean;
+  source: 'database' | 'perplexity' | 'none';
+  found: boolean;
+  pessoa: CpfSearchPessoa | null;
+  experiencias?: CpfSearchExperiencia[];
+  fontes?: string[];
+  apollo_enriched?: boolean;
+  message?: string;
+  error?: string;
+}
+
+export async function searchPersonByCpf(data: CpfSearchRequest): Promise<CpfSearchResponse> {
+  const res = await fetch(`${API_BASE}/people/search-cpf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'CPF search failed' }));
+    throw new Error(error.error || 'CPF search failed');
+  }
+
+  return res.json();
+}
+
+export interface CreditBureau {
+  nome: string;
+  status: string;
+  tipo: string;
+  api: string;
+  documentacao: string;
+  requisitos: string[];
+  servicos: string[];
+}
+
+export interface CreditBureausResponse {
+  success: boolean;
+  available: boolean;
+  message: string;
+  bureaus: CreditBureau[];
+  nota: string;
+}
+
+export async function getCreditBureaus(): Promise<CreditBureausResponse> {
+  const res = await fetch(`${API_BASE}/people/credit-bureaus`);
+
+  if (!res.ok) {
+    throw new Error('Failed to get credit bureaus info');
+  }
+
+  return res.json();
+}
+
 // ============================================
 // NEWS API
 // ============================================

@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { X, Search, ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import Image from 'next/image';
+import { X, Search, ArrowLeft, Loader2, ExternalLink, User, Building2, Briefcase, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import {
-  listPeople,
-  searchPeople,
-  getPersonDetails,
-  type Person,
-  type PersonDetailsResponse,
+  searchPersonByCpf,
+  type CpfSearchResponse,
+  type CpfSearchPessoa,
+  type CpfSearchExperiencia,
 } from '@/lib/api';
 
 interface PeopleModalProps {
@@ -24,42 +25,56 @@ type ViewState = 'search' | 'details';
 
 export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModalProps) {
   const [view, setView] = useState<ViewState>('search');
+  const [cpf, setCpf] = useState('');
   const [nome, setNome] = useState('');
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [searchResult, setSearchResult] = useState<CpfSearchResponse | null>(null);
+  const cpfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      inputRef.current?.focus();
+      cpfInputRef.current?.focus();
     }
   }, [isOpen]);
 
-  const listQuery = useQuery({
-    queryKey: ['people', 'list'],
-    queryFn: () => listPeople({ limit: 50 }),
-    enabled: isOpen,
-  });
-
   const searchMutation = useMutation({
-    mutationFn: searchPeople,
+    mutationFn: searchPersonByCpf,
+    onSuccess: (data) => {
+      setSearchResult(data);
+      if (data.found && data.pessoa) {
+        setView('details');
+        setMessage(null);
+      } else {
+        setMessage({ type: 'info', text: data.message || 'Pessoa não encontrada nas fontes disponíveis' });
+      }
+    },
+    onError: (error: Error) => {
+      setMessage({ type: 'error', text: error.message });
+    },
   });
 
-  const detailsQuery = useQuery({
-    queryKey: ['person', selectedPersonId],
-    queryFn: () => getPersonDetails(selectedPersonId!),
-    enabled: !!selectedPersonId && view === 'details',
-  });
+  function formatCpfInput(value: string): string {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+  }
 
-  const people = searchMutation.data?.people || listQuery.data?.people || [];
-  const count = searchMutation.data?.count || listQuery.data?.count || 0;
-  const isLoading = searchMutation.isPending || listQuery.isLoading;
+  function handleCpfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setCpf(formatCpfInput(e.target.value));
+  }
 
   function handleSearch() {
-    if (!nome.trim()) {
-      searchMutation.reset();
+    const cpfDigits = cpf.replace(/\D/g, '');
+
+    if (cpfDigits.length !== 11) {
+      setMessage({ type: 'error', text: 'CPF deve ter 11 dígitos' });
       return;
     }
-    searchMutation.mutate(nome);
+
+    setMessage(null);
+    searchMutation.mutate({ cpf: cpfDigits, nome: nome || undefined });
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -69,25 +84,24 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
     }
   }
 
-  function handleSelectPerson(personId: string) {
-    setSelectedPersonId(personId);
-    setView('details');
-  }
-
   function handleBack() {
     setView('search');
-    setSelectedPersonId(null);
+    setSearchResult(null);
   }
 
   function handleClose() {
     setView('search');
+    setCpf('');
     setNome('');
-    setSelectedPersonId(null);
+    setSearchResult(null);
+    setMessage(null);
     searchMutation.reset();
     onClose();
   }
 
   if (!isOpen) return null;
+
+  const isLoading = searchMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
@@ -96,7 +110,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
         <div className="flex items-center justify-between p-6 border-b border-white/5">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <span className="w-1 h-5 bg-gradient-to-b from-orange-400 to-orange-600 rounded" />
-            Buscar Pessoas
+            Buscar Pessoa
           </h2>
           <button
             onClick={handleClose}
@@ -110,59 +124,80 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
           {view === 'search' ? (
             <>
               {/* Search Form */}
-              <div className="flex gap-3 mb-4">
-                <Input
-                  ref={inputRef}
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Nome da pessoa *"
-                  className="flex-[2]"
-                />
-                <Button
-                  onClick={handleSearch}
-                  disabled={isLoading}
-                  className="h-10 px-6 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-2" />
-                  )}
-                  Buscar
-                </Button>
-                <Button onClick={onOpenListingModal} variant="outline" className="h-10 px-6">
-                  Listar
-                </Button>
+              <div className="space-y-3 mb-4">
+                <div className="flex gap-3">
+                  <Input
+                    ref={cpfInputRef}
+                    value={cpf}
+                    onChange={handleCpfChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="CPF (000.000.000-00) *"
+                    maxLength={14}
+                    className="flex-1"
+                  />
+                  <Input
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Nome (opcional)"
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSearch}
+                    disabled={isLoading}
+                    className="h-12 px-6 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-2" />
+                    )}
+                    Buscar
+                  </Button>
+                  <Button onClick={onOpenListingModal} variant="outline" className="h-12 px-6">
+                    Listar Cadastrados
+                  </Button>
+                </div>
               </div>
+
+              {/* Info Box */}
+              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-semibold mb-1">Fontes de busca:</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-300">
+                      <li>LinkedIn (via Apollo.io)</li>
+                      <li>Perplexity AI (busca inteligente)</li>
+                      <li>Base de dados interna</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Message */}
+              {message && (
+                <div
+                  className={cn(
+                    'p-4 rounded-lg mb-4',
+                    message.type === 'success'
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                      : message.type === 'info'
+                      ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+                      : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                  )}
+                >
+                  {message.text}
+                </div>
+              )}
 
               {/* Loading */}
               {isLoading && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                   <Loader2 className="h-10 w-10 animate-spin text-cyan-400 mb-4" />
-                  <span>Carregando pessoas...</span>
-                </div>
-              )}
-
-              {/* Results */}
-              {!isLoading && people.length > 0 && (
-                <>
-                  <div className="text-slate-400 text-sm mb-4 pb-2 border-b border-white/5">
-                    <strong>{count}</strong> pessoa(s) encontrada(s)
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {people.map((p) => (
-                      <PersonCard key={p.id} person={p} onClick={() => handleSelectPerson(p.id)} />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {!isLoading && people.length === 0 && (
-                <div className="text-center py-10 text-slate-500">
-                  {nome
-                    ? `Nenhuma pessoa encontrada com "${nome}".`
-                    : 'Nenhuma pessoa encontrada na base.'}
+                  <span>Buscando em LinkedIn e Perplexity...</span>
                 </div>
               )}
             </>
@@ -174,20 +209,15 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                 Voltar
               </Button>
 
-              {detailsQuery.isLoading && (
-                <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-                  <Loader2 className="h-10 w-10 animate-spin text-cyan-400 mb-4" />
-                  <span>Carregando detalhes...</span>
-                </div>
+              {searchResult?.pessoa && (
+                <PersonDetailsView
+                  pessoa={searchResult.pessoa}
+                  experiencias={searchResult.experiencias || []}
+                  source={searchResult.source}
+                  apolloEnriched={searchResult.apollo_enriched}
+                  fontes={searchResult.fontes}
+                />
               )}
-
-              {detailsQuery.isError && (
-                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
-                  Erro ao carregar detalhes
-                </div>
-              )}
-
-              {detailsQuery.data?.success && <PersonDetailsView data={detailsQuery.data} />}
             </>
           )}
         </ScrollArea>
@@ -196,113 +226,119 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
   );
 }
 
-function PersonCard({ person, onClick }: { person: Person; onClick: () => void }) {
-  const nome = person.nome_completo || person.nome || 'Nome nao disponivel';
-  const linkedin =
-    person.linkedin_url && person.linkedin_url !== 'inexistente' ? person.linkedin_url : null;
-
-  return (
-    <div
-      onClick={onClick}
-      className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:border-cyan-500/40 hover:bg-cyan-500/5 transition-colors"
-    >
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-full bg-orange-500/15 flex items-center justify-center flex-shrink-0">
-          <span className="text-orange-400 font-semibold">{nome.charAt(0).toUpperCase()}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <strong className="text-slate-200 text-sm block truncate">{nome}</strong>
-          {person.faixa_etaria && (
-            <span className="text-slate-500 text-xs">{person.faixa_etaria}</span>
-          )}
-        </div>
-      </div>
-      {person.pais && (
-        <div className="text-slate-500 text-xs">
-          <span className="text-slate-600">Pais:</span> {person.pais}
-        </div>
-      )}
-      {linkedin && (
-        <a
-          href={linkedin}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="text-cyan-400 text-xs hover:underline inline-flex items-center gap-1 mt-1"
-        >
-          Ver LinkedIn <ExternalLink className="h-3 w-3" />
-        </a>
-      )}
-    </div>
-  );
-}
-
-function PersonDetailsView({ data }: { data: PersonDetailsResponse }) {
-  const p = data.pessoa;
-  const nome = p.nome_completo || p.nome || 'Nome nao disponivel';
-  const linkedin = p.linkedin_url && p.linkedin_url !== 'inexistente' ? p.linkedin_url : null;
+function PersonDetailsView({
+  pessoa,
+  experiencias,
+  source,
+  apolloEnriched,
+  fontes
+}: {
+  pessoa: CpfSearchPessoa;
+  experiencias: CpfSearchExperiencia[];
+  source: string;
+  apolloEnriched?: boolean;
+  fontes?: string[];
+}) {
+  const nome = pessoa.nome_completo || 'Nome não disponível';
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-orange-500/15 flex items-center justify-center flex-shrink-0">
-          <span className="text-orange-400 font-semibold text-2xl">
-            {nome.charAt(0).toUpperCase()}
-          </span>
+        <div className="w-16 h-16 rounded-full bg-orange-500/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {pessoa.foto_url ? (
+            <Image
+              src={pessoa.foto_url}
+              alt={nome}
+              width={64}
+              height={64}
+              className="w-full h-full object-cover"
+              unoptimized
+            />
+          ) : (
+            <User className="h-8 w-8 text-orange-400" />
+          )}
         </div>
         <div>
           <h3 className="text-xl font-semibold text-white">{nome}</h3>
-          {p.faixa_etaria && <span className="text-slate-400 text-sm">{p.faixa_etaria}</span>}
+          {pessoa.cargo_atual && (
+            <span className="text-slate-400 text-sm flex items-center gap-1">
+              <Briefcase className="h-3 w-3" />
+              {pessoa.cargo_atual}
+            </span>
+          )}
+          {pessoa.empresa_atual && (
+            <span className="text-slate-500 text-sm flex items-center gap-1">
+              <Building2 className="h-3 w-3" />
+              {pessoa.empresa_atual}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {p.email && (
-          <div className="text-sm">
-            <span className="text-slate-500">Email:</span>{' '}
-            <span className="text-slate-300">{p.email}</span>
-          </div>
+      {/* Source Badge */}
+      <div className="flex flex-wrap gap-2">
+        <span className={cn(
+          'px-2 py-1 text-xs rounded',
+          source === 'database' ? 'bg-green-500/15 text-green-400' :
+          source === 'perplexity' ? 'bg-purple-500/15 text-purple-400' :
+          'bg-slate-500/15 text-slate-400'
+        )}>
+          Fonte: {source === 'database' ? 'Banco de dados' : source === 'perplexity' ? 'Perplexity AI' : 'Desconhecida'}
+        </span>
+        {apolloEnriched && (
+          <span className="px-2 py-1 text-xs rounded bg-blue-500/15 text-blue-400">
+            Enriquecido via LinkedIn
+          </span>
         )}
-        {p.pais && (
-          <div className="text-sm">
-            <span className="text-slate-500">Pais:</span>{' '}
-            <span className="text-slate-300">{p.pais}</span>
-          </div>
-        )}
-        {linkedin && (
-          <div className="text-sm">
-            <a
-              href={linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan-400 hover:underline inline-flex items-center gap-1"
-            >
-              Ver LinkedIn <ExternalLink className="h-3 w-3" />
-            </a>
+      </div>
+
+      {/* Details Grid */}
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pessoa.cpf && (
+            <DetailItem label="CPF" value={formatCpfDisplay(pessoa.cpf)} />
+          )}
+          {pessoa.email && (
+            <DetailItem label="Email" value={pessoa.email} />
+          )}
+          {pessoa.localizacao && (
+            <DetailItem label="Localização" value={pessoa.localizacao} />
+          )}
+          {pessoa.linkedin_url && (
+            <div className="text-sm">
+              <span className="text-slate-500 block mb-1">LinkedIn</span>
+              <a
+                href={pessoa.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+              >
+                Ver perfil <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+        </div>
+
+        {pessoa.resumo_profissional && (
+          <div className="mt-4 pt-4 border-t border-white/5">
+            <span className="text-slate-500 text-sm block mb-2">Resumo Profissional</span>
+            <p className="text-slate-300 text-sm">{pessoa.resumo_profissional}</p>
           </div>
         )}
       </div>
 
       {/* Experiences */}
-      {data.experiencias && data.experiencias.length > 0 && (
+      {experiencias && experiencias.length > 0 && (
         <div>
-          <h4 className="text-slate-400 text-sm font-semibold mb-3">Experiencias</h4>
+          <h4 className="text-slate-400 text-sm font-semibold mb-3">Experiências</h4>
           <div className="space-y-3">
-            {data.experiencias.map((exp, i) => (
+            {experiencias.map((exp, i) => (
               <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-lg">
-                <strong className="text-slate-200 text-sm">
-                  {exp.titulo || 'Cargo nao informado'}
-                </strong>
-                {exp.instituicao && (
-                  <span className="text-slate-400 text-sm"> - {exp.instituicao}</span>
-                )}
-                {exp.data_inicio && (
-                  <div className="text-slate-500 text-xs mt-1">
-                    {exp.data_inicio}
-                    {exp.data_fim ? ` - ${exp.data_fim}` : ' - Atual'}
-                  </div>
+                <strong className="text-slate-200 text-sm">{exp.cargo}</strong>
+                <span className="text-slate-400 text-sm"> - {exp.empresa}</span>
+                {exp.periodo && (
+                  <div className="text-slate-500 text-xs mt-1">{exp.periodo}</div>
                 )}
               </div>
             ))}
@@ -310,31 +346,41 @@ function PersonDetailsView({ data }: { data: PersonDetailsResponse }) {
         </div>
       )}
 
-      {/* Related Companies */}
-      {data.empresas && data.empresas.length > 0 && (
+      {/* Sources */}
+      {fontes && fontes.length > 0 && (
         <div>
-          <h4 className="text-slate-400 text-sm font-semibold mb-3">Empresas Relacionadas</h4>
-          <div className="space-y-3">
-            {data.empresas.map((emp, i) => {
-              const empresa = emp.dim_empresas;
-              if (!empresa) return null;
-              return (
-                <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-lg">
-                  <strong className="text-slate-200 text-sm">
-                    {empresa.razao_social || empresa.nome_fantasia || 'Empresa'}
-                  </strong>
-                  {emp.cargo && <span className="text-slate-400 text-sm"> - {emp.cargo}</span>}
-                  {empresa.cidade && (
-                    <div className="text-slate-500 text-xs mt-1">
-                      {empresa.cidade}/{empresa.estado}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <h4 className="text-slate-400 text-sm font-semibold mb-2">Fontes consultadas</h4>
+          <ul className="space-y-1">
+            {fontes.map((fonte, i) => (
+              <li key={i} className="text-slate-500 text-xs truncate">
+                {fonte.startsWith('http') ? (
+                  <a href={fonte} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400">
+                    {fonte}
+                  </a>
+                ) : (
+                  fonte
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
   );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="text-sm">
+      <span className="text-slate-500 block mb-1">{label}</span>
+      <span className="text-slate-300">{value}</span>
+    </div>
+  );
+}
+
+function formatCpfDisplay(cpf: string): string {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return cpf;
+  // Mask middle digits for privacy
+  return `${digits.slice(0, 3)}.***.**${digits.slice(7, 9)}-${digits.slice(9)}`;
 }

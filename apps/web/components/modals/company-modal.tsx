@@ -144,11 +144,10 @@ export function CompanyModal({
     ];
     const preenchidos = campos.filter((c) => c.valor && c.valor.length >= 2);
 
-    if (preenchidos.length < 3) {
-      const vazios = campos.filter((c) => !c.valor || c.valor.length < 2).map((c) => c.nome);
+    if (preenchidos.length < 1) {
       setMessage({
         type: 'error',
-        text: `Preencha pelo menos 3 dos 4 campos. Campos vazios: ${vazios.join(', ')}`,
+        text: 'Preencha pelo menos 1 campo para buscar',
       });
       return;
     }
