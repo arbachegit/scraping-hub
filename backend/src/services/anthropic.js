@@ -1,14 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk';
 import logger from '../utils/logger.js';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
-
 let anthropicClient = null;
 
+function getApiKey() {
+  return process.env.ANTHROPIC_API_KEY;
+}
+
+function getModel() {
+  return process.env.getModel() || 'claude-sonnet-4-20250514';
+}
+
 function getClient() {
-  if (!anthropicClient && ANTHROPIC_API_KEY) {
-    anthropicClient = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const apiKey = getApiKey();
+  if (!anthropicClient && apiKey) {
+    anthropicClient = new Anthropic({ apiKey });
   }
   return anthropicClient;
 }
@@ -74,7 +80,7 @@ Retorne APENAS um JSON válido no formato:
 }`;
 
     const response = await client.messages.create({
-      model: ANTHROPIC_MODEL,
+      model: getModel(),
       max_tokens: 500,
       temperature: 0.3,
       messages: [
@@ -118,5 +124,5 @@ Retorne APENAS um JSON válido no formato:
 }
 
 export function isConfigured() {
-  return !!ANTHROPIC_API_KEY;
+  return !!getApiKey();
 }

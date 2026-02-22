@@ -3,8 +3,11 @@
  * Provides Simples Nacional and MEI data with historical records
  */
 
-const CNPJA_API_KEY = process.env.CNPJA_API_KEY;
 const CNPJA_BASE_URL = 'https://api.cnpja.com';
+
+function getApiKey() {
+  return process.env.getApiKey();
+}
 
 /**
  * Fetch company tax regime from CNPJá
@@ -12,7 +15,7 @@ const CNPJA_BASE_URL = 'https://api.cnpja.com';
  * @returns {Promise<Object>} Tax regime data with history
  */
 export async function getRegimeTributario(cnpj) {
-  if (!CNPJA_API_KEY) {
+  if (!getApiKey()) {
     console.warn('[CNPJA] API Key not configured');
     return null;
   }
@@ -24,7 +27,7 @@ export async function getRegimeTributario(cnpj) {
       `${CNPJA_BASE_URL}/office/${cleanCnpj}?simples=true&simplesHistory=true`,
       {
         headers: {
-          'Authorization': CNPJA_API_KEY
+          'Authorization': getApiKey()
         }
       }
     );

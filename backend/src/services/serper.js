@@ -1,4 +1,3 @@
-const SERPER_API_KEY = process.env.SERPER_API_KEY;
 const SERPER_BASE_URL = 'https://google.serper.dev';
 
 /**
@@ -8,10 +7,11 @@ const SERPER_BASE_URL = 'https://google.serper.dev';
  * @returns {Promise<Object>} API response
  */
 async function serperRequest(endpoint, payload) {
+  const apiKey = process.env.SERPER_API_KEY;
   const response = await fetch(`${SERPER_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: {
-      'X-API-KEY': SERPER_API_KEY,
+      'X-API-KEY': apiKey,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)

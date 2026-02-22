@@ -1,7 +1,10 @@
 import logger from '../utils/logger.js';
 
-const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const PERPLEXITY_BASE_URL = 'https://api.perplexity.ai';
+
+function getApiKey() {
+  return process.env.getApiKey();
+}
 
 // Trusted sources for news search
 const TRUSTED_SOURCES = {
@@ -26,7 +29,7 @@ const TRUSTED_SOURCES = {
  * @returns {Promise<Array>} List of candidates with CNPJ
  */
 export async function searchCompanyByName(companyName, cidade = null) {
-  if (!PERPLEXITY_API_KEY) {
+  if (!getApiKey()) {
     console.warn('[PERPLEXITY] API key not configured');
     return [];
   }
@@ -41,7 +44,7 @@ export async function searchCompanyByName(companyName, cidade = null) {
     const response = await fetch(`${PERPLEXITY_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${getApiKey()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -105,7 +108,7 @@ export async function searchCompanyByName(companyName, cidade = null) {
  * @returns {Promise<Object|null>} Company details
  */
 export async function getCompanyDetails(cnpj) {
-  if (!PERPLEXITY_API_KEY) {
+  if (!getApiKey()) {
     return null;
   }
 
@@ -117,7 +120,7 @@ export async function getCompanyDetails(cnpj) {
     const response = await fetch(`${PERPLEXITY_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${getApiKey()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -197,7 +200,7 @@ function extractRazaoSocial(content, searchName) {
  * @returns {Promise<Object>} News results with citations
  */
 export async function searchNews(searchQuery, options = {}) {
-  if (!PERPLEXITY_API_KEY) {
+  if (!getApiKey()) {
     logger.warn('[PERPLEXITY] API key not configured');
     return { success: false, error: 'Perplexity API not configured', news: [] };
   }
@@ -267,7 +270,7 @@ Retorne APENAS um JSON válido no formato:
     const response = await fetch(`${PERPLEXITY_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${getApiKey()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -335,7 +338,7 @@ Retorne APENAS um JSON válido no formato:
  * @returns {Promise<Object>} Person information
  */
 export async function searchPerson(nome, cpf = null) {
-  if (!PERPLEXITY_API_KEY) {
+  if (!getApiKey()) {
     logger.warn('[PERPLEXITY] API key not configured');
     return { success: false, error: 'Perplexity API not configured' };
   }
@@ -353,7 +356,7 @@ export async function searchPerson(nome, cpf = null) {
     const response = await fetch(`${PERPLEXITY_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${getApiKey()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -457,7 +460,7 @@ function formatCpf(cpf) {
  * Check if Perplexity is configured
  */
 export function isConfigured() {
-  return !!PERPLEXITY_API_KEY;
+  return !!getApiKey();
 }
 
 /**
