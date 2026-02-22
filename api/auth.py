@@ -159,8 +159,7 @@ _LEGACY_USERS_DB = {
     "arbache@gmail.com": {
         "id": 1,
         "email": "arbache@gmail.com",
-        # bcrypt hash for "admin123" - for development/testing
-        "password_hash": "$2b$12$ne84FJ3BdgHPGhNnDQOC3OUZBQHbnStaDalq17VBnQXeX1/4.ZDMm",
+        "password_hash": "$2b$12$U16ejY9NBJbn5kqOYZ5KmOBMJ2DTb3zCnldHmxtfcvaIhfAC89AAq",
         "name": "Fernando Arbache",
         "role": "super_admin",
         "permissions": ["empresas", "pessoas", "politicos", "noticias"],
