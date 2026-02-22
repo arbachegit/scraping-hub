@@ -41,6 +41,57 @@ router.get('/list', async (req, res) => {
 });
 
 /**
+ * GET /api/people/credit-bureaus
+ * Return information about credit bureau integrations
+ */
+router.get('/credit-bureaus', async (req, res) => {
+  res.json({
+    success: true,
+    available: false,
+    message: 'Integração com bureaus de crédito requer contrato comercial',
+    bureaus: [
+      {
+        nome: 'Serasa Experian',
+        status: 'nao_integrado',
+        tipo: 'bureau_credito',
+        api: 'https://api.serasaexperian.com.br',
+        documentacao: 'https://developers.serasaexperian.com.br',
+        requisitos: ['Contrato comercial', 'CNPJ ativo', 'Finalidade declarada'],
+        servicos: ['Score de crédito', 'Negativações', 'Protestos', 'Cheques devolvidos']
+      },
+      {
+        nome: 'Boa Vista SCPC',
+        status: 'nao_integrado',
+        tipo: 'bureau_credito',
+        api: 'https://api.boavistaservicos.com.br',
+        documentacao: 'https://developers.boavistaservicos.com.br',
+        requisitos: ['Contrato comercial', 'CNPJ ativo', 'Finalidade declarada'],
+        servicos: ['Score de crédito', 'Restritivos', 'Protestos']
+      },
+      {
+        nome: 'SPC Brasil',
+        status: 'nao_integrado',
+        tipo: 'bureau_credito',
+        api: 'https://ws.spcbrasil.org.br',
+        documentacao: 'https://www.spcbrasil.org.br/servicos-para-voce',
+        requisitos: ['Afiliação CDL local', 'Contrato comercial'],
+        servicos: ['Consulta débitos', 'Score', 'Protestos', 'Ações judiciais']
+      },
+      {
+        nome: 'Quod',
+        status: 'nao_integrado',
+        tipo: 'bureau_credito',
+        api: 'https://api.quod.com.br',
+        documentacao: 'https://quod.com.br/para-empresas',
+        requisitos: ['Contrato comercial', 'Integração técnica'],
+        servicos: ['Score positivo', 'Histórico de pagamentos', 'Cadastro Positivo']
+      }
+    ],
+    nota: 'Para integrar com bureaus de crédito é necessário estabelecer contrato comercial com cada provedor. Os dados de crédito estão sujeitos à LGPD e requerem consentimento do titular ou finalidade legítima.'
+  });
+});
+
+/**
  * GET /api/people/:id
  * Get person details by ID
  */
@@ -89,7 +140,7 @@ router.get('/:id', async (req, res) => {
 
     // Get related news
     const { data: noticias } = await supabase
-      .from('fato_noticias_pessoas')
+      .from('fato_pessoas')
       .select(`
         tipo_relacao,
         dim_noticias (
@@ -285,57 +336,6 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     logger.error('Error searching person by CPF', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
-});
-
-/**
- * GET /api/people/credit-bureaus
- * Return information about credit bureau integrations
- */
-router.get('/credit-bureaus', async (req, res) => {
-  res.json({
-    success: true,
-    available: false,
-    message: 'Integração com bureaus de crédito requer contrato comercial',
-    bureaus: [
-      {
-        nome: 'Serasa Experian',
-        status: 'nao_integrado',
-        tipo: 'bureau_credito',
-        api: 'https://api.serasaexperian.com.br',
-        documentacao: 'https://developers.serasaexperian.com.br',
-        requisitos: ['Contrato comercial', 'CNPJ ativo', 'Finalidade declarada'],
-        servicos: ['Score de crédito', 'Negativações', 'Protestos', 'Cheques devolvidos']
-      },
-      {
-        nome: 'Boa Vista SCPC',
-        status: 'nao_integrado',
-        tipo: 'bureau_credito',
-        api: 'https://api.boavistaservicos.com.br',
-        documentacao: 'https://developers.boavistaservicos.com.br',
-        requisitos: ['Contrato comercial', 'CNPJ ativo', 'Finalidade declarada'],
-        servicos: ['Score de crédito', 'Restritivos', 'Protestos']
-      },
-      {
-        nome: 'SPC Brasil',
-        status: 'nao_integrado',
-        tipo: 'bureau_credito',
-        api: 'https://ws.spcbrasil.org.br',
-        documentacao: 'https://www.spcbrasil.org.br/servicos-para-voce',
-        requisitos: ['Afiliação CDL local', 'Contrato comercial'],
-        servicos: ['Consulta débitos', 'Score', 'Protestos', 'Ações judiciais']
-      },
-      {
-        nome: 'Quod',
-        status: 'nao_integrado',
-        tipo: 'bureau_credito',
-        api: 'https://api.quod.com.br',
-        documentacao: 'https://quod.com.br/para-empresas',
-        requisitos: ['Contrato comercial', 'Integração técnica'],
-        servicos: ['Score positivo', 'Histórico de pagamentos', 'Cadastro Positivo']
-      }
-    ],
-    nota: 'Para integrar com bureaus de crédito é necessário estabelecer contrato comercial com cada provedor. Os dados de crédito estão sujeitos à LGPD e requerem consentimento do titular ou finalidade legítima.'
-  });
 });
 
 export default router;
