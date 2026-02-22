@@ -18,7 +18,7 @@ router.get('/list', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const { data, error, count } = await supabase
-      .from('dim_pessoas')
+      .from('fato_pessoas')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -99,9 +99,9 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get person data
+    // Get person data from fato_pessoas
     const { data: pessoa, error: pessoaError } = await supabase
-      .from('dim_pessoas')
+      .from('fato_pessoas')
       .select('*')
       .eq('id', id)
       .single();
@@ -110,12 +110,12 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Pessoa não encontrada' });
     }
 
-    // Get experiences
-    const { data: experiencias } = await supabase
-      .from('fato_eventos_pessoa')
+    // Get relations from dim_pessoas
+    const { data: relacoes } = await supabase
+      .from('dim_pessoas')
       .select('*')
       .eq('pessoa_id', id)
-      .order('data_inicio', { ascending: false });
+      .order('created_at', { ascending: false });
 
     // Get company relationships
     const { data: empresas } = await supabase
@@ -138,34 +138,11 @@ router.get('/:id', async (req, res) => {
       .eq('pessoa_id', id)
       .order('data_transacao', { ascending: false });
 
-    // Get related news
-    const { data: noticias } = await supabase
-      .from('fato_pessoas')
-      .select(`
-        tipo_relacao,
-        dim_noticias (
-          id,
-          titulo,
-          resumo,
-          fonte_nome,
-          url,
-          data_publicacao,
-          relevancia_geral
-        )
-      `)
-      .eq('pessoa_id', id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
     res.json({
       success: true,
       pessoa,
-      experiencias: experiencias || [],
-      empresas: empresas || [],
-      noticias: noticias?.map(n => ({
-        ...n.dim_noticias,
-        tipo_relacao: n.tipo_relacao
-      })) || []
+      relacoes: relacoes || [],
+      empresas: empresas || []
     });
 
   } catch (error) {
@@ -190,7 +167,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
         qualificacao,
         data_transacao,
         ativo,
-        dim_pessoas (*)
+        fato_pessoas (*)
       `)
       .eq('empresa_id', empresaId)
       .order('data_transacao', { ascending: false });
@@ -204,7 +181,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
       success: true,
       count: data.length,
       people: data.map(item => ({
-        ...item.dim_pessoas,
+        ...item.fato_pessoas,
         tipo_transacao: item.tipo_transacao,
         cargo: item.cargo,
         qualificacao: item.qualificacao,
@@ -234,11 +211,11 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    // Search in dim_pessoas by name (try both nome and nome_completo)
+    // Search in fato_pessoas by name
     const { data, error } = await supabase
-      .from('dim_pessoas')
+      .from('fato_pessoas')
       .select('*')
-      .or(`nome_completo.ilike.%${nome.trim()}%,nome.ilike.%${nome.trim()}%`)
+      .or(`nome_completo.ilike.%${nome.trim()}%,primeiro_nome.ilike.%${nome.trim()}%`)
       .limit(20);
 
     if (error) {
@@ -273,12 +250,12 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
       nome: hasNome ? nome : null
     });
 
-    // First check if person exists in database (by CPF or nome)
+    // First check if person exists in database (by CPF or nome) in fato_pessoas
     let existingPerson = null;
 
     if (hasCpf) {
       const { data, error } = await supabase
-        .from('dim_pessoas')
+        .from('fato_pessoas')
         .select('*')
         .eq('cpf', cpf)
         .single();
@@ -287,9 +264,9 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
 
     if (!existingPerson && hasNome) {
       const { data, error } = await supabase
-        .from('dim_pessoas')
+        .from('fato_pessoas')
         .select('*')
-        .or(`nome_completo.ilike.%${nome.trim()}%,nome.ilike.%${nome.trim()}%`)
+        .or(`nome_completo.ilike.%${nome.trim()}%,primeiro_nome.ilike.%${nome.trim()}%`)
         .limit(1)
         .single();
       if (data && !error) existingPerson = data;
@@ -375,10 +352,10 @@ router.post('/save', async (req, res) => {
 
     logger.info('Saving person', { nome: pessoa.nome_completo, aprovado_por });
 
-    // Check if person already exists by CPF or nome
+    // Check if person already exists by CPF or nome in fato_pessoas
     if (pessoa.cpf) {
       const { data: existing } = await supabase
-        .from('dim_pessoas')
+        .from('fato_pessoas')
         .select('id')
         .eq('cpf', pessoa.cpf)
         .single();
@@ -392,18 +369,21 @@ router.post('/save', async (req, res) => {
       }
     }
 
-    // Insert person
+    // Insert person into fato_pessoas
+    const nomeParts = pessoa.nome_completo?.split(' ') || [];
     const { data: novaPessoa, error: pessoaError } = await supabase
-      .from('dim_pessoas')
+      .from('fato_pessoas')
       .insert({
-        nome: pessoa.nome_completo?.split(' ')[0] || pessoa.nome_completo,
         nome_completo: pessoa.nome_completo,
+        primeiro_nome: nomeParts[0] || null,
+        sobrenome: nomeParts.length > 1 ? nomeParts.slice(1).join(' ') : null,
         cpf: pessoa.cpf || null,
         email: pessoa.email || null,
         linkedin_url: pessoa.linkedin_url || null,
         foto_url: pessoa.foto_url || null,
         pais: pessoa.localizacao?.includes(',') ? pessoa.localizacao.split(',').pop()?.trim() : 'Brasil',
-        aprovado_por: aprovado_por || 'sistema'
+        fonte: 'perplexity',
+        raw_apollo_data: pessoa.raw_apollo_data || null
       })
       .select()
       .single();
@@ -413,22 +393,20 @@ router.post('/save', async (req, res) => {
       return res.status(500).json({ success: false, error: pessoaError.message });
     }
 
-    // Insert experiences if provided
+    // Insert relations into dim_pessoas if experiences provided
     if (experiencias && experiencias.length > 0) {
-      const eventosToInsert = experiencias.map(exp => ({
+      const relacoesToInsert = experiencias.map(exp => ({
         pessoa_id: novaPessoa.id,
-        titulo: exp.cargo || null,
-        instituicao: exp.empresa || null,
-        tipo: 'experiencia_profissional',
-        descricao: exp.periodo || null
+        tipo_relacao: 'experiencia_profissional',
+        ano: exp.periodo ? parseInt(exp.periodo.match(/\d{4}/)?.[0]) || null : null
       }));
 
-      const { error: eventosError } = await supabase
-        .from('fato_eventos_pessoa')
-        .insert(eventosToInsert);
+      const { error: relacoesError } = await supabase
+        .from('dim_pessoas')
+        .insert(relacoesToInsert);
 
-      if (eventosError) {
-        logger.warn('Error saving experiences', { error: eventosError.message });
+      if (relacoesError) {
+        logger.warn('Error saving relations', { error: relacoesError.message });
       }
     }
 

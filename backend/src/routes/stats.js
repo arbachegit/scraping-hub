@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     // Local Supabase counts
     const localPromises = [
       supabase.from('dim_empresas').select('id', { count: 'exact', head: true }),
-      supabase.from('dim_pessoas').select('id', { count: 'exact', head: true }),
+      supabase.from('fato_pessoas').select('id', { count: 'exact', head: true }),
       supabase.from('fato_noticias').select('id', { count: 'exact', head: true }),
     ];
 
