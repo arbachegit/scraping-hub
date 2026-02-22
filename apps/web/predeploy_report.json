@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-02-22T00:30:00Z",
+  "repo": {
+    "pwd": "/Users/fernandoarbache/Documents/iconsai-scraping/apps/web",
+    "git_root": "/Users/fernandoarbache/Documents/iconsai-scraping",
+    "branch": "main",
+    "head_commit": "fe2cc56 feat(frontend): complete migration from static HTML to Next.js",
+    "uncommitted_changes": true,
+    "files_modified": 19,
+    "files_untracked": 5
+  },
+  "phases": {
+    "env_contract": {
+      "files_checked": [".env.example", "apps/web/.env.example", "backend/.env.example"],
+      "files_found": [".env.example"],
+      "files_missing": ["apps/web/.env.example", "backend/.env.example"],
+      "status": "PASS",
+      "note": "Root .env.example exists with all required vars"
+    },
+    "static_gates": {
+      "commands": [
+        {"cmd": "npx tsc --noEmit", "exit_code": 0, "status": "PASS"},
+        {"cmd": "npx eslint . --max-warnings 0", "exit_code": 0, "status": "PASS", "warnings": 3, "errors": 0},
+        {"cmd": "npm run build", "exit_code": 0, "status": "PASS"}
+      ],
+      "status": "PASS"
+    },
+    "forbidden_patterns": {
+      "patterns_checked": ["TODO:prod", "FIXME:prod", "XXX:prod", "debugger;", "password=", "api_key="],
+      "violations": [],
+      "status": "PASS"
+    },
+    "runtime_gates": {
+      "checks": [
+        {"endpoint": "http://localhost:3000", "status": "SKIPPED", "reason": "Service not running"},
+        {"endpoint": "http://localhost:8000/health", "status_code": 200, "response": "healthy", "status": "PASS"}
+      ],
+      "status": "PASS"
+    }
+  },
+  "decision": "PASS",
+  "failure_reasons": [],
+  "warnings": [
+    "3 ESLint warnings in e2e test files (unused imports)",
+    "19 files with uncommitted changes",
+    "Next.js dev server not running (port 3000)"
+  ],
+  "next_actions": [
+    "Commit quality fixes before deploy",
+    "Remove unused imports in e2e/*.spec.ts"
+  ]
+}

@@ -77,21 +77,30 @@ export function CnaeModal({ isOpen, onClose, onSelect }: CnaeModalProps) {
   const divisoes = secao
     ? [
         ...new Set(
-          cnaes.filter((c) => c.descricao_secao === secao).map((c) => c.descricao_divisao).filter(Boolean)
+          cnaes
+            .filter((c) => c.descricao_secao === secao)
+            .map((c) => c.descricao_divisao)
+            .filter(Boolean)
         ),
       ].sort()
     : [];
   const grupos = divisao
     ? [
         ...new Set(
-          cnaes.filter((c) => c.descricao_divisao === divisao).map((c) => c.descricao_grupo).filter(Boolean)
+          cnaes
+            .filter((c) => c.descricao_divisao === divisao)
+            .map((c) => c.descricao_grupo)
+            .filter(Boolean)
         ),
       ].sort()
     : [];
   const classes = grupo
     ? [
         ...new Set(
-          cnaes.filter((c) => c.descricao_grupo === grupo).map((c) => c.descricao_classe).filter(Boolean)
+          cnaes
+            .filter((c) => c.descricao_grupo === grupo)
+            .map((c) => c.descricao_classe)
+            .filter(Boolean)
         ),
       ].sort()
     : [];
@@ -255,7 +264,9 @@ export function CnaeModal({ isOpen, onClose, onSelect }: CnaeModalProps) {
                     </td>
                     <td className="p-2.5 text-white font-medium">{cnae.descricao || '-'}</td>
                     <td className="p-2.5 text-cyan-400 text-xs">{cnae.descricao_secao || '-'}</td>
-                    <td className="p-2.5 text-slate-400 text-xs">{cnae.descricao_divisao || '-'}</td>
+                    <td className="p-2.5 text-slate-400 text-xs">
+                      {cnae.descricao_divisao || '-'}
+                    </td>
                     <td className="p-2.5 text-slate-400 text-xs">{cnae.descricao_grupo || '-'}</td>
                     <td className="p-2.5 text-slate-400 text-xs">{cnae.descricao_classe || '-'}</td>
                   </tr>

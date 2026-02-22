@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import Image from 'next/image';
 import { X, Search, ArrowLeft, Check, Users, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -295,14 +296,14 @@ export function CompanyModal({
                     disabled={isLoading}
                     className="h-12 px-6 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
                   >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-2" />
+                    )}
                     Buscar
                   </Button>
-                  <Button
-                    onClick={onOpenListingModal}
-                    variant="outline"
-                    className="h-12 px-6"
-                  >
+                  <Button onClick={onOpenListingModal} variant="outline" className="h-12 px-6">
                     Listar
                   </Button>
                 </div>
@@ -368,9 +369,7 @@ export function CompanyModal({
               {message?.type === 'success' && !currentEmpresa ? (
                 <div className="text-center py-10">
                   <div className="text-4xl mb-2">✓</div>
-                  <div className="text-lg font-semibold text-white mb-2">
-                    {message.text}
-                  </div>
+                  <div className="text-lg font-semibold text-white mb-2">{message.text}</div>
                   <Button onClick={handleClose} variant="outline" className="mt-4">
                     Fechar
                   </Button>
@@ -463,10 +462,13 @@ export function CompanyModal({
                             >
                               <div className="w-11 h-11 rounded-full bg-purple-500/15 flex items-center justify-center flex-shrink-0 overflow-hidden">
                                 {s.foto_url ? (
-                                  <img
+                                  <Image
                                     src={s.foto_url}
                                     alt={s.nome}
+                                    width={44}
+                                    height={44}
                                     className="w-full h-full object-cover"
+                                    unoptimized
                                   />
                                 ) : (
                                   <span className="text-purple-400 font-semibold">

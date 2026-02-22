@@ -160,7 +160,9 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
 
               {!isLoading && people.length === 0 && (
                 <div className="text-center py-10 text-slate-500">
-                  {nome ? `Nenhuma pessoa encontrada com "${nome}".` : 'Nenhuma pessoa encontrada na base.'}
+                  {nome
+                    ? `Nenhuma pessoa encontrada com "${nome}".`
+                    : 'Nenhuma pessoa encontrada na base.'}
                 </div>
               )}
             </>
@@ -185,9 +187,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal }: PeopleModal
                 </div>
               )}
 
-              {detailsQuery.data?.success && (
-                <PersonDetailsView data={detailsQuery.data} />
-              )}
+              {detailsQuery.data?.success && <PersonDetailsView data={detailsQuery.data} />}
             </>
           )}
         </ScrollArea>
@@ -295,7 +295,9 @@ function PersonDetailsView({ data }: { data: PersonDetailsResponse }) {
                 <strong className="text-slate-200 text-sm">
                   {exp.titulo || 'Cargo nao informado'}
                 </strong>
-                {exp.instituicao && <span className="text-slate-400 text-sm"> - {exp.instituicao}</span>}
+                {exp.instituicao && (
+                  <span className="text-slate-400 text-sm"> - {exp.instituicao}</span>
+                )}
                 {exp.data_inicio && (
                   <div className="text-slate-500 text-xs mt-1">
                     {exp.data_inicio}

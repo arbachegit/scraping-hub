@@ -123,3 +123,6 @@ normalization_report.json
 
 # Legacy frontend (archived)
 static.legacy/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/console_evidence.txt

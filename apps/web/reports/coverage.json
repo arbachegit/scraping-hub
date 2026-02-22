@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-02-22T00:00:00Z",
+  "project": "iconsai-scraping-web",
+  "playwright_version": "1.58.2",
+  "metrics": {
+    "pages_visited": 3,
+    "actions_executed": 7,
+    "elements_interacted": 7,
+    "unique_routes": ["/", "/docs", "/redoc", "/dashboard"],
+    "tests_passed": 7,
+    "tests_failed": 3,
+    "tests_total": 10
+  },
+  "errors_by_category": {
+    "AUTH_FLOW_BROKEN": 3,
+    "NAVIGATION_BROKEN": 0,
+    "BUTTON_NO_ACTION": 0,
+    "JS_CONSOLE_ERROR": 0,
+    "NETWORK_5XX": 0,
+    "NETWORK_4XX_UNEXPECTED": 0
+  },
+  "pages": [
+    {"path": "/", "status": "OK", "actions": 5},
+    {"path": "/docs", "status": "OK", "actions": 1},
+    {"path": "/redoc", "status": "OK", "actions": 1},
+    {"path": "/dashboard", "status": "TIMEOUT", "actions": 0}
+  ],
+  "conclusion": "PARTIAL_PASS"
+}

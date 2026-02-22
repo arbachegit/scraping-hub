@@ -193,7 +193,8 @@ export function AtlasChat() {
           {messages.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Ola! Sou o Atlas, seu assistente para dados politicos brasileiros. Como posso ajudar?
+                Ola! Sou o Atlas, seu assistente para dados politicos brasileiros. Como posso
+                ajudar?
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {MODULES.map((module) => (

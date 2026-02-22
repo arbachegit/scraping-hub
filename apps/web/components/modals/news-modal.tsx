@@ -6,13 +6,7 @@ import { X, Search, ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  listNews,
-  listNewsSources,
-  searchNewsAI,
-  getNewsDetails,
-  type NewsItem,
-} from '@/lib/api';
+import { listNews, listNewsSources, searchNewsAI, getNewsDetails, type NewsItem } from '@/lib/api';
 
 interface NewsModalProps {
   isOpen: boolean;
@@ -348,11 +342,15 @@ function NewsCard({ news, onClick }: { news: NewsItem; onClick: () => void }) {
   const data = news.data_publicacao
     ? new Date(news.data_publicacao).toLocaleDateString('pt-BR')
     : news.data
-    ? new Date(news.data).toLocaleDateString('pt-BR')
-    : '';
+      ? new Date(news.data).toLocaleDateString('pt-BR')
+      : '';
   const relevancia = news.relevancia || 'media';
   const relevanciaColor =
-    relevancia === 'alta' ? 'text-green-400' : relevancia === 'baixa' ? 'text-yellow-400' : 'text-slate-500';
+    relevancia === 'alta'
+      ? 'text-green-400'
+      : relevancia === 'baixa'
+        ? 'text-yellow-400'
+        : 'text-slate-500';
 
   return (
     <div

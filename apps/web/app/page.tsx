@@ -2,10 +2,18 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from '@/components/ui/card';
 import { login } from '@/lib/api';
 
 export default function LoginPage() {
@@ -40,11 +48,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md relative z-10">
         <CardHeader className="text-center">
           <div className="flex flex-col items-center">
-            <img
-              src="/iconsai-logo.png"
-              alt="Iconsai"
-              className="h-16 w-auto mb-4"
-            />
+            <Image src="/iconsai-logo.png" alt="Iconsai" width={180} height={64} className="h-16 w-auto mb-4" />
             <CardTitle>Scraping Hub</CardTitle>
             <CardDescription>Business Intelligence Brasil</CardDescription>
           </div>
@@ -101,10 +105,7 @@ export default function LoginPage() {
           </form>
 
           <div className="flex justify-center gap-4 pt-4">
-            <a
-              href="/docs"
-              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
+            <a href="/docs" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
               API Docs
             </a>
             <a

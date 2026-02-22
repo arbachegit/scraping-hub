@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Loader2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -67,8 +67,12 @@ export function EmpresasListingModal({ isOpen, onClose, filters }: EmpresasListi
 
     if (sortColumn) {
       data = [...data].sort((a, b) => {
-        const valA = (String((a as unknown as Record<string, unknown>)[sortColumn] ?? '')).toLowerCase();
-        const valB = (String((b as unknown as Record<string, unknown>)[sortColumn] ?? '')).toLowerCase();
+        const valA = String(
+          (a as unknown as Record<string, unknown>)[sortColumn] ?? ''
+        ).toLowerCase();
+        const valB = String(
+          (b as unknown as Record<string, unknown>)[sortColumn] ?? ''
+        ).toLowerCase();
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       });
     }
@@ -278,8 +282,12 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
 
     if (sortColumn) {
       data = [...data].sort((a, b) => {
-        const valA = ((a as unknown as Record<string, unknown>)[sortColumn] || '').toString().toLowerCase();
-        const valB = ((b as unknown as Record<string, unknown>)[sortColumn] || '').toString().toLowerCase();
+        const valA = ((a as unknown as Record<string, unknown>)[sortColumn] || '')
+          .toString()
+          .toLowerCase();
+        const valB = ((b as unknown as Record<string, unknown>)[sortColumn] || '')
+          .toString()
+          .toLowerCase();
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       });
     }
@@ -474,8 +482,12 @@ export function NoticiasListingModal({ isOpen, onClose, filters }: NoticiasListi
 
     if (sortColumn) {
       data = [...data].sort((a, b) => {
-        const valA = ((a as unknown as Record<string, unknown>)[sortColumn] || '').toString().toLowerCase();
-        const valB = ((b as unknown as Record<string, unknown>)[sortColumn] || '').toString().toLowerCase();
+        const valA = ((a as unknown as Record<string, unknown>)[sortColumn] || '')
+          .toString()
+          .toLowerCase();
+        const valB = ((b as unknown as Record<string, unknown>)[sortColumn] || '')
+          .toString()
+          .toLowerCase();
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       });
     }

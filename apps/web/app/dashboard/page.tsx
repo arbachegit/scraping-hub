@@ -3,14 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Building2,
-  Users,
-  Flag,
-  Newspaper,
-  LogOut,
-  Shield,
-} from 'lucide-react';
+import { Building2, Users, Flag, Newspaper, LogOut, Shield } from 'lucide-react';
 import { getUser, getHealth } from '@/lib/api';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
@@ -274,7 +267,9 @@ function ModuleCard({
       className="bg-[#0f1629]/80 border border-white/5 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
     >
       <div className="flex items-center gap-4 mb-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconColorMap[iconColor]}`}>
+        <div
+          className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconColorMap[iconColor]}`}
+        >
           <Icon className="w-6 h-6" />
         </div>
         <h3 className="text-lg font-semibold text-slate-300">{title}</h3>
