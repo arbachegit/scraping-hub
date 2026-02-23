@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
         source: '/api/atlas/:path*',
         destination: `${PYTHON_API_URL}/atlas/:path*`,
       },
+      // Stats routes -> Python API (port 8000)
+      {
+        source: '/api/stats/:path*',
+        destination: `${PYTHON_API_URL}/api/stats/:path*`,
+      },
       // Other API routes -> Node.js backend (port 3001)
       {
         source: '/api/:path*',
