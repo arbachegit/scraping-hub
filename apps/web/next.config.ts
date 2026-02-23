@@ -8,24 +8,27 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   async rewrites() {
-    return [
-      // Auth routes -> Python API (port 8000)
-      {
-        source: '/api/auth/:path*',
-        destination: `${PYTHON_API_URL}/auth/:path*`,
-      },
-      // Atlas agent -> Python API
-      {
-        source: '/api/atlas/:path*',
-        destination: `${PYTHON_API_URL}/atlas/:path*`,
-      },
-      // Stats routes are handled by Next.js API routes (/app/api/stats/*)
-      // Other API routes -> Node.js backend (port 3001)
-      {
-        source: '/api/:path*',
-        destination: `${NODEJS_API_URL}/:path*`,
-      },
-    ];
+    return {
+      // afterFiles runs AFTER Next.js API routes are checked
+      afterFiles: [
+        // Auth routes -> Python API (port 8000)
+        {
+          source: '/api/auth/:path*',
+          destination: `${PYTHON_API_URL}/auth/:path*`,
+        },
+        // Atlas agent -> Python API
+        {
+          source: '/api/atlas/:path*',
+          destination: `${PYTHON_API_URL}/atlas/:path*`,
+        },
+        // Stats routes are handled by Next.js API routes (/app/api/stats/*)
+        // Other API routes -> Node.js backend (port 3001)
+        {
+          source: '/api/:path*',
+          destination: `${NODEJS_API_URL}/:path*`,
+        },
+      ],
+    };
   },
 };
 
