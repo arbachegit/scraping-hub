@@ -59,7 +59,7 @@ def main():
     print("\n[1/3] Verificando se tabela existe...")
     table_exists = False
     try:
-        result = supabase.table("stats_historico").select("id").limit(1).execute()
+        supabase.table("stats_historico").select("id").limit(1).execute()
         print("    ✓ Tabela stats_historico ja existe")
         table_exists = True
     except Exception as e:

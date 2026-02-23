@@ -690,10 +690,7 @@ async def get_current_stats():
 
         for cat, total in categorias:
             total_ontem = ontem_dict.get(cat, total)
-            if total_ontem > 0:
-                crescimento = ((total - total_ontem) / total_ontem) * 100
-            else:
-                crescimento = 0.0
+            crescimento = ((total - total_ontem) / total_ontem) * 100 if total_ontem > 0 else 0.0
 
             stats.append({
                 "categoria": cat,

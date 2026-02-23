@@ -4,7 +4,7 @@ Executa a cada 5 minutos para atualizar estatisticas do dashboard.
 """
 
 import asyncio
-from datetime import date, datetime
+from datetime import datetime
 
 import httpx
 import structlog
