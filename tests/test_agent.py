@@ -6,7 +6,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from api.agent.models import (
     ActionType,
     AIProviderResponse,
