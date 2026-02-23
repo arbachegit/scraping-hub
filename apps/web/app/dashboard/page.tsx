@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -12,7 +12,7 @@ import {
   Shield,
   Vote,
 } from 'lucide-react';
-import { getUser, getHealth, getStats } from '@/lib/api';
+import { getUser, getHealth, getStatsCurrent, getStatsHistory, StatItem, HistoryPoint } from '@/lib/api';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';
@@ -24,12 +24,27 @@ import {
   PessoasListingModal,
   NoticiasListingModal,
 } from '@/components/modals/listing-modal';
+import { StatsBadgeCard, StatsCounterLine } from '@/components/stats/stats-badge-card';
+
+const STATS_REFRESH_INTERVAL = 300000; // 5 minutes
+const COUNTDOWN_MAX = 300; // 5 minutes in seconds
+
+const categoryConfig = {
+  empresas: { icon: Building2, color: 'red' as const, label: 'Empresas' },
+  pessoas: { icon: Users, color: 'orange' as const, label: 'Pessoas' },
+  politicos: { icon: Flag, color: 'blue' as const, label: 'Politicos' },
+  mandatos: { icon: Vote, color: 'purple' as const, label: 'Mandatos' },
+  noticias: { icon: Newspaper, color: 'green' as const, label: 'Noticias' },
+};
+
+type CategoryKey = keyof typeof categoryConfig;
 
 export default function DashboardPage() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [version, setVersion] = useState('v1.14.2026');
+  const [countdown, setCountdown] = useState(COUNTDOWN_MAX);
 
   // Modal states
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
@@ -85,10 +100,38 @@ export default function DashboardPage() {
 
   // Load stats
   const statsQuery = useQuery({
-    queryKey: ['stats'],
-    queryFn: getStats,
-    refetchInterval: 60000, // Refresh every minute
+    queryKey: ['stats-current'],
+    queryFn: getStatsCurrent,
+    refetchInterval: STATS_REFRESH_INTERVAL,
   });
+
+  // Load history
+  const historyQuery = useQuery({
+    queryKey: ['stats-history'],
+    queryFn: () => getStatsHistory(30),
+    refetchInterval: STATS_REFRESH_INTERVAL,
+  });
+
+  // Countdown timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          return COUNTDOWN_MAX;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Reset countdown when stats refresh
+  useEffect(() => {
+    if (statsQuery.dataUpdatedAt) {
+      setCountdown(COUNTDOWN_MAX);
+    }
+  }, [statsQuery.dataUpdatedAt]);
 
   function handleLogout() {
     localStorage.removeItem('token');
@@ -105,127 +148,148 @@ export default function DashboardPage() {
   }
 
   function openPoliticosFromCard() {
-    // Atlas agent stub - will be implemented
     console.log('Atlas: Politicos module clicked');
   }
 
+  // Build stats data
+  const statsMap = new Map<string, StatItem>();
+  for (const stat of statsQuery.data?.stats || []) {
+    statsMap.set(stat.categoria, stat);
+  }
+
+  const historyMap = historyQuery.data?.historico || {};
+  const dataReferencia = statsQuery.data?.data_referencia || new Date().toISOString();
+  const isOnline = statsQuery.data?.online ?? false;
+
+  // Counter line data
+  const counterStats = Object.keys(categoryConfig).map((key) => {
+    const cat = key as CategoryKey;
+    return {
+      label: categoryConfig[cat].label,
+      value: statsMap.get(cat)?.total || 0,
+      color: categoryConfig[cat].color,
+    };
+  });
+
   return (
-    <div className="min-h-screen bg-[#0a0e1a]">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0f1629]/80 backdrop-blur-xl border-b border-cyan-500/10">
-        <div className="flex items-center justify-between px-8 py-4">
-          <div className="flex items-center gap-4">
+    <div className="h-screen flex flex-col bg-[#0a0e1a] overflow-hidden">
+      {/* Header - Compact */}
+      <header className="flex-shrink-0 bg-[#0f1629]/80 backdrop-blur-xl border-b border-cyan-500/10">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-2.5">
+          <div className="flex items-center gap-3">
             <picture>
               <source srcSet="/iconsai-logo.webp" type="image/webp" />
-              <img src="/iconsai-logo.png" alt="Iconsai" className="h-10 w-auto" />
+              <img src="/iconsai-logo.png" alt="Iconsai" className="h-8 w-auto" />
             </picture>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent hidden sm:block">
               Scraping Hub
             </h1>
-            <span className="px-2 py-1 text-xs text-slate-400 bg-slate-400/10 border border-slate-400/20 rounded">
+            <span className="px-2 py-0.5 text-[10px] text-slate-400 bg-slate-400/10 border border-slate-400/20 rounded">
               {version}
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {userRole === 'super_admin' && (
               <a
                 href="/admin"
-                className="inline-flex items-center gap-2 h-12 px-4 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 rounded-xl text-sm font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
+                className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
               >
-                <Shield className="h-4 w-4" />
-                <span>Gerenciar Usuarios</span>
+                <Shield className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Admin</span>
               </a>
             )}
-            <span className="inline-flex items-center justify-center h-12 px-4 bg-slate-400/15 border-2 border-slate-400 rounded-xl text-slate-200 text-sm font-medium">
+            <span className="inline-flex items-center justify-center h-9 px-3 bg-slate-400/15 border border-slate-400/30 rounded-lg text-slate-200 text-xs font-medium">
               {userName || '-'}
             </span>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 h-12 px-4 bg-red-500/15 border-2 border-red-500 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500 hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3 bg-red-500/15 border border-red-500/50 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500 hover:text-white transition-colors"
             >
-              <LogOut className="h-4 w-4" />
-              Sair
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>
       </header>
 
+      {/* Stats Counter Line - Landing Page Style */}
+      <div className="flex-shrink-0">
+        <StatsCounterLine stats={counterStats} />
+      </div>
+
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-8 py-8">
-        <h2 className="text-2xl font-bold text-slate-300 mb-4">Modulos de Inteligencia</h2>
+      <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Stats Badges */}
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-slate-400 mb-2">Estatisticas em Tempo Real</h2>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(categoryConfig) as CategoryKey[]).map((cat) => {
+                const config = categoryConfig[cat];
+                const stat = statsMap.get(cat);
+                const history = historyMap[cat] || [];
 
-        {/* Stats Badges */}
-        <div className="flex flex-wrap gap-3 mb-8">
-          <StatBadge
-            icon={Building2}
-            label="Empresas"
-            value={statsQuery.data?.stats.empresas ?? 0}
-            color="red"
-          />
-          <StatBadge
-            icon={Users}
-            label="Pessoas"
-            value={statsQuery.data?.stats.pessoas ?? 0}
-            color="orange"
-          />
-          <StatBadge
-            icon={Flag}
-            label="Politicos"
-            value={statsQuery.data?.stats.politicos ?? 0}
-            color="blue"
-          />
-          <StatBadge
-            icon={Vote}
-            label="Mandatos"
-            value={statsQuery.data?.stats.mandatos ?? 0}
-            color="purple"
-          />
-          <StatBadge
-            icon={Newspaper}
-            label="Noticias"
-            value={statsQuery.data?.stats.noticias ?? 0}
-            color="green"
-          />
-        </div>
+                return (
+                  <StatsBadgeCard
+                    key={cat}
+                    icon={config.icon}
+                    label={config.label}
+                    total={stat?.total || 0}
+                    crescimento={stat?.crescimento_percentual || 0}
+                    dataReferencia={dataReferencia}
+                    online={isOnline}
+                    history={history}
+                    color={config.color}
+                    countdown={countdown}
+                    maxCountdown={COUNTDOWN_MAX}
+                  />
+                );
+              })}
+            </div>
+          </div>
 
-        {/* Module Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Empresas */}
-          <ModuleCard
-            icon={Building2}
-            iconColor="red"
-            title="Empresas"
-            description="Busque por CNPJ via BrasilAPI + Serper. Dados oficiais da Receita Federal."
-            onClick={() => setCompanyModalOpen(true)}
-          />
+          {/* Module Cards - Compact Grid */}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-400 mb-2">Modulos de Inteligencia</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Empresas */}
+              <CompactModuleCard
+                icon={Building2}
+                iconColor="red"
+                title="Empresas"
+                description="CNPJ via BrasilAPI + Serper"
+                onClick={() => setCompanyModalOpen(true)}
+              />
 
-          {/* Pessoas */}
-          <ModuleCard
-            icon={Users}
-            iconColor="orange"
-            title="Pessoas"
-            description="Pesquise perfis profissionais e analise talentos."
-            onClick={() => setPeopleModalOpen(true)}
-          />
+              {/* Pessoas */}
+              <CompactModuleCard
+                icon={Users}
+                iconColor="orange"
+                title="Pessoas"
+                description="Perfis profissionais"
+                onClick={() => setPeopleModalOpen(true)}
+              />
 
-          {/* Politicos */}
-          <ModuleCard
-            icon={Flag}
-            iconColor="blue"
-            title="Politicos"
-            description="Perfis de politicos e percepcao publica."
-            badge="Ativo"
-            onClick={openPoliticosFromCard}
-          />
+              {/* Politicos */}
+              <CompactModuleCard
+                icon={Flag}
+                iconColor="blue"
+                title="Politicos"
+                description="Perfis e percepcao"
+                badge="Ativo"
+                onClick={openPoliticosFromCard}
+              />
 
-          {/* Noticias */}
-          <ModuleCard
-            icon={Newspaper}
-            iconColor="green"
-            title="Noticias"
-            description="Monitore noticias e cenario economico."
-            onClick={() => setNewsModalOpen(true)}
-          />
+              {/* Noticias */}
+              <CompactModuleCard
+                icon={Newspaper}
+                iconColor="green"
+                title="Noticias"
+                description="Monitore noticias"
+                onClick={() => setNewsModalOpen(true)}
+              />
+            </div>
+          </div>
         </div>
       </main>
 
@@ -287,7 +351,7 @@ export default function DashboardPage() {
   );
 }
 
-function ModuleCard({
+function CompactModuleCard({
   icon: Icon,
   iconColor,
   title,
@@ -314,68 +378,24 @@ function ModuleCard({
   return (
     <div
       onClick={onClick}
-      className="bg-[#0f1629]/80 border border-white/5 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
+      className="bg-[#0f1629]/80 border border-white/5 rounded-xl p-3 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
     >
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-2.5 mb-2">
         <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconColorMap[iconColor]}`}
+          className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconColorMap[iconColor]}`}
         >
-          <Icon className="w-6 h-6" />
+          <Icon className="w-4.5 h-4.5" />
         </div>
-        <h3 className="text-lg font-semibold text-slate-300">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-slate-300 truncate">{title}</h3>
+          {badge && (
+            <span className="inline-block px-1.5 py-0.5 text-[9px] bg-green-500/10 border border-green-500/30 text-green-400 rounded">
+              {badge}
+            </span>
+          )}
+        </div>
       </div>
-      <p className="text-slate-400/80 text-sm leading-relaxed">{description}</p>
-      {badge && (
-        <span className="inline-block mt-3 px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 text-green-400 rounded">
-          {badge}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function StatBadge({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: typeof Building2;
-  label: string;
-  value: number;
-  color: 'red' | 'orange' | 'blue' | 'green' | 'cyan' | 'purple';
-}) {
-  const colorMap = {
-    red: 'bg-red-500/10 border-red-500/30 text-red-400',
-    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
-    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-    green: 'bg-green-500/10 border-green-500/30 text-green-400',
-    cyan: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
-    purple: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
-  };
-
-  const iconColorMap = {
-    red: 'text-red-400',
-    orange: 'text-orange-400',
-    blue: 'text-blue-400',
-    green: 'text-green-400',
-    cyan: 'text-cyan-400',
-    purple: 'text-purple-400',
-  };
-
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString('pt-BR');
-  };
-
-  return (
-    <div
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${colorMap[color]}`}
-    >
-      <Icon className={`w-4 h-4 ${iconColorMap[color]}`} />
-      <span className="text-sm font-medium tabular-nums">{formatNumber(value)}</span>
-      <span className="text-xs opacity-70">{label}</span>
+      <p className="text-slate-400/80 text-xs leading-relaxed line-clamp-2">{description}</p>
     </div>
   );
 }

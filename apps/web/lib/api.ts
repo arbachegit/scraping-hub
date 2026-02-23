@@ -54,6 +54,36 @@ export async function getHealth(): Promise<{ version: string; status: string }> 
 // STATS API
 // ============================================
 
+export interface StatItem {
+  categoria: string;
+  total: number;
+  total_ontem: number;
+  crescimento_percentual: number;
+}
+
+export interface StatsCurrentResponse {
+  success: boolean;
+  stats: StatItem[];
+  data_referencia: string;
+  online: boolean;
+  proxima_atualizacao_segundos: number;
+  timestamp: string;
+}
+
+export interface HistoryPoint {
+  data: string;
+  total: number;
+}
+
+export interface StatsHistoryResponse {
+  success: boolean;
+  historico: Record<string, HistoryPoint[]>;
+  categorias: string[];
+  total_registros: number;
+  timestamp: string;
+}
+
+// Legacy interface for backwards compatibility
 export interface StatsResponse {
   success: boolean;
   stats: {
@@ -65,15 +95,62 @@ export interface StatsResponse {
   };
 }
 
+export async function getStatsCurrent(): Promise<StatsCurrentResponse> {
+  const res = await fetch(`${API_BASE}/stats/current`);
+  if (!res.ok) {
+    return {
+      success: false,
+      stats: [],
+      data_referencia: new Date().toISOString(),
+      online: false,
+      proxima_atualizacao_segundos: 300,
+      timestamp: new Date().toISOString(),
+    };
+  }
+  return res.json();
+}
+
+export async function getStatsHistory(limit = 30): Promise<StatsHistoryResponse> {
+  const res = await fetch(`${API_BASE}/stats/history?limit=${limit}`);
+  if (!res.ok) {
+    return {
+      success: false,
+      historico: {},
+      categorias: [],
+      total_registros: 0,
+      timestamp: new Date().toISOString(),
+    };
+  }
+  return res.json();
+}
+
+// Legacy function - converts new format to old format
 export async function getStats(): Promise<StatsResponse> {
-  const res = await fetch(`${API_BASE}/stats`);
+  const res = await fetch(`${API_BASE}/stats/current`);
   if (!res.ok) {
     return {
       success: false,
       stats: { empresas: 0, pessoas: 0, politicos: 0, mandatos: 0, noticias: 0 },
     };
   }
-  return res.json();
+
+  const data: StatsCurrentResponse = await res.json();
+  const statsObj: Record<string, number> = {};
+
+  for (const stat of data.stats) {
+    statsObj[stat.categoria] = stat.total;
+  }
+
+  return {
+    success: data.success,
+    stats: {
+      empresas: statsObj.empresas || 0,
+      pessoas: statsObj.pessoas || 0,
+      politicos: statsObj.politicos || 0,
+      mandatos: statsObj.mandatos || 0,
+      noticias: statsObj.noticias || 0,
+    },
+  };
 }
 
 // ============================================

@@ -656,13 +656,20 @@ async def get_current_stats():
             "id", count="exact", head=True
         ).execute()
 
-        # Politicos do Brasil Data Hub
+        # Politicos e Mandatos do Brasil Data Hub
         politicos_count = 0
+        mandatos_count = 0
         if brasil_data_hub:
             politicos_result = brasil_data_hub.from_("dim_politicos").select(
                 "id", count="exact", head=True
             ).execute()
             politicos_count = politicos_result.count or 0
+
+            # Mandatos
+            mandatos_result = brasil_data_hub.from_("fato_mandatos").select(
+                "id", count="exact", head=True
+            ).execute()
+            mandatos_count = mandatos_result.count or 0
 
         # Buscar dados de ontem para calcular crescimento
         from datetime import date, timedelta
@@ -685,6 +692,7 @@ async def get_current_stats():
             ("empresas", empresas_result.count or 0),
             ("pessoas", pessoas_result.count or 0),
             ("politicos", politicos_count),
+            ("mandatos", mandatos_count),
             ("noticias", noticias_result.count or 0),
         ]
 
@@ -794,17 +802,24 @@ async def create_stats_snapshot():
         ).execute()
 
         politicos_count = 0
+        mandatos_count = 0
         if brasil_data_hub:
             politicos = brasil_data_hub.from_("dim_politicos").select(
                 "id", count="exact", head=True
             ).execute()
             politicos_count = politicos.count or 0
 
+            mandatos = brasil_data_hub.from_("fato_mandatos").select(
+                "id", count="exact", head=True
+            ).execute()
+            mandatos_count = mandatos.count or 0
+
         # Upsert para cada categoria
         snapshots = [
             {"data": hoje.isoformat(), "categoria": "empresas", "total": empresas.count or 0},
             {"data": hoje.isoformat(), "categoria": "pessoas", "total": pessoas.count or 0},
             {"data": hoje.isoformat(), "categoria": "politicos", "total": politicos_count},
+            {"data": hoje.isoformat(), "categoria": "mandatos", "total": mandatos_count},
             {"data": hoje.isoformat(), "categoria": "noticias", "total": noticias.count or 0},
         ]
 
