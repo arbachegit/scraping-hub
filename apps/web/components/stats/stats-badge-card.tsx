@@ -83,10 +83,12 @@ function MiniSparkline({
   data,
   color,
   labels,
+  dates,
 }: {
   data: number[];
   color: string;
   labels?: string[];
+  dates?: string[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 200, height: 60 });
@@ -105,24 +107,75 @@ function MiniSparkline({
   if (!data.length) return null;
 
   const { width, height } = dims;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
   const padding = 2;
+  const chartW = width - padding * 2;
+  const chartH = height - padding * 2;
 
-  const pointCoords = data.map((val, i) => ({
-    x: padding + (i / (data.length - 1 || 1)) * (width - padding * 2),
-    y: height - padding - ((val - min) / range) * (height - padding * 2),
-    value: val,
-  }));
+  // FIX 3: Y-axis base-zero — shows real proportions between categories
+  const yMax = Math.max(...data);
+  const yRange = yMax || 1;
 
-  const polylinePoints = pointCoords.map((p) => `${p.x},${p.y}`).join(' ');
-  const areaPath = `M ${padding},${height - padding} L ${polylinePoints} L ${width - padding},${height - padding} Z`;
+  // FIX 1: X-axis temporal — proportional to real time gaps
+  const timestamps = dates?.length === data.length
+    ? dates.map((d) => new Date(d + 'T00:00:00Z').getTime())
+    : null;
+
+  const tMin = timestamps ? Math.min(...timestamps) : 0;
+  const tMax = timestamps ? Math.max(...timestamps) : 0;
+  const tRange = tMax - tMin || 1;
+
+  const pointCoords = data.map((val, i) => {
+    const xFraction = timestamps
+      ? (timestamps[i] - tMin) / tRange
+      : i / (data.length - 1 || 1);
+
+    return {
+      x: padding + xFraction * chartW,
+      y: height - padding - (val / yRange) * chartH,
+      value: val,
+    };
+  });
+
+  // FIX 2: Detect gaps >2 days between consecutive points
+  const gaps: Array<{ x1: number; x2: number; y1: number; y2: number }> = [];
+  if (timestamps) {
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    for (let i = 0; i < timestamps.length - 1; i++) {
+      if (timestamps[i + 1] - timestamps[i] > twoDaysMs) {
+        gaps.push({
+          x1: pointCoords[i].x,
+          x2: pointCoords[i + 1].x,
+          y1: pointCoords[i].y,
+          y2: pointCoords[i + 1].y,
+        });
+      }
+    }
+  }
+
+  // Build polyline segments: solid for continuous, skip gap segments for main line
+  const solidSegments: string[][] = [];
+  let currentSegment: string[] = [];
+  if (timestamps) {
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    for (let i = 0; i < pointCoords.length; i++) {
+      currentSegment.push(`${pointCoords[i].x},${pointCoords[i].y}`);
+      if (i < pointCoords.length - 1 && timestamps[i + 1] - timestamps[i] > twoDaysMs) {
+        solidSegments.push(currentSegment);
+        currentSegment = [];
+      }
+    }
+    if (currentSegment.length) solidSegments.push(currentSegment);
+  } else {
+    solidSegments.push(pointCoords.map((p) => `${p.x},${p.y}`));
+  }
+
+  // Area path (still covers full range for gradient fill)
+  const allPoints = pointCoords.map((p) => `${p.x},${p.y}`).join(' ');
+  const areaPath = `M ${padding},${height - padding} L ${allPoints} L ${width - padding},${height - padding} Z`;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    // Find closest data point
     let closest = 0;
     let closestDist = Infinity;
     for (let i = 0; i < pointCoords.length; i++) {
@@ -158,14 +211,43 @@ function MiniSparkline({
           </linearGradient>
         </defs>
         <path d={areaPath} fill={`url(#gradient-${color})`} />
-        <polyline
-          points={polylinePoints}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+
+        {/* Solid line segments (continuous data) */}
+        {solidSegments.map((seg, idx) => (
+          <polyline
+            key={`solid-${idx}`}
+            points={seg.join(' ')}
+            fill="none"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+
+        {/* FIX 2: Dashed lines + shaded zone for gaps */}
+        {gaps.map((gap, idx) => (
+          <g key={`gap-${idx}`}>
+            <rect
+              x={gap.x1}
+              y={0}
+              width={gap.x2 - gap.x1}
+              height={height}
+              fill="rgba(255,255,255,0.03)"
+            />
+            <line
+              x1={gap.x1}
+              y1={gap.y1}
+              x2={gap.x2}
+              y2={gap.y2}
+              stroke={color}
+              strokeWidth="1"
+              strokeDasharray="4,3"
+              opacity={0.5}
+            />
+          </g>
+        ))}
+
         {/* Hover vertical line + dot */}
         {hoverPoint && (
           <>
@@ -269,6 +351,7 @@ export function StatsBadgeCard({
 }: StatsBadgeCardProps) {
   const config = colorConfig[color];
   const historyValues = history.map((h) => h.total);
+  const historyDates = history.map((h) => h.data);
   const historyLabels = history.map((h) => {
     const d = new Date(h.data);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -327,6 +410,7 @@ export function StatsBadgeCard({
           data={historyValues}
           color={config.line}
           labels={historyLabels}
+          dates={historyDates}
         />
       </div>
 
