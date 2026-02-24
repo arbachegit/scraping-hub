@@ -189,14 +189,13 @@ function MiniSparkline({
           </>
         )}
       </svg>
-      {/* Tooltip */}
+      {/* Tooltip - positioned inside chart area */}
       {hoverPoint && hoverIndex !== null && (
         <div
-          className="absolute z-10 pointer-events-none bg-[#0f1629]/95 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm"
+          className="absolute z-50 pointer-events-none bg-[#0f1629]/95 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm whitespace-nowrap"
           style={{
-            left: Math.min(hoverPoint.x, width - 100),
-            top: -4,
-            transform: 'translateY(-100%)',
+            left: Math.max(4, Math.min(hoverPoint.x - 40, width - 90)),
+            top: Math.max(4, hoverPoint.y - 52),
           }}
         >
           {labels?.[hoverIndex] && (
@@ -323,7 +322,7 @@ export function StatsBadgeCard({
       </div>
 
       {/* Body - Chart takes all remaining space (~90% of card) */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-visible relative">
         <MiniSparkline
           data={historyValues}
           color={config.line}
