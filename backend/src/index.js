@@ -76,45 +76,50 @@ app.get('/version', (req, res) => {
   });
 });
 
-// Apollo test endpoint
-app.get('/test-apollo', async (req, res) => {
-  try {
-    const apiKey = process.env.APOLLO_API_KEY;
-    if (!apiKey) {
-      return res.json({ error: 'Apollo API key not configured' });
-    }
+// Startup credential validation
+function validateCredentials() {
+  const required = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    SERPER_API_KEY: process.env.SERPER_API_KEY
+  };
 
-    const response = await fetch('https://api.apollo.io/v1/mixed_companies/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'X-Api-Key': apiKey
-      },
-      body: JSON.stringify({
-        q_organization_name: 'Petrobras',
-        organization_locations: ['Brazil'],
-        page: 1,
-        per_page: 1
-      })
-    });
+  const optional = {
+    APOLLO_API_KEY: process.env.APOLLO_API_KEY,
+    CNPJA_API_KEY: process.env.CNPJA_API_KEY,
+    PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    FISCAL_SUPABASE_URL: process.env.FISCAL_SUPABASE_URL,
+    FISCAL_SUPABASE_KEY: process.env.FISCAL_SUPABASE_KEY,
+    BRASIL_DATA_HUB_URL: process.env.BRASIL_DATA_HUB_URL,
+    BRASIL_DATA_HUB_KEY: process.env.BRASIL_DATA_HUB_KEY
+  };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.json({ error: `Apollo API error: ${response.status}`, details: errorText });
-    }
+  const missingRequired = Object.entries(required)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
 
-    const data = await response.json();
-    const org = data.organizations?.[0];
-    res.json({
-      success: true,
-      found: data.organizations?.length || 0,
-      sample: org ? { name: org.name, linkedin: org.linkedin_url, website: org.website_url } : null
-    });
-  } catch (error) {
-    res.json({ error: error.message });
+  const missingOptional = Object.entries(optional)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+
+  if (missingRequired.length > 0) {
+    logger.error('Missing REQUIRED credentials - server cannot start', { missing: missingRequired });
+    throw new Error(`Missing required environment variables: ${missingRequired.join(', ')}. Check your .env file.`);
   }
-});
+
+  if (missingOptional.length > 0) {
+    logger.warn('Missing optional credentials - some features will be unavailable', { missing: missingOptional });
+  }
+
+  logger.info('Credential validation passed', {
+    required: Object.keys(required).length,
+    optional_configured: Object.keys(optional).length - missingOptional.length,
+    optional_missing: missingOptional.length
+  });
+}
+
+validateCredentials();
 
 // Start server
 app.listen(PORT, () => {

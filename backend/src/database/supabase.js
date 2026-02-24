@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import logger from '../utils/logger.js';
 
 // Ensure dotenv is loaded (ESM modules load before code execution)
 const __filename = fileURLToPath(import.meta.url);
@@ -12,7 +13,11 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('SUPABASE_URL and SUPABASE_SERVICE_KEY are required');
+  const missing = [];
+  if (!supabaseUrl) missing.push('SUPABASE_URL');
+  if (!supabaseKey) missing.push('SUPABASE_SERVICE_KEY');
+  logger.error('Missing required Supabase credentials', { missing });
+  throw new Error(`Missing required environment variables: ${missing.join(', ')}. Check your .env file.`);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
