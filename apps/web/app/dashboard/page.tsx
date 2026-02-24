@@ -246,9 +246,9 @@ export default function DashboardPage() {
       <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
         <div className="max-w-6xl mx-auto">
           {/* Stats Badges */}
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-slate-400 mb-2">Estatisticas em Tempo Real</h2>
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-5">
+            <h2 className="text-base font-semibold text-slate-400 mb-2.5">Estatisticas em Tempo Real</h2>
+            <div className="flex flex-wrap gap-2.5">
               {(Object.keys(categoryConfig) as CategoryKey[]).map((cat) => {
                 const config = categoryConfig[cat];
                 const stat = statsMap.get(cat);
@@ -275,8 +275,8 @@ export default function DashboardPage() {
 
           {/* Module Cards - Compact Grid */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-400 mb-2">Modulos de Inteligencia</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <h2 className="text-base font-semibold text-slate-400 mb-2.5">Modulos de Inteligencia</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Empresas */}
               <CompactModuleCard
                 icon={Building2}
@@ -403,24 +403,24 @@ function CompactModuleCard({
   return (
     <div
       onClick={onClick}
-      className="bg-[#0f1629]/80 border border-white/5 rounded-xl p-3 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
+      className="bg-[#0f1629]/80 border border-white/5 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
     >
-      <div className="flex items-center gap-2.5 mb-2">
+      <div className="flex items-center gap-3 mb-2.5">
         <div
-          className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconColorMap[iconColor]}`}
+          className={`w-11 h-11 rounded-lg flex items-center justify-center ${iconColorMap[iconColor]}`}
         >
-          <Icon className="w-4.5 h-4.5" />
+          <Icon className="w-5.5 h-5.5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-300 truncate">{title}</h3>
+          <h3 className="text-base font-semibold text-slate-300 truncate">{title}</h3>
           {badge && (
-            <span className="inline-block px-1.5 py-0.5 text-[9px] bg-green-500/10 border border-green-500/30 text-green-400 rounded">
+            <span className="inline-block px-2 py-0.5 text-[11px] bg-green-500/10 border border-green-500/30 text-green-400 rounded">
               {badge}
             </span>
           )}
         </div>
       </div>
-      <p className="text-slate-400/80 text-xs leading-relaxed line-clamp-2">{description}</p>
+      <p className="text-slate-400/80 text-sm leading-relaxed line-clamp-2">{description}</p>
     </div>
   );
 }
