@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { listCnaes, type Cnae } from '@/lib/api';
 
 interface CnaeModalProps {
@@ -220,7 +220,7 @@ export function CnaeModal({ isOpen, onClose, onSelect }: CnaeModalProps) {
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1 px-6 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-purple-400 mb-4" />
@@ -274,7 +274,7 @@ export function CnaeModal({ isOpen, onClose, onSelect }: CnaeModalProps) {
               </tbody>
             </table>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );

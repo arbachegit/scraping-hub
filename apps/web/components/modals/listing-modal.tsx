@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Loader2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   listCompanies,
   listPeople,
@@ -132,7 +131,7 @@ export function EmpresasListingModal({ isOpen, onClose, filters }: EmpresasListi
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-cyan-400 mb-4" />
@@ -200,7 +199,7 @@ export function EmpresasListingModal({ isOpen, onClose, filters }: EmpresasListi
               </tbody>
             </table>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
@@ -337,7 +336,7 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-orange-400 mb-4" />
@@ -395,7 +394,7 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
               </tbody>
             </table>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
@@ -537,7 +536,7 @@ export function NoticiasListingModal({ isOpen, onClose, filters }: NoticiasListi
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-green-400 mb-4" />
@@ -595,7 +594,7 @@ export function NoticiasListingModal({ isOpen, onClose, filters }: NoticiasListi
               </tbody>
             </table>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );

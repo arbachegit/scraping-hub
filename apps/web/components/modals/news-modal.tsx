@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Search, ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { listNews, listNewsSources, searchNewsAI, getNewsDetails, type NewsItem } from '@/lib/api';
 
 interface NewsModalProps {
@@ -121,9 +121,9 @@ export function NewsModal({ isOpen, onClose, onOpenListingModal }: NewsModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
+        <div className="flex items-center justify-between p-6 border-b border-white/5 flex-shrink-0">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <span className="w-1 h-5 bg-gradient-to-b from-green-400 to-green-600 rounded" />
             Noticias
@@ -136,7 +136,7 @@ export function NewsModal({ isOpen, onClose, onOpenListingModal }: NewsModalProp
           </button>
         </div>
 
-        <ScrollArea className="p-6 max-h-[calc(85vh-80px)]">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           {view === 'search' ? (
             <>
               {/* Search Form */}
@@ -329,7 +329,7 @@ export function NewsModal({ isOpen, onClose, onOpenListingModal }: NewsModalProp
               {detailsQuery.data?.success && <NewsDetailsView news={detailsQuery.data.news} />}
             </>
           )}
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
