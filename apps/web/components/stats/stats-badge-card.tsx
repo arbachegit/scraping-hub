@@ -230,6 +230,66 @@ export function StatsBadgeCard({
   );
 }
 
+// Refresh Pie Chart - animated circular countdown
+export function RefreshPieChart({
+  countdown,
+  maxCountdown,
+  onComplete,
+  size = 32,
+}: {
+  countdown: number;
+  maxCountdown: number;
+  onComplete?: () => void;
+  size?: number;
+}) {
+  const prevCountdownRef = useRef(countdown);
+  const progress = 1 - countdown / maxCountdown; // 0 → 1 as time passes
+  const radius = (size - 4) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - progress * circumference;
+
+  useEffect(() => {
+    if (prevCountdownRef.current > 0 && countdown <= 0) {
+      onComplete?.();
+    }
+    prevCountdownRef.current = countdown;
+  }, [countdown, onComplete]);
+
+  const minutes = Math.floor(countdown / 60);
+  const seconds = countdown % 60;
+  const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="2.5"
+        />
+        {/* Progress arc */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#22d3ee"
+          strokeWidth="2.5"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-linear"
+        />
+      </svg>
+      <span className="text-[11px] text-slate-500 tabular-nums font-mono">{timeText}</span>
+    </div>
+  );
+}
+
 // Animated Counter Line Component
 interface CounterLineProps {
   stats: Array<{
@@ -237,6 +297,9 @@ interface CounterLineProps {
     value: number;
     color: 'red' | 'orange' | 'blue' | 'green' | 'purple';
   }>;
+  countdown?: number;
+  maxCountdown?: number;
+  onRefreshComplete?: () => void;
 }
 
 function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: number }) {
@@ -271,7 +334,7 @@ function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: 
   return <span className="tabular-nums">{displayValue.toLocaleString('pt-BR')}</span>;
 }
 
-export function StatsCounterLine({ stats }: CounterLineProps) {
+export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComplete }: CounterLineProps) {
   const colorMap = {
     red: 'text-red-400',
     orange: 'text-orange-400',
@@ -285,12 +348,22 @@ export function StatsCounterLine({ stats }: CounterLineProps) {
       {stats.map((stat, index) => (
         <div key={stat.label} className="flex items-center gap-1 sm:gap-2">
           {index > 0 && <div className="w-px h-4 bg-white/10 mr-1 sm:mr-2" />}
-          <span className={`text-sm sm:text-base font-bold ${colorMap[stat.color]}`}>
+          <span className={`text-[25px] leading-none font-bold ${colorMap[stat.color]}`}>
             <AnimatedNumber value={stat.value} />
           </span>
-          <span className="text-[10px] sm:text-xs text-slate-500 lowercase">{stat.label}</span>
+          <span className="text-xs text-slate-500 lowercase">{stat.label}</span>
         </div>
       ))}
+      {countdown !== undefined && maxCountdown !== undefined && (
+        <>
+          <div className="w-px h-6 bg-white/10 mx-1" />
+          <RefreshPieChart
+            countdown={countdown}
+            maxCountdown={maxCountdown}
+            onComplete={onRefreshComplete}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -124,6 +124,17 @@ export async function getStatsHistory(limit = 30): Promise<StatsHistoryResponse>
   return res.json();
 }
 
+export async function createStatsSnapshot(): Promise<{ success: boolean; message?: string }> {
+  const res = await fetch(`${API_BASE}/stats/snapshot`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    return { success: false };
+  }
+  return res.json();
+}
+
 // Legacy function - converts new format to old format
 export async function getStats(): Promise<StatsResponse> {
   const res = await fetch(`${API_BASE}/stats/current`);

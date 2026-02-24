@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Users,
@@ -12,7 +12,7 @@ import {
   Shield,
   Vote,
 } from 'lucide-react';
-import { getUser, getHealth, getStatsCurrent, getStatsHistory, StatItem, HistoryPoint } from '@/lib/api';
+import { getUser, getHealth, getStatsCurrent, getStatsHistory, createStatsSnapshot, StatItem, HistoryPoint } from '@/lib/api';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';
@@ -26,8 +26,8 @@ import {
 } from '@/components/modals/listing-modal';
 import { StatsBadgeCard, StatsCounterLine } from '@/components/stats/stats-badge-card';
 
-const STATS_REFRESH_INTERVAL = 300000; // 5 minutes
-const COUNTDOWN_MAX = 300; // 5 minutes in seconds
+const STATS_REFRESH_INTERVAL = 180000; // 3 minutes
+const COUNTDOWN_MAX = 180; // 3 minutes in seconds
 
 const categoryConfig = {
   empresas: { icon: Building2, color: 'red' as const, label: 'Empresas' },
@@ -41,6 +41,7 @@ type CategoryKey = keyof typeof categoryConfig;
 
 export default function DashboardPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [version, setVersion] = useState('v1.14.2026');
@@ -98,17 +99,30 @@ export default function DashboardPage() {
     }
   }, [healthQuery.data]);
 
+  // Create initial snapshot to populate stats_historico
+  const snapshotDoneRef = useRef(false);
+  useEffect(() => {
+    if (!snapshotDoneRef.current) {
+      snapshotDoneRef.current = true;
+      createStatsSnapshot().catch(() => {});
+    }
+  }, []);
+
   // Load stats
   const statsQuery = useQuery({
     queryKey: ['stats-current'],
-    queryFn: getStatsCurrent,
+    queryFn: async () => {
+      // Create snapshot on each refresh to keep history updated
+      await createStatsSnapshot().catch(() => {});
+      return getStatsCurrent();
+    },
     refetchInterval: STATS_REFRESH_INTERVAL,
   });
 
-  // Load history
+  // Load history (limit=365 to get all available data)
   const historyQuery = useQuery({
     queryKey: ['stats-history'],
-    queryFn: () => getStatsHistory(30),
+    queryFn: () => getStatsHistory(365),
     refetchInterval: STATS_REFRESH_INTERVAL,
   });
 
@@ -160,6 +174,12 @@ export default function DashboardPage() {
   const historyMap = historyQuery.data?.historico || {};
   const dataReferencia = statsQuery.data?.data_referencia || new Date().toISOString();
   const isOnline = statsQuery.data?.online ?? false;
+
+  // Callback when pie chart completes a cycle
+  const handleRefreshComplete = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['stats-current'] });
+    queryClient.invalidateQueries({ queryKey: ['stats-history'] });
+  }, [queryClient]);
 
   // Counter line data
   const counterStats = Object.keys(categoryConfig).map((key) => {
@@ -214,7 +234,12 @@ export default function DashboardPage() {
 
       {/* Stats Counter Line - Landing Page Style */}
       <div className="flex-shrink-0">
-        <StatsCounterLine stats={counterStats} />
+        <StatsCounterLine
+          stats={counterStats}
+          countdown={countdown}
+          maxCountdown={COUNTDOWN_MAX}
+          onRefreshComplete={handleRefreshComplete}
+        />
       </div>
 
       {/* Main Content */}
