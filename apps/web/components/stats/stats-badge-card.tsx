@@ -189,40 +189,40 @@ export function StatsBadgeCard({
   return (
     <div
       className={`
-        flex flex-col rounded-lg border border-white/5 border-l-[4px] ${config.border}
-        ${config.bg} backdrop-blur-sm min-w-[175px] flex-1
+        flex flex-col rounded-xl border border-white/5 border-l-[5px] ${config.border}
+        ${config.bg} backdrop-blur-sm min-w-[220px] flex-1
         transition-all duration-300 hover:border-white/10 hover:shadow-lg
       `}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${config.text}`} />
-          <span className="text-[14px] font-medium text-slate-300 truncate">{label}</span>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Icon className={`w-5.5 h-5.5 flex-shrink-0 ${config.text}`} />
+          <span className="text-[17px] font-medium text-slate-300 truncate">{label}</span>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-[11px] text-slate-500">{formatDate(dataReferencia)}</span>
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <span className="text-[13px] text-slate-500">{formatDate(dataReferencia)}</span>
+          <div className="flex items-center gap-2">
             <div
-              className={`w-2 h-2 rounded-full ${online ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`}
+              className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`}
             />
-            <CountdownRing progress={countdownProgress} color={config.line} size={18} />
+            <CountdownRing progress={countdownProgress} color={config.line} size={22} />
           </div>
         </div>
       </div>
 
       {/* Body - Chart */}
-      <div className="flex items-center justify-center px-2.5 py-2 min-h-[40px]">
-        <MiniSparkline data={historyValues} color={config.line} width={125} height={35} />
+      <div className="flex items-center justify-center px-3 py-2.5 min-h-[50px]">
+        <MiniSparkline data={historyValues} color={config.line} width={156} height={44} />
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-white/5">
-        <span className="text-base font-bold text-white tabular-nums">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-white/5">
+        <span className="text-lg font-bold text-white tabular-nums">
           {formatNumber(total)}
         </span>
-        <div className={`flex items-center gap-0.5 text-xs ${growthColor}`}>
-          {React.createElement(growthIcon, { className: 'w-3.5 h-3.5' })}
+        <div className={`flex items-center gap-1 text-sm ${growthColor}`}>
+          {React.createElement(growthIcon, { className: 'w-4 h-4' })}
           <span className="tabular-nums">{growthText}</span>
         </div>
       </div>
