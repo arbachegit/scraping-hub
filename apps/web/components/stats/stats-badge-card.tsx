@@ -135,11 +135,11 @@ function MiniSparkline({
 
   const { width, height } = dims;
 
-  // Padding for axis labels (Y-axis labels can be wide for "35.2M")
-  const padLeft = 42;
+  // Padding for axis labels
+  const padLeft = 32;
   const padRight = 6;
   const padTop = 6;
-  const padBottom = 18;
+  const padBottom = 14;
 
   const chartW = width - padLeft - padRight;
   const chartH = height - padTop - padBottom;
@@ -280,7 +280,7 @@ function MiniSparkline({
             y={tick.y + 4}
             textAnchor="end"
             fill="rgba(255,255,255,0.55)"
-            fontSize="9"
+            fontSize="5"
             fontFamily="ui-monospace, monospace"
           >
             {tick.label}
@@ -295,7 +295,7 @@ function MiniSparkline({
             y={height - 3}
             textAnchor="middle"
             fill="rgba(255,255,255,0.5)"
-            fontSize="9"
+            fontSize="5"
             fontFamily="ui-monospace, monospace"
           >
             {tick.label}
@@ -325,16 +325,17 @@ function MiniSparkline({
       {/* Tooltip */}
       {hoverPoint && hoverIndex !== null && (
         <div
-          className="absolute z-50 pointer-events-none bg-[#0f1629]/95 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm whitespace-nowrap"
+          className="absolute z-50 pointer-events-none bg-white/95 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs shadow-lg whitespace-nowrap"
           style={{
-            left: Math.max(4, Math.min(hoverPoint.x - 40, width - 100)),
-            top: Math.max(4, hoverPoint.y - 56),
+            left: hoverPoint.x,
+            top: Math.max(2, hoverPoint.y - 48),
+            transform: 'translateX(-50%)',
           }}
         >
           {labels?.[hoverIndex] && (
-            <div className="text-slate-400 text-[10px] mb-0.5">{labels[hoverIndex]}</div>
+            <div className="text-slate-500 text-[10px] mb-0.5">{labels[hoverIndex]}</div>
           )}
-          <div className="text-white font-bold tabular-nums">{hoverPoint.value.toLocaleString('pt-BR')}</div>
+          <div className="text-slate-900 font-bold tabular-nums">{hoverPoint.value.toLocaleString('pt-BR')}</div>
         </div>
       )}
     </div>
