@@ -9,7 +9,7 @@ const cnpjSchema = z.string()
   .transform(val => val.replace(/[^\d]/g, ''))
   .refine(val => val.length === 14, { message: 'CNPJ deve ter 14 dígitos' });
 
-// Company search request - mínimo 1 campo preenchido
+// Company search request - mínimo 1 campo preenchido + pagination
 export const searchCompanySchema = z.object({
   nome: z.string()
     .max(200, 'Nome deve ter no máximo 200 caracteres')
@@ -30,7 +30,9 @@ export const searchCompanySchema = z.object({
     .max(100)
     .transform(val => val?.trim())
     .optional()
-    .nullable()
+    .nullable(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(100)
 }).refine(data => {
   // Contar campos preenchidos com pelo menos 2 caracteres
   const campos = [data.nome, data.cidade, data.segmento, data.regime];

@@ -9,6 +9,7 @@ import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../service
 import { LINKEDIN_STATUS, DATA_SOURCES } from '../constants.js';
 import { searchCompanySchema, detailsCompanySchema, sociosSchema, approveCompanySchema, recalculateSchema, validateBody } from '../validation/schemas.js';
 import logger from '../utils/logger.js';
+import { analyzeQuery, estimateCardinality, rankResults, buildRefinementResponse, logEvidence } from '../services/search-orchestrator.js';
 
 const router = Router();
 
@@ -22,95 +23,101 @@ const router = Router();
 
 /**
  * POST /api/companies/search
- * Search for company by name and optional city, return candidates with CNPJ
+ * Search for company by name and optional city, return candidates with CNPJ.
+ * Integrates Search Orchestrator for query analysis, cardinality estimation,
+ * refinement suggestions, ranking, and evidence logging.
+ *
+ * Query params (optional): page, pageSize
  */
 router.post('/search', validateBody(searchCompanySchema), async (req, res) => {
   const requestId = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const startTime = Date.now();
   try {
     const { nome, cidade, segmento, regime } = req.body;
+    const page = parseInt(req.body.page) || 1;
+    const pageSize = Math.min(parseInt(req.body.pageSize) || 100, 100);
 
-    // Build search query from available fields
+    // ── 1. Query Analysis ──
+    const analysis = analyzeQuery({
+      nome, cidade, segmento, regime,
+      entityType: 'company'
+    });
+
+    // ── 2. Cardinality Estimation ──
+    const cardinality = await estimateCardinality(analysis);
+
+    // ── 3. Check if refinement is required ──
+    const refinement = buildRefinementResponse(analysis, cardinality);
+
+    if (refinement.status === 'REFINE_REQUIRED') {
+      const durationMs = Date.now() - startTime;
+      logEvidence({
+        requestId,
+        input: { nome, cidade, segmento, regime },
+        analysis,
+        cardinality,
+        strategy: analysis.strategy,
+        sourcesUsed: [],
+        returnedCount: 0,
+        durationMs
+      });
+
+      return res.json({
+        found: false,
+        status: 'REFINE_REQUIRED',
+        message: refinement.message,
+        suggestions: refinement.suggestions,
+        estimatedMatches: refinement.estimatedMatches,
+        analysis: {
+          type: analysis.type,
+          strength: analysis.strength,
+          strategy: analysis.strategy,
+          missingFields: analysis.missingFields
+        },
+        candidates: [],
+        requestId,
+        durationMs
+      });
+    }
+
+    // ── 4. Build search query ──
     const queryParts = [];
     if (nome) queryParts.push(nome);
     if (cidade) queryParts.push(cidade);
     if (segmento) queryParts.push(segmento);
     if (regime) queryParts.push(regime);
 
-    // Use nome for primary search, others for context
     const searchName = nome || queryParts[0];
     const searchCity = cidade || null;
+    const sourcesTried = [];
 
-    logger.info('External search started', {
+    logger.info('Company search started', {
       requestId,
-      source: 'external',
       filters: { nome, cidade, segmento, regime },
-      searchName,
-      searchCity
+      analysis: { strength: analysis.strength, strategy: analysis.strategy },
+      page,
+      pageSize
     });
 
-    // 1. First try: Serper (Google search)
-    let candidates = await serper.searchCompanyByName(searchName, searchCity);
-    let searchSource = 'serper';
-
-    // 2. Fallback: Perplexity AI (if Serper found nothing)
-    if (candidates.length === 0) {
-      console.log(`[SEARCH] Serper não encontrou. Tentando Perplexity...`);
-      candidates = await perplexity.searchCompanyByName(searchName, searchCity);
-      searchSource = 'perplexity';
-    }
-
-    // 3. Fallback: Serper with full query
-    if (candidates.length === 0) {
-      console.log(`[SEARCH] Perplexity não encontrou. Tentando Serper com query completa...`);
-      const fullQuery = `${queryParts.join(' ')} CNPJ empresa`;
-      const exactResults = await serper.search(fullQuery, 20);
-
-      // Extract CNPJs from exact search
-      const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
-      const seenCnpjs = new Set();
-
-      for (const item of exactResults.organic || []) {
-        const text = `${item.title || ''} ${item.snippet || ''}`;
-        const matches = text.match(cnpjPattern) || [];
-
-        for (const match of matches) {
-          const cnpj = match.replace(/[^\d]/g, '');
-          if (cnpj.length === 14 && !seenCnpjs.has(cnpj)) {
-            seenCnpjs.add(cnpj);
-            candidates.push({
-              cnpj: cnpj,
-              cnpj_formatted: `${cnpj.slice(0,2)}.${cnpj.slice(2,5)}.${cnpj.slice(5,8)}/${cnpj.slice(8,12)}-${cnpj.slice(12)}`,
-              razao_social: item.title?.split('-')[0]?.trim() || nome,
-              localizacao: null,
-              fonte: 'serper_exact'
-            });
-          }
-        }
-      }
-      searchSource = 'serper_exact';
-    }
-
-    if (candidates.length === 0) {
-      return res.json({
-        found: false,
-        message: 'Nenhuma empresa encontrada com este nome',
-        candidates: [],
-        sources_tried: ['serper', 'perplexity', 'serper_exact']
-      });
-    }
-
-    // Also search internal database (dim_empresas) - non-blocking
+    // ── 5. Federated Search: DB + External Sources ──
+    // 5a. Internal DB search (always first)
+    sourcesTried.push('database');
     let internalResults = [];
+    let dbTotal = 0;
     try {
-      const { data: internalData } = await listCompanies({ nome: searchName, cidade: searchCity, limit: 10 });
+      const { data: internalData, total } = await listCompanies({
+        nome: searchName,
+        cidade: searchCity,
+        limit: pageSize,
+        offset: (page - 1) * pageSize
+      });
       internalResults = internalData;
+      dbTotal = total;
     } catch (err) {
-      console.warn('[SEARCH] Internal DB search failed:', err.message);
+      logger.warn('Internal DB search failed', { requestId, error: err.message });
     }
     const internalCnpjs = new Set(internalResults.map(r => r.cnpj));
 
-    // Add internal results as candidates (marked as 'interno')
     const internalCandidates = internalResults.map(r => ({
       cnpj: r.cnpj,
       cnpj_formatted: `${r.cnpj.slice(0,2)}.${r.cnpj.slice(2,5)}.${r.cnpj.slice(5,8)}/${r.cnpj.slice(8,12)}-${r.cnpj.slice(12)}`,
@@ -120,74 +127,161 @@ router.post('/search', validateBody(searchCompanySchema), async (req, res) => {
       fonte: 'interno'
     }));
 
-    // Enrich external candidates with city from BrasilAPI (limit to 10 for performance)
-    const limitedCandidates = candidates.slice(0, 10);
-    console.log(`[SEARCH] Enriquecendo ${limitedCandidates.length} candidatos com cidade da Receita Federal`);
+    // 5b. External sources (only on page 1 or if few DB results)
+    let externalCandidates = [];
+    let searchSource = 'database';
 
-    const enrichedCandidates = await Promise.all(
-      limitedCandidates.map(async (c) => {
-        // Check if this CNPJ is already in our database
-        const isInternal = internalCnpjs.has(c.cnpj);
-        try {
-          const brasilData = await brasilapi.getCompanyByCnpj(c.cnpj);
-          return {
-            cnpj: c.cnpj,
-            cnpj_formatted: c.cnpj_formatted,
-            razao_social: brasilData?.razao_social || c.razao_social,
-            nome_fantasia: brasilData?.nome_fantasia || null,
-            localizacao: brasilData ? `${brasilData.cidade} - ${brasilData.estado}` : c.localizacao,
-            fonte: isInternal ? 'interno' : 'externo'
-          };
-        } catch (err) {
-          console.warn(`[SEARCH] Erro ao buscar cidade para ${c.cnpj}:`, err.message);
-          return {
-            cnpj: c.cnpj,
-            cnpj_formatted: c.cnpj_formatted,
-            razao_social: c.razao_social,
-            nome_fantasia: null,
-            localizacao: c.localizacao,
-            fonte: isInternal ? 'interno' : 'externo'
-          };
+    if (page === 1 || internalResults.length < 5) {
+      // Serper (Google search)
+      sourcesTried.push('serper');
+      let candidates = await serper.searchCompanyByName(searchName, searchCity);
+      searchSource = 'serper';
+
+      // Fallback: Perplexity AI
+      if (candidates.length === 0) {
+        sourcesTried.push('perplexity');
+        candidates = await perplexity.searchCompanyByName(searchName, searchCity);
+        searchSource = 'perplexity';
+      }
+
+      // Fallback: Serper exact query
+      if (candidates.length === 0) {
+        sourcesTried.push('serper_exact');
+        const fullQuery = `${queryParts.join(' ')} CNPJ empresa`;
+        const exactResults = await serper.search(fullQuery, 20);
+
+        const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
+        const seenCnpjs = new Set();
+
+        for (const item of exactResults.organic || []) {
+          const text = `${item.title || ''} ${item.snippet || ''}`;
+          const matches = text.match(cnpjPattern) || [];
+
+          for (const match of matches) {
+            const cnpj = match.replace(/[^\d]/g, '');
+            if (cnpj.length === 14 && !seenCnpjs.has(cnpj)) {
+              seenCnpjs.add(cnpj);
+              candidates.push({
+                cnpj: cnpj,
+                cnpj_formatted: `${cnpj.slice(0,2)}.${cnpj.slice(2,5)}.${cnpj.slice(5,8)}/${cnpj.slice(8,12)}-${cnpj.slice(12)}`,
+                razao_social: item.title?.split('-')[0]?.trim() || nome,
+                localizacao: null,
+                fonte: 'serper_exact'
+              });
+            }
+          }
         }
-      })
-    );
+        searchSource = 'serper_exact';
+      }
 
-    // Merge: internal first (dedup by CNPJ), then external
+      // Enrich external candidates with BrasilAPI (limit to 10)
+      sourcesTried.push('brasilapi');
+      const limitedCandidates = candidates.slice(0, 10);
+
+      externalCandidates = await Promise.all(
+        limitedCandidates.map(async (c) => {
+          const isInternal = internalCnpjs.has(c.cnpj);
+          try {
+            const brasilData = await brasilapi.getCompanyByCnpj(c.cnpj);
+            return {
+              cnpj: c.cnpj,
+              cnpj_formatted: c.cnpj_formatted,
+              razao_social: brasilData?.razao_social || c.razao_social,
+              nome_fantasia: brasilData?.nome_fantasia || null,
+              localizacao: brasilData ? `${brasilData.cidade} - ${brasilData.estado}` : c.localizacao,
+              fonte: isInternal ? 'interno' : 'externo'
+            };
+          } catch (err) {
+            return {
+              cnpj: c.cnpj,
+              cnpj_formatted: c.cnpj_formatted,
+              razao_social: c.razao_social,
+              nome_fantasia: null,
+              localizacao: c.localizacao,
+              fonte: isInternal ? 'interno' : 'externo'
+            };
+          }
+        })
+      );
+    }
+
+    // ── 6. Merge + Dedup + Rank ──
     const seenFinal = new Set();
-    const allCandidates = [];
+    const mergedRaw = [];
+
+    // Internal first (higher trust)
     for (const c of internalCandidates) {
       if (!seenFinal.has(c.cnpj)) {
         seenFinal.add(c.cnpj);
-        allCandidates.push(c);
+        mergedRaw.push(c);
       }
     }
-    for (const c of enrichedCandidates) {
+    // Then external
+    for (const c of externalCandidates) {
       if (!seenFinal.has(c.cnpj)) {
         seenFinal.add(c.cnpj);
-        allCandidates.push(c);
+        mergedRaw.push(c);
       }
     }
 
+    // Rank results
+    const allCandidates = rankResults(mergedRaw, searchName);
+
+    // ── 7. Badges ──
+    const dbCount = allCandidates.filter(c => c.fonte === 'interno').length;
+    const newCount = allCandidates.filter(c => c.fonte !== 'interno').length;
+    const totalEstimate = dbTotal + newCount;
+    const totalPages = Math.ceil(totalEstimate / pageSize);
+
     const durationMs = Date.now() - startTime;
-    logger.info('External search completed', {
+
+    // ── 8. Evidence logging ──
+    logEvidence({
       requestId,
-      source: 'external',
-      filters: { nome, cidade, segmento, regime },
-      durationMs,
+      input: { nome, cidade, segmento, regime, page, pageSize },
+      analysis,
+      cardinality,
+      strategy: analysis.strategy,
+      sourcesUsed: sourcesTried,
       returnedCount: allCandidates.length,
-      internalCount: internalCandidates.length,
-      externalCount: enrichedCandidates.length,
-      searchSource
+      durationMs
     });
+
+    if (allCandidates.length === 0) {
+      return res.json({
+        found: false,
+        status: 'OK',
+        message: 'Nenhuma empresa encontrada com estes critérios',
+        candidates: [],
+        sources_tried: sourcesTried,
+        analysis: {
+          type: analysis.type,
+          strength: analysis.strength,
+          strategy: analysis.strategy
+        },
+        pagination: { page, pageSize, total: 0, totalPages: 0, hasMore: false },
+        badges: { total: 0, db: 0, new: 0 },
+        requestId,
+        durationMs
+      });
+    }
 
     if (allCandidates.length === 1) {
       return res.json({
         found: true,
         single_match: true,
+        status: 'OK',
         message: 'Empresa encontrada. Selecione para ver detalhes.',
         company: allCandidates[0],
+        candidates: allCandidates,
+        analysis: {
+          type: analysis.type,
+          strength: analysis.strength,
+          strategy: analysis.strategy
+        },
+        pagination: { page, pageSize, total: 1, totalPages: 1, hasMore: false },
+        badges: { total: 1, db: dbCount, new: newCount },
         requestId,
-        source: 'external',
         durationMs
       });
     }
@@ -195,21 +289,34 @@ router.post('/search', validateBody(searchCompanySchema), async (req, res) => {
     return res.json({
       found: true,
       single_match: false,
+      status: 'OK',
       message: `${allCandidates.length} empresas encontradas. Selecione a correta.`,
       candidates: allCandidates,
+      analysis: {
+        type: analysis.type,
+        strength: analysis.strength,
+        strategy: analysis.strategy
+      },
+      pagination: {
+        page,
+        pageSize,
+        total: totalEstimate,
+        totalPages,
+        hasMore: page < totalPages
+      },
+      badges: {
+        total: allCandidates.length,
+        db: dbCount,
+        new: newCount
+      },
       requestId,
-      source: 'external',
       durationMs,
       searchSource,
-      limits: {
-        serperMaxResults: 20,
-        enrichmentLimit: 10,
-        note: 'Serper retorna max 20 resultados orgânicos, enriquecimento BrasilAPI limitado a 10 candidatos'
-      }
+      sources_tried: sourcesTried
     });
 
   } catch (error) {
-    logger.error('External search failed', {
+    logger.error('Company search failed', {
       requestId,
       error: error.message,
       durationMs: Date.now() - startTime

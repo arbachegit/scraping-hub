@@ -7,6 +7,7 @@ import { search as serperSearch, findPersonLinkedin } from '../services/serper.j
 import { validateBody } from '../validation/schemas.js';
 import { searchPersonByCpfSchema, searchPersonV2Schema, saveBatchSchema } from '../validation/schemas.js';
 import { runGuardrail, maskCpf } from '../services/people-guardrail.js';
+import { analyzeQuery, estimateCardinality, rankResults, buildRefinementResponse, logEvidence } from '../services/search-orchestrator.js';
 
 const router = Router();
 
@@ -641,7 +642,8 @@ router.post('/save', async (req, res) => {
 
 /**
  * POST /api/people/search-v2
- * Search person with guardrail validation, server-side pagination, and external sources
+ * Search person with orchestrator (query analysis + cardinality + guardrail),
+ * server-side pagination, federated search, ranking, and evidence logging.
  */
 router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) => {
   const startTime = Date.now();
@@ -659,16 +661,72 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       pageSize
     });
 
-    // 1. Run guardrail
+    // ── 1. Query Analysis (Orchestrator) ──
+    const analysis = analyzeQuery({
+      nome,
+      cpf: searchType === 'cpf' ? cpf : undefined,
+      dataNascimento,
+      cidadeUf,
+      entityType: 'person'
+    });
+
+    // ── 2. Cardinality Estimation ──
+    const cardinality = await estimateCardinality(analysis);
+
+    // ── 3. Check if refinement is required ──
+    const refinement = buildRefinementResponse(analysis, cardinality);
+
+    if (refinement.status === 'REFINE_REQUIRED') {
+      const durationMs = Date.now() - startTime;
+      logEvidence({
+        requestId,
+        input: { searchType, cpf: cpf ? maskCpf(cpf) : null, nome, dataNascimento, cidadeUf },
+        analysis,
+        cardinality,
+        strategy: analysis.strategy,
+        sourcesUsed: [],
+        returnedCount: 0,
+        durationMs
+      });
+
+      return res.json({
+        success: true,
+        status: 'REFINE_REQUIRED',
+        message: refinement.message,
+        suggestions: refinement.suggestions,
+        estimatedMatches: refinement.estimatedMatches,
+        analysis: {
+          type: analysis.type,
+          strength: analysis.strength,
+          strategy: analysis.strategy,
+          missingFields: analysis.missingFields
+        },
+        guardrail: { allowed: false, reason: refinement.message },
+        results: [],
+        pagination: { page, pageSize, total: 0, totalPages: 0, hasMore: false },
+        badges: { total: 0, db: 0, new: 0 },
+        sources_tried: [],
+        requestId,
+        durationMs
+      });
+    }
+
+    // ── 4. Run guardrail (name normalization, CPF validation) ──
     const guardrail = await runGuardrail({ searchType, cpf, nome, dataNascimento, cidadeUf });
 
     if (!guardrail.allowed) {
       plog.info('Guardrail blocked', { reason: guardrail.reason });
       return res.json({
         success: true,
+        status: 'REFINE_REQUIRED',
         guardrail,
+        analysis: {
+          type: analysis.type,
+          strength: analysis.strength,
+          strategy: analysis.strategy
+        },
         results: [],
-        pagination: { page, pageSize, total: 0, totalPages: 0 },
+        pagination: { page, pageSize, total: 0, totalPages: 0, hasMore: false },
         badges: { total: 0, db: 0, new: 0 },
         sources_tried: [],
         requestId,
@@ -679,7 +737,8 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
     const sourcesTried = [];
     const offset = (page - 1) * pageSize;
 
-    // 2. Search in Supabase fato_pessoas with pagination
+    // ── 5. Federated Search: DB + External Sources ──
+    // 5a. Database search with pagination
     sourcesTried.push('database');
     let dbResults = [];
     let dbTotal = 0;
@@ -696,7 +755,6 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
         dbTotal = count || data.length;
       }
     } else {
-      // Nome search
       const searchName = guardrail.normalizedQuery || nome.trim();
       let query = supabase
         .from('fato_pessoas')
@@ -713,7 +771,7 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       }
     }
 
-    // 3. Enrich DB results with cargo/empresa via fato_transacao_empresas
+    // 5b. Enrich DB results with cargo/empresa
     if (dbResults.length > 0) {
       const personIds = dbResults.map(p => p.id);
       const { data: transactions } = await supabase
@@ -748,7 +806,7 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       });
     }
 
-    // 4. If page 1 and few DB results, try external sources
+    // 5c. External sources (page 1 + few DB results)
     let externalResults = [];
     if (page === 1 && dbResults.length < 5 && searchType === 'nome') {
       const searchName = guardrail.normalizedQuery || nome.trim();
@@ -843,7 +901,7 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       }
     }
 
-    // 5. Merge: DB first, then external (dedup by CPF and nome_completo)
+    // ── 6. Merge + Dedup ──
     const seenKeys = new Set();
     const merged = [];
 
@@ -863,38 +921,67 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       merged.push(r);
     }
 
-    const dbCount = merged.filter(r => r._source === 'db').length;
-    const newCount = merged.filter(r => r._source === 'external').length;
-    const totalPages = Math.ceil((dbTotal + newCount) / pageSize);
+    // ── 7. Rank results ──
+    const ranked = rankResults(merged, nome || cpf || '');
+
+    // ── 8. Badges + Pagination ──
+    const dbCount = ranked.filter(r => r._source === 'db').length;
+    const newCount = ranked.filter(r => r._source === 'external').length;
+    const totalEstimate = dbTotal + newCount;
+    const totalPages = Math.ceil(totalEstimate / pageSize);
+    const durationMs = Date.now() - startTime;
+
+    // ── 9. Evidence logging ──
+    logEvidence({
+      requestId,
+      input: { searchType, cpf: cpf ? maskCpf(cpf) : null, nome, dataNascimento, cidadeUf, page, pageSize },
+      analysis,
+      cardinality,
+      strategy: analysis.strategy,
+      sourcesUsed: sourcesTried,
+      returnedCount: ranked.length,
+      durationMs
+    });
 
     plog.info('search-v2 complete', {
-      cpf: cpf ? maskCpf(cpf) : null,
-      nome: nome || null,
+      strength: analysis.strength,
       dbTotal,
       externalCount: newCount,
-      mergedCount: merged.length,
+      mergedCount: ranked.length,
       page,
-      durationMs: Date.now() - startTime
+      durationMs
     });
 
     return res.json({
       success: true,
+      status: 'OK',
       guardrail,
-      results: merged,
+      analysis: {
+        type: analysis.type,
+        strength: analysis.strength,
+        strategy: analysis.strategy
+      },
+      cardinality: {
+        estimatedMatches: cardinality.estimatedMatches,
+        dbCount: cardinality.dbCount,
+        confidence: cardinality.confidence
+      },
+      results: ranked,
       pagination: {
         page,
         pageSize,
-        total: dbTotal + newCount,
-        totalPages
+        total: totalEstimate,
+        totalPages,
+        hasMore: page < totalPages
       },
       badges: {
-        total: merged.length,
+        total: ranked.length,
         db: dbCount,
         new: newCount
       },
       sources_tried: sourcesTried,
       requestId,
-      durationMs: Date.now() - startTime
+      durationMs
     });
 
   } catch (error) {

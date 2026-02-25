@@ -2353,6 +2353,168 @@
           display: none;
         }
       }
+
+      /* ── Search Orchestrator UI ── */
+
+      .refine-required {
+        background: rgba(251, 191, 36, 0.08);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+      }
+
+      .refine-required-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #fbbf24;
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .refine-required-message {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 0.75rem;
+      }
+
+      .refine-required-estimate {
+        color: rgba(251, 191, 36, 0.8);
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+        margin-bottom: 0.75rem;
+      }
+
+      .refine-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .refine-suggestion {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: rgba(251, 191, 36, 0.12);
+        border: 1px solid rgba(251, 191, 36, 0.25);
+        border-radius: 0.5rem;
+        padding: 0.35rem 0.65rem;
+        color: #fbbf24;
+        font-size: 0.8rem;
+        cursor: default;
+      }
+
+      .search-badges {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin: 0.5rem 0;
+        flex-wrap: wrap;
+      }
+
+      .search-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .search-badge-total {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+      }
+
+      .search-badge-db {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+
+      .search-badge-new {
+        background: rgba(6, 182, 212, 0.15);
+        color: #22d3ee;
+        border: 1px solid rgba(6, 182, 212, 0.3);
+      }
+
+      .search-badge-strength {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .search-badge-strength.strong { color: #4ade80; border-color: rgba(34, 197, 94, 0.3); }
+      .search-badge-strength.medium { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+      .search-badge-strength.weak { color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+
+      .search-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .search-pagination button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.4rem 0.8rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .search-pagination button:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+
+      .search-pagination button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      .search-pagination-info {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .result-fonte-icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.3rem;
+        margin-left: 0.4rem;
+        vertical-align: middle;
+      }
+
+      .result-fonte-db {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+      }
+
+      .result-fonte-new {
+        background: rgba(6, 182, 212, 0.15);
+        color: #22d3ee;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -3349,24 +3511,19 @@
         currentSocios = [];
       }
 
-      async function searchCompany() {
+      // Company search state for pagination
+      let companySearchState = { page: 1, pageSize: 100, payload: {} };
+
+      async function searchCompany(page = 1) {
         const nome = document.getElementById("companyName").value.trim();
         const cidade = document.getElementById("companyCidade").value.trim();
         const segmento = document.getElementById("companySegmento").value.trim();
         const regime = document.getElementById("companyRegime").value.trim();
 
-        // Contar campos preenchidos (mínimo 2 caracteres cada)
-        const campos = [
-          { nome: "Nome", valor: nome },
-          { nome: "Cidade", valor: cidade },
-          { nome: "Segmento/CNAE", valor: segmento },
-          { nome: "Regime", valor: regime }
-        ];
-        const preenchidos = campos.filter(c => c.valor && c.valor.length >= 2);
-
-        if (preenchidos.length < 3) {
-          const vazios = campos.filter(c => !c.valor || c.valor.length < 2).map(c => c.nome);
-          alert(`Preencha pelo menos 3 dos 4 campos.\n\nCampos vazios ou incompletos: ${vazios.join(", ")}`);
+        // At least 1 field with 2+ chars
+        const campos = [nome, cidade, segmento, regime].filter(c => c && c.length >= 2);
+        if (campos.length < 1) {
+          alert("Preencha pelo menos 1 campo para buscar (mínimo 2 caracteres).");
           return;
         }
 
@@ -3376,14 +3533,15 @@
         btn.disabled = true;
         btn.textContent = "Buscando...";
         results.innerHTML =
-          '<div class="loading"><div class="loading-spinner"></div><span class="loading-text">Buscando empresas...</span></div>';
+          '<div class="loading"><div class="loading-spinner"></div><span class="loading-text">Analisando query e buscando empresas...</span></div>';
 
         try {
-          const payload = {};
+          const payload = { page, pageSize: 100 };
           if (nome) payload.nome = nome;
           if (cidade) payload.cidade = cidade;
           if (segmento) payload.segmento = segmento;
           if (regime) payload.regime = regime;
+          companySearchState = { page, pageSize: 100, payload };
 
           const r = await fetch("/api/companies/search", {
             method: "POST",
@@ -3393,6 +3551,39 @@
 
           const data = await r.json();
 
+          // Handle REFINE_REQUIRED
+          if (data.status === 'REFINE_REQUIRED') {
+            let html = `<div class="refine-required">
+              <div class="refine-required-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                </svg>
+                Refinar busca
+              </div>
+              <div class="refine-required-message">${data.message}</div>`;
+
+            if (data.estimatedMatches > 0) {
+              html += `<div class="refine-required-estimate">Estimativa: ~${formatEstimate(data.estimatedMatches)} correspondências possíveis</div>`;
+            }
+
+            if (data.suggestions && data.suggestions.length > 0) {
+              html += '<div class="refine-suggestions">';
+              data.suggestions.forEach(s => {
+                html += `<span class="refine-suggestion">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14m-7-7h14"/>
+                  </svg>
+                  ${s}
+                </span>`;
+              });
+              html += '</div>';
+            }
+
+            html += '</div>';
+            results.innerHTML = html;
+            return;
+          }
+
           if (!data.found) {
             results.innerHTML =
               '<div class="message error">Nenhuma empresa encontrada</div>';
@@ -3400,27 +3591,58 @@
           }
 
           if (data.single_match) {
-            // Single match found - get full details via /details endpoint
             selectCompany(data.company.cnpj);
             return;
-          } else {
-            results.innerHTML = data.candidates
-              .map(
-                (c) => `
-                        <div class="result-item" onclick="selectCompany('${c.cnpj}')">
-                            <div class="result-item-header">
-                                <div class="result-item-name">${c.razao_social || "Sem nome"}</div>
-                                ${c.localizacao ? `<span class="result-item-city">${c.localizacao}</span>` : ""}
-                            </div>
-                            <div class="result-item-footer">
-                                <span class="result-item-cnpj">${c.cnpj_formatted}</span>
-                                ${c.nome_fantasia ? `<span class="result-item-fantasia">${c.nome_fantasia}</span>` : ""}
-                            </div>
-                        </div>
-                    `,
-              )
-              .join("");
           }
+
+          // Render badges
+          let html = '';
+          if (data.badges || data.analysis) {
+            html += '<div class="search-badges">';
+            if (data.analysis?.strength) {
+              html += `<span class="search-badge search-badge-strength ${data.analysis.strength}">${data.analysis.strength}</span>`;
+            }
+            if (data.badges) {
+              html += `<span class="search-badge search-badge-total">${data.badges.total} total</span>`;
+              if (data.badges.db > 0) html += `<span class="search-badge search-badge-db">${data.badges.db} cadastradas</span>`;
+              if (data.badges.new > 0) html += `<span class="search-badge search-badge-new">${data.badges.new} novas</span>`;
+            }
+            html += '</div>';
+          }
+
+          // Render results
+          html += data.candidates
+            .map(
+              (c) => `
+                <div class="result-item" onclick="selectCompany('${c.cnpj}')">
+                  <div class="result-item-header">
+                    <div class="result-item-name">
+                      ${c.razao_social || "Sem nome"}
+                      <span class="result-fonte-icon ${c.fonte === 'interno' ? 'result-fonte-db' : 'result-fonte-new'}">
+                        ${c.fonte === 'interno' ? '&#128451; DB' : '&#10024; Novo'}
+                      </span>
+                    </div>
+                    ${c.localizacao ? `<span class="result-item-city">${c.localizacao}</span>` : ""}
+                  </div>
+                  <div class="result-item-footer">
+                    <span class="result-item-cnpj">${c.cnpj_formatted}</span>
+                    ${c.nome_fantasia ? `<span class="result-item-fantasia">${c.nome_fantasia}</span>` : ""}
+                  </div>
+                </div>`,
+            )
+            .join("");
+
+          // Pagination
+          if (data.pagination && data.pagination.totalPages > 1) {
+            html += `<div class="search-pagination">
+              <button ${data.pagination.page <= 1 ? 'disabled' : ''} onclick="searchCompany(${data.pagination.page - 1})">&#8592; Anterior</button>
+              <span class="search-pagination-info">Página ${data.pagination.page} de ${data.pagination.totalPages} (${data.pagination.total} resultados)</span>
+              <button ${!data.pagination.hasMore ? 'disabled' : ''} onclick="searchCompany(${data.pagination.page + 1})">Próxima &#8594;</button>
+            </div>`;
+          }
+
+          results.innerHTML = html;
+
         } catch (e) {
           results.innerHTML =
             '<div class="message error">Erro ao buscar: ' +
@@ -3430,6 +3652,12 @@
           btn.disabled = false;
           btn.textContent = "Buscar";
         }
+      }
+
+      function formatEstimate(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return Math.round(n / 1000) + 'k';
+        return n.toString();
       }
 
       async function selectCompany(cnpj) {
@@ -3770,21 +3998,43 @@
         }
       }
 
-      async function searchPeople() {
+      // People search state for pagination
+      let peopleSearchState = { page: 1, pageSize: 100 };
+
+      async function searchPeople(page = 1) {
         const nome = document.getElementById("personName").value.trim();
-        if (!nome) {
+        const cidadeUf = document.getElementById("personCidade")?.value?.trim() || '';
+
+        if (!nome && page === 1) {
           listAllPeople();
           return;
         }
 
+        if (nome.length < 2) {
+          document.getElementById("peopleResults").innerHTML =
+            '<div class="message error">Informe pelo menos 2 caracteres para buscar.</div>';
+          return;
+        }
+
+        const btn = document.getElementById("btnSearchPeople");
         const resultsDiv = document.getElementById("peopleResults");
-        resultsDiv.innerHTML = '<div class="loading">Buscando...</div>';
+
+        if (btn) { btn.disabled = true; btn.textContent = "Buscando..."; }
+        resultsDiv.innerHTML = '<div class="loading"><div class="loading-spinner"></div><span class="loading-text">Analisando query e buscando pessoas...</span></div>';
 
         try {
-          const r = await fetch("/api/people/search", {
+          peopleSearchState = { page, pageSize: 100 };
+
+          const r = await fetch("/api/people/search-v2", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ nome })
+            body: JSON.stringify({
+              searchType: 'nome',
+              nome,
+              cidadeUf: cidadeUf || undefined,
+              page,
+              pageSize: 100
+            })
           });
           const data = await r.json();
 
@@ -3793,16 +4043,108 @@
             return;
           }
 
-          if (data.count === 0) {
+          // Handle REFINE_REQUIRED
+          if (data.status === 'REFINE_REQUIRED') {
+            let html = `<div class="refine-required">
+              <div class="refine-required-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                </svg>
+                Refinar busca
+              </div>
+              <div class="refine-required-message">${data.message || data.guardrail?.reason || 'Busca muito ampla'}</div>`;
+
+            if (data.estimatedMatches > 0) {
+              html += `<div class="refine-required-estimate">Estimativa: ~${formatEstimate(data.estimatedMatches)} correspondências possíveis</div>`;
+            }
+
+            if (data.suggestions && data.suggestions.length > 0) {
+              html += '<div class="refine-suggestions">';
+              data.suggestions.forEach(s => {
+                html += `<span class="refine-suggestion">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14m-7-7h14"/>
+                  </svg>
+                  ${s}
+                </span>`;
+              });
+              html += '</div>';
+            }
+
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+            return;
+          }
+
+          if (!data.results || data.results.length === 0) {
             resultsDiv.innerHTML = `<div class="no-results">Nenhuma pessoa encontrada com "${nome}".</div>`;
             return;
           }
 
-          peopleList = data.people;
-          renderPeopleList(data.people, data.count);
+          peopleList = data.results;
+          renderPeopleListV2(data);
         } catch (e) {
           resultsDiv.innerHTML = `<div class="error">Erro ao buscar: ${e.message}</div>`;
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = "Buscar"; }
         }
+      }
+
+      function renderPeopleListV2(data) {
+        const resultsDiv = document.getElementById("peopleResults");
+        let html = '';
+
+        // Badges
+        html += '<div class="search-badges">';
+        if (data.analysis?.strength) {
+          html += `<span class="search-badge search-badge-strength ${data.analysis.strength}">${data.analysis.strength}</span>`;
+        }
+        if (data.badges) {
+          html += `<span class="search-badge search-badge-total">${data.badges.total} total</span>`;
+          if (data.badges.db > 0) html += `<span class="search-badge search-badge-db">${data.badges.db} cadastradas</span>`;
+          if (data.badges.new > 0) html += `<span class="search-badge search-badge-new">${data.badges.new} novas</span>`;
+        }
+        html += '</div>';
+
+        // Results
+        html += '<div class="results-grid">';
+        data.results.forEach(p => {
+          const nome = p.nome_completo || p.nome || 'Nome não disponível';
+          const cargo = p.cargo_atual || '';
+          const empresa = p.empresa_atual || '';
+          const linkedin = p.linkedin_url && p.linkedin_url !== 'inexistente' ? p.linkedin_url : null;
+          const isDb = p._source === 'db';
+          const hasId = !!p.id;
+
+          html += `
+            <div class="result-card" ${hasId ? `onclick="showPersonDetails('${p.id}')"` : ''}>
+              <div class="result-card-header">
+                <div class="result-avatar">${nome.charAt(0).toUpperCase()}</div>
+                <div class="result-info">
+                  <strong>${nome}</strong>
+                  <span class="result-fonte-icon ${isDb ? 'result-fonte-db' : 'result-fonte-new'}">
+                    ${isDb ? '&#128451; DB' : '&#10024; Novo'}
+                  </span>
+                  ${cargo ? `<span class="result-meta">${cargo}</span>` : ''}
+                </div>
+              </div>
+              ${empresa ? `<div class="result-detail"><span class="label">Empresa:</span> ${empresa}</div>` : ''}
+              ${linkedin ? `<div class="result-detail"><a href="${linkedin}" target="_blank" class="linkedin-link">Ver LinkedIn</a></div>` : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+
+        // Pagination
+        if (data.pagination && data.pagination.totalPages > 1) {
+          html += `<div class="search-pagination">
+            <button ${data.pagination.page <= 1 ? 'disabled' : ''} onclick="searchPeople(${data.pagination.page - 1})">&#8592; Anterior</button>
+            <span class="search-pagination-info">Página ${data.pagination.page} de ${data.pagination.totalPages} (${data.pagination.total} resultados)</span>
+            <button ${!data.pagination.hasMore ? 'disabled' : ''} onclick="searchPeople(${data.pagination.page + 1})">Próxima &#8594;</button>
+          </div>`;
+        }
+
+        resultsDiv.innerHTML = html;
       }
 
       function renderPeopleList(people, total) {
