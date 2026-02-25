@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import {
@@ -69,8 +69,10 @@ export function CompanyModal({
   const [regime, setRegime] = useState('');
   const [debouncedNome, setDebouncedNome] = useState('');
   const [page, setPage] = useState(1);
-  const [manualResults, setManualResults] = useState<CompanyCandidate[] | null>(null);
-  const [manualMeta, setManualMeta] = useState<{ requestId?: string; durationMs?: number; searchSource?: string; limits?: CompanySearchResponse['limits'] } | null>(null);
+  const [externalResults, setExternalResults] = useState<CompanyCandidate[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalDone, setExternalDone] = useState(false);
+  const [externalMeta, setExternalMeta] = useState<{ requestId?: string; durationMs?: number; searchSource?: string; limits?: CompanySearchResponse['limits'] } | null>(null);
   const [registeredCnpjs, setRegisteredCnpjs] = useState<Set<string>>(new Set());
   const [detailCnpj, setDetailCnpj] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -78,6 +80,7 @@ export function CompanyModal({
   const [massInserting, setMassInserting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -101,8 +104,6 @@ export function CompanyModal({
     const timer = setTimeout(() => {
       setDebouncedNome(nome);
       setPage(1);
-      setManualResults(null);
-      setManualMeta(null);
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [nome]);
@@ -110,26 +111,32 @@ export function CompanyModal({
   // Reset page on filter changes
   useEffect(() => {
     setPage(1);
-    setManualResults(null);
-    setManualMeta(null);
-  }, [cidade]);
+  }, [cidade, segmento, regime]);
+
+  // Reset external results when search params change
+  useEffect(() => {
+    setExternalResults([]);
+    setExternalDone(false);
+    setExternalMeta(null);
+  }, [debouncedNome, cidade, segmento, regime]);
 
   // Scroll to top on page change
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [page]);
 
-  // DB auto-search (paginated)
+  // DB auto-search (paginated) — now includes segmento and regime
   const dbQuery = useQuery({
-    queryKey: ['companies-search', debouncedNome, cidade, page],
+    queryKey: ['companies-search', debouncedNome, cidade, segmento, regime, page],
     queryFn: async () => {
       const result = await listCompanies({
         nome: debouncedNome || undefined,
         cidade: cidade || undefined,
+        segmento: segmento || undefined,
+        regime: regime || undefined,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
       });
-      // Log search metadata to console for evidence
       if (result.requestId) {
         console.info('[DB-SEARCH]', {
           requestId: result.requestId,
@@ -146,57 +153,71 @@ export function CompanyModal({
     enabled: isOpen && debouncedNome.length >= 2,
   });
 
-  // Check which CNPJs from manual results already exist in DB
-  const checkRegisteredCnpjs = useCallback(async (candidates: CompanyCandidate[]) => {
-    const cnpjs = candidates.map(c => c.cnpj).filter(Boolean);
-    if (cnpjs.length === 0) return;
-    try {
-      const result = await checkExistingCnpjs(cnpjs);
-      if (result.success) {
-        setRegisteredCnpjs(new Set(result.existing));
-      }
-    } catch {
-      // Non-blocking
-    }
-  }, []);
+  // Auto-trigger external search after DB results arrive (page 1 only)
+  useEffect(() => {
+    if (
+      page !== 1 ||
+      externalDone ||
+      externalLoading ||
+      !dbQuery.isSuccess ||
+      debouncedNome.length < 2
+    ) return;
 
-  // Manual search (external + DB via Serper/Perplexity)
-  const searchMutation = useMutation({
-    mutationFn: searchCompany,
-    onSuccess: (data) => {
-      setMessage(null);
-      // Log search evidence
-      console.info('[EXTERNAL-SEARCH]', {
-        requestId: data.requestId,
-        source: data.source,
-        durationMs: data.durationMs,
-        searchSource: data.searchSource,
-        found: data.found,
-        candidateCount: data.candidates?.length || (data.company ? 1 : 0),
-        limits: data.limits,
+    // Cancel previous in-flight external search
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setExternalLoading(true);
+
+    const payload: Record<string, string> = {};
+    if (debouncedNome) payload.nome = debouncedNome;
+    if (cidade) payload.cidade = cidade;
+    if (segmento) payload.segmento = segmento;
+    if (regime) payload.regime = regime;
+
+    searchCompany(payload)
+      .then((data) => {
+        if (controller.signal.aborted) return;
+
+        console.info('[EXTERNAL-SEARCH-AUTO]', {
+          requestId: data.requestId,
+          source: data.source,
+          durationMs: data.durationMs,
+          searchSource: data.searchSource,
+          found: data.found,
+          candidateCount: data.candidates?.length || (data.company ? 1 : 0),
+          limits: data.limits,
+        });
+
+        if (data.found) {
+          if (data.single_match && data.company) {
+            setExternalResults([data.company]);
+          } else {
+            setExternalResults(data.candidates || []);
+          }
+          setExternalMeta({ requestId: data.requestId, durationMs: data.durationMs, searchSource: data.searchSource, limits: data.limits });
+        }
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        console.warn('[EXTERNAL-SEARCH-AUTO] Error:', err.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setExternalLoading(false);
+          setExternalDone(true);
+        }
       });
 
-      if (!data.found) {
-        setMessage({ type: 'error', text: 'Nenhuma empresa encontrada nas fontes externas (Serper/BrasilAPI/Perplexity)' });
-        setManualResults([]);
-        setManualMeta({ requestId: data.requestId, durationMs: data.durationMs, searchSource: data.searchSource, limits: data.limits });
-        return;
-      }
-      if (data.single_match && data.company) {
-        setDetailCnpj(data.company.cnpj);
-        return;
-      }
-      const candidates = data.candidates || [];
-      setManualResults(candidates);
-      setManualMeta({ requestId: data.requestId, durationMs: data.durationMs, searchSource: data.searchSource, limits: data.limits });
-      // Check which are already registered
-      checkRegisteredCnpjs(candidates);
-    },
-    onError: (error: Error) => {
-      setMessage({ type: 'error', text: `Erro na busca externa: ${error.message}` });
-    },
-  });
+    return () => {
+      controller.abort();
+    };
+  }, [dbQuery.isSuccess, debouncedNome, cidade, segmento, regime, page, externalDone, externalLoading]);
 
+  // Manual external search (refresh button)
   function handleSearch() {
     const campos = [
       { nome: 'Nome', valor: nome },
@@ -210,13 +231,65 @@ export function CompanyModal({
       return;
     }
     setMessage(null);
-    setRegisteredCnpjs(new Set());
+
+    // Cancel any in-flight auto search
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+
+    setExternalLoading(true);
+    setExternalDone(false);
+    setExternalResults([]);
+    setExternalMeta(null);
+
     const payload: Record<string, string> = {};
     if (nome) payload.nome = nome;
     if (cidade) payload.cidade = cidade;
     if (segmento) payload.segmento = segmento;
     if (regime) payload.regime = regime;
-    searchMutation.mutate(payload);
+
+    searchCompany(payload)
+      .then((data) => {
+        console.info('[EXTERNAL-SEARCH-MANUAL]', {
+          requestId: data.requestId,
+          source: data.source,
+          durationMs: data.durationMs,
+          searchSource: data.searchSource,
+          found: data.found,
+          candidateCount: data.candidates?.length || (data.company ? 1 : 0),
+          limits: data.limits,
+        });
+
+        if (!data.found) {
+          setMessage({ type: 'error', text: 'Nenhuma empresa encontrada nas fontes externas (Serper/BrasilAPI/Perplexity)' });
+          setExternalResults([]);
+        } else if (data.single_match && data.company) {
+          setExternalResults([data.company]);
+        } else {
+          setExternalResults(data.candidates || []);
+        }
+        setExternalMeta({ requestId: data.requestId, durationMs: data.durationMs, searchSource: data.searchSource, limits: data.limits });
+
+        // Check which external CNPJs are already registered
+        const candidates = data.candidates || (data.company ? [data.company] : []);
+        if (candidates.length > 0) {
+          const cnpjs = candidates.map(c => c.cnpj).filter(Boolean);
+          if (cnpjs.length > 0) {
+            checkExistingCnpjs(cnpjs).then(result => {
+              if (result.success) {
+                setRegisteredCnpjs(prev => new Set([...prev, ...result.existing]));
+              }
+            }).catch(() => {});
+          }
+        }
+      })
+      .catch((error: Error) => {
+        setMessage({ type: 'error', text: `Erro na busca externa: ${error.message}` });
+      })
+      .finally(() => {
+        setExternalLoading(false);
+        setExternalDone(true);
+      });
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -227,14 +300,17 @@ export function CompanyModal({
   }
 
   function handleClose() {
+    if (abortRef.current) abortRef.current.abort();
     setNome('');
     setCidade('');
     setSegmento('');
     setRegime('');
     setDebouncedNome('');
     setPage(1);
-    setManualResults(null);
-    setManualMeta(null);
+    setExternalResults([]);
+    setExternalLoading(false);
+    setExternalDone(false);
+    setExternalMeta(null);
     setRegisteredCnpjs(new Set());
     setMessage(null);
     setDetailCnpj(null);
@@ -246,10 +322,6 @@ export function CompanyModal({
   function handleCloseDetail() {
     setDetailCnpj(null);
     queryClient.invalidateQueries({ queryKey: ['companies-search'] });
-    // Re-check registered after returning from detail (may have approved)
-    if (manualResults && manualResults.length > 0) {
-      checkRegisteredCnpjs(manualResults);
-    }
   }
 
   // Insert individual company
@@ -270,10 +342,10 @@ export function CompanyModal({
       if (approveRes.success) {
         setRegisteredCnpjs(prev => new Set([...prev, cnpj]));
         setMessage({ type: 'success', text: `${detailRes.empresa.razao_social} inserida com sucesso!` });
+        queryClient.invalidateQueries({ queryKey: ['companies-search'] });
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-      // If it's "ja cadastrada" (409), still mark as registered
       if (errorMsg.includes('cadastrada')) {
         setRegisteredCnpjs(prev => new Set([...prev, cnpj]));
       }
@@ -283,10 +355,9 @@ export function CompanyModal({
     }
   }
 
-  // Mass insert all new companies
+  // Mass insert all new external companies
   async function handleMassInsert() {
-    if (!manualResults || manualResults.length === 0) return;
-    const novos = manualResults.filter(c => !registeredCnpjs.has(c.cnpj) && c.fonte !== 'interno');
+    const novos = mergedResults.filter(c => c.fonte !== 'interno' && !registeredCnpjs.has(c.cnpj));
     if (novos.length === 0) {
       setMessage({ type: 'info', text: 'Todas as empresas ja estao cadastradas.' });
       return;
@@ -332,25 +403,41 @@ export function CompanyModal({
       type: inserted > 0 ? 'success' : 'info',
       text: `Inseridas: ${inserted} | Ja existiam: ${alreadyExisted} | Falhas: ${failed}`,
     });
-    // Invalidate DB search to reflect new entries
     queryClient.invalidateQueries({ queryKey: ['companies-search'] });
   }
 
-  // Display data
-  const showManual = manualResults !== null;
+  // Merge DB + external results with dedup by CNPJ
   const dbResults = dbQuery.data?.empresas || [];
   const dbTotal = dbQuery.data?.total || 0;
   const totalPages = Math.ceil(dbTotal / PAGE_SIZE);
 
-  const manualRegistered = showManual ? manualResults.filter(c => c.fonte === 'interno' || registeredCnpjs.has(c.cnpj)).length : 0;
-  const manualNew = showManual ? manualResults.filter(c => c.fonte !== 'interno' && !registeredCnpjs.has(c.cnpj)).length : 0;
+  const mergedResults = useMemo(() => {
+    const dbMapped: CompanyCandidate[] = dbResults.map((e) => ({
+      cnpj: e.cnpj,
+      cnpj_formatted: formatCnpj(e.cnpj),
+      razao_social: e.razao_social,
+      nome_fantasia: e.nome_fantasia,
+      localizacao: [e.cidade, e.estado].filter(Boolean).join(' - ') || undefined,
+      cnae_descricao: e.cnae_descricao,
+      regime_tributario: e.regime_tributario,
+      fonte: 'interno' as const,
+    }));
 
-  const badgeCadastradas = showManual ? manualRegistered : dbTotal;
-  const badgeNovas = showManual ? manualNew : 0;
-  const badgeTotal = showManual ? manualResults.length : dbTotal;
+    const dbCnpjs = new Set(dbMapped.map(e => e.cnpj));
 
-  const isLoading = searchMutation.isPending || (dbQuery.isFetching && dbResults.length === 0);
-  const showBadges = debouncedNome.length >= 2 || showManual;
+    // Only show external results on page 1
+    const externalNew = page === 1
+      ? externalResults.filter(c => c.cnpj && !dbCnpjs.has(c.cnpj))
+      : [];
+
+    return [...dbMapped, ...externalNew];
+  }, [dbResults, externalResults, page]);
+
+  const countDb = mergedResults.filter(c => c.fonte === 'interno' || registeredCnpjs.has(c.cnpj)).length;
+  const countNew = mergedResults.filter(c => c.fonte !== 'interno' && !registeredCnpjs.has(c.cnpj)).length;
+
+  const isLoading = dbQuery.isFetching && dbResults.length === 0;
+  const showBadges = debouncedNome.length >= 2;
 
   if (!isOpen) return null;
 
@@ -429,10 +516,10 @@ export function CompanyModal({
             <div className="flex gap-3 items-center">
               <Button
                 onClick={handleSearch}
-                disabled={searchMutation.isPending}
+                disabled={externalLoading}
                 className="h-12 px-6 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
               >
-                {searchMutation.isPending ? (
+                {externalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
                   <Search className="h-4 w-4 mr-2" />
@@ -444,7 +531,7 @@ export function CompanyModal({
               </Button>
 
               {/* Mass insert button */}
-              {showManual && manualNew > 0 && (
+              {countNew > 0 && (
                 <Button
                   onClick={handleMassInsert}
                   disabled={massInserting}
@@ -455,7 +542,7 @@ export function CompanyModal({
                   ) : (
                     <Download className="h-4 w-4 mr-2" />
                   )}
-                  {massInserting ? 'Inserindo...' : `Inserir ${manualNew} novos`}
+                  {massInserting ? 'Inserindo...' : `Inserir ${countNew} novos`}
                 </Button>
               )}
 
@@ -463,16 +550,16 @@ export function CompanyModal({
               {showBadges && (
                 <div className="flex gap-2 ml-auto">
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-500/10 border border-slate-500/20 text-slate-300 text-xs font-medium">
-                    Total: {badgeTotal}
+                    Total: {mergedResults.length}
                   </span>
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium">
                     <Database className="h-3 w-3" />
-                    {badgeCadastradas}
+                    {countDb}
                   </span>
-                  {badgeNovas > 0 && (
+                  {countNew > 0 && (
                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
                       <Sparkles className="h-3 w-3" />
-                      {badgeNovas}
+                      {countNew}
                     </span>
                   )}
                 </div>
@@ -480,7 +567,7 @@ export function CompanyModal({
             </div>
           </div>
 
-          {/* Scrollable Results Area - max-h-[70vh] */}
+          {/* Scrollable Results Area */}
           <div
             ref={scrollRef}
             className="flex-1 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain"
@@ -502,36 +589,36 @@ export function CompanyModal({
                 </div>
               )}
 
-              {/* Search limits info (external search) */}
-              {showManual && manualMeta?.limits && (
+              {/* External search limits info */}
+              {externalMeta?.limits && (
                 <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15 text-amber-400/80 text-xs mb-4">
                   <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
                   <span>
-                    Mostrando {manualResults.length} de max. {manualMeta.limits.serperMaxResults} resultados externos.
-                    {' '}{manualMeta.limits.note}
-                    {manualMeta.durationMs && ` (${manualMeta.durationMs}ms)`}
+                    Max. {externalMeta.limits.serperMaxResults} resultados externos.
+                    {' '}{externalMeta.limits.note}
+                    {externalMeta.durationMs && ` (${externalMeta.durationMs}ms)`}
                   </span>
                 </div>
               )}
 
-              {/* Loading */}
+              {/* DB Loading */}
               {isLoading && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                   <Loader2 className="h-10 w-10 animate-spin text-cyan-400 mb-4" />
-                  <span>{searchMutation.isPending ? 'Buscando em fontes externas (Serper + BrasilAPI)...' : 'Buscando no banco...'}</span>
+                  <span>Buscando no banco...</span>
                 </div>
               )}
 
-              {/* Manual Search Results (external) */}
-              {showManual && !searchMutation.isPending && manualResults.length > 0 && (
+              {/* Unified Results List */}
+              {debouncedNome.length >= 2 && !isLoading && mergedResults.length > 0 && (
                 <div className="space-y-2">
-                  {manualResults.map((c) => {
+                  {mergedResults.map((c) => {
                     const isRegistered = c.fonte === 'interno' || registeredCnpjs.has(c.cnpj);
                     return (
                       <CompanyRow
                         key={c.cnpj}
                         cnpj={c.cnpj}
-                        cnpjFormatted={c.cnpj_formatted}
+                        cnpjFormatted={c.cnpj_formatted || formatCnpj(c.cnpj)}
                         razaoSocial={c.razao_social}
                         nomeFantasia={c.nome_fantasia}
                         localizacao={c.localizacao}
@@ -545,45 +632,38 @@ export function CompanyModal({
                 </div>
               )}
 
-              {/* Auto-search DB Results */}
-              {!showManual && debouncedNome.length >= 2 && !dbQuery.isLoading && dbResults.length > 0 && (
-                <div className="space-y-2">
-                  {dbResults.map((e) => (
-                    <CompanyRow
-                      key={e.id}
-                      cnpj={e.cnpj}
-                      cnpjFormatted={formatCnpj(e.cnpj)}
-                      razaoSocial={e.razao_social}
-                      nomeFantasia={e.nome_fantasia}
-                      localizacao={e.cidade && e.estado ? `${e.cidade} - ${e.estado}` : e.cidade}
-                      isRegistered={true}
-                      onClickDetail={() => setDetailCnpj(e.cnpj)}
-                    />
-                  ))}
+              {/* External search loading indicator (below DB results) */}
+              {externalLoading && debouncedNome.length >= 2 && (
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/15 text-cyan-400/80 text-xs">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+                  <span>Buscando fontes externas (Serper + BrasilAPI)...</span>
                 </div>
               )}
 
               {/* DB search metadata */}
-              {!showManual && debouncedNome.length >= 2 && !dbQuery.isLoading && dbResults.length > 0 && dbQuery.data?.requestId && (
+              {debouncedNome.length >= 2 && !isLoading && mergedResults.length > 0 && dbQuery.data?.requestId && (
                 <div className="text-[11px] text-slate-600 mt-3 text-right">
-                  Fonte: Supabase (dim_empresas) | {dbQuery.data.durationMs}ms | Mostrando {dbResults.length} de {dbTotal}
+                  Fonte: Supabase (dim_empresas) | {dbQuery.data.durationMs}ms | Mostrando {dbResults.length} de ~{dbTotal}
+                  {externalMeta?.durationMs && ` | Externo: ${externalMeta.durationMs}ms`}
                 </div>
               )}
 
               {/* Empty state */}
               {!isLoading &&
                 debouncedNome.length >= 2 &&
-                !showManual &&
-                dbResults.length === 0 &&
-                !dbQuery.isLoading && (
+                mergedResults.length === 0 &&
+                !dbQuery.isLoading &&
+                !externalLoading && (
                   <div className="text-center py-10 text-slate-500">
-                    <p>Nenhuma empresa cadastrada encontrada para &quot;{debouncedNome}&quot;.</p>
-                    <p className="mt-2 text-sm">Use o botao <strong>&quot;Buscar (externo)&quot;</strong> para pesquisar via Serper/BrasilAPI/Perplexity.</p>
+                    <p>Nenhuma empresa encontrada para &quot;{debouncedNome}&quot;.</p>
+                    {!externalDone && (
+                      <p className="mt-2 text-sm">Use o botao <strong>&quot;Buscar (externo)&quot;</strong> para pesquisar via Serper/BrasilAPI/Perplexity.</p>
+                    )}
                   </div>
                 )}
 
-              {/* Pagination (auto-search only) */}
-              {!showManual && totalPages > 1 && (
+              {/* Pagination */}
+              {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-white/5">
                   <Button
                     variant="outline"
@@ -596,7 +676,7 @@ export function CompanyModal({
                     Anterior
                   </Button>
                   <span className="text-sm text-slate-400">
-                    Pagina {page} de {totalPages} ({dbTotal} total)
+                    Pagina {page} de {totalPages} (~{dbTotal} total)
                   </span>
                   <Button
                     variant="outline"

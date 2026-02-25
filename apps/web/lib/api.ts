@@ -248,6 +248,8 @@ export interface CompanyCandidate {
   razao_social: string;
   nome_fantasia?: string;
   localizacao?: string;
+  cnae_descricao?: string;
+  regime_tributario?: string;
   fonte?: 'interno' | 'externo';
 }
 

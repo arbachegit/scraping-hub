@@ -7,7 +7,7 @@ import * as cnpja from '../services/cnpja.js';
 import { supabase, insertCompany, insertPerson, insertTransacaoEmpresa, insertRegimeTributario, insertInferenciaLimites, insertRegimeHistorico, findCompanyByCnpj, listCompanies, getCompanyFullData, updateInferenciaLimites, registerDataSource, checkExistingCnpjs } from '../database/supabase.js';
 import { calcularInferenciaVAR, getPesosVAR, getLimitesRegime } from '../services/var_inference.js';
 import { LINKEDIN_STATUS, DATA_SOURCES } from '../constants.js';
-import { searchCompanySchema, detailsCompanySchema, sociosSchema, approveCompanySchema, recalculateSchema, validateBody } from '../validation/schemas.js';
+import { searchCompanySchema, detailsCompanySchema, sociosSchema, approveCompanySchema, recalculateSchema, listCompaniesSchema, validateBody, validateQuery } from '../validation/schemas.js';
 import logger from '../utils/logger.js';
 import { analyzeQuery, estimateCardinality, rankResults, buildRefinementResponse, logEvidence } from '../services/search-orchestrator.js';
 
@@ -843,41 +843,95 @@ router.post('/approve', validateBody(approveCompanySchema), async (req, res) => 
  * List all approved companies with optional filters
  * Query params: nome, cidade, segmento, regime, limit, offset
  */
-router.get('/list', async (req, res) => {
+router.get('/list', validateQuery(listCompaniesSchema), async (req, res) => {
   const requestId = `list-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const startTime = Date.now();
   try {
     const { nome, cidade, segmento, regime, limit, offset } = req.query;
 
-    const filters = {
-      limit: limit && !isNaN(parseInt(limit)) ? Math.min(parseInt(limit), 200) : 100,
-      offset: offset && !isNaN(parseInt(offset)) ? parseInt(offset) : 0
-    };
+    const filters = { limit, offset };
     if (nome) filters.nome = nome;
     if (cidade) filters.cidade = cidade;
+    if (segmento) filters.segmento = segmento;
+
+    // If regime filter is set, pre-filter empresa_ids from fato_regime_tributario
+    if (regime) {
+      const { data: regimeRows } = await supabase
+        .from('fato_regime_tributario')
+        .select('empresa_id')
+        .ilike('regime_tributario', `%${regime}%`)
+        .eq('ativo', true)
+        .limit(1000);
+
+      if (regimeRows && regimeRows.length > 0) {
+        filters.empresaIds = regimeRows.map(r => r.empresa_id);
+      } else {
+        // No companies match this regime — return empty
+        return res.json({
+          success: true,
+          count: 0,
+          total: 0,
+          empresas: [],
+          offset,
+          limit,
+          requestId,
+          source: 'db',
+          durationMs: Date.now() - startTime
+        });
+      }
+    }
 
     const { data: companies, total } = await listCompanies(filters);
+
+    // Enrich with regime_tributario from fato_regime_tributario
+    let enriched = companies;
+    if (companies.length > 0) {
+      const ids = companies.map(c => c.id);
+      const { data: regimeData } = await supabase
+        .from('fato_regime_tributario')
+        .select('empresa_id, regime_tributario')
+        .in('empresa_id', ids)
+        .eq('ativo', true);
+
+      if (regimeData && regimeData.length > 0) {
+        const regimeMap = new Map();
+        for (const r of regimeData) {
+          if (!regimeMap.has(r.empresa_id)) regimeMap.set(r.empresa_id, r);
+        }
+        enriched = companies.map(c => ({
+          ...c,
+          regime_tributario: regimeMap.get(c.id)?.regime_tributario || null,
+          linkedin: c.linkedin_url || null,
+        }));
+      } else {
+        enriched = companies.map(c => ({
+          ...c,
+          regime_tributario: null,
+          linkedin: c.linkedin_url || null,
+        }));
+      }
+    }
 
     const durationMs = Date.now() - startTime;
     logger.info('DB search completed', {
       requestId,
       source: 'db',
       filters: { nome, cidade, segmento, regime },
-      page: Math.floor(filters.offset / filters.limit) + 1,
-      pageSize: filters.limit,
-      offset: filters.offset,
+      page: Math.floor(offset / limit) + 1,
+      pageSize: limit,
+      offset,
       durationMs,
-      returnedCount: companies.length,
+      returnedCount: enriched.length,
       totalEstimate: total
     });
 
     return res.json({
       success: true,
-      count: companies.length,
+      count: enriched.length,
       total,
-      empresas: companies,
-      offset: filters.offset,
-      limit: filters.limit,
+      empresas: enriched,
+      offset,
+      limit,
       requestId,
       source: 'db',
       durationMs

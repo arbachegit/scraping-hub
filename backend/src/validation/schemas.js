@@ -109,6 +109,16 @@ export const approveCompanySchema = z.object({
   aprovado_por: z.string().min(1, 'Aprovador é obrigatório')
 });
 
+// Company list query params (GET /list)
+export const listCompaniesSchema = z.object({
+  nome: z.string().max(200).transform(val => val?.trim()).optional(),
+  cidade: z.string().max(100).transform(val => val?.trim()).optional(),
+  segmento: z.string().max(200).transform(val => val?.trim()).optional(),
+  regime: z.string().max(100).transform(val => val?.trim()).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 // VAR recalculation request
 export const recalculateSchema = z.object({
   qtd_funcionarios: z.number().int().min(0).optional(),
