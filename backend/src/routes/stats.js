@@ -345,19 +345,64 @@ router.get('/history', async (req, res) => {
 /**
  * POST /stats/snapshot
  * Creates a snapshot of current accumulated counts in stats_historico.
+ *
+ * REGRA: Monotonically increasing — o total NUNCA pode diminuir.
+ * PostgreSQL 'estimated' count flutua em tabelas grandes (40M+),
+ * então protegemos contra quedas falsas comparando com o último snapshot.
  */
 router.post('/snapshot', async (req, res) => {
   try {
     const counts = await getAllCounts();
     const hojeISO = new Date().toISOString().split('T')[0];
 
-    const snapshots = [
-      { data: hojeISO, categoria: 'empresas', total: counts.empresas },
-      { data: hojeISO, categoria: 'pessoas', total: counts.pessoas },
-      { data: hojeISO, categoria: 'politicos', total: counts.politicos },
-      { data: hojeISO, categoria: 'mandatos', total: counts.mandatos },
-      { data: hojeISO, categoria: 'noticias', total: counts.noticias },
-    ];
+    // Buscar snapshots existentes de hoje (ou do último dia disponível)
+    const { data: existingToday } = await supabase
+      .from('stats_historico')
+      .select('categoria, total')
+      .eq('data', hojeISO);
+
+    const existingTotals = {};
+    for (const row of existingToday || []) {
+      existingTotals[row.categoria] = row.total;
+    }
+
+    // Se não tiver dados de hoje, buscar o último snapshot conhecido
+    if (Object.keys(existingTotals).length === 0) {
+      const { data: lastSnaps } = await supabase
+        .from('stats_historico')
+        .select('categoria, total')
+        .lt('data', hojeISO)
+        .order('data', { ascending: false })
+        .limit(10);
+
+      for (const row of lastSnaps || []) {
+        if (!existingTotals[row.categoria]) {
+          existingTotals[row.categoria] = row.total;
+        }
+      }
+    }
+
+    const categories = ['empresas', 'pessoas', 'politicos', 'mandatos', 'noticias'];
+    const snapshots = [];
+
+    for (const cat of categories) {
+      const currentEstimate = counts[cat] || 0;
+      const previousTotal = existingTotals[cat] || 0;
+
+      // REGRA: nunca diminuir (estimated count flutua)
+      const total = Math.max(currentEstimate, previousTotal);
+
+      snapshots.push({ data: hojeISO, categoria: cat, total });
+
+      if (currentEstimate < previousTotal) {
+        logger.warn('Estimated count dropped (protected)', {
+          categoria: cat,
+          estimated: currentEstimate,
+          previous: previousTotal,
+          kept: total,
+        });
+      }
+    }
 
     for (const snap of snapshots) {
       const { error } = await supabase
