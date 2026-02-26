@@ -11,15 +11,16 @@ Requires: DATABASE_URL or SUPABASE_URL + SUPABASE_SERVICE_KEY in .env
 """
 
 import os
+import re
 import sys
 from pathlib import Path
+
+import structlog
+from dotenv import load_dotenv
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
-
-import structlog
-from dotenv import load_dotenv
 
 load_dotenv(project_root / ".env")
 
@@ -44,7 +45,6 @@ def get_database_url() -> str:
         raise ValueError("DATABASE_URL or SUPABASE_URL must be set in .env")
 
     # Extract project ref from URL: https://xxx.supabase.co -> xxx
-    import re
     match = re.match(r"https://([^.]+)\.supabase\.co", supabase_url)
     if not match:
         raise ValueError(f"Cannot parse Supabase URL: {supabase_url}")
@@ -56,6 +56,8 @@ def get_database_url() -> str:
 
 def apply_migration() -> None:
     """Read and execute the migration SQL file."""
+    import psycopg2
+
     migration_file = project_root / "database" / "migrations" / "migration_auth_level1.sql"
 
     if not migration_file.exists():
@@ -74,66 +76,56 @@ def apply_migration() -> None:
 
     logger.info("statements_found", count=len(statements))
 
-    try:
-        import psycopg2
+    database_url = get_database_url()
+    logger.info("connecting_to_database")
 
-        database_url = get_database_url()
-        logger.info("connecting_to_database")
+    conn = psycopg2.connect(database_url)
+    conn.autocommit = False
+    cur = conn.cursor()
 
-        conn = psycopg2.connect(database_url)
-        conn.autocommit = False
-        cur = conn.cursor()
+    success_count = 0
+    error_count = 0
 
-        success_count = 0
-        error_count = 0
+    for i, stmt in enumerate(statements, 1):
+        # Skip empty or comment-only statements
+        clean_stmt = "\n".join(
+            line for line in stmt.split("\n")
+            if line.strip() and not line.strip().startswith("--")
+        )
+        if not clean_stmt:
+            continue
 
-        for i, stmt in enumerate(statements, 1):
-            # Skip empty or comment-only statements
-            clean_stmt = "\n".join(
-                line for line in stmt.split("\n")
-                if line.strip() and not line.strip().startswith("--")
-            )
-            if not clean_stmt:
-                continue
+        try:
+            cur.execute(clean_stmt)
+            success_count += 1
+            # Log first 80 chars of statement
+            preview = clean_stmt.replace("\n", " ")[:80]
+            logger.info("statement_ok", num=i, sql=preview)
+        except Exception as e:
+            error_count += 1
+            preview = clean_stmt.replace("\n", " ")[:80]
+            logger.error("statement_failed", num=i, sql=preview, error=str(e))
+            conn.rollback()
+            conn.autocommit = False
 
-            try:
-                cur.execute(clean_stmt)
-                success_count += 1
-                # Log first 80 chars of statement
-                preview = clean_stmt.replace("\n", " ")[:80]
-                logger.info("statement_ok", num=i, sql=preview)
-            except Exception as e:
-                error_count += 1
-                preview = clean_stmt.replace("\n", " ")[:80]
-                logger.error("statement_failed", num=i, sql=preview, error=str(e))
-                conn.rollback()
-                conn.autocommit = False
+    if error_count == 0:
+        conn.commit()
+        logger.info(
+            "migration_complete",
+            success=success_count,
+            errors=error_count,
+            msg="All statements executed successfully.",
+        )
+    else:
+        logger.warning(
+            "migration_partial",
+            success=success_count,
+            errors=error_count,
+            msg="Some statements failed. Review errors above.",
+        )
 
-        if error_count == 0:
-            conn.commit()
-            logger.info(
-                "migration_complete",
-                success=success_count,
-                errors=error_count,
-                msg="All statements executed successfully.",
-            )
-        else:
-            logger.warning(
-                "migration_partial",
-                success=success_count,
-                errors=error_count,
-                msg="Some statements failed. Review errors above.",
-            )
-
-        cur.close()
-        conn.close()
-
-    except ImportError:
-        logger.error("psycopg2_not_installed", msg="Run: pip install psycopg2-binary")
-        sys.exit(1)
-    except Exception as e:
-        logger.error("migration_error", error=str(e))
-        sys.exit(1)
+    cur.close()
+    conn.close()
 
 
 if __name__ == "__main__":

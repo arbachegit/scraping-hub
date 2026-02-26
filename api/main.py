@@ -15,9 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
 
+from api.audit import log_action
 from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    Token,
     TokenData,
     TokenWithRefresh,
     UserLogin,
@@ -34,7 +34,6 @@ from api.auth import (
     update_user,
     validate_refresh_token,
 )
-from api.audit import log_action
 from api.email_service import (
     send_password_reset_email,
     send_set_password_email,

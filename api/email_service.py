@@ -5,8 +5,6 @@ Uses SMTP (aiosmtplib) for sending.
 In development mode (no SMTP configured), logs the code to console.
 """
 
-from typing import Optional
-
 import structlog
 
 from config.settings import settings
@@ -21,9 +19,10 @@ async def _send_smtp(to_email: str, subject: str, body_html: str) -> bool:
     Returns True if sent successfully, False otherwise.
     """
     try:
-        import aiosmtplib
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
+
+        import aiosmtplib
 
         msg = MIMEMultipart("alternative")
         msg["From"] = settings.email_from
