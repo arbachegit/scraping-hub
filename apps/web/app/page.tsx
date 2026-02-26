@@ -104,7 +104,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="flex justify-center gap-4 pt-4">
+          <div className="flex justify-between items-center pt-2">
+            <a href="/recover-password" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+              Esqueci minha senha
+            </a>
+          </div>
+
+          <div className="flex justify-center gap-4 pt-2">
             <a href="/docs" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
               API Docs
             </a>

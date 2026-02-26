@@ -146,6 +146,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = "noreply@iconsai.ai"
+    app_base_url: str = "https://scraping.iconsai.ai"
 
     # ===========================================
     # Seed Admin

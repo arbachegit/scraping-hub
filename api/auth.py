@@ -52,7 +52,7 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
     name: Optional[str] = None
-    role: Optional[str] = None
+    is_admin: bool = False
     permissions: Optional[list] = None
 
 
@@ -74,7 +74,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: Optional[str]
-    role: str
+    is_admin: bool
 
 
 class UserUpdate(BaseModel):
@@ -340,7 +340,7 @@ async def authenticate_user(email: str, password: str) -> Optional[dict]:
         logger.warning("auth_invalid_password", email=email)
         return None
 
-    logger.info("auth_success", email=email, role=user.get("role"))
+    logger.info("auth_success", email=email, is_admin=user.get("is_admin", False))
     return user
 
 
@@ -364,11 +364,11 @@ async def get_current_user(
         email: str = payload.get("sub")
         user_id: int = payload.get("user_id")
         name: str = payload.get("name")
-        role: str = payload.get("role")
+        is_admin: bool = payload.get("is_admin", False)
         permissions: list = payload.get("permissions", [])
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email, user_id=user_id, name=name, role=role, permissions=permissions)
+        token_data = TokenData(email=email, user_id=user_id, name=name, is_admin=is_admin, permissions=permissions)
     except JWTError:
         raise credentials_exception
     return token_data

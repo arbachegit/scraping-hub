@@ -37,34 +37,6 @@ import {
 
 type CreateMode = 'password' | 'invite';
 
-const ROLE_OPTIONS = [
-  { value: 'user', label: 'Usuario' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'super_admin', label: 'Super Admin' },
-] as const;
-
-function roleBadgeVariant(role: string) {
-  switch (role) {
-    case 'super_admin':
-      return 'default' as const;
-    case 'admin':
-      return 'secondary' as const;
-    default:
-      return 'outline' as const;
-  }
-}
-
-function roleLabel(role: string) {
-  switch (role) {
-    case 'super_admin':
-      return 'Super Admin';
-    case 'admin':
-      return 'Admin';
-    default:
-      return 'Usuario';
-  }
-}
-
 export default function AdminPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -88,7 +60,7 @@ export default function AdminPage() {
     if (userQuery.isError) {
       router.push('/');
     }
-    if (userQuery.data && userQuery.data.role !== 'super_admin') {
+    if (userQuery.data && !userQuery.data.is_admin) {
       router.push('/dashboard');
     }
   }, [userQuery.data, userQuery.isError, router]);
@@ -97,7 +69,7 @@ export default function AdminPage() {
   const usersQuery = useQuery({
     queryKey: ['admin-users'],
     queryFn: adminListUsers,
-    enabled: userQuery.data?.role === 'super_admin',
+    enabled: userQuery.data?.is_admin === true,
   });
 
   // Modal states
@@ -114,7 +86,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!userQuery.data || userQuery.data.role !== 'super_admin') {
+  if (!userQuery.data || !userQuery.data.is_admin) {
     return null;
   }
 
@@ -193,7 +165,7 @@ export default function AdminPage() {
                     Usuario
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Role
+                    Tipo
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Status
@@ -218,8 +190,8 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={roleBadgeVariant(user.role)}>
-                        {roleLabel(user.role)}
+                      <Badge variant={user.is_admin ? 'default' : 'outline'}>
+                        {user.is_admin ? 'Admin' : 'Usuario'}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -344,7 +316,7 @@ function CreateUserModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'admin' | 'super_admin'>('user');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -386,14 +358,13 @@ function CreateUserModal({
         name,
         email,
         password,
-        role,
+        is_admin: isAdmin,
         permissions: [],
       });
     } else {
       createWithInviteMutation.mutate({
         name,
         email,
-        role,
         cpf: cpf || undefined,
         phone: phone || undefined,
       });
@@ -548,21 +519,21 @@ function CreateUserModal({
             </div>
           )}
 
-          {/* Role */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-300">Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as typeof role)}
-              className="w-full h-10 rounded-xl bg-[#1a2332] border border-white/10 text-sm text-slate-200 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Admin toggle (only for password mode) */}
+          {mode === 'password' && (
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAdmin}
+                  onChange={(e) => setIsAdmin(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+              </label>
+              <span className="text-xs font-medium text-slate-300">Administrador</span>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="pt-2">
@@ -605,9 +576,7 @@ function EditUserModal({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const [name, setName] = useState(user.name || '');
-  const [role, setRole] = useState<'user' | 'admin' | 'super_admin'>(
-    user.role as 'user' | 'admin' | 'super_admin'
-  );
+  const [isAdmin, setIsAdmin] = useState(user.is_admin);
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -631,7 +600,7 @@ function EditUserModal({
 
     const updates: AdminUpdateUserRequest = {};
     if (name !== (user.name || '')) updates.name = name;
-    if (role !== user.role) updates.role = role;
+    if (isAdmin !== user.is_admin) updates.is_admin = isAdmin;
     if (newPassword) updates.new_password = newPassword;
 
     if (Object.keys(updates).length === 0) {
@@ -669,8 +638,8 @@ function EditUserModal({
               <p className="text-sm font-medium text-slate-200 truncate">{user.name || '-'}</p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
             </div>
-            <Badge variant={roleBadgeVariant(user.role)} className="flex-shrink-0">
-              {roleLabel(user.role)}
+            <Badge variant={user.is_admin ? 'default' : 'outline'} className="flex-shrink-0">
+              {user.is_admin ? 'Admin' : 'Usuario'}
             </Badge>
           </div>
         </div>
@@ -703,20 +672,18 @@ function EditUserModal({
             </div>
           </div>
 
-          {/* Role */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-300">Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as typeof role)}
-              className="w-full h-10 rounded-xl bg-[#1a2332] border border-white/10 text-sm text-slate-200 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+          {/* Admin toggle */}
+          <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAdmin}
+                onChange={(e) => setIsAdmin(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+            </label>
+            <span className="text-xs font-medium text-slate-300">Administrador</span>
           </div>
 
           {/* New Password */}

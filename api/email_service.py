@@ -65,17 +65,25 @@ async def send_set_password_email(
     Returns:
         True if sent (or logged in dev mode).
     """
+    base_url = settings.app_base_url
     subject = "IconsAI - Configure sua senha"
     body_html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; padding: 20px;">
         <h2>Bem-vindo ao IconsAI, {user_name}!</h2>
-        <p>Sua conta foi criada. Use o token abaixo para configurar sua senha:</p>
-        <p style="background: #f0f0f0; padding: 12px; border-radius: 4px; font-family: monospace; word-break: break-all;">
-            {set_password_token}
+        <p>Sua conta foi criada. Clique no botao abaixo para configurar sua senha:</p>
+        <a href="{base_url}/set-password?token={set_password_token}"
+           style="display: inline-block; background: #06b6d4; color: white; padding: 12px 24px;
+                  border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Configurar Senha
+        </a>
+        <p style="margin-top: 16px; color: #666; font-size: 12px;">
+            <strong>Este link expira em 24 horas.</strong>
         </p>
-        <p><strong>Este token expira em 24 horas.</strong></p>
-        <p>Endpoint: <code>POST /auth/set-password</code></p>
+        <p style="margin-top: 8px; color: #999; font-size: 11px;">
+            Se o botao nao funcionar, copie e cole este link no navegador:<br>
+            {base_url}/set-password?token={set_password_token}
+        </p>
         <hr>
         <p style="color: #666; font-size: 12px;">IconsAI - Inteligencia de Dados</p>
     </body>
@@ -155,17 +163,23 @@ async def send_password_reset_email(
     Returns:
         True if sent (or logged in dev mode).
     """
+    base_url = settings.app_base_url
     subject = "IconsAI - Recuperacao de Senha"
     body_html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; padding: 20px;">
         <h2>Recuperacao de Senha</h2>
-        <p>Voce solicitou a recuperacao de senha. Use o token abaixo:</p>
-        <p style="background: #f0f0f0; padding: 12px; border-radius: 4px; font-family: monospace; word-break: break-all;">
-            {reset_token}
+        <p>Voce solicitou a recuperacao de senha. Clique no botao abaixo:</p>
+        <a href="{base_url}/reset-password?token={reset_token}"
+           style="display: inline-block; background: #06b6d4; color: white; padding: 12px 24px;
+                  border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Redefinir Senha
+        </a>
+        <p style="margin-top: 16px;"><strong>Este link expira em 1 hora.</strong></p>
+        <p style="margin-top: 8px; color: #999; font-size: 11px;">
+            Se o botao nao funcionar, copie e cole este link no navegador:<br>
+            {base_url}/reset-password?token={reset_token}
         </p>
-        <p><strong>Este token expira em 1 hora.</strong></p>
-        <p>Endpoint: <code>POST /auth/reset-password</code></p>
         <p style="color: #666;">Se voce nao solicitou, ignore este email.</p>
         <hr>
         <p style="color: #666; font-size: 12px;">IconsAI - Inteligencia de Dados</p>

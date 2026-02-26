@@ -56,7 +56,7 @@ async def seed_super_admin() -> None:
             "email": settings.seed_admin_email.lower(),
             "name": settings.seed_admin_name,
             "password_hash": hash_password(settings.seed_admin_password),
-            "role": "super_admin",
+            "is_admin": True,
             "permissions": ["empresas", "pessoas", "politicos", "noticias"],
             "is_active": True,
             "is_verified": True,

@@ -131,7 +131,7 @@ async def login(user_data: UserLogin, request: Request):
             "sub": user["email"],
             "user_id": user.get("id"),
             "name": user.get("name"),
-            "role": user.get("role", "user"),
+            "is_admin": user.get("is_admin", False),
             "permissions": user.get("permissions", []),
         },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -155,7 +155,7 @@ async def get_me(current_user=Depends(get_current_user)):
         "id": current_user.user_id or 0,
         "email": current_user.email,
         "name": current_user.name,
-        "role": current_user.role or "user",
+        "is_admin": current_user.is_admin,
     }
 
 
@@ -250,7 +250,6 @@ async def admin_create_user_flow(
     request: Request,
     name: str = Query(..., min_length=2, max_length=100),
     email: EmailStr = Query(...),
-    role: str = Query(default="user"),
     cpf: Optional[str] = Query(default=None),
     phone: Optional[str] = Query(default=None),
     current_user: TokenData = Depends(get_current_user),
@@ -259,8 +258,8 @@ async def admin_create_user_flow(
     Admin creates a user WITHOUT password.
     Sends set-password token via email.
     """
-    if current_user.role != "super_admin":
-        raise HTTPException(status_code=403, detail="Acesso negado. Requer super_admin.")
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Acesso negado. Requer administrador.")
 
     if not settings.supabase_url or not settings.supabase_service_key:
         raise HTTPException(status_code=500, detail="Supabase not configured")
@@ -292,7 +291,7 @@ async def admin_create_user_flow(
         "email": normalized_email,
         "name": name,
         "password_hash": "",  # No password yet
-        "role": role,
+        "is_admin": False,
         "permissions": [],
         "is_active": True,
         "is_verified": False,
@@ -319,7 +318,7 @@ async def admin_create_user_flow(
             current_user.user_id,
             "admin.user_created",
             f"users/{user_id}",
-            details={"email": normalized_email, "role": role},
+            details={"email": normalized_email},
             request=request,
         )
 
@@ -519,7 +518,7 @@ async def refresh_access_token(data: RefreshTokenRequest, request: Request):
             "sub": user["email"],
             "user_id": user.get("id"),
             "name": user.get("name"),
-            "role": user.get("role", "user"),
+            "is_admin": user.get("is_admin", False),
             "permissions": user.get("permissions", []),
         },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -738,14 +737,6 @@ async def enrich_people(
 # ===========================================
 
 
-class UserRole(str, Enum):
-    """Roles de usuario do sistema."""
-
-    USER = "user"
-    ADMIN = "admin"
-    SUPER_ADMIN = "super_admin"
-
-
 class AdminUserCreate(BaseModel):
     """Schema para criacao de usuario."""
 
@@ -754,7 +745,7 @@ class AdminUserCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
-    role: UserRole = Field(default=UserRole.USER)
+    is_admin: bool = False
     permissions: List[str] = Field(default_factory=list)
 
     @field_validator("email")
@@ -769,7 +760,7 @@ class AdminUserUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
-    role: Optional[UserRole] = None
+    is_admin: Optional[bool] = None
     permissions: Optional[List[str]] = None
     is_active: Optional[bool] = None
     new_password: Optional[str] = Field(default=None, min_length=6, max_length=128)
@@ -781,14 +772,14 @@ class AdminUserResponse(BaseModel):
     id: int
     email: str
     name: Optional[str]
-    role: str
+    is_admin: bool
     permissions: List[str]
     is_active: bool
 
 
 def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
-    """Dependency que requer role super_admin."""
-    if current_user.role != "super_admin":
+    """Dependency que requer is_admin == True."""
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso negado. Requer permissao de administrador.",
@@ -812,7 +803,7 @@ async def list_users(current_user: TokenData = Depends(require_admin)):
                 "id": user.get("id"),
                 "email": user.get("email"),
                 "name": user.get("name"),
-                "role": user.get("role", "user"),
+                "is_admin": user.get("is_admin", False),
                 "permissions": user.get("permissions", []),
                 "is_active": user.get("is_active", True),
             })
@@ -851,7 +842,7 @@ async def create_user(
             "email": user_data.email,  # Já normalizado pelo validator
             "name": user_data.name,
             "password_hash": hash_password(user_data.password),
-            "role": user_data.role.value,  # Enum para string
+            "is_admin": user_data.is_admin,
             "permissions": user_data.permissions,
             "is_active": True,
         }
@@ -892,7 +883,7 @@ async def get_user(
             "id": user.get("id"),
             "email": user.get("email"),
             "name": user.get("name"),
-            "role": user.get("role", "user"),
+            "is_admin": user.get("is_admin", False),
             "permissions": user.get("permissions", []),
             "is_active": user.get("is_active", True),
         }
@@ -926,8 +917,8 @@ async def update_admin_user(
         updates = {}
         if user_data.name is not None:
             updates["name"] = user_data.name
-        if user_data.role is not None:
-            updates["role"] = user_data.role.value  # Enum para string
+        if user_data.is_admin is not None:
+            updates["is_admin"] = user_data.is_admin
         if user_data.permissions is not None:
             updates["permissions"] = user_data.permissions
         if user_data.is_active is not None:

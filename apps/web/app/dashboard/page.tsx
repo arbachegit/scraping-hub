@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [version, setVersion] = useState('v1.14.2026');
   const [countdown, setCountdown] = useState(COUNTDOWN_MAX);
 
@@ -82,7 +82,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (userQuery.data) {
       setUserName(userQuery.data.name || userQuery.data.email);
-      setUserRole(userQuery.data.role);
+      setIsAdmin(userQuery.data.is_admin);
     }
     if (userQuery.isError) {
       handleLogout();
@@ -212,7 +212,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {userRole === 'super_admin' && (
+            {isAdmin && (
               <a
                 href="/admin"
                 className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"

@@ -29,7 +29,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   return res.json();
 }
 
-export async function getUser(): Promise<{ email: string; name: string; role: string }> {
+export async function getUser(): Promise<{ email: string; name: string; is_admin: boolean }> {
   const token = localStorage.getItem('token');
   const res = await fetch(`${API_BASE}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -37,6 +37,66 @@ export async function getUser(): Promise<{ email: string; name: string; role: st
 
   if (!res.ok) {
     throw new Error('Not authenticated');
+  }
+
+  return res.json();
+}
+
+export async function setPassword(token: string, password: string): Promise<{ success: boolean; message: string; email?: string }> {
+  const res = await fetch(`${API_BASE}/auth/set-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao definir senha' }));
+    throw new Error(error.detail || 'Erro ao definir senha');
+  }
+
+  return res.json();
+}
+
+export async function verifyCode(email: string, code: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/auth/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Codigo invalido' }));
+    throw new Error(error.detail || 'Codigo invalido');
+  }
+
+  return res.json();
+}
+
+export async function recoverPassword(email: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/auth/recover-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao solicitar recuperacao' }));
+    throw new Error(error.detail || 'Erro ao solicitar recuperacao');
+  }
+
+  return res.json();
+}
+
+export async function resetPassword(token: string, new_password: string, code: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, new_password, code }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao redefinir senha' }));
+    throw new Error(error.detail || 'Erro ao redefinir senha');
   }
 
   return res.json();
@@ -1040,7 +1100,7 @@ export interface AdminUser {
   id: number;
   email: string;
   name: string | null;
-  role: string;
+  is_admin: boolean;
   permissions: string[];
   is_active: boolean;
 }
@@ -1053,7 +1113,7 @@ export interface AdminCreateUserRequest {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'admin' | 'super_admin';
+  is_admin: boolean;
   permissions: string[];
 }
 
@@ -1064,7 +1124,7 @@ export interface AdminCreateUserResponse {
 
 export interface AdminUpdateUserRequest {
   name?: string;
-  role?: 'user' | 'admin' | 'super_admin';
+  is_admin?: boolean;
   permissions?: string[];
   is_active?: boolean;
   new_password?: string;
@@ -1078,7 +1138,6 @@ export interface AdminUpdateUserResponse {
 export interface AdminCreateUserFlowRequest {
   name: string;
   email: string;
-  role?: string;
   cpf?: string;
   phone?: string;
 }
@@ -1130,7 +1189,6 @@ export async function adminCreateUserFlow(data: AdminCreateUserFlowRequest): Pro
   const params = new URLSearchParams();
   params.append('name', data.name);
   params.append('email', data.email);
-  if (data.role) params.append('role', data.role);
   if (data.cpf) params.append('cpf', data.cpf);
   if (data.phone) params.append('phone', data.phone);
 
