@@ -115,10 +115,32 @@ router.get('/list', validateQuery(politiciansListSchema), async (req, res) => {
       return res.status(500).json({ success: false, error: error.message });
     }
 
+    // Enrich with latest mandato (same pattern as /search)
+    const enrichedPoliticians = [];
+    for (const politico of data || []) {
+      const { data: mandatos } = await brasilDataHub
+        .from('fato_politicos_mandatos')
+        .select('cargo, partido_sigla, municipio, codigo_ibge, ano_eleicao, eleito')
+        .eq('politico_id', politico.id)
+        .order('ano_eleicao', { ascending: false })
+        .limit(1);
+
+      const latest = mandatos?.[0] || {};
+      enrichedPoliticians.push({
+        ...politico,
+        partido_sigla: latest.partido_sigla,
+        cargo_atual: latest.cargo,
+        municipio: latest.municipio,
+        codigo_ibge: latest.codigo_ibge,
+        ano_eleicao: latest.ano_eleicao,
+        eleito: latest.eleito
+      });
+    }
+
     res.json({
       success: true,
       count: count,
-      politicians: data
+      politicians: enrichedPoliticians
     });
 
   } catch (error) {
@@ -160,7 +182,7 @@ router.get('/search', validateQuery(politiciansSearchSchema), async (req, res) =
     for (const politico of politicos || []) {
       const { data: mandatos } = await brasilDataHub
         .from('fato_politicos_mandatos')
-        .select('cargo, partido_sigla, municipio, ano_eleicao, eleito')
+        .select('cargo, partido_sigla, municipio, codigo_ibge, ano_eleicao, eleito')
         .eq('politico_id', politico.id)
         .order('ano_eleicao', { ascending: false })
         .limit(1);
@@ -171,6 +193,7 @@ router.get('/search', validateQuery(politiciansSearchSchema), async (req, res) =
         partido_sigla: latest.partido_sigla,
         cargo_atual: latest.cargo,
         municipio: latest.municipio,
+        codigo_ibge: latest.codigo_ibge,
         ano_eleicao: latest.ano_eleicao,
         eleito: latest.eleito
       });

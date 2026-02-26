@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, Loader2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, Loader2, ExternalLink, ArrowUp, ArrowDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   listCompanies,
@@ -10,12 +10,15 @@ import {
   listNews,
   listPoliticians,
   searchPoliticians,
+  getPoliticianDetails,
   formatRegime,
   type Company,
   type Person,
   type NewsItem,
   type Politician,
+  type PoliticianMandate,
 } from '@/lib/api';
+import { normalizePoliticianName, ibgeToUF } from '@/lib/politicians-utils';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -690,6 +693,14 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
 
     data.sort((a, b) => {
       const col = sortColumn || 'nome_completo';
+
+      // Virtual column: sort by derived UF
+      if (col === 'estado') {
+        const valA = ibgeToUF(a.codigo_ibge).toLowerCase();
+        const valB = ibgeToUF(b.codigo_ibge).toLowerCase();
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
       const valA = String(
         (a as unknown as Record<string, unknown>)[col] ?? ''
       ).toLowerCase();
@@ -778,6 +789,7 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-blue-500/5">
+                  <th className="w-8 p-3" />
                   <SortableHeader
                     label="Nome"
                     column="nome_completo"
@@ -795,16 +807,8 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
                     color="blue"
                   />
                   <SortableHeader
-                    label="Partido"
-                    column="partido_sigla"
-                    currentColumn={sortColumn}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    color="blue"
-                  />
-                  <SortableHeader
-                    label="Cargo"
-                    column="cargo_atual"
+                    label="UF"
+                    column="estado"
                     currentColumn={sortColumn}
                     direction={sortDirection}
                     onSort={handleSort}
@@ -818,17 +822,6 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
                     onSort={handleSort}
                     color="blue"
                   />
-                  <SortableHeader
-                    label="Ano Eleicao"
-                    column="ano_eleicao"
-                    currentColumn={sortColumn}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    color="blue"
-                  />
-                  <th className="text-left p-3 text-blue-400 font-semibold text-xs uppercase">
-                    Eleito
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -845,36 +838,104 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
 }
 
 function PoliticoRow({ politico }: { politico: Politician }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const mandatesQuery = useQuery({
+    queryKey: ['politico', 'details', politico.id],
+    queryFn: () => getPoliticianDetails(politico.id),
+    enabled: expanded,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const uf = ibgeToUF(politico.codigo_ibge);
+
   return (
-    <tr className="border-b border-white/5 hover:bg-blue-500/5 transition-colors">
-      <td className="p-3 text-slate-300">{politico.nome_completo || '-'}</td>
-      <td className="p-3 text-slate-300">{politico.nome_urna || '-'}</td>
-      <td className="p-3">
-        {politico.partido_sigla ? (
-          <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-400">
-            {politico.partido_sigla}
-          </span>
-        ) : (
-          <span className="text-slate-500">-</span>
-        )}
-      </td>
-      <td className="p-3 text-slate-300">{politico.cargo_atual || '-'}</td>
-      <td className="p-3 text-slate-300">{politico.municipio || '-'}</td>
-      <td className="p-3 text-slate-300">{politico.ano_eleicao || '-'}</td>
-      <td className="p-3">
-        {politico.eleito === true ? (
-          <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-500/15 text-green-400">
-            Eleito
-          </span>
-        ) : politico.eleito === false ? (
-          <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">
-            Nao eleito
-          </span>
-        ) : (
-          <span className="text-slate-500">-</span>
-        )}
-      </td>
-    </tr>
+    <>
+      <tr
+        onClick={() => setExpanded((v) => !v)}
+        className="border-b border-white/5 hover:bg-blue-500/5 transition-colors cursor-pointer"
+      >
+        <td className="p-3 w-8 text-slate-500">
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-blue-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </td>
+        <td className="p-3 text-slate-300">{normalizePoliticianName(politico.nome_completo) || '-'}</td>
+        <td className="p-3 text-slate-300">{normalizePoliticianName(politico.nome_urna) || '-'}</td>
+        <td className="p-3 text-slate-300">{uf || '-'}</td>
+        <td className="p-3 text-slate-300">{normalizePoliticianName(politico.municipio) || '-'}</td>
+      </tr>
+
+      {expanded && (
+        <tr className="border-b border-white/5">
+          <td colSpan={5} className="p-0">
+            <div className="bg-blue-500/5 px-8 py-3">
+              {mandatesQuery.isLoading ? (
+                <div className="flex items-center gap-2 py-2 text-slate-400 text-xs">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Carregando mandatos...
+                </div>
+              ) : mandatesQuery.isError ? (
+                <div className="py-2 text-red-400 text-xs">
+                  Erro ao carregar mandatos.
+                </div>
+              ) : (mandatesQuery.data?.mandatos || []).length === 0 ? (
+                <div className="py-2 text-slate-500 text-xs">
+                  Nenhum mandato encontrado.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="text-slate-500">
+                      <th className="text-left py-1.5 px-2 font-medium uppercase">Cargo</th>
+                      <th className="text-left py-1.5 px-2 font-medium uppercase">Ano</th>
+                      <th className="text-left py-1.5 px-2 font-medium uppercase">Partido</th>
+                      <th className="text-left py-1.5 px-2 font-medium uppercase">Eleito</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(mandatesQuery.data?.mandatos || []).map((m: PoliticianMandate) => (
+                      <tr key={m.id} className="border-t border-white/5">
+                        <td className="py-1.5 px-2 text-slate-300">
+                          {normalizePoliticianName(m.cargo) || '-'}
+                        </td>
+                        <td className="py-1.5 px-2 text-slate-300 font-variant-numeric tabular-nums">
+                          {m.ano_eleicao || '-'}
+                        </td>
+                        <td className="py-1.5 px-2">
+                          {m.partido_sigla ? (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-400">
+                              {m.partido_sigla}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 px-2">
+                          {m.eleito === true ? (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-500/15 text-green-400">
+                              Eleito
+                            </span>
+                          ) : m.eleito === false ? (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">
+                              Nao eleito
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

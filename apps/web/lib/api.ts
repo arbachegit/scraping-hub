@@ -1107,6 +1107,41 @@ export async function searchPoliticians(nome: string): Promise<PoliticianListRes
   return res.json();
 }
 
+export interface PoliticianMandate {
+  id: number;
+  cargo: string;
+  partido_sigla: string;
+  partido_nome?: string;
+  municipio?: string;
+  codigo_ibge?: string;
+  ano_eleicao: number;
+  turno?: number;
+  numero_candidato?: number;
+  eleito: boolean;
+  coligacao?: string;
+  situacao_turno?: string;
+  data_inicio_mandato?: string;
+  data_fim_mandato?: string;
+}
+
+export interface PoliticianDetailResponse {
+  success: boolean;
+  politico: Politician;
+  mandatos: PoliticianMandate[];
+  error?: string;
+}
+
+export async function getPoliticianDetails(id: number): Promise<PoliticianDetailResponse> {
+  const res = await fetch(`${API_BASE}/politicians/${id}`);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Politician details failed' }));
+    throw new Error(error.error || 'Politician details failed');
+  }
+
+  return res.json();
+}
+
 // ============================================
 // ADMIN - USER MANAGEMENT API
 // ============================================
