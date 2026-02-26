@@ -818,6 +818,9 @@ export interface PeopleSearchResult {
 export interface PeopleSearchV2Response {
   success: boolean;
   guardrail: GuardrailResult;
+  needsRefinement?: boolean;
+  chatGreeting?: string | null;
+  suggestions?: string[];
   results: PeopleSearchResult[];
   pagination: {
     page: number;
@@ -850,6 +853,54 @@ export async function searchPeopleV2(
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Search V2 failed' }));
     throw new Error(error.error || 'Search V2 failed');
+  }
+
+  return res.json();
+}
+
+export interface PeopleRefineRequest {
+  nome: string;
+  cidadeUf?: string;
+  empresa?: string;
+  dataNascimento?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PeopleRefineResponse {
+  success: boolean;
+  results: PeopleSearchResult[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  badges: {
+    total: number;
+    db: number;
+    new: number;
+  };
+  sources_tried: string[];
+  requestId: string;
+  durationMs: number;
+  error?: string;
+}
+
+export async function refinePeopleSearch(
+  data: PeopleRefineRequest,
+  signal?: AbortSignal
+): Promise<PeopleRefineResponse> {
+  const res = await fetchWithAuth(`${API_BASE}/people/search-v2-refine`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    signal,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Refine search failed' }));
+    throw new Error(error.error || 'Refine search failed');
   }
 
   return res.json();
@@ -1055,7 +1106,7 @@ export interface Politician {
   partido_sigla?: string;
   cargo_atual?: string;
   municipio?: string;
-  codigo_ibge?: string;
+  codigo_ibge?: string | number;
   ano_eleicao?: number;
   eleito?: boolean;
 }
@@ -1111,7 +1162,7 @@ export interface PoliticianMandate {
   partido_sigla: string;
   partido_nome?: string;
   municipio?: string;
-  codigo_ibge?: string;
+  codigo_ibge?: string | number;
   ano_eleicao: number;
   turno?: number;
   numero_candidato?: number;

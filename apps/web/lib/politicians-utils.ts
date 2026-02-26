@@ -72,7 +72,9 @@ const IBGE_UF_MAP: Record<string, string> = {
   '53': 'DF',
 };
 
-export function ibgeToUF(codigoIbge: string | null | undefined): string {
-  if (!codigoIbge || codigoIbge.length < 2) return '';
-  return IBGE_UF_MAP[codigoIbge.slice(0, 2)] || '';
+export function ibgeToUF(codigoIbge: string | number | null | undefined): string {
+  if (codigoIbge == null) return '';
+  const code = String(codigoIbge);
+  if (code.length < 2) return '';
+  return IBGE_UF_MAP[code.slice(0, 2)] || '';
 }
