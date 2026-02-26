@@ -330,6 +330,9 @@ async def authenticate_user(email: str, password: str) -> Optional[dict]:
 
     1. Gets user from database
     2. Verifies password using bcrypt
+
+    Note: is_verified check is done in the login endpoint
+    to provide a specific error message.
     """
     user = await get_user_from_db(email)
     if not user:

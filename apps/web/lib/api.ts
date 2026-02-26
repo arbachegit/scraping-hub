@@ -1,3 +1,5 @@
+import { fetchWithAuth, setTokens } from './auth';
+
 const API_BASE = '/api';
 
 export interface LoginRequest {
@@ -7,6 +9,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
 }
 
@@ -26,14 +29,14 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
     throw new Error(error.detail || 'Login failed');
   }
 
-  return res.json();
+  const result = await res.json();
+  // Store both tokens centrally
+  setTokens(result.access_token, result.refresh_token || '');
+  return result;
 }
 
 export async function getUser(): Promise<{ email: string; name: string; is_admin: boolean }> {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await fetchWithAuth(`${API_BASE}/auth/me`);
 
   if (!res.ok) {
     throw new Error('Not authenticated');
@@ -118,7 +121,7 @@ export async function resetPassword(token: string, new_password: string, code: s
 }
 
 export async function getHealth(): Promise<{ version: string; status: string }> {
-  const res = await fetch('/health');
+  const res = await fetchWithAuth('/health');
   if (!res.ok) {
     return { version: '1.0.0', status: 'unknown' };
   }
@@ -180,7 +183,7 @@ export interface StatsResponse {
 }
 
 export async function getStatsCurrent(): Promise<StatsCurrentResponse> {
-  const res = await fetch(`${API_BASE}/stats/current`);
+  const res = await fetchWithAuth(`${API_BASE}/stats/current`);
   if (!res.ok) {
     return {
       success: false,
@@ -195,7 +198,7 @@ export async function getStatsCurrent(): Promise<StatsCurrentResponse> {
 }
 
 export async function getStatsHistory(limit = 30): Promise<StatsHistoryResponse> {
-  const res = await fetch(`${API_BASE}/stats/history?limit=${limit}`);
+  const res = await fetchWithAuth(`${API_BASE}/stats/history?limit=${limit}`);
   if (!res.ok) {
     return {
       success: false,
@@ -209,7 +212,7 @@ export async function getStatsHistory(limit = 30): Promise<StatsHistoryResponse>
 }
 
 export async function createStatsSnapshot(): Promise<{ success: boolean; message?: string }> {
-  const res = await fetch(`${API_BASE}/stats/snapshot`, {
+  const res = await fetchWithAuth(`${API_BASE}/stats/snapshot`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -221,7 +224,7 @@ export async function createStatsSnapshot(): Promise<{ success: boolean; message
 
 // Legacy function - converts new format to old format
 export async function getStats(): Promise<StatsResponse> {
-  const res = await fetch(`${API_BASE}/stats/current`);
+  const res = await fetchWithAuth(`${API_BASE}/stats/current`);
   if (!res.ok) {
     return {
       success: false,
@@ -276,14 +279,9 @@ export interface AtlasChatResponse {
 }
 
 export async function atlasChat(data: AtlasChatRequest): Promise<AtlasChatResponse> {
-  const token = localStorage.getItem('token');
-
-  const res = await fetch(`${API_BASE}/atlas/chat`, {
+  const res = await fetchWithAuth(`${API_BASE}/atlas/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 
@@ -345,7 +343,7 @@ export interface CompanySearchResponse {
 }
 
 export async function searchCompany(data: CompanySearchRequest): Promise<CompanySearchResponse> {
-  const res = await fetch(`${API_BASE}/companies/search`, {
+  const res = await fetchWithAuth(`${API_BASE}/companies/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -405,7 +403,7 @@ export interface CompanyDetailsResponse {
 }
 
 export async function getCompanyDetails(cnpj: string): Promise<CompanyDetailsResponse> {
-  const res = await fetch(`${API_BASE}/companies/details`, {
+  const res = await fetchWithAuth(`${API_BASE}/companies/details`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cnpj }),
@@ -431,7 +429,7 @@ export interface EnrichSociosResponse {
 }
 
 export async function enrichSocios(data: EnrichSociosRequest): Promise<EnrichSociosResponse> {
-  const res = await fetch(`${API_BASE}/companies/socios`, {
+  const res = await fetchWithAuth(`${API_BASE}/companies/socios`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -458,7 +456,7 @@ export interface ApproveCompanyResponse {
 }
 
 export async function approveCompany(data: ApproveCompanyRequest): Promise<ApproveCompanyResponse> {
-  const res = await fetch(`${API_BASE}/companies/approve`, {
+  const res = await fetchWithAuth(`${API_BASE}/companies/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -514,7 +512,7 @@ export async function listCompanies(params?: {
   searchParams.append('limit', String(params?.limit || 100));
   searchParams.append('offset', String(params?.offset || 0));
 
-  const res = await fetch(`${API_BASE}/companies/list?${searchParams.toString()}`);
+  const res = await fetchWithAuth(`${API_BASE}/companies/list?${searchParams.toString()}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'List failed' }));
@@ -531,7 +529,7 @@ export interface CheckExistingResponse {
 }
 
 export async function checkExistingCnpjs(cnpjs: string[]): Promise<CheckExistingResponse> {
-  const res = await fetch(`${API_BASE}/companies/check-existing`, {
+  const res = await fetchWithAuth(`${API_BASE}/companies/check-existing`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cnpjs }),
@@ -563,7 +561,7 @@ export interface CnaeListResponse {
 }
 
 export async function listCnaes(limit = 2000): Promise<CnaeListResponse> {
-  const res = await fetch(`${API_BASE}/companies/cnae?limit=${limit}`);
+  const res = await fetchWithAuth(`${API_BASE}/companies/cnae?limit=${limit}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'CNAE list failed' }));
@@ -604,7 +602,7 @@ export async function listPeople(params?: {
   if (params?.cidade) searchParams.append('cidade', params.cidade);
   searchParams.append('limit', String(params?.limit || 50));
 
-  const res = await fetch(`${API_BASE}/people/list?${searchParams.toString()}`);
+  const res = await fetchWithAuth(`${API_BASE}/people/list?${searchParams.toString()}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'List failed' }));
@@ -615,7 +613,7 @@ export async function listPeople(params?: {
 }
 
 export async function searchPeople(nome: string): Promise<PersonListResponse> {
-  const res = await fetch(`${API_BASE}/people/search`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nome }),
@@ -655,7 +653,7 @@ export interface PersonDetailsResponse {
 }
 
 export async function getPersonDetails(personId: string): Promise<PersonDetailsResponse> {
-  const res = await fetch(`${API_BASE}/people/${personId}`);
+  const res = await fetchWithAuth(`${API_BASE}/people/${personId}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Details failed' }));
@@ -705,7 +703,7 @@ export interface CpfSearchResponse {
 }
 
 export async function searchPersonByCpf(data: CpfSearchRequest): Promise<CpfSearchResponse> {
-  const res = await fetch(`${API_BASE}/people/search-cpf`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/search-cpf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -738,7 +736,7 @@ export interface CreditBureausResponse {
 }
 
 export async function getCreditBureaus(): Promise<CreditBureausResponse> {
-  const res = await fetch(`${API_BASE}/people/credit-bureaus`);
+  const res = await fetchWithAuth(`${API_BASE}/people/credit-bureaus`);
 
   if (!res.ok) {
     throw new Error('Failed to get credit bureaus info');
@@ -764,7 +762,7 @@ export interface SavePersonResponse {
 }
 
 export async function savePerson(data: SavePersonRequest): Promise<SavePersonResponse> {
-  const res = await fetch(`${API_BASE}/people/save`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -842,7 +840,7 @@ export async function searchPeopleV2(
   data: PeopleSearchV2Request,
   signal?: AbortSignal
 ): Promise<PeopleSearchV2Response> {
-  const res = await fetch(`${API_BASE}/people/search-v2`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/search-v2`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -867,7 +865,7 @@ export async function checkExistingPeople(params: {
   ids?: string[];
   cpfs?: string[];
 }): Promise<PeopleCheckExistingResponse> {
-  const res = await fetch(`${API_BASE}/people/check-existing`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/check-existing`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -900,7 +898,7 @@ export interface PeopleSaveBatchResponse {
 }
 
 export async function savePeopleBatch(data: PeopleSaveBatchRequest): Promise<PeopleSaveBatchResponse> {
-  const res = await fetch(`${API_BASE}/people/save-batch`, {
+  const res = await fetchWithAuth(`${API_BASE}/people/save-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -930,7 +928,7 @@ export interface NewsSourcesResponse {
 }
 
 export async function listNewsSources(): Promise<NewsSourcesResponse> {
-  const res = await fetch(`${API_BASE}/news/sources/list`);
+  const res = await fetchWithAuth(`${API_BASE}/news/sources/list`);
 
   if (!res.ok) {
     return { success: false, sources: [] };
@@ -980,7 +978,7 @@ export async function listNews(params?: {
   if (params?.tipo) searchParams.append('tipo', params.tipo);
   searchParams.append('limit', String(params?.limit || 50));
 
-  const res = await fetch(`${API_BASE}/news/list?${searchParams.toString()}`);
+  const res = await fetchWithAuth(`${API_BASE}/news/list?${searchParams.toString()}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'List failed' }));
@@ -1016,7 +1014,7 @@ export async function searchNewsAI(params: {
   if (params.data_inicio) searchParams.append('data_inicio', params.data_inicio);
   if (params.data_fim) searchParams.append('data_fim', params.data_fim);
 
-  const res = await fetch(`${API_BASE}/news/search-ai?${searchParams.toString()}`);
+  const res = await fetchWithAuth(`${API_BASE}/news/search-ai?${searchParams.toString()}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Search failed' }));
@@ -1033,7 +1031,7 @@ export interface NewsDetailsResponse {
 }
 
 export async function getNewsDetails(newsId: string): Promise<NewsDetailsResponse> {
-  const res = await fetch(`${API_BASE}/news/${newsId}`);
+  const res = await fetchWithAuth(`${API_BASE}/news/${newsId}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Details failed' }));
@@ -1086,7 +1084,7 @@ export async function listPoliticians(params?: {
   searchParams.append('limit', String(params?.limit || 50));
   searchParams.append('offset', String(params?.offset || 0));
 
-  const res = await fetch(`${API_BASE}/politicians/list?${searchParams}`);
+  const res = await fetchWithAuth(`${API_BASE}/politicians/list?${searchParams}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'List politicians failed' }));
@@ -1097,7 +1095,7 @@ export async function listPoliticians(params?: {
 }
 
 export async function searchPoliticians(nome: string): Promise<PoliticianListResponse> {
-  const res = await fetch(`${API_BASE}/politicians/search?nome=${encodeURIComponent(nome)}`);
+  const res = await fetchWithAuth(`${API_BASE}/politicians/search?nome=${encodeURIComponent(nome)}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Search politicians failed' }));
@@ -1132,7 +1130,7 @@ export interface PoliticianDetailResponse {
 }
 
 export async function getPoliticianDetails(id: number): Promise<PoliticianDetailResponse> {
-  const res = await fetch(`${API_BASE}/politicians/${id}`);
+  const res = await fetchWithAuth(`${API_BASE}/politicians/${id}`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Politician details failed' }));
@@ -1199,18 +1197,8 @@ export interface AdminCreateUserFlowResponse {
   message: string;
 }
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 export async function adminListUsers(): Promise<AdminListUsersResponse> {
-  const res = await fetch(`${API_BASE}/admin/users`, {
-    headers: authHeaders(),
-  });
+  const res = await fetchWithAuth(`${API_BASE}/admin/users`);
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Erro ao listar usuarios' }));
@@ -1221,9 +1209,8 @@ export async function adminListUsers(): Promise<AdminListUsersResponse> {
 }
 
 export async function adminCreateUser(data: AdminCreateUserRequest): Promise<AdminCreateUserResponse> {
-  const res = await fetch(`${API_BASE}/admin/users`, {
+  const res = await fetchWithAuth(`${API_BASE}/admin/users`, {
     method: 'POST',
-    headers: authHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -1242,12 +1229,8 @@ export async function adminCreateUserFlow(data: AdminCreateUserFlowRequest): Pro
   if (data.cpf) params.append('cpf', data.cpf);
   if (data.phone) params.append('phone', data.phone);
 
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE}/auth/admin/create-user?${params.toString()}`, {
+  const res = await fetchWithAuth(`${API_BASE}/auth/admin/create-user?${params.toString()}`, {
     method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
   });
 
   if (!res.ok) {
@@ -1259,9 +1242,8 @@ export async function adminCreateUserFlow(data: AdminCreateUserFlowRequest): Pro
 }
 
 export async function adminUpdateUser(userId: number, data: AdminUpdateUserRequest): Promise<AdminUpdateUserResponse> {
-  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+  const res = await fetchWithAuth(`${API_BASE}/admin/users/${userId}`, {
     method: 'PUT',
-    headers: authHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -1274,9 +1256,8 @@ export async function adminUpdateUser(userId: number, data: AdminUpdateUserReque
 }
 
 export async function adminDeleteUser(userId: number): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+  const res = await fetchWithAuth(`${API_BASE}/admin/users/${userId}`, {
     method: 'DELETE',
-    headers: authHeaders(),
   });
 
   if (!res.ok) {

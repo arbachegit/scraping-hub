@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Mail, Lock, Loader2 } from 'lucide-react';
+import { isAuthenticated } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,14 +24,20 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const data = await login({ email, password });
-      localStorage.setItem('token', data.access_token);
+      await login({ email, password });
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Email ou senha incorretos');

@@ -34,6 +34,7 @@ import {
   type AdminCreateUserFlowRequest,
   type AdminUpdateUserRequest,
 } from '@/lib/api';
+import { isAuthenticated } from '@/lib/auth';
 
 type CreateMode = 'password' | 'invite';
 
@@ -49,8 +50,7 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated()) {
       router.push('/');
       return;
     }

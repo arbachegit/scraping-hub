@@ -127,6 +127,13 @@ async def login(user_data: UserLogin, request: Request):
             detail="Email ou senha incorretos",
         )
 
+    if not user.get("is_verified", True):
+        logger.warning("login_user_not_verified", email=user_data.email)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta nao verificada. Verifique seu email.",
+        )
+
     access_token = create_access_token(
         data={
             "sub": user["email"],

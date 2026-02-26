@@ -13,6 +13,7 @@ import {
   Vote,
 } from 'lucide-react';
 import { getUser, getHealth, getStatsCurrent, getStatsHistory, createStatsSnapshot, type StatItem, type CategoryHistory } from '@/lib/api';
+import { isAuthenticated, clearTokens } from '@/lib/auth';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';
@@ -65,8 +66,7 @@ export default function DashboardPage() {
 
   // Auth check
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated()) {
       router.push('/');
       return;
     }
@@ -150,8 +150,7 @@ export default function DashboardPage() {
   }, [statsQuery.dataUpdatedAt]);
 
   function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('tokenType');
+    clearTokens();
     router.push('/');
   }
 
