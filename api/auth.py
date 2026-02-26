@@ -6,10 +6,14 @@ SECURITY NOTES:
 - Passwords are hashed using bcrypt (secure)
 - SECRET_KEY must be set via environment variable
 - Users are stored in Supabase database
+- Refresh tokens stored hashed in database
+- Set-password tokens are single-use JWTs (24h)
 """
 
+import hashlib
 import re
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
@@ -27,6 +31,7 @@ logger = structlog.get_logger()
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
 
 # Bearer token security
 security = HTTPBearer()
@@ -34,6 +39,12 @@ security = HTTPBearer()
 
 class Token(BaseModel):
     access_token: str
+    token_type: str
+
+
+class TokenWithRefresh(BaseModel):
+    access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -125,8 +136,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 async def get_user_from_db(email: str) -> Optional[dict]:
     """
     Get user from Supabase database.
-
-    Falls back to legacy in-memory store if DB unavailable.
     """
     try:
         from src.database.client import get_supabase
@@ -148,43 +157,179 @@ async def get_user_from_db(email: str) -> Optional[dict]:
     except Exception as e:
         logger.warning("db_user_lookup_failed", error=str(e))
 
-    # Fallback to legacy (for development/migration period)
-    return _LEGACY_USERS_DB.get(email)
-
-
-# Legacy in-memory store (DEPRECATED - use database)
-# Keep temporarily for backwards compatibility during migration
-# TODO: Remove after all users migrated to database
-_LEGACY_USERS_DB = {
-    "arbache@gmail.com": {
-        "id": 1,
-        "email": "arbache@gmail.com",
-        "password_hash": "$2b$12$U16ejY9NBJbn5kqOYZ5KmOBMJ2DTb3zCnldHmxtfcvaIhfAC89AAq",
-        "name": "Fernando Arbache",
-        "role": "super_admin",
-        "permissions": ["empresas", "pessoas", "politicos", "noticias"],
-    }
-}
+    return None
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_set_password_token(user_id: int, email: str) -> str:
+    """
+    Create a JWT token for setting the initial password.
+
+    Valid for 24 hours. Type: 'set_password'.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    to_encode = {
+        "sub": email,
+        "user_id": user_id,
+        "type": "set_password",
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_password_reset_token(user_id: int, email: str) -> str:
+    """
+    Create a JWT token for password reset.
+
+    Valid for 1 hour. Type: 'password_reset'.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(hours=1)
+    to_encode = {
+        "sub": email,
+        "user_id": user_id,
+        "type": "password_reset",
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+async def create_refresh_token(user_id: int) -> Optional[str]:
+    """
+    Create a refresh token and store its hash in the database.
+
+    Valid for REFRESH_TOKEN_EXPIRE_DAYS.
+
+    Returns:
+        The raw refresh token string, or None if storage fails.
+    """
+    from src.database.client import get_supabase
+
+    raw_token = secrets.token_urlsafe(64)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    ).isoformat()
+
+    client = get_supabase()
+    if not client:
+        logger.warning("refresh_token_no_db")
+        return None
+
+    try:
+        client.table("refresh_tokens").insert(
+            {
+                "user_id": user_id,
+                "token_hash": token_hash,
+                "expires_at": expires_at,
+            }
+        ).execute()
+        logger.info("refresh_token_created", user_id=user_id)
+        return raw_token
+    except Exception as e:
+        logger.error("refresh_token_store_failed", error=str(e))
+        return None
+
+
+async def validate_refresh_token(raw_token: str) -> Optional[dict]:
+    """
+    Validate a refresh token and return the associated user.
+
+    Args:
+        raw_token: The raw refresh token string.
+
+    Returns:
+        User dict if valid, None otherwise.
+    """
+    from src.database.client import get_supabase
+
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+
+    client = get_supabase()
+    if not client:
+        return None
+
+    try:
+        result = (
+            client.table("refresh_tokens")
+            .select("*")
+            .eq("token_hash", token_hash)
+            .is_("revoked_at", "null")
+            .gte("expires_at", now)
+            .limit(1)
+            .execute()
+        )
+
+        if not result.data:
+            logger.warning("refresh_token_invalid")
+            return None
+
+        token_row = result.data[0]
+        user_id = token_row["user_id"]
+
+        # Revoke the used refresh token (rotation)
+        client.table("refresh_tokens").update(
+            {"revoked_at": now}
+        ).eq("id", token_row["id"]).execute()
+
+        # Get user
+        user_result = (
+            client.table("users")
+            .select("*")
+            .eq("id", user_id)
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+
+        if not user_result.data:
+            return None
+
+        return user_result.data[0]
+
+    except Exception as e:
+        logger.error("refresh_token_validate_failed", error=str(e))
+        return None
+
+
+def decode_special_token(token: str, expected_type: str) -> Optional[dict]:
+    """
+    Decode a special-purpose JWT (set_password, password_reset).
+
+    Args:
+        token: The JWT string.
+        expected_type: Expected token type ('set_password' or 'password_reset').
+
+    Returns:
+        Decoded payload if valid and type matches, None otherwise.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != expected_type:
+            logger.warning("token_type_mismatch", expected=expected_type, got=payload.get("type"))
+            return None
+        return payload
+    except JWTError as e:
+        logger.warning("special_token_decode_failed", error=str(e))
+        return None
 
 
 async def authenticate_user(email: str, password: str) -> Optional[dict]:
     """
     Authenticate user by email and password.
 
-    1. Tries to get user from database
-    2. Falls back to legacy in-memory store
-    3. Verifies password using bcrypt
+    1. Gets user from database
+    2. Verifies password using bcrypt
     """
     user = await get_user_from_db(email)
     if not user:
@@ -210,6 +355,12 @@ async def get_current_user(
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        # Only accept access tokens for general auth
+        token_type = payload.get("type", "access")
+        if token_type != "access":
+            raise credentials_exception
+
         email: str = payload.get("sub")
         user_id: int = payload.get("user_id")
         name: str = payload.get("name")
@@ -235,7 +386,7 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
         client = get_supabase()
         if not client:
             logger.warning("db_not_available_update_user")
-            return await _update_user_legacy(current_email, update_data)
+            return None
 
         # Get current user
         result = client.table("users").select("*").eq("email", current_email).limit(1).execute()
@@ -244,7 +395,7 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
             return None
 
         user = result.data[0]
-        updates = {"updated_at": datetime.utcnow().isoformat()}
+        updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
 
         # Verify current password if changing password
         if update_data.new_password:
@@ -277,31 +428,3 @@ async def update_user(current_email: str, update_data: UserUpdate) -> Optional[d
         logger.error("update_user_error", error=str(e))
 
     return None
-
-
-async def _update_user_legacy(current_email: str, update_data: UserUpdate) -> Optional[dict]:
-    """
-    Legacy update for in-memory store (DEPRECATED).
-    """
-    user = _LEGACY_USERS_DB.get(current_email)
-    if not user:
-        return None
-
-    if update_data.new_password:
-        if not update_data.current_password:
-            return None
-        if not verify_password(update_data.current_password, user["password_hash"]):
-            return None
-        user["password_hash"] = hash_password(update_data.new_password)
-
-    if update_data.name:
-        user["name"] = update_data.name
-
-    if update_data.email and update_data.email != current_email:
-        if update_data.email in _LEGACY_USERS_DB:
-            return None
-        _LEGACY_USERS_DB[update_data.email] = user
-        user["email"] = update_data.email
-        del _LEGACY_USERS_DB[current_email]
-
-    return user

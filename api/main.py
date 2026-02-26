@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from supabase import create_client
@@ -19,15 +19,29 @@ from api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     Token,
     TokenData,
+    TokenWithRefresh,
     UserLogin,
     UserResponse,
     UserUpdate,
     authenticate_user,
     create_access_token,
+    create_password_reset_token,
+    create_refresh_token,
+    create_set_password_token,
+    decode_special_token,
     get_current_user,
     hash_password,
     update_user,
+    validate_refresh_token,
 )
+from api.audit import log_action
+from api.email_service import (
+    send_password_reset_email,
+    send_set_password_email,
+    send_verification_code_email,
+)
+from api.encryption import field_encryption
+from api.verification import create_verification_code, verify_code
 from backend.src.services.person_enrichment import PersonEnrichmentService
 from config.settings import settings
 
@@ -103,9 +117,9 @@ app.add_middleware(
 # ===========================================
 
 
-@app.post("/auth/login", response_model=Token, tags=["Auth"])
-async def login(user_data: UserLogin):
-    """User login"""
+@app.post("/auth/login", response_model=TokenWithRefresh, tags=["Auth"])
+async def login(user_data: UserLogin, request: Request):
+    """User login — returns access + refresh token."""
     user = await authenticate_user(user_data.email, user_data.password)
     if not user:
         raise HTTPException(
@@ -124,7 +138,15 @@ async def login(user_data: UserLogin):
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = await create_refresh_token(user["id"])
+
+    await log_action(user["id"], "user.login", f"users/{user['id']}", request=request)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token or "",
+        "token_type": "bearer",
+    }
 
 
 @app.get("/auth/me", response_model=UserResponse, tags=["Auth"])
@@ -145,6 +167,375 @@ async def update_me(update_data: UserUpdate, current_user=Depends(get_current_us
     if not result:
         raise HTTPException(status_code=400, detail="Erro ao atualizar usuario")
     return {"message": "Usuario atualizado"}
+
+
+# ===========================================
+# AUTH LEVEL 1 - NEW ENDPOINTS
+# ===========================================
+
+
+class SetPasswordRequest(BaseModel):
+    """Schema para definir senha via token."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    token: str
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Senha deve ter ao menos 1 letra maiúscula")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Senha deve ter ao menos 1 número")
+        return v
+
+
+class VerifyCodeRequest(BaseModel):
+    """Schema para verificacao de codigo."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class RecoverPasswordRequest(BaseModel):
+    """Schema para solicitar recuperacao de senha."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema para redefinir senha."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Senha deve ter ao menos 1 letra maiúscula")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Senha deve ter ao menos 1 número")
+        return v
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema para renovar access token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_token: str
+
+
+@app.post("/auth/admin/create-user", tags=["Auth Level 1"])
+async def admin_create_user_flow(
+    request: Request,
+    name: str = Query(..., min_length=2, max_length=100),
+    email: EmailStr = Query(...),
+    role: str = Query(default="user"),
+    cpf: Optional[str] = Query(default=None),
+    phone: Optional[str] = Query(default=None),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Admin creates a user WITHOUT password.
+    Sends set-password token via email.
+    """
+    if current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Acesso negado. Requer super_admin.")
+
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+    normalized_email = email.lower().strip()
+
+    # Check if email already exists
+    existing = supabase.table("users").select("id").eq("email", normalized_email).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Email ja cadastrado")
+
+    # Encrypt sensitive fields
+    cpf_encrypted = None
+    phone_encrypted = None
+    if cpf and field_encryption.is_configured:
+        try:
+            cpf_encrypted = field_encryption.encrypt_cpf(cpf)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    if phone and field_encryption.is_configured:
+        try:
+            phone_encrypted = field_encryption.encrypt_phone(phone)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Create user without password (password_hash placeholder)
+    new_user = {
+        "email": normalized_email,
+        "name": name,
+        "password_hash": "",  # No password yet
+        "role": role,
+        "permissions": [],
+        "is_active": True,
+        "is_verified": False,
+        "cpf_encrypted": cpf_encrypted,
+        "phone_encrypted": phone_encrypted,
+    }
+
+    try:
+        result = supabase.table("users").insert(new_user).execute()
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Erro ao criar usuario")
+
+        created_user = result.data[0]
+        user_id = created_user["id"]
+
+        # Generate set-password token
+        set_pwd_token = create_set_password_token(user_id, normalized_email)
+
+        # Send email
+        await send_set_password_email(normalized_email, name, set_pwd_token)
+
+        # Audit log
+        await log_action(
+            current_user.user_id,
+            "admin.user_created",
+            f"users/{user_id}",
+            details={"email": normalized_email, "role": role},
+            request=request,
+        )
+
+        logger.info("admin_user_created", email=normalized_email, by=current_user.email)
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "email": normalized_email,
+            "message": "Usuario criado. Email enviado com token para definir senha.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin_create_user_error", error=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno ao criar usuario")
+
+
+@app.post("/auth/set-password", tags=["Auth Level 1"])
+async def set_password(data: SetPasswordRequest, request: Request):
+    """
+    User sets initial password using a set-password token.
+    After setting password, a 6-digit activation code is sent.
+    """
+    payload = decode_special_token(data.token, "set_password")
+    if not payload:
+        raise HTTPException(status_code=400, detail="Token invalido ou expirado")
+
+    user_id = payload.get("user_id")
+    email = payload.get("sub")
+
+    if not user_id or not email:
+        raise HTTPException(status_code=400, detail="Token malformado")
+
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+    # Verify user exists and has no password yet
+    user_result = supabase.table("users").select("*").eq("id", user_id).execute()
+    if not user_result.data:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    user = user_result.data[0]
+    if user.get("is_verified"):
+        raise HTTPException(status_code=400, detail="Usuario ja verificado")
+
+    # Set password
+    supabase.table("users").update(
+        {"password_hash": hash_password(data.password)}
+    ).eq("id", user_id).execute()
+
+    # Generate and send activation code
+    code = await create_verification_code(user_id, "activation")
+    if code:
+        await send_verification_code_email(email, code, "activation")
+
+    await log_action(user_id, "user.password_set", f"users/{user_id}", request=request)
+
+    return {
+        "success": True,
+        "message": "Senha definida. Codigo de ativacao enviado para o email.",
+    }
+
+
+@app.post("/auth/verify", tags=["Auth Level 1"])
+async def verify_account(data: VerifyCodeRequest, request: Request):
+    """
+    Verify account with 6-digit code.
+    Activates the user account.
+    """
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+    # Find user
+    user_result = (
+        supabase.table("users")
+        .select("id, is_verified")
+        .eq("email", data.email)
+        .limit(1)
+        .execute()
+    )
+    if not user_result.data:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    user = user_result.data[0]
+    if user.get("is_verified"):
+        return {"success": True, "message": "Conta ja verificada."}
+
+    # Verify code
+    is_valid = await verify_code(user["id"], data.code, "activation")
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Codigo invalido ou expirado")
+
+    # Activate account
+    supabase.table("users").update({"is_verified": True}).eq("id", user["id"]).execute()
+
+    await log_action(user["id"], "user.verified", f"users/{user['id']}", request=request)
+
+    return {"success": True, "message": "Conta ativada com sucesso."}
+
+
+@app.post("/auth/recover-password", tags=["Auth Level 1"])
+async def recover_password(data: RecoverPasswordRequest, request: Request):
+    """
+    Request password recovery.
+    Sends a reset token + 6-digit code via email.
+    Always returns success to prevent email enumeration.
+    """
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+    user_result = (
+        supabase.table("users")
+        .select("id, email")
+        .eq("email", data.email)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+
+    if user_result.data:
+        user = user_result.data[0]
+        # Generate reset token
+        reset_token = create_password_reset_token(user["id"], user["email"])
+
+        # Generate verification code
+        code = await create_verification_code(user["id"], "password_reset")
+
+        if code:
+            await send_verification_code_email(user["email"], code, "password_reset")
+        await send_password_reset_email(user["email"], reset_token)
+
+        await log_action(
+            user["id"], "user.password_recovery_requested", f"users/{user['id']}", request=request
+        )
+
+    # Always return success to prevent email enumeration
+    return {
+        "success": True,
+        "message": "Se o email estiver cadastrado, enviaremos instrucoes de recuperacao.",
+    }
+
+
+@app.post("/auth/reset-password", tags=["Auth Level 1"])
+async def reset_password(data: ResetPasswordRequest, request: Request):
+    """
+    Reset password with token + 6-digit verification code.
+    """
+    payload = decode_special_token(data.token, "password_reset")
+    if not payload:
+        raise HTTPException(status_code=400, detail="Token invalido ou expirado")
+
+    user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Token malformado")
+
+    # Verify the 6-digit code
+    is_valid = await verify_code(user_id, data.code, "password_reset")
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Codigo invalido ou expirado")
+
+    if not settings.supabase_url or not settings.supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+
+    # Update password
+    supabase.table("users").update(
+        {"password_hash": hash_password(data.new_password)}
+    ).eq("id", user_id).execute()
+
+    await log_action(user_id, "user.password_reset", f"users/{user_id}", request=request)
+
+    return {"success": True, "message": "Senha redefinida com sucesso."}
+
+
+@app.post("/auth/refresh", tags=["Auth Level 1"])
+async def refresh_access_token(data: RefreshTokenRequest, request: Request):
+    """
+    Refresh access token using a valid refresh token.
+    The old refresh token is revoked and a new one is issued (rotation).
+    """
+    user = await validate_refresh_token(data.refresh_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Refresh token invalido ou expirado")
+
+    # Create new access token
+    access_token = create_access_token(
+        data={
+            "sub": user["email"],
+            "user_id": user.get("id"),
+            "name": user.get("name"),
+            "role": user.get("role", "user"),
+            "permissions": user.get("permissions", []),
+        },
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+    # Create new refresh token (rotation)
+    new_refresh_token = await create_refresh_token(user["id"])
+
+    await log_action(user["id"], "user.token_refreshed", f"users/{user['id']}", request=request)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token or "",
+        "token_type": "bearer",
+    }
 
 
 # ===========================================
@@ -1042,6 +1433,14 @@ async def create_stats_snapshot():
 @app.on_event("startup")
 async def startup():
     logger.info("api_starting", version=APP_VERSION)
+
+    # Seed super admin from env vars
+    try:
+        from api.seed import seed_super_admin
+
+        await seed_super_admin()
+    except Exception as e:
+        logger.warning("seed_admin_startup_failed", error=str(e))
 
     # Iniciar cron job de stats snapshot (a cada 5 min)
     try:

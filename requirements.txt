@@ -13,6 +13,10 @@ pydantic-settings>=2.0.0
 
 # Security
 bcrypt>=4.1.0
+cryptography>=42.0.0
+
+# Email
+aiosmtplib>=3.0.0
 
 # HTTP Clients
 httpx>=0.25.0

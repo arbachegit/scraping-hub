@@ -128,6 +128,32 @@ class Settings(BaseSettings):
     jwt_secret_key: str = ""  # REQUIRED: Set via JWT_SECRET_KEY env var
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
+    refresh_token_expire_days: int = 7
+
+    # ===========================================
+    # Field Encryption (AES-256 Fernet)
+    # ===========================================
+
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    field_encryption_key: str = ""
+
+    # ===========================================
+    # Email (SMTP)
+    # ===========================================
+
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_from: str = "noreply@iconsai.ai"
+
+    # ===========================================
+    # Seed Admin
+    # ===========================================
+
+    seed_admin_email: str = "admin@iconsai.ai"
+    seed_admin_password: str = ""
+    seed_admin_name: str = "Super Admin"
 
     # ===========================================
     # CORS - Origens Permitidas
