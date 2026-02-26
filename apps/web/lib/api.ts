@@ -1033,6 +1033,153 @@ export async function searchPoliticians(nome: string): Promise<PoliticianListRes
 }
 
 // ============================================
+// ADMIN - USER MANAGEMENT API
+// ============================================
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string | null;
+  role: string;
+  permissions: string[];
+  is_active: boolean;
+}
+
+export interface AdminListUsersResponse {
+  users: AdminUser[];
+}
+
+export interface AdminCreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role: 'user' | 'admin' | 'super_admin';
+  permissions: string[];
+}
+
+export interface AdminCreateUserResponse {
+  success: boolean;
+  user: AdminUser;
+}
+
+export interface AdminUpdateUserRequest {
+  name?: string;
+  role?: 'user' | 'admin' | 'super_admin';
+  permissions?: string[];
+  is_active?: boolean;
+  new_password?: string;
+}
+
+export interface AdminUpdateUserResponse {
+  success: boolean;
+  user: AdminUser;
+}
+
+export interface AdminCreateUserFlowRequest {
+  name: string;
+  email: string;
+  role?: string;
+  cpf?: string;
+  phone?: string;
+}
+
+export interface AdminCreateUserFlowResponse {
+  success: boolean;
+  user_id: number;
+  email: string;
+  message: string;
+}
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export async function adminListUsers(): Promise<AdminListUsersResponse> {
+  const res = await fetch(`${API_BASE}/admin/users`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao listar usuarios' }));
+    throw new Error(error.detail || 'Erro ao listar usuarios');
+  }
+
+  return res.json();
+}
+
+export async function adminCreateUser(data: AdminCreateUserRequest): Promise<AdminCreateUserResponse> {
+  const res = await fetch(`${API_BASE}/admin/users`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao criar usuario' }));
+    throw new Error(error.detail || 'Erro ao criar usuario');
+  }
+
+  return res.json();
+}
+
+export async function adminCreateUserFlow(data: AdminCreateUserFlowRequest): Promise<AdminCreateUserFlowResponse> {
+  const params = new URLSearchParams();
+  params.append('name', data.name);
+  params.append('email', data.email);
+  if (data.role) params.append('role', data.role);
+  if (data.cpf) params.append('cpf', data.cpf);
+  if (data.phone) params.append('phone', data.phone);
+
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/auth/admin/create-user?${params.toString()}`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao criar usuario' }));
+    throw new Error(error.detail || 'Erro ao criar usuario');
+  }
+
+  return res.json();
+}
+
+export async function adminUpdateUser(userId: number, data: AdminUpdateUserRequest): Promise<AdminUpdateUserResponse> {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao atualizar usuario' }));
+    throw new Error(error.detail || 'Erro ao atualizar usuario');
+  }
+
+  return res.json();
+}
+
+export async function adminDeleteUser(userId: number): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao desativar usuario' }));
+    throw new Error(error.detail || 'Erro ao desativar usuario');
+  }
+
+  return res.json();
+}
+
+// ============================================
 // UTILS
 // ============================================
 
