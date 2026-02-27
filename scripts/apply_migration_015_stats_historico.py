@@ -91,7 +91,7 @@ def main():
         # Get current counts
         empresas = supabase.table("dim_empresas").select("id", count="exact", head=True).execute()
         pessoas = supabase.table("fato_pessoas").select("id", count="exact", head=True).execute()
-        noticias = supabase.table("fato_noticias").select("id", count="exact", head=True).execute()
+        noticias = supabase.table("dim_noticias").select("id", count="exact", head=True).execute()
 
         # Check brasil-data-hub for politicos
         brasil_hub_url = os.getenv("BRASIL_DATA_HUB_URL")

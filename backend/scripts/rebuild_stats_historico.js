@@ -28,7 +28,7 @@ const brasilDataHub = createClient(process.env.BRASIL_DATA_HUB_URL, process.env.
 const CATEGORY_MAP = {
   empresas: { client: supabase, table: 'dim_empresas', col: 'created_at' },
   pessoas: { client: supabase, table: 'dim_pessoas', col: 'created_at' },
-  noticias: { client: supabase, table: 'fato_noticias', col: 'created_at' },
+  noticias: { client: supabase, table: 'dim_noticias', col: 'created_at' },
   politicos: { client: brasilDataHub, table: 'dim_politicos', col: 'criado_em' },
   mandatos: { client: brasilDataHub, table: 'fato_politicos_mandatos', col: 'criado_em' },
   emendas: { client: brasilDataHub, table: 'fato_emendas_parlamentares', col: 'criado_em' },

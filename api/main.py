@@ -330,7 +330,7 @@ def _get_all_counts(supabase_client, brasil_data_hub_client):
     """Get all current counts from all sources."""
     empresas = _get_safe_count(supabase_client, "dim_empresas")
     pessoas = _get_safe_count(supabase_client, "dim_pessoas")
-    noticias = _get_safe_count(supabase_client, "fato_noticias")
+    noticias = _get_safe_count(supabase_client, "dim_noticias")
 
     politicos = 0
     mandatos = 0
@@ -368,7 +368,7 @@ def _get_clients():
 CATEGORY_TABLE_MAP = {
     "empresas": ("local", "dim_empresas", "created_at"),
     "pessoas": ("local", "dim_pessoas", "created_at"),
-    "noticias": ("local", "fato_noticias", "created_at"),
+    "noticias": ("local", "dim_noticias", "created_at"),
     "politicos": ("brasil_data_hub", "dim_politicos", "criado_em"),
     "mandatos": ("brasil_data_hub", "fato_politicos_mandatos", "criado_em"),
     "emendas": ("brasil_data_hub", "fato_emendas_parlamentares", "criado_em"),
@@ -748,7 +748,7 @@ async def create_stats_snapshot():
 
         empresas_count = safe_count(supabase, "dim_empresas")
         pessoas_count = safe_count(supabase, "dim_pessoas")
-        noticias_count = safe_count(supabase, "fato_noticias")
+        noticias_count = safe_count(supabase, "dim_noticias")
 
         politicos_count = 0
         mandatos_count = 0

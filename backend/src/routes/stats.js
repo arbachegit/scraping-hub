@@ -33,7 +33,7 @@ function getCategoryMapping() {
   return {
     empresas: { client: supabase, table: 'dim_empresas', createdAtColumn: 'created_at' },
     pessoas: { client: supabase, table: 'dim_pessoas', createdAtColumn: 'created_at' },
-    noticias: { client: supabase, table: 'fato_noticias', createdAtColumn: 'created_at' },
+    noticias: { client: supabase, table: 'dim_noticias', createdAtColumn: 'created_at' },
     politicos: { client: brasilDataHub, table: 'dim_politicos', createdAtColumn: 'criado_em' },
     mandatos: { client: brasilDataHub, table: 'fato_politicos_mandatos', createdAtColumn: 'criado_em' },
     emendas: { client: brasilDataHub, table: 'fato_emendas_parlamentares', createdAtColumn: 'criado_em' },
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
     const localPromises = [
       supabase.from('dim_empresas').select('id', { count: 'estimated', head: true }),
       supabase.from('dim_pessoas').select('id', { count: 'estimated', head: true }),
-      supabase.from('fato_noticias').select('id', { count: 'estimated', head: true }),
+      supabase.from('dim_noticias').select('id', { count: 'estimated', head: true }),
     ];
 
     const brasilDataHubPromises = brasilDataHub
@@ -118,7 +118,7 @@ async function getAllCounts() {
   const [empresas, pessoas, noticias] = await Promise.all([
     safeCount(supabase, 'dim_empresas'),
     safeCount(supabase, 'dim_pessoas'),
-    safeCount(supabase, 'fato_noticias'),
+    safeCount(supabase, 'dim_noticias'),
   ]);
 
   let politicos = 0;
