@@ -636,13 +636,13 @@ async def backfill_stats_history(
         results = {}
         total_upserted = 0
 
-        for cat, (source, table) in CATEGORY_TABLE_MAP.items():
+        for cat, (source, table, col) in CATEGORY_TABLE_MAP.items():
             client = supabase_client if source == "local" else brasil_data_hub_client
             if not client:
                 results[cat] = {"skipped": True, "reason": "no client"}
                 continue
 
-            # Contar insercoes diarias via created_at
+            # Contar insercoes diarias via created_at/criado_em
             daily_inserts = []
             for d_str in dates:
                 # Sao Paulo midnight = 03:00 UTC
@@ -654,8 +654,8 @@ async def backfill_stats_history(
                     r = (
                         client.from_(table)
                         .select("id", count="exact", head=True)
-                        .gte("created_at", day_start)
-                        .lt("created_at", day_end)
+                        .gte(col, day_start)
+                        .lt(col, day_end)
                         .execute()
                     )
                     daily_inserts.append({"date": d_str, "count": r.count or 0})
