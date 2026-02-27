@@ -12,7 +12,7 @@ pydantic==2.0.0
 pydantic-settings==2.0.0
 
 # Security
-bcrypt==4.1.0
+bcrypt==5.0.0
 cryptography==42.0.0
 
 # Email
