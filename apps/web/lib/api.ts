@@ -305,6 +305,66 @@ export async function atlasChat(data: AtlasChatRequest): Promise<AtlasChatRespon
 }
 
 // ============================================
+// PEOPLE AGENT CHAT API
+// ============================================
+
+export interface PeopleAgentChatRequest {
+  message: string;
+  sessionId?: string;
+}
+
+interface PeopleAgentBackendResponse {
+  success: boolean;
+  sessionId: string;
+  response: {
+    text: string;
+    data?: unknown;
+    suggestions?: string[];
+  };
+  metadata?: {
+    intent: string;
+    entities: Record<string, string>;
+    confidence: number;
+    usedLLM: boolean;
+    processingTime: number;
+  };
+  error?: string;
+}
+
+export interface PeopleAgentChatResponse {
+  text: string;
+  sessionId: string;
+  data?: unknown;
+  suggestions?: string[];
+}
+
+export async function peopleAgentChat(data: PeopleAgentChatRequest): Promise<PeopleAgentChatResponse> {
+  const res = await fetchWithAuth(`${API_BASE}/people-agent/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Chat failed' }));
+    throw new Error(error.detail || 'Chat failed');
+  }
+
+  const result: PeopleAgentBackendResponse = await res.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Chat failed');
+  }
+
+  return {
+    text: result.response.text,
+    sessionId: result.sessionId,
+    data: result.response.data,
+    suggestions: result.response.suggestions,
+  };
+}
+
+// ============================================
 // COMPANIES API
 // ============================================
 

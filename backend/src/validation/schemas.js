@@ -346,6 +346,28 @@ export const searchPersonV2Schema = z.object({
   message: 'Para busca por CPF informe 11 dígitos, para busca por nome informe mínimo 2 caracteres'
 });
 
+// ============================================
+// PEOPLE AGENT SCHEMAS
+// ============================================
+
+// People Agent chat request validation
+export const peopleAgentChatSchema = z.object({
+  message: z.string()
+    .min(1, 'Mensagem não pode estar vazia')
+    .max(1000, 'Mensagem muito longa (máximo 1000 caracteres)')
+    .transform(val => val.trim()),
+  sessionId: z.string().uuid().optional().nullable()
+});
+
+// People Agent clear session request
+export const peopleAgentClearSessionSchema = z.object({
+  sessionId: z.string().uuid('Session ID inválido')
+});
+
+// ============================================
+// PEOPLE BATCH SCHEMAS
+// ============================================
+
 // Batch save people
 export const saveBatchSchema = z.object({
   pessoas: z.array(z.object({

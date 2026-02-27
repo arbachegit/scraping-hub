@@ -16,6 +16,7 @@ import newsRouter from './routes/news.js';
 import politiciansRouter from './routes/politicians.js';
 import geoRouter from './routes/geo.js';
 import atlasRouter from './routes/atlas.js';
+import peopleAgentRouter from './routes/people-agent.js';
 import statsRouter from './routes/stats.js';
 import { logger, requestLogger } from './utils/logger.js';
 
@@ -41,6 +42,7 @@ app.use('/news', limiter);
 app.use('/politicians', limiter);
 app.use('/geo', limiter);
 app.use('/atlas', limiter);
+app.use('/people-agent', limiter);
 
 // Routes (nginx strips /api/ prefix, so use /companies directly)
 app.use('/companies', companiesRouter);
@@ -49,6 +51,7 @@ app.use('/news', newsRouter);
 app.use('/politicians', politiciansRouter);
 app.use('/geo', geoRouter);
 app.use('/atlas', atlasRouter);
+app.use('/people-agent', peopleAgentRouter);
 app.use('/stats', statsRouter);
 
 // Health check
