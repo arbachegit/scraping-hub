@@ -752,9 +752,11 @@ async def create_stats_snapshot():
 
         politicos_count = 0
         mandatos_count = 0
+        emendas_count = 0
         if brasil_data_hub:
             politicos_count = safe_count(brasil_data_hub, "dim_politicos")
             mandatos_count = safe_count(brasil_data_hub, "fato_politicos_mandatos")
+            emendas_count = safe_count(brasil_data_hub, "fato_emendas_parlamentares")
 
         # Upsert para cada categoria
         snapshots = [
@@ -762,6 +764,7 @@ async def create_stats_snapshot():
             {"data": hoje.isoformat(), "categoria": "pessoas", "total": pessoas_count},
             {"data": hoje.isoformat(), "categoria": "politicos", "total": politicos_count},
             {"data": hoje.isoformat(), "categoria": "mandatos", "total": mandatos_count},
+            {"data": hoje.isoformat(), "categoria": "emendas", "total": emendas_count},
             {"data": hoje.isoformat(), "categoria": "noticias", "total": noticias_count},
         ]
 
