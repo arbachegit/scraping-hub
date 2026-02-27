@@ -11,11 +11,13 @@ Requires: SUPABASE_URL + SUPABASE_SERVICE_KEY in .env
 Uses Supabase SQL HTTP API (no psycopg2/DATABASE_URL needed).
 """
 
+import json
 import os
 import sys
+import urllib.request
+import urllib.error
 from pathlib import Path
 
-import httpx
 import structlog
 from dotenv import load_dotenv
 
@@ -29,15 +31,12 @@ logger = structlog.get_logger()
 
 
 def execute_sql_via_supabase(sql: str) -> dict:
-    """Execute SQL via Supabase SQL HTTP API (pg-meta)."""
+    """Execute SQL via Supabase SQL HTTP API (stdlib only, no httpx/requests)."""
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     service_key = os.getenv("SUPABASE_SERVICE_KEY", "")
 
     if not supabase_url or not service_key:
         raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env")
-
-    # Supabase pg/query endpoint (accepts DDL with service_role key)
-    pg_url = f"{supabase_url}/pg/query"
 
     headers = {
         "apikey": service_key,
@@ -45,31 +44,28 @@ def execute_sql_via_supabase(sql: str) -> dict:
         "Content-Type": "application/json",
     }
 
-    response = httpx.post(
-        pg_url,
-        headers=headers,
-        json={"query": sql},
-        timeout=30.0,
-    )
+    body = json.dumps({"query": sql}).encode("utf-8")
 
-    if response.status_code == 200:
-        return response.json()
+    # Try Supabase pg/query endpoint first
+    pg_url = f"{supabase_url}/pg/query"
+    req = urllib.request.Request(pg_url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError:
+        pass
 
-    # Fallback: try the REST rpc endpoint (requires exec_sql function)
+    # Fallback: REST rpc endpoint (requires exec_sql function)
     rpc_url = f"{supabase_url}/rest/v1/rpc/exec_sql"
-    response = httpx.post(
-        rpc_url,
-        headers=headers,
-        json={"sql": sql},
-        timeout=30.0,
-    )
-
-    if response.status_code == 200:
-        return response.json()
-
-    raise RuntimeError(
-        f"SQL execution failed (HTTP {response.status_code}): {response.text}"
-    )
+    body_rpc = json.dumps({"sql": sql}).encode("utf-8")
+    req = urllib.request.Request(rpc_url, data=body_rpc, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(
+            f"SQL execution failed (HTTP {e.code}): {e.read().decode('utf-8', errors='replace')}"
+        ) from e
 
 
 def apply_migration() -> None:
