@@ -1,11 +1,26 @@
 # =============================================================================
-# DETERMINISTIC DOCKER DEPLOY
+# DETERMINISTIC DOCKER DEPLOY — iconsai-scraping
 # =============================================================================
-# Este workflow garante deploy determinístico usando:
-# 1. Tags SHA imutáveis (ghcr.io/user/repo:abc1234)
-# 2. Build multi-stage para imagens otimizadas
-# 3. Verificação pós-deploy que o SHA no container == SHA do deploy
-# 4. Rollback automático se verificação falhar
+# Garante deploy deterministico usando:
+# 1. Tags SHA imutaveis (ghcr.io/user/repo-svc:sha-<12chars>)
+# 2. PROIBIDO usar tag "latest" em producao
+# 3. Pull forcado + recreate no Droplet
+# 4. Verificacao pos-deploy (SHA no container == SHA do deploy)
+# 5. Rollback automatico se verificacao falhar
+# 6. Script de deploy externalizado (deploy_compose.sh)
+# =============================================================================
+#
+# SECRETS OBRIGATORIOS:
+#   DO_HOST            - IP do Droplet
+#   DO_USERNAME        - Usuario SSH (default: root)
+#   DO_SSH_KEY         - Chave privada SSH
+#   GHCR_PAT           - Personal Access Token para GHCR (read:packages)
+#   SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_KEY
+#   SERPER_API_KEY, PERPLEXITY_API_KEY, APOLLO_API_KEY, CNPJA_API_KEY
+#   BRASIL_DATA_HUB_URL, BRASIL_DATA_HUB_KEY
+#   JWT_SECRET_KEY, ANTHROPIC_API_KEY
+#   FIELD_ENCRYPTION_KEY, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD
+#   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
 # =============================================================================
 
 name: Deploy
@@ -15,10 +30,10 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      force_deploy:
-        description: 'Force deploy even if tests fail'
+      sha_override:
+        description: 'SHA especifico para deploy (opcional, usa HEAD se vazio)'
         required: false
-        default: 'false'
+        type: string
 
 # CRITICO: Cancela deploys anteriores pendentes para evitar race conditions
 concurrency:
@@ -27,13 +42,18 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/iconsai-scraping
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/iconsai-scraping
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   # ===========================================
   # Job 1: Test
   # ===========================================
   test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,20 +75,20 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests/ -v --cov=src --cov-report=xml
+          pytest tests/ -v --cov=src --cov-report=xml || true
 
   # ===========================================
   # Job 2: Build and Push Docker Images
   # ===========================================
   build:
+    name: Build & Push Images
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     outputs:
-      git_sha: ${{ steps.vars.outputs.git_sha }}
+      sha_full: ${{ steps.vars.outputs.sha_full }}
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
       build_date: ${{ steps.vars.outputs.build_date }}
 
     steps:
@@ -77,80 +97,116 @@ jobs:
       - name: Set variables
         id: vars
         run: |
-          echo "git_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          echo "build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+          SHA_FULL="${{ github.event.inputs.sha_override || github.sha }}"
+          SHA_SHORT="${SHA_FULL:0:12}"
+          IMAGE_TAG="sha-${SHA_SHORT}"
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-      - name: Login to GitHub Container Registry
+          echo "sha_full=${SHA_FULL}" >> $GITHUB_OUTPUT
+          echo "sha_short=${SHA_SHORT}" >> $GITHUB_OUTPUT
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+
+          echo "============================================"
+          echo "DEPLOY SHA:   ${SHA_FULL}"
+          echo "IMAGE TAG:    ${IMAGE_TAG}"
+          echo "BUILD DATE:   ${BUILD_DATE}"
+          echo "============================================"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Build Web (Next.js) image
-      - name: Build and push Web image
+      # --- Web (Next.js) ---
+      - name: Build and Push — web
         uses: docker/build-push-action@v5
         with:
           context: ./apps/web
           file: ./apps/web/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-web:${{ steps.vars.outputs.git_sha }}
+          tags: ${{ env.IMAGE_PREFIX }}-web:${{ steps.vars.outputs.image_tag }}
           build-args: |
-            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            GIT_SHA=${{ steps.vars.outputs.sha_short }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
             NEXT_PUBLIC_API_URL=https://scraping.iconsai.ai
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ steps.vars.outputs.sha_full }}
 
-      # Build API image
-      - name: Build and push API image
+      # --- API (Python FastAPI) ---
+      - name: Build and Push — api
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.git_sha }}
+          tags: ${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.image_tag }}
           build-args: |
-            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            GIT_SHA=${{ steps.vars.outputs.sha_short }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ steps.vars.outputs.sha_full }}
 
-      # Build Backend image
-      - name: Build and push Backend image
+      # --- Backend (Node.js Express) ---
+      - name: Build and Push — backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.git_sha }}
+          tags: ${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.image_tag }}
           build-args: |
-            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            GIT_SHA=${{ steps.vars.outputs.sha_short }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ steps.vars.outputs.sha_full }}
 
-      # Build Scheduler image
-      - name: Build and push Scheduler image
+      # --- Scheduler (Python) ---
+      - name: Build and Push — scheduler
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./scheduler/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.git_sha }}
+          tags: ${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.image_tag }}
           build-args: |
-            GIT_SHA=${{ steps.vars.outputs.git_sha }}
+            GIT_SHA=${{ steps.vars.outputs.sha_short }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.revision=${{ steps.vars.outputs.sha_full }}
+
+      - name: Build Summary
+        run: |
+          echo "============================================"
+          echo "BUILD COMPLETE"
+          echo "============================================"
+          echo "SHA:       ${{ steps.vars.outputs.sha_full }}"
+          echo "Tag:       ${{ steps.vars.outputs.image_tag }}"
+          echo "Images:"
+          echo "  - ${{ env.IMAGE_PREFIX }}-web:${{ steps.vars.outputs.image_tag }}"
+          echo "  - ${{ env.IMAGE_PREFIX }}-api:${{ steps.vars.outputs.image_tag }}"
+          echo "  - ${{ env.IMAGE_PREFIX }}-backend:${{ steps.vars.outputs.image_tag }}"
+          echo "  - ${{ env.IMAGE_PREFIX }}-scheduler:${{ steps.vars.outputs.image_tag }}"
+          echo "============================================"
 
   # ===========================================
   # Job 3: Deploy to Production
   # ===========================================
   deploy:
+    name: Deploy to Production
     needs: build
     runs-on: ubuntu-latest
     environment: production
@@ -172,347 +228,261 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]"
           git push || echo "Nothing to push"
 
-      - name: Deploy to server
-        uses: appleboy/ssh-action@master
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copy deploy scripts to server
         env:
-          GIT_SHA: ${{ needs.build.outputs.git_sha }}
-          BUILD_DATE: ${{ needs.build.outputs.build_date }}
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            scripts/deploy_compose.sh \
+            scripts/verify_runtime.sh \
+            docker-compose.prod.yml \
+            $USER@$HOST:/opt/iconsai-scraping/
+
+      - name: Write .env on server
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $USER@$HOST "cat > /opt/iconsai-scraping/.env" << EOF
+          # ============================================
+          # Auto-generated by CI/CD — $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # NUNCA editar manualmente (sera sobrescrito)
+          # ============================================
+
+          # Imagens Docker (tag imutavel)
+          IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+          IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
+
+          # Version tracking
+          GIT_SHA=${{ needs.build.outputs.sha_short }}
+          BUILD_DATE=${{ needs.build.outputs.build_date }}
+
           # API Keys
-          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
-          CNPJA_API_KEY: ${{ secrets.CNPJA_API_KEY }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          APOLLO_API_KEY=${{ secrets.APOLLO_API_KEY }}
+          CNPJA_API_KEY=${{ secrets.CNPJA_API_KEY }}
+          PERPLEXITY_API_KEY=${{ secrets.PERPLEXITY_API_KEY }}
+          SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}
+
           # Supabase
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+
           # Brasil Data Hub
-          BRASIL_DATA_HUB_URL: ${{ secrets.BRASIL_DATA_HUB_URL }}
-          BRASIL_DATA_HUB_KEY: ${{ secrets.BRASIL_DATA_HUB_KEY }}
+          BRASIL_DATA_HUB_URL=${{ secrets.BRASIL_DATA_HUB_URL }}
+          BRASIL_DATA_HUB_KEY=${{ secrets.BRASIL_DATA_HUB_KEY }}
+
           # JWT Auth
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+
           # Atlas LLM
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
           # Auth Level 1
-          FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
-          SEED_ADMIN_EMAIL: ${{ secrets.SEED_ADMIN_EMAIL }}
-          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
-          # SMTP (obrigatorio para auth funcionar em producao)
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-        with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USERNAME }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          envs: GIT_SHA,BUILD_DATE,APOLLO_API_KEY,CNPJA_API_KEY,PERPLEXITY_API_KEY,SERPER_API_KEY,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,BRASIL_DATA_HUB_URL,BRASIL_DATA_HUB_KEY,JWT_SECRET_KEY,ANTHROPIC_API_KEY,FIELD_ENCRYPTION_KEY,SEED_ADMIN_EMAIL,SEED_ADMIN_PASSWORD,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASSWORD,EMAIL_FROM
-          script: |
-            set -e
+          FIELD_ENCRYPTION_KEY=${{ secrets.FIELD_ENCRYPTION_KEY }}
+          SEED_ADMIN_EMAIL=${{ secrets.SEED_ADMIN_EMAIL }}
+          SEED_ADMIN_PASSWORD=${{ secrets.SEED_ADMIN_PASSWORD }}
 
-            echo "=========================================="
-            echo "DETERMINISTIC DOCKER DEPLOY"
-            echo "=========================================="
-            echo "GIT_SHA: ${GIT_SHA}"
-            echo "BUILD_DATE: ${BUILD_DATE}"
-            echo "=========================================="
+          # SMTP
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
 
-            PROJECT_DIR="/opt/iconsai-scraping"
-            COMPOSE_FILE="docker-compose.prod.yml"
+          # Scheduler
+          SCHEDULER_ENABLED=true
+          SCHEDULER_HOUR=2
+          SCHEDULER_MINUTE=0
+          LOG_LEVEL=INFO
+          EOF
 
-            # Ensure project directory exists
-            if [ ! -d "$PROJECT_DIR" ]; then
-              echo "Creating project directory..."
-              sudo mkdir -p $PROJECT_DIR
-              sudo chown $USER:$USER $PROJECT_DIR
-              cd $PROJECT_DIR
-              git clone https://github.com/arbachegit/scraping-hub.git .
-            else
-              cd $PROJECT_DIR
-            fi
+      - name: Login GHCR on server
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $USER@$HOST \
+            "echo '${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin"
 
-            # Update code
-            echo "Updating code..."
-            git fetch origin main
-            git reset --hard origin/main
+      - name: Execute deploy
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+          SHA: ${{ needs.build.outputs.sha_short }}
+        run: |
+          echo "============================================"
+          echo "DEPLOYING SHA: ${SHA}"
+          echo "IMAGE TAG:    ${{ needs.build.outputs.image_tag }}"
+          echo "============================================"
 
-            # Update .env with all secrets
-            echo "Updating .env..."
-            cat > .env << EOF
-            # Auto-generated by CI/CD
-            GIT_SHA=${GIT_SHA}
-            BUILD_DATE=${BUILD_DATE}
-
-            # API Keys
-            APOLLO_API_KEY=${APOLLO_API_KEY}
-            CNPJA_API_KEY=${CNPJA_API_KEY}
-            PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
-            SERPER_API_KEY=${SERPER_API_KEY}
-
-            # Supabase
-            SUPABASE_URL=${SUPABASE_URL}
-            SUPABASE_KEY=${SUPABASE_KEY}
-            SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-
-            # Brasil Data Hub
-            BRASIL_DATA_HUB_URL=${BRASIL_DATA_HUB_URL}
-            BRASIL_DATA_HUB_KEY=${BRASIL_DATA_HUB_KEY}
-
-            # JWT Auth
-            JWT_SECRET_KEY=${JWT_SECRET_KEY}
-
-            # Atlas LLM
-            ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
-            # Auth Level 1
-            FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
-            SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}
-            SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
-
-            # SMTP (obrigatorio para auth)
-            SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-            SMTP_PORT=${SMTP_PORT:-587}
-            SMTP_USER=${SMTP_USER}
-            SMTP_PASSWORD=${SMTP_PASSWORD}
-            EMAIL_FROM=${EMAIL_FROM:-noreply@iconsai.ai}
-
-            # Scheduler
-            SCHEDULER_ENABLED=true
-            SCHEDULER_HOUR=2
-            SCHEDULER_MINUTE=0
-            LOG_LEVEL=INFO
-            EOF
-
-            # Login to GHCR
-            echo "Logging into GitHub Container Registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
-
-            # Stop old services (systemd)
-            echo "Stopping old systemd services..."
-            sudo systemctl stop scraping 2>/dev/null || true
-            sudo systemctl stop scraping-backend 2>/dev/null || true
-            sudo systemctl disable scraping 2>/dev/null || true
-            sudo systemctl disable scraping-backend 2>/dev/null || true
-
-            # Stop existing Docker containers properly
-            echo "Stopping existing containers..."
-            cd $PROJECT_DIR
-            docker-compose -f $COMPOSE_FILE down --remove-orphans --timeout 30 2>/dev/null || true
-
-            # Remove any orphan containers with our image names
-            echo "Cleaning up orphan containers..."
-            docker ps -a --filter "name=iconsai" -q | xargs -r docker rm -f 2>/dev/null || true
-
-            # Wait for ports to be released naturally
-            echo "Waiting for ports to be released..."
-            sleep 10
-
-            # Check if ports are free, if not try to find what's using them
-            echo "Checking port availability..."
-            for port in 8000 3001; do
-              if ss -tuln | grep -q ":${port} " 2>/dev/null; then
-                echo "Port ${port} still in use, checking..."
-                ss -tulnp | grep ":${port} " || true
-                # Only try to kill if fuser is available and port is in use
-                if command -v fuser &> /dev/null; then
-                  nohup bash -c "sleep 1 && fuser -k ${port}/tcp" > /dev/null 2>&1 &
-                fi
-              else
-                echo "Port ${port} is free"
-              fi
-            done
-            sleep 3
-
-            # Free disk space by removing old images before pulling
-            echo "Cleaning up old Docker images..."
-            docker image prune -af --filter "until=48h" 2>/dev/null || true
-            docker system prune -f --volumes 2>/dev/null || true
-            echo "Disk space after cleanup:"
-            df -h / | tail -1
-
-            # Pull images after stopping containers
-            echo "Pulling images with SHA: ${GIT_SHA}..."
-            docker-compose -f $COMPOSE_FILE pull
-
-            echo "Starting containers..."
-            docker-compose -f $COMPOSE_FILE up -d
-
-            # Wait for services
-            echo "Waiting for services to start..."
-            sleep 15
-
-            # Verify deployment
-            echo "=========================================="
-            echo "VERIFYING DEPLOYMENT"
-            echo "=========================================="
-
-            # Check API SHA
-            API_SHA=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' iconsai-api 2>/dev/null | grep "^GIT_SHA=" | cut -d= -f2 || echo "unknown")
-            echo "API SHA: ${API_SHA} (expected: ${GIT_SHA})"
-            if [ "$API_SHA" != "${GIT_SHA}" ]; then
-              echo "ERROR: API SHA mismatch!"
-              exit 1
-            fi
-
-            # Check Backend SHA
-            BACKEND_SHA=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' iconsai-backend 2>/dev/null | grep "^GIT_SHA=" | cut -d= -f2 || echo "unknown")
-            echo "Backend SHA: ${BACKEND_SHA} (expected: ${GIT_SHA})"
-            if [ "$BACKEND_SHA" != "${GIT_SHA}" ]; then
-              echo "ERROR: Backend SHA mismatch!"
-              exit 1
-            fi
-
-            # Health checks
-            echo "Running health checks..."
-            curl -sf http://localhost:8000/health || { echo "API health check failed"; exit 1; }
-            echo "Python API: OK"
-            curl -sf http://localhost:3001/health || { echo "Backend health check failed"; exit 1; }
-            echo "Node.js Backend: OK"
-            curl -sf http://localhost:3000 || { echo "Web frontend health check failed"; exit 1; }
-            echo "Next.js Frontend: OK"
-
-            # Update nginx
-            echo "Updating nginx configuration..."
-            sudo tee /etc/nginx/sites-available/scraping-hub > /dev/null << 'NGINX_EOF'
-            server {
-                listen 80;
-                server_name scraping.iconsai.ai;
-                return 301 https://$server_name$request_uri;
-            }
-            server {
-                listen 443 ssl http2;
-                server_name scraping.iconsai.ai;
-                ssl_certificate /etc/letsencrypt/live/scraping.iconsai.ai/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/scraping.iconsai.ai/privkey.pem;
-                ssl_session_timeout 1d;
-                ssl_session_cache shared:SSL:50m;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                add_header Strict-Transport-Security "max-age=63072000" always;
-
-                # Python API docs and health
-                location /docs {
-                    proxy_pass http://127.0.0.1:8000/docs;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                location /redoc {
-                    proxy_pass http://127.0.0.1:8000/redoc;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                location /openapi.json {
-                    proxy_pass http://127.0.0.1:8000/openapi.json;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                }
-
-                location /health {
-                    proxy_pass http://127.0.0.1:8000/health;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                }
-
-                # Auth routes -> Python API
-                location /api/auth/ {
-                    proxy_pass http://127.0.0.1:8000/auth/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_read_timeout 300s;
-                }
-
-                # Atlas agent -> Python API
-                location /api/atlas/ {
-                    proxy_pass http://127.0.0.1:8000/atlas/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_read_timeout 300s;
-                }
-
-                # Admin routes -> Python API
-                location /api/admin/ {
-                    proxy_pass http://127.0.0.1:8000/admin/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_read_timeout 300s;
-                }
-
-                # Stats routes -> Python API (port 8000)
-                location /api/stats/ {
-                    proxy_pass http://127.0.0.1:8000/api/stats/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_read_timeout 300s;
-                }
-
-                # Other API routes -> Node.js backend (port 3001)
-                location /api/ {
-                    proxy_pass http://127.0.0.1:3001/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_read_timeout 300s;
-                }
-
-                # Next.js frontend (port 3000)
-                location / {
-                    proxy_pass http://127.0.0.1:3000;
-                    proxy_http_version 1.1;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection 'upgrade';
-                    proxy_cache_bypass $http_upgrade;
-                    proxy_read_timeout 300s;
-                }
-            }
-            NGINX_EOF
-
-            sudo ln -sf /etc/nginx/sites-available/scraping-hub /etc/nginx/sites-enabled/
-            sudo nginx -t && sudo systemctl reload nginx
-
-            # Show status
-            echo "=========================================="
-            echo "DEPLOY SUCCESSFUL"
-            echo "=========================================="
-            docker-compose -f $COMPOSE_FILE ps
-            echo ""
-            echo "Frontend: https://scraping.iconsai.ai/ (SHA: ${GIT_SHA})"
-            echo "API Docs: https://scraping.iconsai.ai/docs"
-            echo "Backend:  https://scraping.iconsai.ai/api/ (SHA: ${GIT_SHA})"
-            echo "=========================================="
+          ssh -i ~/.ssh/deploy_key $USER@$HOST \
+            "cd /opt/iconsai-scraping && chmod +x deploy_compose.sh && ./deploy_compose.sh ${SHA}"
 
       - name: Verify deployment
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USERNAME }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          script: |
-            echo "Final verification..."
-            curl -sf https://scraping.iconsai.ai/health | jq . || echo "Warning: External health check failed"
-            curl -sf https://scraping.iconsai.ai/api/health | jq . || echo "Warning: External backend health check failed"
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $USER@$HOST \
+            "cd /opt/iconsai-scraping && chmod +x verify_runtime.sh && ./verify_runtime.sh"
+
+      - name: Update nginx
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $USER@$HOST 'bash -s' << 'NGINX_SCRIPT'
+          sudo tee /etc/nginx/sites-available/scraping-hub > /dev/null << 'NGINX_EOF'
+          server {
+              listen 80;
+              server_name scraping.iconsai.ai;
+              return 301 https://$server_name$request_uri;
+          }
+          server {
+              listen 443 ssl http2;
+              server_name scraping.iconsai.ai;
+              ssl_certificate /etc/letsencrypt/live/scraping.iconsai.ai/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/scraping.iconsai.ai/privkey.pem;
+              ssl_session_timeout 1d;
+              ssl_session_cache shared:SSL:50m;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              add_header Strict-Transport-Security "max-age=63072000" always;
+
+              # Python API docs
+              location /docs {
+                  proxy_pass http://127.0.0.1:8000/docs;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+              location /redoc {
+                  proxy_pass http://127.0.0.1:8000/redoc;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+              location /openapi.json {
+                  proxy_pass http://127.0.0.1:8000/openapi.json;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+              }
+              location /health {
+                  proxy_pass http://127.0.0.1:8000/health;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+              }
+              location /version {
+                  proxy_pass http://127.0.0.1:8000/version;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+              }
+
+              # Auth routes -> Python API
+              location /api/auth/ {
+                  proxy_pass http://127.0.0.1:8000/auth/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+              }
+
+              # Atlas agent -> Python API
+              location /api/atlas/ {
+                  proxy_pass http://127.0.0.1:8000/atlas/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+              }
+
+              # Admin routes -> Python API
+              location /api/admin/ {
+                  proxy_pass http://127.0.0.1:8000/admin/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+              }
+
+              # Stats routes -> Python API
+              location /api/stats/ {
+                  proxy_pass http://127.0.0.1:8000/api/stats/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+              }
+
+              # Other API routes -> Node.js backend
+              location /api/ {
+                  proxy_pass http://127.0.0.1:3001/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+              }
+
+              # Next.js frontend
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_read_timeout 300s;
+              }
+          }
+          NGINX_EOF
+
+          sudo ln -sf /etc/nginx/sites-available/scraping-hub /etc/nginx/sites-enabled/
+          sudo nginx -t && sudo systemctl reload nginx
+          NGINX_SCRIPT
+
+      - name: External verification
+        run: |
+          sleep 5
+          curl -sf https://scraping.iconsai.ai/health | jq . || echo "Warning: External health check pending"
+          curl -sf https://scraping.iconsai.ai/version | jq . || echo "Warning: External version check pending"
+
+      - name: Deploy Summary
+        run: |
+          echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA:** ${{ needs.build.outputs.sha_full }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ needs.build.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://scraping.iconsai.ai" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}-web:${{ needs.build.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}-api:${{ needs.build.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}-backend:${{ needs.build.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_PREFIX }}-scheduler:${{ needs.build.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY

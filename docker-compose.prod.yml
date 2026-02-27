@@ -1,15 +1,38 @@
-# Docker Compose for Production - Deterministic Deployment
-# Uses SHA-based immutable tags for guaranteed new code deployment
+# =============================================================================
+# Docker Compose — Production (Deterministic Deployment)
+# =============================================================================
+# Tags SHA imutaveis — NUNCA usar "latest"
 #
-# IMPORTANT: pull_policy: always ensures we NEVER use cached old images
+# VARIAVEIS OBRIGATORIAS (definidas em .env):
+#   IMAGE_TAG     - Tag da imagem (ex: sha-2f3a1b4c5d6e)
+#   IMAGE_PREFIX  - Prefixo do registry (ex: ghcr.io/arbachegit/iconsai-scraping)
+#
+# REGRAS INVIOLAVEIS:
+#   1. NUNCA usar tag "latest"
+#   2. NUNCA usar "build:" em producao
+#   3. SEMPRE pull_policy: always
+#   4. SEMPRE healthcheck definido
+# =============================================================================
+
+x-common-logging: &common-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-common-labels: &common-labels
+  com.iconsai.environment: "production"
+  com.iconsai.image_tag: "${IMAGE_TAG}"
 
 services:
-  # Next.js Frontend
+  # ============================================
+  # Next.js Frontend (port 3000)
+  # ============================================
   web:
-    image: ghcr.io/arbachegit/iconsai-scraping-web:${GIT_SHA:-latest}
+    image: ${IMAGE_PREFIX:?IMAGE_PREFIX obrigatorio}-web:${IMAGE_TAG:?IMAGE_TAG obrigatorio}
     container_name: iconsai-web
     pull_policy: always
-    restart: unless-stopped
+    restart: always
     ports:
       - "3000:3000"
     environment:
@@ -23,24 +46,27 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
     depends_on:
-      - api
-      - backend
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      api:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    labels:
+      <<: *common-labels
+      com.iconsai.service: "web"
+    logging: *common-logging
     networks:
       - iconsai-network
 
-  # Python API (FastAPI)
+  # ============================================
+  # Python API — FastAPI (port 8000)
+  # ============================================
   api:
-    image: ghcr.io/arbachegit/iconsai-scraping-api:${GIT_SHA:-latest}
+    image: ${IMAGE_PREFIX:?IMAGE_PREFIX obrigatorio}-api:${IMAGE_TAG:?IMAGE_TAG obrigatorio}
     container_name: iconsai-api
     pull_policy: always
-    restart: unless-stopped
+    restart: always
     ports:
       - "8000:8000"
     environment:
@@ -61,12 +87,14 @@ services:
       - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
       - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}
       - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
-      # SMTP (obrigatorio para auth funcionar)
+      # SMTP
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - EMAIL_FROM=${EMAIL_FROM:-noreply@iconsai.ai}
+      # Atlas LLM
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # Version tracking
       - GIT_SHA=${GIT_SHA}
       - BUILD_DATE=${BUILD_DATE}
@@ -75,21 +103,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      start_period: 15s
+    labels:
+      <<: *common-labels
+      com.iconsai.service: "api"
+    logging: *common-logging
     networks:
       - iconsai-network
 
-  # Node.js Backend (Express)
+  # ============================================
+  # Node.js Backend — Express (port 3001)
+  # ============================================
   backend:
-    image: ghcr.io/arbachegit/iconsai-scraping-backend:${GIT_SHA:-latest}
+    image: ${IMAGE_PREFIX:?IMAGE_PREFIX obrigatorio}-backend:${IMAGE_TAG:?IMAGE_TAG obrigatorio}
     container_name: iconsai-backend
     pull_policy: always
-    restart: unless-stopped
+    restart: always
     ports:
       - "3001:3001"
     environment:
@@ -119,20 +148,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    labels:
+      <<: *common-labels
+      com.iconsai.service: "backend"
+    logging: *common-logging
     networks:
       - iconsai-network
 
-  # Scheduler (coleta automatizada)
+  # ============================================
+  # Scheduler (coleta automatizada, sem porta)
+  # ============================================
   scheduler:
-    image: ghcr.io/arbachegit/iconsai-scraping-scheduler:${GIT_SHA:-latest}
+    image: ${IMAGE_PREFIX:?IMAGE_PREFIX obrigatorio}-scheduler:${IMAGE_TAG:?IMAGE_TAG obrigatorio}
     container_name: iconsai-scheduler
     pull_policy: always
-    restart: unless-stopped
+    restart: always
     environment:
       # Environment
       - ENVIRONMENT=production
@@ -158,11 +188,10 @@ services:
       - BUILD_DATE=${BUILD_DATE}
     volumes:
       - scheduler_logs:/app/logs
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    labels:
+      <<: *common-labels
+      com.iconsai.service: "scheduler"
+    logging: *common-logging
     networks:
       - iconsai-network
 
@@ -172,3 +201,4 @@ volumes:
 networks:
   iconsai-network:
     driver: bridge
+    name: iconsai-network
