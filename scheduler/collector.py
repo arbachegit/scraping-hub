@@ -16,12 +16,12 @@ from apscheduler.triggers.cron import CronTrigger
 from supabase import Client, create_client
 
 from config.settings import settings
-from scripts.audit_graphs import GraphAuditor
 from mcp_servers.apollo_mcp import ApolloMCPServer
 from mcp_servers.brasil_data_hub_mcp import BrasilDataHubMCPServer
 from mcp_servers.brasilapi_mcp import BrasilAPIMCPServer
 from mcp_servers.cnpja_mcp import CNPJaMCPServer
 from mcp_servers.serper_mcp import SerperMCPServer
+from scripts.audit_graphs import GraphAuditor
 
 logger = structlog.get_logger()
 
