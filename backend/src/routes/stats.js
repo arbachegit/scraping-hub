@@ -20,6 +20,7 @@ function getCategoryMapping() {
     noticias: { client: supabase, table: 'fato_noticias', createdAtColumn: 'created_at' },
     politicos: { client: brasilDataHub, table: 'dim_politicos', createdAtColumn: 'criado_em' },
     mandatos: { client: brasilDataHub, table: 'fato_politicos_mandatos', createdAtColumn: 'criado_em' },
+    emendas: { client: brasilDataHub, table: 'fato_emendas_parlamentares', createdAtColumn: 'criado_em' },
   };
 }
 
@@ -39,10 +40,11 @@ router.get('/', async (req, res) => {
       ? [
           brasilDataHub.from('dim_politicos').select('id', { count: 'estimated', head: true }),
           brasilDataHub.from('fato_politicos_mandatos').select('id', { count: 'estimated', head: true }),
+          brasilDataHub.from('fato_emendas_parlamentares').select('id', { count: 'estimated', head: true }),
         ]
-      : [Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 })];
+      : [Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 })];
 
-    const [empresas, pessoas, noticias, politicos, mandatos] = await Promise.all([
+    const [empresas, pessoas, noticias, politicos, mandatos, emendas] = await Promise.all([
       ...localPromises,
       ...brasilDataHubPromises,
     ]);
@@ -52,6 +54,7 @@ router.get('/', async (req, res) => {
       pessoas: pessoas.count || 0,
       politicos: politicos.count || 0,
       mandatos: mandatos.count || 0,
+      emendas: emendas.count || 0,
       noticias: noticias.count || 0,
     };
 
@@ -62,7 +65,7 @@ router.get('/', async (req, res) => {
       stats,
       sources: {
         local: ['empresas', 'pessoas', 'noticias'],
-        brasil_data_hub: brasilDataHub ? ['politicos', 'mandatos'] : [],
+        brasil_data_hub: brasilDataHub ? ['politicos', 'mandatos', 'emendas'] : [],
       },
       timestamp: new Date().toISOString(),
     });
@@ -99,14 +102,16 @@ async function getAllCounts() {
 
   let politicos = 0;
   let mandatos = 0;
+  let emendas = 0;
   if (brasilDataHub) {
-    [politicos, mandatos] = await Promise.all([
+    [politicos, mandatos, emendas] = await Promise.all([
       safeCount(brasilDataHub, 'dim_politicos'),
       safeCount(brasilDataHub, 'fato_politicos_mandatos'),
+      safeCount(brasilDataHub, 'fato_emendas_parlamentares'),
     ]);
   }
 
-  return { empresas, pessoas, politicos, mandatos, noticias };
+  return { empresas, pessoas, politicos, mandatos, emendas, noticias };
 }
 
 /**
@@ -195,6 +200,7 @@ router.get('/current', async (req, res) => {
       ['pessoas', counts.pessoas],
       ['politicos', counts.politicos],
       ['mandatos', counts.mandatos],
+      ['emendas', counts.emendas],
       ['noticias', counts.noticias],
     ];
 
@@ -382,7 +388,7 @@ router.post('/snapshot', async (req, res) => {
       }
     }
 
-    const categories = ['empresas', 'pessoas', 'politicos', 'mandatos', 'noticias'];
+    const categories = ['empresas', 'pessoas', 'politicos', 'mandatos', 'emendas', 'noticias'];
     const snapshots = [];
 
     for (const cat of categories) {
@@ -454,7 +460,7 @@ router.post('/backfill', async (req, res) => {
 
     const counts = await getAllCounts();
     const mapping = getCategoryMapping();
-    const categories = ['empresas', 'pessoas', 'noticias', 'politicos', 'mandatos'];
+    const categories = ['empresas', 'pessoas', 'noticias', 'politicos', 'mandatos', 'emendas'];
 
     // Build list of dates (last N days)
     const dates = [];

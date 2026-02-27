@@ -152,6 +152,18 @@ export const DATA_SOURCES = {
     confiabilidade: 'alta',
     cobertura_temporal: '2006-presente',
     observacoes: 'Tabela completa de CNAEs (seções, divisões, grupos, classes, subclasses)'
+  },
+  BRASIL_DATA_HUB_EMENDAS: {
+    nome: 'Brasil Data Hub - Emendas Parlamentares',
+    categoria: 'politico',
+    fonte_primaria: 'Portal da Transparência',
+    url: 'https://mnfjkegtynjtgesfphge.supabase.co',
+    documentacao_url: 'https://portaldatransparencia.gov.br/emendas',
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'alta',
+    cobertura_temporal: '2015-presente',
+    observacoes: 'Emendas parlamentares individuais e de bancada via Supabase (fato_emendas_parlamentares)'
   }
 };
 

@@ -2090,6 +2090,69 @@
       }
 
       /* =============================================
+         COMPACT CARDS ROW - Resumo rápido
+         ============================================= */
+
+      .compact-cards-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        justify-content: center;
+      }
+
+      .compact-card {
+        width: 130px;
+        height: 60px;
+        background: rgba(15, 22, 41, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .compact-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(6, 182, 212, 0.1);
+      }
+
+      .compact-card-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .compact-card-label {
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+        white-space: nowrap;
+      }
+
+      /* Cores por categoria */
+      .compact-card.empresas { border-top: 2px solid #ef4444; }
+      .compact-card.empresas .compact-card-value { color: #ef4444; }
+      .compact-card.pessoas { border-top: 2px solid #f97316; }
+      .compact-card.pessoas .compact-card-value { color: #f97316; }
+      .compact-card.politicos { border-top: 2px solid #3b82f6; }
+      .compact-card.politicos .compact-card-value { color: #3b82f6; }
+      .compact-card.emendas { border-top: 2px solid #a855f7; }
+      .compact-card.emendas .compact-card-value { color: #a855f7; }
+      .compact-card.noticias { border-top: 2px solid #22c55e; }
+      .compact-card.noticias .compact-card-value { color: #22c55e; }
+
+      /* =============================================
          BADGES DE ESTATISTICAS - Dashboard
          ============================================= */
 
@@ -2102,8 +2165,8 @@
       }
 
       .stats-badge {
-        width: 270px;
-        height: 100px;
+        width: 180px;
+        height: 90px;
         background: rgba(15, 22, 41, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 0.75rem;
@@ -2173,9 +2236,9 @@
         50% { opacity: 0.6; transform: scale(0.9); }
       }
 
-      /* Body - 4/6 (~66px) */
+      /* Body - 4/6 (~56px) */
       .stats-badge-body {
-        height: 66px;
+        height: 56px;
         position: relative;
         padding: 0.25rem;
       }
@@ -2259,11 +2322,15 @@
       .stats-badge.empresas { border-left: 3px solid #ef4444; }
       .stats-badge.pessoas { border-left: 3px solid #f97316; }
       .stats-badge.politicos { border-left: 3px solid #3b82f6; }
+      .stats-badge.mandatos { border-left: 3px solid #eab308; }
+      .stats-badge.emendas { border-left: 3px solid #a855f7; }
       .stats-badge.noticias { border-left: 3px solid #22c55e; }
 
       .stats-badge.empresas .stats-badge-title-icon { color: #ef4444; }
       .stats-badge.pessoas .stats-badge-title-icon { color: #f97316; }
       .stats-badge.politicos .stats-badge-title-icon { color: #3b82f6; }
+      .stats-badge.mandatos .stats-badge-title-icon { color: #eab308; }
+      .stats-badge.emendas .stats-badge-title-icon { color: #a855f7; }
       .stats-badge.noticias .stats-badge-title-icon { color: #22c55e; }
 
       /* =============================================
@@ -2314,6 +2381,8 @@
       .stats-counter-item.empresas .stats-counter-value { color: #ef4444; }
       .stats-counter-item.pessoas .stats-counter-value { color: #f97316; }
       .stats-counter-item.politicos .stats-counter-value { color: #3b82f6; }
+      .stats-counter-item.mandatos .stats-counter-value { color: #eab308; }
+      .stats-counter-item.emendas .stats-counter-value { color: #a855f7; }
       .stats-counter-item.noticias .stats-counter-value { color: #22c55e; }
 
       /* Animacao de contagem */
@@ -2328,6 +2397,16 @@
 
       /* Responsivo */
       @media (max-width: 768px) {
+        .compact-cards-row {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .compact-card {
+          width: 100px;
+          height: 50px;
+        }
+
         .stats-badges-container {
           flex-direction: column;
           align-items: center;
@@ -2538,6 +2617,30 @@
     <div class="container">
       <h2 class="page-title">Módulos de Inteligência</h2>
 
+      <!-- Compact Cards Row -->
+      <div class="compact-cards-row" id="compactCards">
+        <div class="compact-card empresas" onclick="openCompanyModal()">
+          <span class="compact-card-value" id="compactEmpresas">0</span>
+          <span class="compact-card-label">Empresas</span>
+        </div>
+        <div class="compact-card pessoas" onclick="openPeopleModal()">
+          <span class="compact-card-value" id="compactPessoas">0</span>
+          <span class="compact-card-label">Pessoas</span>
+        </div>
+        <div class="compact-card politicos" onclick="openPoliticosFromCard()">
+          <span class="compact-card-value" id="compactPoliticos">0</span>
+          <span class="compact-card-label">Politicos</span>
+        </div>
+        <div class="compact-card emendas" onclick="openEmendasModal()">
+          <span class="compact-card-value" id="compactEmendas">0</span>
+          <span class="compact-card-label">Emendas</span>
+        </div>
+        <div class="compact-card noticias" onclick="openNewsModal()">
+          <span class="compact-card-value" id="compactNoticias">0</span>
+          <span class="compact-card-label">Noticias</span>
+        </div>
+      </div>
+
       <!-- Badges de Estatisticas -->
       <div class="stats-badges-container" id="statsBadges">
         <!-- Badge Empresas -->
@@ -2645,6 +2748,76 @@
           </div>
         </div>
 
+        <!-- Badge Mandatos -->
+        <div class="stats-badge mandatos" id="badgeMandatos">
+          <div class="stats-badge-header">
+            <span class="stats-badge-title">
+              <svg class="stats-badge-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Mandatos
+            </span>
+            <span class="stats-badge-date" id="badgeMandatosDate">--/--/----</span>
+            <span class="stats-badge-online" id="badgeMandatosOnline">
+              <span class="stats-badge-online-dot"></span>
+              ONLINE
+            </span>
+          </div>
+          <div class="stats-badge-body">
+            <canvas class="stats-badge-chart" id="chartMandatos"></canvas>
+            <div class="stats-badge-countdown">
+              <svg class="countdown-ring" viewBox="0 0 20 20">
+                <circle class="countdown-ring-bg" cx="10" cy="10" r="8"/>
+                <circle class="countdown-ring-progress" id="countdownMandatos" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="0"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stats-badge-footer">
+            <span class="stats-badge-total" id="totalMandatos">0</span>
+            <span class="stats-badge-growth neutral" id="growthMandatos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M5 12h14"/>
+              </svg>
+              0,00%
+            </span>
+          </div>
+        </div>
+
+        <!-- Badge Emendas -->
+        <div class="stats-badge emendas" id="badgeEmendas">
+          <div class="stats-badge-header">
+            <span class="stats-badge-title">
+              <svg class="stats-badge-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Emendas
+            </span>
+            <span class="stats-badge-date" id="badgeEmendasDate">--/--/----</span>
+            <span class="stats-badge-online" id="badgeEmendasOnline">
+              <span class="stats-badge-online-dot"></span>
+              ONLINE
+            </span>
+          </div>
+          <div class="stats-badge-body">
+            <canvas class="stats-badge-chart" id="chartEmendas"></canvas>
+            <div class="stats-badge-countdown">
+              <svg class="countdown-ring" viewBox="0 0 20 20">
+                <circle class="countdown-ring-bg" cx="10" cy="10" r="8"/>
+                <circle class="countdown-ring-progress" id="countdownEmendas" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="0"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stats-badge-footer">
+            <span class="stats-badge-total" id="totalEmendas">0</span>
+            <span class="stats-badge-growth neutral" id="growthEmendas">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M5 12h14"/>
+              </svg>
+              0,00%
+            </span>
+          </div>
+        </div>
+
         <!-- Badge Noticias -->
         <div class="stats-badge noticias" id="badgeNoticias">
           <div class="stats-badge-header">
@@ -2698,13 +2871,23 @@
           <span class="stats-counter-label">políticos</span>
         </div>
         <div class="stats-counter-separator"></div>
+        <div class="stats-counter-item mandatos">
+          <span class="stats-counter-value" id="counterMandatos">0</span>
+          <span class="stats-counter-label">mandatos</span>
+        </div>
+        <div class="stats-counter-separator"></div>
+        <div class="stats-counter-item emendas">
+          <span class="stats-counter-value" id="counterEmendas">0</span>
+          <span class="stats-counter-label">emendas</span>
+        </div>
+        <div class="stats-counter-separator"></div>
         <div class="stats-counter-item noticias">
           <span class="stats-counter-value" id="counterNoticias">0</span>
           <span class="stats-counter-label">notícias</span>
         </div>
       </div>
 
-      <div class="cards">
+      <div class="cards" style="display:none">
         <div class="card active" onclick="openCompanyModal()">
           <div class="card-header">
             <div class="card-icon red">
@@ -3242,6 +3425,8 @@
         empresas: { total: 0, history: [] },
         pessoas: { total: 0, history: [] },
         politicos: { total: 0, history: [] },
+        mandatos: { total: 0, history: [] },
+        emendas: { total: 0, history: [] },
         noticias: { total: 0, history: [] }
       };
 
@@ -3250,6 +3435,8 @@
         empresas: { line: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)' },
         pessoas: { line: '#f97316', bg: 'rgba(249, 115, 22, 0.1)' },
         politicos: { line: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
+        mandatos: { line: '#eab308', bg: 'rgba(234, 179, 8, 0.1)' },
+        emendas: { line: '#a855f7', bg: 'rgba(168, 85, 247, 0.1)' },
         noticias: { line: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)' }
       };
 
@@ -3301,6 +3488,10 @@
         if (dateEl) dateEl.textContent = formatDateBR(data.data_referencia || new Date().toISOString());
         if (totalEl) totalEl.textContent = formatNumber(data.total);
         if (counterEl) animateCounter(`counter${capitalize(categoria)}`, data.total);
+
+        // Update compact card
+        const compactEl = document.getElementById(`compact${capitalize(categoria)}`);
+        if (compactEl) compactEl.textContent = formatNumber(data.total);
 
         if (growthEl) {
           const growth = data.crescimento_percentual || 0;
@@ -3402,7 +3593,7 @@
         const circumference = 50.27; // 2 * PI * 8
         const progress = (countdownSeconds / COUNTDOWN_TOTAL) * circumference;
 
-        ['Empresas', 'Pessoas', 'Politicos', 'Noticias'].forEach(cat => {
+        ['Empresas', 'Pessoas', 'Politicos', 'Mandatos', 'Emendas', 'Noticias'].forEach(cat => {
           const ring = document.getElementById(`countdown${cat}`);
           if (ring) {
             ring.style.strokeDashoffset = circumference - progress;
@@ -3440,7 +3631,7 @@
         } catch (error) {
           console.error('Erro ao carregar stats:', error);
           // Em caso de erro, mostrar offline
-          ['Empresas', 'Pessoas', 'Politicos', 'Noticias'].forEach(cat => {
+          ['Empresas', 'Pessoas', 'Politicos', 'Mandatos', 'Emendas', 'Noticias'].forEach(cat => {
             const onlineEl = document.getElementById(`badge${cat}Online`);
             if (onlineEl) {
               onlineEl.innerHTML = '<span style="color: #64748b;">OFFLINE</span>';
@@ -4262,6 +4453,20 @@
       function openPoliticosFromCard() {
         // Atlas agent stub - will be implemented in Phase 4
         console.log('Atlas: Politicos module clicked');
+      }
+
+      function openEmendasModal() {
+        // Opens Atlas with emendas prompt
+        if (typeof Atlas !== 'undefined' && Atlas.toggle) {
+          Atlas.toggle();
+          setTimeout(() => {
+            const input = document.getElementById('atlasInput');
+            if (input) {
+              input.value = 'Mostre as emendas parlamentares mais recentes';
+              input.focus();
+            }
+          }, 300);
+        }
       }
 
       function openNewsModal() {

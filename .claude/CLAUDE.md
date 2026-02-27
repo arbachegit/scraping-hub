@@ -446,5 +446,63 @@ uvicorn api.main:app --reload
 
 ---
 
+## GOLDEN RULES (REGRAS DE OURO APROVADAS)
+
+<!-- GOLDEN_RULE_APPROVED: UX_IMMUTABILITY | 2026-02-27 | v3.1.0 -->
+### Golden Rule 1: UX Immutability
+
+O layout aprovado do dashboard é imutável sem aprovação explícita documentada.
+
+**Layout aprovado (top→bottom):**
+1. Header
+2. Título "Módulos de Inteligência"
+3. 5 Compact Cards (130x60px, horizontal): empresas, pessoas, políticos, emendas, notícias
+4. 6 Stats Badges (180x90px): empresas, pessoas, políticos, mandatos, emendas, notícias
+5. Counter Line (6 items): empresas | pessoas | políticos | mandatos | emendas | notícias
+6. Atlas FAB
+
+**Para alterar:**
+- Requer aprovação explícita do usuário
+- Documentar mudança neste arquivo com data e versão
+- Atualizar este layout aprovado
+
+---
+
+<!-- GOLDEN_RULE_APPROVED: LOW_LATENCY | 2026-02-27 | v3.1.0 -->
+### Golden Rule 2: Low Latency
+
+- APIs devem responder em < 200ms (exceto scraping externo)
+- Dashboard deve carregar em < 1s (First Contentful Paint)
+- `Promise.all` obrigatório para queries paralelas (nunca sequencial)
+- Stats endpoint: todas as contagens em uma única requisição paralela
+
+---
+
+<!-- GOLDEN_RULE_APPROVED: SCRIPT_IMMUTABILITY | 2026-02-27 | v3.1.0 -->
+### Golden Rule 3: Script Immutability
+
+Scripts aprovados e em produção são imutáveis até update explícito documentado.
+
+**Scripts protegidos:**
+- `scripts/audit_graphs.py` — Auditoria de gráficos cumulativos
+- `scheduler/collector.py` — Coletor diário + auditoria 3 AM
+
+**Para alterar:**
+- Requer ordem explícita do usuário
+- Documentar mudança no Change Log abaixo
+
+---
+
+## CHANGE LOG (Aprovações)
+
+| Data | Versão | Mudança | Aprovado por |
+|------|--------|---------|--------------|
+| 2026-02-27 | v3.1.0 | Golden Rules adicionadas (UX, Latency, Scripts) | Fernando |
+| 2026-02-27 | v3.1.0 | Dashboard: +compact cards, +emendas/mandatos badges | Fernando |
+| 2026-02-27 | v3.1.0 | Backend: +emendas em stats.js, +constants | Fernando |
+| 2026-02-27 | v3.1.0 | Scripts: +audit_graphs.py, +audit cron 3AM | Fernando |
+
+---
+
 **ESTE DOCUMENTO É A FONTE DA VERDADE**
 **VIOLAÇÕES SERÃO REJEITADAS**

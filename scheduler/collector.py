@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 from supabase import Client, create_client
 
 from config.settings import settings
+from scripts.audit_graphs import GraphAuditor
 from mcp_servers.apollo_mcp import ApolloMCPServer
 from mcp_servers.brasil_data_hub_mcp import BrasilDataHubMCPServer
 from mcp_servers.brasilapi_mcp import BrasilAPIMCPServer
@@ -418,6 +419,34 @@ class DataCollector:
         finally:
             self._running = False
 
+    async def run_daily_audit(self) -> dict[str, Any]:
+        """
+        Auditoria diária dos gráficos cumulativos.
+        Executa 1h após a coleta (3 AM) com fix=True.
+
+        Returns:
+            Resultado da auditoria
+        """
+        logger.info("daily_audit_start")
+
+        try:
+            auditor = GraphAuditor()
+            results = auditor.run_full_audit(fix=True)
+
+            summary = {
+                "status": "pass" if all(r.status == "pass" for r in results) else "fail",
+                "categories_audited": len(results),
+                "total_anomalies": sum(r.anomalies for r in results),
+                "total_fixed": sum(r.fixed for r in results),
+            }
+
+            logger.info("daily_audit_complete", **summary)
+            return summary
+
+        except Exception as e:
+            logger.error("daily_audit_error", error=str(e))
+            return {"status": "error", "error": str(e)}
+
     def start(self) -> None:
         """Inicia o scheduler"""
         if not settings.scheduler_enabled:
@@ -435,11 +464,20 @@ class DataCollector:
             replace_existing=True,
         )
 
+        self.scheduler.add_job(
+            self.run_daily_audit,
+            CronTrigger(hour=3, minute=0),
+            id="daily_audit",
+            name="Auditoria diária de gráficos",
+            replace_existing=True,
+        )
+
         self.scheduler.start()
         logger.info(
             "scheduler_started",
             hour=settings.scheduler_hour,
             minute=settings.scheduler_minute,
+            audit_hour=3,
         )
 
     def stop(self) -> None:
