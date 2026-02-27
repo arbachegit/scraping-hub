@@ -1450,6 +1450,19 @@ export async function adminResendInvite(userId: number): Promise<{ success: bool
   return res.json();
 }
 
+export async function adminPermanentDeleteUser(userId: number): Promise<{ success: boolean; message: string }> {
+  const res = await fetchWithAuth(`${API_BASE}/admin/users/${userId}/permanent`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao excluir usuario' }));
+    throw new Error(error.detail || 'Erro ao excluir usuario');
+  }
+
+  return res.json();
+}
+
 // ============================================
 // UTILS
 // ============================================

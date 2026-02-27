@@ -17,6 +17,7 @@ import {
   KeyRound,
   Phone,
   Send,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ import {
   adminUpdateUser,
   adminDeleteUser,
   adminResendInvite,
+  adminPermanentDeleteUser,
   type AdminUser,
   type AdminCreateUserRequest,
   type AdminCreateUserFlowRequest,
@@ -37,10 +39,12 @@ import {
 import { isAuthenticated } from '@/lib/auth';
 
 type CreateMode = 'password' | 'invite';
+type Tab = 'ativos' | 'inativos';
 
 export default function AdminPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<Tab>('ativos');
 
   // Auth check
   const userQuery = useQuery({
@@ -76,6 +80,7 @@ export default function AdminPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<AdminUser | null>(null);
+  const [confirmPermanentDelete, setConfirmPermanentDelete] = useState<AdminUser | null>(null);
 
   // Loading guard
   if (userQuery.isLoading) {
@@ -90,7 +95,10 @@ export default function AdminPage() {
     return null;
   }
 
-  const users = usersQuery.data?.users || [];
+  const allUsers = usersQuery.data?.users || [];
+  const activeUsers = allUsers.filter((u) => u.is_active);
+  const inactiveUsers = allUsers.filter((u) => !u.is_active);
+  const displayedUsers = activeTab === 'ativos' ? activeUsers : inactiveUsers;
 
   return (
     <div className="min-h-screen bg-[#0a0e1a]">
@@ -128,17 +136,49 @@ export default function AdminPage() {
         {/* Stats bar */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-xs text-cyan-400">
-            <span className="font-semibold">{users.length}</span>
+            <span className="font-semibold">{allUsers.length}</span>
             <span>usuarios cadastrados</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">
-            <span className="font-semibold">{users.filter((u) => u.is_active).length}</span>
+            <span className="font-semibold">{activeUsers.length}</span>
             <span>ativos</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
-            <span className="font-semibold">{users.filter((u) => !u.is_active).length}</span>
+            <span className="font-semibold">{inactiveUsers.length}</span>
             <span>inativos</span>
           </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex mb-4 border-b border-white/5">
+          <button
+            onClick={() => setActiveTab('ativos')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+              activeTab === 'ativos'
+                ? 'text-cyan-400'
+                : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Ativos
+            <span className="ml-1.5 text-xs opacity-70">({activeUsers.length})</span>
+            {activeTab === 'ativos' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('inativos')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+              activeTab === 'inativos'
+                ? 'text-cyan-400'
+                : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Inativos
+            <span className="ml-1.5 text-xs opacity-70">({inactiveUsers.length})</span>
+            {activeTab === 'inativos' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400" />
+            )}
+          </button>
         </div>
 
         {/* Users table */}
@@ -183,7 +223,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {displayedUsers.map((user) => (
                   <tr
                     key={user.id}
                     className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors"
@@ -255,16 +295,27 @@ export default function AdminPage() {
                             <UserX className="h-3.5 w-3.5" />
                           </button>
                         ) : (
-                          <ReactivateButton userId={user.id} queryClient={queryClient} />
+                          <>
+                            <ReactivateButton userId={user.id} queryClient={queryClient} />
+                            <button
+                              onClick={() => setConfirmPermanentDelete(user)}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                              title="Excluir permanentemente"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
+                {displayedUsers.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-400">
-                      Nenhum usuario cadastrado.
+                      {activeTab === 'ativos'
+                        ? 'Nenhum usuario ativo.'
+                        : 'Nenhum usuario inativo.'}
                     </td>
                   </tr>
                 )}
@@ -297,6 +348,15 @@ export default function AdminPage() {
         <ConfirmDeactivateModal
           user={confirmDeactivate}
           onClose={() => setConfirmDeactivate(null)}
+          queryClient={queryClient}
+        />
+      )}
+
+      {/* Confirm Permanent Delete Modal */}
+      {confirmPermanentDelete && (
+        <ConfirmPermanentDeleteModal
+          user={confirmPermanentDelete}
+          onClose={() => setConfirmPermanentDelete(null)}
           queryClient={queryClient}
         />
       )}
@@ -837,7 +897,7 @@ function ConfirmDeactivateModal({
             Deseja desativar o usuario <strong className="text-slate-100">{user.name || user.email}</strong>?
           </p>
           <p className="text-xs text-slate-400">
-            O usuario nao podera mais fazer login. Esta acao pode ser revertida.
+            O usuario nao podera mais fazer login. Ele sera movido para a aba Inativos.
           </p>
 
           <div className="flex items-center gap-2 pt-2">
@@ -863,6 +923,87 @@ function ConfirmDeactivateModal({
                 <UserX className="h-3.5 w-3.5" />
               )}
               Desativar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// Confirm Permanent Delete Modal
+// ===========================================
+
+function ConfirmPermanentDeleteModal({
+  user,
+  onClose,
+  queryClient,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const [error, setError] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => adminPermanentDeleteUser(user.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      onClose();
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#0f1629] border border-white/10 rounded-xl w-full max-w-sm mx-4 shadow-2xl">
+        <div className="px-5 py-4 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-red-400" />
+            <h2 className="text-sm font-semibold text-slate-100">Excluir Permanentemente</h2>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          {error && (
+            <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+              {error}
+            </div>
+          )}
+
+          <p className="text-sm text-slate-300">
+            Deseja excluir permanentemente o usuario <strong className="text-slate-100">{user.name || user.email}</strong>?
+          </p>
+          <p className="text-xs text-red-400 font-medium">
+            Esta acao NAO pode ser revertida. O usuario sera removido do banco de dados.
+          </p>
+
+          <div className="flex items-center gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="flex-1"
+              disabled={mutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => mutation.mutate()}
+              className="flex-1 gap-1.5"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Excluir
             </Button>
           </div>
         </div>

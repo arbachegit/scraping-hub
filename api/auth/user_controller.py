@@ -417,3 +417,44 @@ async def delete_user(
     except Exception as e:
         logger.error("delete_user_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/users/{user_id}/permanent")
+async def permanent_delete_user(
+    user_id: int,
+    request: Request,
+    current_user: TokenData = Depends(require_admin),
+):
+    """Remove usuario permanentemente do banco (hard delete)."""
+    supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        # Nao permitir auto-exclusao
+        existing = supabase.table("users").select("email").eq("id", user_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+        if existing.data[0]["email"] == current_user.email:
+            raise HTTPException(status_code=400, detail="Nao pode excluir a si mesmo")
+
+        # Hard delete
+        supabase.table("users").delete().eq("id", user_id).execute()
+
+        logger.info("user_permanent_deleted", user_id=user_id, by=current_user.email)
+
+        await log_action(
+            current_user.user_id,
+            "admin.user_permanent_deleted",
+            f"users/{user_id}",
+            details={"email": existing.data[0]["email"]},
+            request=request,
+        )
+
+        return {"success": True, "message": "Usuario removido permanentemente"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("permanent_delete_user_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
