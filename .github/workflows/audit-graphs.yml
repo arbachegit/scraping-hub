@@ -1,0 +1,72 @@
+# =============================================================================
+# AUDIT GRAPHS — Run graph integrity audit on production
+# =============================================================================
+# Runs the audit_graphs.py script via docker exec on the scheduler container.
+# Can be triggered manually or on schedule.
+# =============================================================================
+
+name: Audit Graphs
+
+on:
+  workflow_dispatch:
+    inputs:
+      fix:
+        description: 'Fix anomalies (carry-forward)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      category:
+        description: 'Category to audit (empty = all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - empresas
+          - pessoas
+          - politicos
+          - mandatos
+          - emendas
+          - noticias
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: audit-graphs
+      cancel-in-progress: false
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run Audit on Server
+        env:
+          HOST: ${{ secrets.DO_HOST }}
+          USER: ${{ secrets.DO_USERNAME }}
+          FIX: ${{ github.event.inputs.fix }}
+          CATEGORY: ${{ github.event.inputs.category }}
+        run: |
+          FIX_FLAG=""
+          if [ "$FIX" = "true" ]; then
+            FIX_FLAG="--fix"
+          fi
+
+          CAT_FLAG=""
+          if [ -n "$CATEGORY" ]; then
+            CAT_FLAG="--category $CATEGORY"
+          fi
+
+          echo "Running audit with: $FIX_FLAG $CAT_FLAG"
+
+          ssh -i ~/.ssh/deploy_key $USER@$HOST "
+            cd /opt/iconsai-scraping && \
+            docker compose exec -T scheduler python -m scripts.audit_graphs $FIX_FLAG $CAT_FLAG
+          "
