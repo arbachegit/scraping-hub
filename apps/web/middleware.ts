@@ -13,7 +13,7 @@ import type { NextRequest } from 'next/server';
  * users, avoiding a flash of protected content.
  */
 
-const PROTECTED_ROUTES = ['/dashboard', '/admin'];
+const PROTECTED_ROUTES = ['/dashboard', '/admin', '/profile'];
 const PUBLIC_ROUTES = ['/', '/set-password', '/verify', '/reset-password', '/recover-password'];
 
 export function middleware(request: NextRequest) {
@@ -40,5 +40,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/profile/:path*'],
 };

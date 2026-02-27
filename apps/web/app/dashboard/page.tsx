@@ -83,6 +83,11 @@ export default function DashboardPage() {
     if (userQuery.data) {
       setUserName(userQuery.data.name || userQuery.data.email);
       setIsAdmin(userQuery.data.is_admin);
+      // Redirect to profile completion if not complete (skip for admins)
+      if (userQuery.data.profile_complete === false && !userQuery.data.is_admin) {
+        router.push('/profile/complete');
+        return;
+      }
     }
     if (userQuery.isError) {
       handleLogout();

@@ -35,11 +35,66 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
   return result;
 }
 
-export async function getUser(): Promise<{ email: string; name: string; is_admin: boolean }> {
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string | null;
+  is_admin: boolean;
+  permissions: string[];
+  is_active: boolean;
+  is_verified: boolean;
+  profile_complete: boolean;
+}
+
+export async function getUser(): Promise<UserProfile> {
   const res = await fetchWithAuth(`${API_BASE}/auth/me`);
 
   if (!res.ok) {
     throw new Error('Not authenticated');
+  }
+
+  return res.json();
+}
+
+export interface ProfileCompleteRequest {
+  cpf: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+export async function completeProfile(data: ProfileCompleteRequest): Promise<{ success: boolean; message: string; profile_complete: boolean }> {
+  const res = await fetchWithAuth(`${API_BASE}/auth/profile/complete`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Erro ao completar perfil' }));
+    throw new Error(error.detail || 'Erro ao completar perfil');
+  }
+
+  return res.json();
+}
+
+export interface CepResult {
+  cep: string;
+  state: string;
+  city: string;
+  neighborhood: string;
+  street: string;
+}
+
+export async function lookupCep(cep: string): Promise<CepResult> {
+  const cleanCep = cep.replace(/\D/g, '');
+  const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cleanCep}`);
+
+  if (!res.ok) {
+    throw new Error('CEP nao encontrado');
   }
 
   return res.json();
@@ -1298,7 +1353,6 @@ export interface AdminUpdateUserResponse {
 export interface AdminCreateUserFlowRequest {
   name: string;
   email: string;
-  cpf?: string;
   phone?: string;
 }
 
@@ -1335,14 +1389,9 @@ export async function adminCreateUser(data: AdminCreateUserRequest): Promise<Adm
 }
 
 export async function adminCreateUserFlow(data: AdminCreateUserFlowRequest): Promise<AdminCreateUserFlowResponse> {
-  const params = new URLSearchParams();
-  params.append('name', data.name);
-  params.append('email', data.email);
-  if (data.cpf) params.append('cpf', data.cpf);
-  if (data.phone) params.append('phone', data.phone);
-
-  const res = await fetchWithAuth(`${API_BASE}/auth/admin/create-user?${params.toString()}`, {
+  const res = await fetchWithAuth(`${API_BASE}/admin/users/invite`, {
     method: 'POST',
+    body: JSON.stringify(data),
   });
 
   if (!res.ok) {

@@ -16,7 +16,6 @@ import {
   User,
   KeyRound,
   Phone,
-  CreditCard,
   Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -373,7 +372,6 @@ function CreateUserModal({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -421,7 +419,6 @@ function CreateUserModal({
       createWithInviteMutation.mutate({
         name,
         email,
-        cpf: cpf || undefined,
         phone: phone || undefined,
       });
     }
@@ -541,36 +538,20 @@ function CreateUserModal({
             </div>
           )}
 
-          {/* CPF + Phone (only for invite mode) */}
+          {/* Phone (only for invite mode) */}
           {mode === 'invite' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-300">
-                  CPF <span className="text-slate-500">(opcional)</span>
-                </label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <Input
-                    value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
-                    placeholder="000.000.000-00"
-                    className="pl-10 h-10"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-300">
-                  Telefone <span className="text-slate-500">(opcional)</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <Input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(00) 00000-0000"
-                    className="pl-10 h-10"
-                  />
-                </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-300">
+                Telefone <span className="text-slate-500">(opcional)</span>
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="pl-10 h-10"
+                />
               </div>
             </div>
           )}
