@@ -658,9 +658,11 @@ async def backfill_stats_history(
                 day_end = f"{next_day}T03:00:00.000Z"
 
                 try:
+                    # 'planned' usa EXPLAIN (considera WHERE, muito mais rapido que 'exact')
+                    # Para tabelas 64M+ rows, 'exact' causa timeout no Supabase
                     r = (
                         client.from_(table)
-                        .select("id", count="exact", head=True)
+                        .select("id", count="planned", head=True)
                         .gte(col, day_start)
                         .lt(col, day_end)
                         .execute()
