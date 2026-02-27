@@ -361,30 +361,29 @@ router.post('/snapshot', async (req, res) => {
     const counts = await getAllCounts();
     const hojeISO = new Date().toISOString().split('T')[0];
 
-    // Buscar snapshots existentes de hoje (ou do último dia disponível)
+    // Buscar snapshots existentes de hoje
     const { data: existingToday } = await supabase
       .from('stats_historico')
       .select('categoria, total')
       .eq('data', hojeISO);
 
-    const existingTotals = {};
+    const todayTotals = {};
     for (const row of existingToday || []) {
-      existingTotals[row.categoria] = row.total;
+      todayTotals[row.categoria] = row.total;
     }
 
-    // Se não tiver dados de hoje, buscar o último snapshot conhecido
-    if (Object.keys(existingTotals).length === 0) {
-      const { data: lastSnaps } = await supabase
-        .from('stats_historico')
-        .select('categoria, total')
-        .lt('data', hojeISO)
-        .order('data', { ascending: false })
-        .limit(10);
+    // SEMPRE buscar o último snapshot do dia anterior (proteção contra estimativas flutuantes)
+    const previousDayTotals = {};
+    const { data: lastSnaps } = await supabase
+      .from('stats_historico')
+      .select('categoria, total')
+      .lt('data', hojeISO)
+      .order('data', { ascending: false })
+      .limit(10);
 
-      for (const row of lastSnaps || []) {
-        if (!existingTotals[row.categoria]) {
-          existingTotals[row.categoria] = row.total;
-        }
+    for (const row of lastSnaps || []) {
+      if (!previousDayTotals[row.categoria]) {
+        previousDayTotals[row.categoria] = row.total;
       }
     }
 
@@ -393,18 +392,20 @@ router.post('/snapshot', async (req, res) => {
 
     for (const cat of categories) {
       const currentEstimate = counts[cat] || 0;
-      const previousTotal = existingTotals[cat] || 0;
+      const todayValue = todayTotals[cat] || 0;
+      const previousDayValue = previousDayTotals[cat] || 0;
 
-      // REGRA: nunca diminuir (estimated count flutua)
-      const total = Math.max(currentEstimate, previousTotal);
+      // REGRA: nunca diminuir — usar o MAIOR entre estimativa, hoje e dia anterior
+      const total = Math.max(currentEstimate, todayValue, previousDayValue);
 
       snapshots.push({ data: hojeISO, categoria: cat, total });
 
-      if (currentEstimate < previousTotal) {
+      if (currentEstimate < todayValue || currentEstimate < previousDayValue) {
         logger.warn('Estimated count dropped (protected)', {
           categoria: cat,
           estimated: currentEstimate,
-          previous: previousTotal,
+          todayExisting: todayValue,
+          previousDay: previousDayValue,
           kept: total,
         });
       }
