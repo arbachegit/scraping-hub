@@ -410,12 +410,17 @@ function ResendInviteButton({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const mutation = useMutation({
     mutationFn: () => adminResendInvite(userId),
     onSuccess: () => {
       setSent(true);
+      setError('');
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (err: Error) => {
+      setError(err.message);
     },
   });
 
@@ -423,6 +428,20 @@ function ResendInviteButton({
     return (
       <span className="inline-flex items-center justify-center h-8 px-2 rounded-lg text-green-400 text-[11px]">
         Enviado
+      </span>
+    );
+  }
+
+  if (error) {
+    return (
+      <span className="inline-flex items-center gap-1 h-8 px-2 rounded-lg text-red-400 text-[11px]" title={error}>
+        Falha
+        <button
+          onClick={() => { setError(''); mutation.mutate(); }}
+          className="ml-1 text-amber-400 hover:text-amber-300 underline"
+        >
+          Tentar
+        </button>
       </span>
     );
   }

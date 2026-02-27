@@ -498,3 +498,43 @@ async def permanent_delete_user(
     except Exception as e:
         logger.error("permanent_delete_user_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/smtp-test")
+async def smtp_test(current_user: TokenData = Depends(require_admin)):
+    """Diagnostico SMTP — testa conexao e autenticacao (admin only)."""
+    from config.settings import settings
+
+    result = {
+        "smtp_host": settings.smtp_host,
+        "smtp_port": settings.smtp_port,
+        "smtp_user": settings.smtp_user or "(vazio)",
+        "smtp_password_set": bool(settings.smtp_password),
+        "email_from": settings.email_from,
+        "is_configured": bool(
+            settings.smtp_host and settings.smtp_user and settings.smtp_password
+        ),
+    }
+
+    if not result["is_configured"]:
+        return {**result, "status": "NOT_CONFIGURED", "error": "SMTP credentials missing"}
+
+    try:
+        import aiosmtplib
+
+        smtp = aiosmtplib.SMTP(
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            use_tls=False,
+            start_tls=True,
+        )
+        await smtp.connect()
+        await smtp.login(settings.smtp_user, settings.smtp_password)
+        await smtp.quit()
+        return {**result, "status": "OK", "error": None}
+    except Exception as e:
+        return {
+            **result,
+            "status": "FAILED",
+            "error": f"{type(e).__name__}: {e}",
+        }

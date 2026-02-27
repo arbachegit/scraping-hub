@@ -31,8 +31,11 @@ async def _send_smtp(to_email: str, subject: str, body_html: str) -> bool:
         email_from=settings.email_from,
     )
 
+    # Gmail requires FROM to match the authenticated account
+    sender = settings.smtp_user or settings.email_from
+
     msg = MIMEMultipart("alternative")
-    msg["From"] = settings.email_from
+    msg["From"] = sender
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.attach(MIMEText(body_html, "html", "utf-8"))
