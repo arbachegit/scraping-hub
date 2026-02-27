@@ -1,6 +1,23 @@
 # Dependabot configuration for automated dependency updates
 version: 2
 updates:
+  # Root + apps/web workspace (npm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Backend (npm)
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
@@ -10,7 +27,29 @@ updates:
     labels:
       - "dependencies"
       - "security"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
+  # MCP Server (npm)
+  - package-ecosystem: "npm"
+    directory: "/mcp-servers/brasil-data-hub"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python (pip)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -21,6 +60,7 @@ updates:
       - "dependencies"
       - "security"
 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
