@@ -7,14 +7,15 @@ Usage:
 Adds address fields (cep, logradouro, numero, complemento, bairro, cidade, uf)
 to the users table for profile completion flow.
 
-Requires: DATABASE_URL or SUPABASE_URL + SUPABASE_SERVICE_KEY in .env
+Requires: SUPABASE_URL + SUPABASE_SERVICE_KEY in .env
+Uses Supabase SQL HTTP API (no psycopg2/DATABASE_URL needed).
 """
 
 import os
-import re
 import sys
 from pathlib import Path
 
+import httpx
 import structlog
 from dotenv import load_dotenv
 
@@ -27,30 +28,57 @@ load_dotenv(project_root / ".env")
 logger = structlog.get_logger()
 
 
-def get_database_url() -> str:
-    """Get PostgreSQL connection URL."""
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        return database_url
+def execute_sql_via_supabase(sql: str) -> dict:
+    """Execute SQL via Supabase SQL HTTP API (pg-meta)."""
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    service_key = os.getenv("SUPABASE_SERVICE_KEY", "")
 
-    supabase_url = os.getenv("SUPABASE_URL", "")
+    if not supabase_url or not service_key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env")
 
-    if not supabase_url:
-        raise ValueError("DATABASE_URL or SUPABASE_URL must be set in .env")
+    # Supabase pg-meta SQL endpoint
+    url = f"{supabase_url}/rest/v1/rpc/exec_sql"
 
-    match = re.match(r"https://([^.]+)\.supabase\.co", supabase_url)
-    if not match:
-        raise ValueError(f"Cannot parse Supabase URL: {supabase_url}")
+    # First try pg-meta endpoint, then fall back to direct REST
+    # The most reliable way: use the Supabase Management API pg endpoint
+    # Format: POST {supabase_url}/pg/query with service_role key
+    pg_url = f"{supabase_url}/pg/query"
 
-    project_ref = match.group(1)
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
-    return f"postgresql://postgres.{project_ref}:{supabase_key}@aws-0-us-west-2.pooler.supabase.com:6543/postgres"
+    headers = {
+        "apikey": service_key,
+        "Authorization": f"Bearer {service_key}",
+        "Content-Type": "application/json",
+    }
+
+    response = httpx.post(
+        pg_url,
+        headers=headers,
+        json={"query": sql},
+        timeout=30.0,
+    )
+
+    if response.status_code == 200:
+        return response.json()
+
+    # Fallback: try the REST rpc endpoint (requires exec_sql function)
+    rpc_url = f"{supabase_url}/rest/v1/rpc/exec_sql"
+    response = httpx.post(
+        rpc_url,
+        headers=headers,
+        json={"sql": sql},
+        timeout=30.0,
+    )
+
+    if response.status_code == 200:
+        return response.json()
+
+    raise RuntimeError(
+        f"SQL execution failed (HTTP {response.status_code}): {response.text}"
+    )
 
 
 def apply_migration() -> None:
-    """Read and execute the migration SQL file."""
-    import psycopg2
-
+    """Read and execute the migration SQL statements."""
     migration_file = project_root / "database" / "migrations" / "migration_auth_address.sql"
 
     if not migration_file.exists():
@@ -68,13 +96,6 @@ def apply_migration() -> None:
 
     logger.info("statements_found", count=len(statements))
 
-    database_url = get_database_url()
-    logger.info("connecting_to_database")
-
-    conn = psycopg2.connect(database_url)
-    conn.autocommit = False
-    cur = conn.cursor()
-
     success_count = 0
     error_count = 0
 
@@ -86,20 +107,17 @@ def apply_migration() -> None:
         if not clean_stmt:
             continue
 
+        preview = clean_stmt.replace("\n", " ")[:80]
+
         try:
-            cur.execute(clean_stmt)
+            execute_sql_via_supabase(clean_stmt)
             success_count += 1
-            preview = clean_stmt.replace("\n", " ")[:80]
             logger.info("statement_ok", num=i, sql=preview)
         except Exception as e:
             error_count += 1
-            preview = clean_stmt.replace("\n", " ")[:80]
             logger.error("statement_failed", num=i, sql=preview, error=str(e))
-            conn.rollback()
-            conn.autocommit = False
 
     if error_count == 0:
-        conn.commit()
         logger.info(
             "migration_complete",
             success=success_count,
@@ -113,9 +131,6 @@ def apply_migration() -> None:
             errors=error_count,
             msg="Some statements failed. Review errors above.",
         )
-
-    cur.close()
-    conn.close()
 
 
 if __name__ == "__main__":
