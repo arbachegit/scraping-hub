@@ -18,7 +18,7 @@ interface StatsBadgeCardProps {
   dataReferencia: string;
   online: boolean;
   history: HistoryPoint[];
-  color: 'red' | 'orange' | 'blue' | 'green' | 'purple' | 'yellow';
+  color: 'red' | 'orange' | 'blue' | 'green' | 'purple';
   countdown: number;
   maxCountdown: number;
   size?: 'default' | 'large';
@@ -60,13 +60,6 @@ const colorConfig = {
     text: 'text-purple-400',
     line: '#a855f7',
     fill: 'rgba(168, 85, 247, 0.1)',
-  },
-  yellow: {
-    border: 'border-l-yellow-500',
-    bg: 'bg-yellow-500/5',
-    text: 'text-yellow-400',
-    line: '#eab308',
-    fill: 'rgba(234, 179, 8, 0.1)',
   },
 };
 
@@ -549,7 +542,7 @@ interface CounterLineProps {
   stats: Array<{
     label: string;
     value: number;
-    color: 'red' | 'orange' | 'blue' | 'green' | 'purple' | 'yellow';
+    color: 'red' | 'orange' | 'blue' | 'green' | 'purple';
   }>;
   countdown?: number;
   maxCountdown?: number;
@@ -593,7 +586,6 @@ export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComp
     blue: 'text-blue-400',
     green: 'text-green-400',
     purple: 'text-purple-400',
-    yellow: 'text-yellow-400',
   };
 
   return (
