@@ -10,16 +10,18 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.auth.audit_service import log_action
-from api.auth.auth_middleware import require_admin
+from api.auth.auth_middleware import get_current_user
 from api.auth.auth_service import create_set_password_token, hash_password
 from api.auth.email_service import send_set_password_email
 from api.auth.field_encryption import field_encryption
+from api.auth.messaging_service import messaging_service
 from api.auth.schemas.auth_schemas import TokenData
 from api.auth.schemas.user_schemas import (
     AdminCreateUserDirect,
     AdminInviteUser,
     AdminUpdateUser,
 )
+from config.settings import settings
 from src.database.client import get_supabase
 
 logger = structlog.get_logger()
@@ -33,7 +35,7 @@ router = APIRouter(tags=["Admin"])
 
 
 @router.get("/users")
-async def list_users(current_user: TokenData = Depends(require_admin)):
+async def list_users(current_user: TokenData = Depends(get_current_user)):
     """Lista todos os usuarios."""
     supabase = get_supabase()
     if not supabase:
@@ -91,9 +93,9 @@ async def list_users(current_user: TokenData = Depends(require_admin)):
 async def create_user(
     user_data: AdminCreateUserDirect,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
-    """Cria novo usuario com senha (admin only)."""
+    """Cria novo usuario com senha."""
     supabase = get_supabase()
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured")
@@ -114,7 +116,6 @@ async def create_user(
             "email": user_data.email,
             "name": user_data.name,
             "password_hash": hash_password(user_data.password),
-            "is_admin": user_data.is_admin,
             "permissions": user_data.permissions,
             "is_active": True,
             "is_verified": True,  # Created with password = already verified
@@ -149,11 +150,11 @@ async def create_user(
 async def invite_user(
     user_data: AdminInviteUser,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
     """
-    Admin creates a user by invite (name + email + phone, no password).
-    Sends set-password token via email.
+    Creates a user by invite (name + email + phone, no password).
+    Sends set-password link via Email + WhatsApp, and verification code via SMS.
     """
     supabase = get_supabase()
     if not supabase:
@@ -166,9 +167,9 @@ async def invite_user(
     if existing.data:
         raise HTTPException(status_code=400, detail="Email ja cadastrado")
 
-    # Encrypt phone if provided
+    # Encrypt phone (now required)
     phone_encrypted = None
-    if user_data.phone and field_encryption.is_configured:
+    if field_encryption.is_configured:
         try:
             phone_encrypted = field_encryption.encrypt_phone(user_data.phone)
         except ValueError as e:
@@ -179,7 +180,6 @@ async def invite_user(
         "email": normalized_email,
         "name": user_data.name,
         "password_hash": "",  # No password yet
-        "is_admin": False,
         "permissions": [],
         "is_active": True,
         "is_verified": False,
@@ -196,46 +196,40 @@ async def invite_user(
 
         # Generate set-password token
         set_pwd_token = create_set_password_token(user_id, normalized_email)
+        set_password_url = f"{settings.app_base_url}/set-password?token={set_pwd_token}"
 
-        # Send email — propagate failure to the admin
+        # Send Email (set-password link)
         try:
-            email_sent = await send_set_password_email(
+            await send_set_password_email(
                 normalized_email, user_data.name, set_pwd_token
             )
         except Exception as email_err:
-            logger.error(
-                "invite_email_failed",
-                email=normalized_email,
-                user_id=user_id,
-                error=str(email_err),
-            )
-            raise HTTPException(
-                status_code=502,
-                detail=f"Usuario criado (ID {user_id}), mas falha ao enviar email: {email_err}",
-            )
+            logger.warning("invite_email_failed", email=normalized_email, error=str(email_err))
 
-        if not email_sent:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Usuario criado (ID {user_id}), mas falha ao enviar email. Tente reenviar o convite.",
+        # Send WhatsApp + SMS (invite with link)
+        try:
+            await messaging_service.send_invite(
+                user_data.phone, user_data.name, set_password_url, user_id
             )
+        except Exception as msg_err:
+            logger.warning("invite_messaging_failed", phone=user_data.phone, error=str(msg_err))
 
         # Audit log
         await log_action(
             current_user.user_id,
-            "admin.user_invited",
+            "user.invited",
             f"users/{user_id}",
             details={"email": normalized_email},
             request=request,
         )
 
-        logger.info("admin_user_invited", email=normalized_email, by=current_user.email)
+        logger.info("user_invited", email=normalized_email, by=current_user.email)
 
         return {
             "success": True,
             "user_id": user_id,
             "email": normalized_email,
-            "message": "Usuario criado. Email enviado com token para definir senha.",
+            "message": "Usuario criado. Convite enviado por email, WhatsApp e SMS.",
         }
 
     except HTTPException:
@@ -249,9 +243,9 @@ async def invite_user(
 async def resend_invite(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
-    """Resend set-password invite email for an unverified user."""
+    """Resend set-password invite via email + WhatsApp for an unverified user."""
     supabase = get_supabase()
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured")
@@ -259,7 +253,7 @@ async def resend_invite(
     try:
         result = (
             supabase.table("users")
-            .select("id, email, name, is_verified")
+            .select("id, email, name, is_verified, phone_encrypted")
             .eq("id", user_id)
             .limit(1)
             .execute()
@@ -274,40 +268,37 @@ async def resend_invite(
 
         # Generate new set-password token
         set_pwd_token = create_set_password_token(user["id"], user["email"])
+        set_password_url = f"{settings.app_base_url}/set-password?token={set_pwd_token}"
 
-        # Send email — propagate failure to the admin
+        # Send email
         try:
-            email_sent = await send_set_password_email(
+            await send_set_password_email(
                 user["email"], user.get("name", ""), set_pwd_token
             )
         except Exception as email_err:
-            logger.error(
-                "resend_invite_email_failed",
-                email=user["email"],
-                user_id=user_id,
-                error=str(email_err),
-            )
-            raise HTTPException(
-                status_code=502,
-                detail=f"Falha ao enviar email: {email_err}",
-            )
+            logger.warning("resend_invite_email_failed", email=user["email"], error=str(email_err))
 
-        if not email_sent:
-            raise HTTPException(
-                status_code=502,
-                detail="Falha ao enviar email. Verifique configuracao SMTP.",
-            )
+        # Send WhatsApp if phone available
+        phone_encrypted = user.get("phone_encrypted") or ""
+        if phone_encrypted and field_encryption.is_configured:
+            try:
+                phone = field_encryption.decrypt(phone_encrypted)
+                await messaging_service.send_invite(
+                    phone, user.get("name", ""), set_password_url, user["id"]
+                )
+            except Exception as msg_err:
+                logger.warning("resend_invite_messaging_failed", user_id=user_id, error=str(msg_err))
 
         # Audit log
         await log_action(
             current_user.user_id,
-            "admin.resend_invite",
+            "user.resend_invite",
             f"users/{user_id}",
             details={"email": user["email"]},
             request=request,
         )
 
-        logger.info("admin_resend_invite", email=user["email"], by=current_user.email)
+        logger.info("resend_invite", email=user["email"], by=current_user.email)
 
         return {
             "success": True,
@@ -324,7 +315,7 @@ async def resend_invite(
 @router.get("/users/{user_id}")
 async def get_user_by_id(
     user_id: int,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Busca usuario por ID."""
     supabase = get_supabase()
@@ -360,9 +351,9 @@ async def update_admin_user(
     user_id: int,
     user_data: AdminUpdateUser,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
-    """Atualiza usuario (admin only)."""
+    """Atualiza usuario."""
     supabase = get_supabase()
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured")
@@ -377,8 +368,6 @@ async def update_admin_user(
         updates = {}
         if user_data.name is not None:
             updates["name"] = user_data.name
-        if user_data.is_admin is not None:
-            updates["is_admin"] = user_data.is_admin
         if user_data.permissions is not None:
             updates["permissions"] = user_data.permissions
         if user_data.is_active is not None:
@@ -417,7 +406,7 @@ async def update_admin_user(
 async def delete_user(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Desativa usuario (soft delete)."""
     supabase = get_supabase()
@@ -463,7 +452,7 @@ async def delete_user(
 async def permanent_delete_user(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(require_admin),
+    current_user: TokenData = Depends(get_current_user),
 ):
     """Remove usuario permanentemente do banco (hard delete)."""
     supabase = get_supabase()
@@ -501,8 +490,8 @@ async def permanent_delete_user(
 
 
 @router.get("/smtp-test")
-async def smtp_test(current_user: TokenData = Depends(require_admin)):
-    """Diagnostico SMTP — testa conexao e autenticacao (admin only)."""
+async def smtp_test(current_user: TokenData = Depends(get_current_user)):
+    """Diagnostico SMTP — testa conexao e autenticacao."""
     from config.settings import settings
 
     result = {

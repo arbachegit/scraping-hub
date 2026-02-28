@@ -54,11 +54,3 @@ async def get_current_user(
     return token_data
 
 
-def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
-    """Dependency that requires is_admin == True."""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado. Requer permissao de administrador.",
-        )
-    return current_user

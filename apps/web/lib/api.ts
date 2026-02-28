@@ -1336,7 +1336,6 @@ export interface AdminCreateUserRequest {
   name: string;
   email: string;
   password: string;
-  is_admin: boolean;
   permissions: string[];
 }
 
@@ -1347,7 +1346,6 @@ export interface AdminCreateUserResponse {
 
 export interface AdminUpdateUserRequest {
   name?: string;
-  is_admin?: boolean;
   permissions?: string[];
   is_active?: boolean;
   new_password?: string;
@@ -1361,7 +1359,7 @@ export interface AdminUpdateUserResponse {
 export interface AdminCreateUserFlowRequest {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
 }
 
 export interface AdminCreateUserFlowResponse {

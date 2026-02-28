@@ -58,10 +58,10 @@ export default function RecoverPasswordPage() {
           {sent ? (
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm text-center">
-                Se o email estiver cadastrado, voce recebera um link para redefinir sua senha.
+                Se o email estiver cadastrado, enviaremos instrucoes por email e SMS.
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                Verifique tambem a pasta de spam. O link expira em 1 hora.
+                Verifique seu email (incluindo spam) e SMS. O link expira em 1 hora.
               </p>
               <a href="/" className="block">
                 <Button variant="outline" className="w-full gap-1.5">

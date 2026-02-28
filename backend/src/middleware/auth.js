@@ -63,16 +63,3 @@ export function requireAuth(req, res, next) {
   }
 }
 
-/**
- * Middleware that requires the authenticated user to be an admin.
- * Must be used AFTER requireAuth.
- */
-export function requireAdmin(req, res, next) {
-  if (!req.user || !req.user.is_admin) {
-    return res.status(403).json({
-      success: false,
-      error: 'Admin access required'
-    });
-  }
-  next();
-}

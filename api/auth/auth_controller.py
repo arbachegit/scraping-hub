@@ -29,6 +29,7 @@ from api.auth.email_service import (
     send_verification_code_email,
 )
 from api.auth.field_encryption import field_encryption
+from api.auth.messaging_service import messaging_service
 from api.auth.schemas.auth_schemas import (
     LoginRequest,
     RecoverPasswordRequest,
@@ -197,16 +198,26 @@ async def set_password(data: SetPasswordRequest, request: Request):
         {"password_hash": hash_password(data.password)}
     ).eq("id", user_id).execute()
 
-    # Generate and send activation code
+    # Generate activation code and send via SMS (+ email as fallback)
     code = await create_verification_code(user_id, "activation")
     if code:
+        # Send via SMS (primary channel for codes)
+        phone_encrypted = user.get("phone_encrypted") or ""
+        if phone_encrypted and field_encryption.is_configured:
+            try:
+                phone = field_encryption.decrypt(phone_encrypted)
+                await messaging_service.send_verification_code(phone, code, user_id)
+            except Exception as e:
+                logger.warning("set_password_sms_failed", user_id=user_id, error=str(e))
+
+        # Also send via email as secondary channel
         await send_verification_code_email(email, code, "activation")
 
     await log_action(user_id, "user.password_set", f"users/{user_id}", request=request)
 
     return {
         "success": True,
-        "message": "Senha definida. Codigo de ativacao enviado para o email.",
+        "message": "Senha definida. Codigo de ativacao enviado por SMS.",
         "email": email,
     }
 
@@ -269,6 +280,17 @@ async def resend_code(data: ResendCodeRequest, request: Request):
         user = user_result.data[0]
         code = await create_verification_code(user["id"], data.code_type)
         if code:
+            # Send via SMS (primary)
+            user_full = supabase.table("users").select("phone_encrypted").eq("id", user["id"]).limit(1).execute()
+            phone_encrypted = user_full.data[0].get("phone_encrypted", "") if user_full.data else ""
+            if phone_encrypted and field_encryption.is_configured:
+                try:
+                    phone = field_encryption.decrypt(phone_encrypted)
+                    await messaging_service.send_verification_code(phone, code, user["id"])
+                except Exception as e:
+                    logger.warning("resend_code_sms_failed", user_id=user["id"], error=str(e))
+
+            # Also send via email
             await send_verification_code_email(user["email"], code, data.code_type)
 
     return {
@@ -305,9 +327,21 @@ async def recover_password(data: RecoverPasswordRequest, request: Request):
         # Generate verification code
         code = await create_verification_code(user["id"], "password_reset")
 
+        # Send via email
         if code:
             await send_verification_code_email(user["email"], code, "password_reset")
         await send_password_reset_email(user["email"], reset_token)
+
+        # Also send code via SMS if phone available
+        if code:
+            user_full = supabase.table("users").select("phone_encrypted").eq("id", user["id"]).limit(1).execute()
+            phone_encrypted = user_full.data[0].get("phone_encrypted", "") if user_full.data else ""
+            if phone_encrypted and field_encryption.is_configured:
+                try:
+                    phone = field_encryption.decrypt(phone_encrypted)
+                    await messaging_service.send_password_reset(phone, code, user["id"])
+                except Exception as e:
+                    logger.warning("recover_password_sms_failed", user_id=user["id"], error=str(e))
 
         await log_action(
             user["id"],
@@ -319,7 +353,7 @@ async def recover_password(data: RecoverPasswordRequest, request: Request):
     # Always return success to prevent email enumeration
     return {
         "success": True,
-        "message": "Se o email estiver cadastrado, enviaremos instrucoes de recuperacao.",
+        "message": "Se o email estiver cadastrado, enviaremos instrucoes por email e SMS.",
     }
 
 

@@ -1,38 +1,51 @@
 """
 User-related Pydantic schemas.
 
-Includes: admin user CRUD, profile completion, expanded user response.
+Includes: user CRUD, profile completion, expanded user response.
 """
 
+import re
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class AdminInviteUser(BaseModel):
-    """Admin creates user by invite (name + email + phone, no CPF)."""
+    """Creates user by invite (name + email + phone, no CPF)."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: str = Field(..., min_length=2, max_length=200)
     email: EmailStr
-    phone: Optional[str] = None
+    phone: str = Field(..., min_length=10, max_length=20)
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
         return v.lower().strip()
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        clean = re.sub(r"[^\d+]", "", v)
+        if not clean.startswith("+55"):
+            clean = f"+55{clean.lstrip('+')}"
+        digits_only = clean.replace("+", "")
+        if len(digits_only) < 12 or len(digits_only) > 13:
+            raise ValueError(
+                "Telefone deve ter formato brasileiro (+55XXXXXXXXXXX)"
+            )
+        return clean
+
 
 class AdminCreateUserDirect(BaseModel):
-    """Admin creates user with direct password."""
+    """Creates user with direct password."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: str = Field(..., min_length=2, max_length=200)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    is_admin: bool = False
     permissions: List[str] = []
 
     @field_validator("email")
@@ -42,12 +55,11 @@ class AdminCreateUserDirect(BaseModel):
 
 
 class AdminUpdateUser(BaseModel):
-    """Admin updates user fields."""
+    """Updates user fields."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: Optional[str] = Field(default=None, min_length=2, max_length=200)
-    is_admin: Optional[bool] = None
     permissions: Optional[List[str]] = None
     is_active: Optional[bool] = None
     new_password: Optional[str] = Field(default=None, min_length=8, max_length=128)

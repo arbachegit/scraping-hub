@@ -64,16 +64,13 @@ export default function AdminPage() {
     if (userQuery.isError) {
       router.push('/');
     }
-    if (userQuery.data && !userQuery.data.is_admin) {
-      router.push('/dashboard');
-    }
-  }, [userQuery.data, userQuery.isError, router]);
+  }, [userQuery.isError, router]);
 
   // Users list
   const usersQuery = useQuery({
     queryKey: ['admin-users'],
     queryFn: adminListUsers,
-    enabled: userQuery.data?.is_admin === true,
+    enabled: !!userQuery.data,
   });
 
   // Modal states
@@ -91,7 +88,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!userQuery.data || !userQuery.data.is_admin) {
+  if (!userQuery.data) {
     return null;
   }
 
@@ -477,7 +474,6 @@ function CreateUserModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -518,14 +514,13 @@ function CreateUserModal({
         name,
         email,
         password,
-        is_admin: isAdmin,
         permissions: [],
       });
     } else {
       createWithInviteMutation.mutate({
         name,
         email,
-        phone: phone || undefined,
+        phone,
       });
     }
   }
@@ -644,37 +639,23 @@ function CreateUserModal({
             </div>
           )}
 
-          {/* Phone (only for invite mode) */}
+          {/* Phone (required for invite mode) */}
           {mode === 'invite' && (
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-300">
-                Telefone <span className="text-slate-500">(opcional)</span>
+                Telefone <span className="text-red-400">*</span>
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(00) 00000-0000"
+                  placeholder="+55 11 99999-0000"
                   className="pl-10 h-10"
+                  required
                 />
               </div>
-            </div>
-          )}
-
-          {/* Admin toggle (only for password mode) */}
-          {mode === 'password' && (
-            <div className="flex items-center gap-3">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAdmin}
-                  onChange={(e) => setIsAdmin(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-              </label>
-              <span className="text-xs font-medium text-slate-300">Administrador</span>
+              <p className="text-[10px] text-slate-500">WhatsApp + SMS serao enviados para este numero</p>
             </div>
           )}
 
@@ -719,7 +700,6 @@ function EditUserModal({
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const [name, setName] = useState(user.name || '');
-  const [isAdmin, setIsAdmin] = useState(user.is_admin);
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -743,7 +723,6 @@ function EditUserModal({
 
     const updates: AdminUpdateUserRequest = {};
     if (name !== (user.name || '')) updates.name = name;
-    if (isAdmin !== user.is_admin) updates.is_admin = isAdmin;
     if (newPassword) updates.new_password = newPassword;
 
     if (Object.keys(updates).length === 0) {
@@ -781,8 +760,8 @@ function EditUserModal({
               <p className="text-sm font-medium text-slate-200 truncate">{user.name || '-'}</p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
             </div>
-            <Badge variant={user.is_admin ? 'default' : 'outline'} className="flex-shrink-0">
-              {user.is_admin ? 'Admin' : 'Usuario'}
+            <Badge variant="outline" className="flex-shrink-0">
+              Usuario
             </Badge>
           </div>
         </div>
@@ -813,20 +792,6 @@ function EditUserModal({
                 minLength={2}
               />
             </div>
-          </div>
-
-          {/* Admin toggle */}
-          <div className="flex items-center gap-3">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAdmin}
-                onChange={(e) => setIsAdmin(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-            </label>
-            <span className="text-xs font-medium text-slate-300">Administrador</span>
           </div>
 
           {/* New Password */}
