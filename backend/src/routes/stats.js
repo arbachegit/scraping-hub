@@ -5,6 +5,13 @@ import logger from '../utils/logger.js';
 
 const router = Router();
 
+// Timezone helper — sempre usar horário de São Paulo (BRT/BRST)
+const BRT_FORMATTER = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' });
+
+function getDateBRT(date = new Date()) {
+  return BRT_FORMATTER.format(date); // returns 'YYYY-MM-DD'
+}
+
 // Cache in-memory para getAllCounts() — zero deps, TTL 30s
 let countsCache = null;
 let countsCacheTime = 0;
@@ -200,10 +207,10 @@ router.get('/current', async (req, res) => {
     const counts = await getAllCountsCached();
 
     const hoje = new Date();
+    const hojeISO = getDateBRT(hoje);
     const ontem = new Date(hoje);
     ontem.setDate(ontem.getDate() - 1);
-    const ontemISO = ontem.toISOString().split('T')[0];
-    const hojeISO = hoje.toISOString().split('T')[0];
+    const ontemISO = getDateBRT(ontem);
 
     // Fetch yesterday's snapshot
     const { data: historicoOntem } = await supabase
@@ -254,7 +261,7 @@ router.get('/current', async (req, res) => {
     res.status(500).json({
       success: false,
       stats: [],
-      data_referencia: new Date().toISOString().split('T')[0],
+      data_referencia: getDateBRT(),
       online: false,
       error: 'Failed to fetch current stats',
     });
@@ -296,7 +303,7 @@ router.get('/history', async (req, res) => {
 
     // Get current counts for today's live data
     const counts = await getAllCountsCached();
-    const hojeISO = new Date().toISOString().split('T')[0];
+    const hojeISO = getDateBRT();
 
     // Build response: points contain cumulative totals directly
     const historico = {};
@@ -380,7 +387,7 @@ router.get('/history', async (req, res) => {
 router.post('/snapshot', async (req, res) => {
   try {
     const counts = await getAllCountsCached();
-    const hojeISO = new Date().toISOString().split('T')[0];
+    const hojeISO = getDateBRT();
 
     // Buscar snapshots existentes de hoje (ou do último dia disponível)
     const { data: existingToday } = await supabase
@@ -489,7 +496,7 @@ router.post('/backfill', async (req, res) => {
     for (let i = numDays - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(getDateBRT(d));
     }
 
     const results = {};
