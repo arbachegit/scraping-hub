@@ -10,7 +10,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.auth.audit_service import log_action
-from api.auth.auth_middleware import get_current_user
+from api.auth.auth_middleware import get_current_user, require_admin
 from api.auth.auth_service import create_set_password_token, hash_password
 from api.auth.email_service import send_set_password_email
 from api.auth.field_encryption import field_encryption
@@ -35,7 +35,7 @@ router = APIRouter(tags=["Admin"])
 
 
 @router.get("/users")
-async def list_users(current_user: TokenData = Depends(get_current_user)):
+async def list_users(current_user: TokenData = Depends(require_admin)):
     """Lista todos os usuarios."""
     supabase = get_supabase()
     if not supabase:
@@ -94,7 +94,7 @@ async def list_users(current_user: TokenData = Depends(get_current_user)):
 async def create_user(
     user_data: AdminCreateUserDirect,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Cria novo usuario com senha."""
     supabase = get_supabase()
@@ -151,7 +151,7 @@ async def create_user(
 async def invite_user(
     user_data: AdminInviteUser,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """
     Creates a user by invite (name + email + phone, no password).
@@ -244,7 +244,7 @@ async def invite_user(
 async def resend_invite(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Resend set-password invite via email + WhatsApp for an unverified user."""
     supabase = get_supabase()
@@ -316,7 +316,7 @@ async def resend_invite(
 @router.get("/users/{user_id}")
 async def get_user_by_id(
     user_id: int,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Busca usuario por ID."""
     supabase = get_supabase()
@@ -352,7 +352,7 @@ async def update_admin_user(
     user_id: int,
     user_data: AdminUpdateUser,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Atualiza usuario."""
     supabase = get_supabase()
@@ -407,7 +407,7 @@ async def update_admin_user(
 async def delete_user(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Desativa usuario (soft delete)."""
     supabase = get_supabase()
@@ -453,7 +453,7 @@ async def delete_user(
 async def permanent_delete_user(
     user_id: int,
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    current_user: TokenData = Depends(require_admin),
 ):
     """Remove usuario permanentemente do banco (hard delete)."""
     supabase = get_supabase()
@@ -491,7 +491,7 @@ async def permanent_delete_user(
 
 
 @router.get("/smtp-test")
-async def smtp_test(current_user: TokenData = Depends(get_current_user)):
+async def smtp_test(current_user: TokenData = Depends(require_admin)):
     """Diagnostico SMTP — testa conexao e autenticacao."""
     from config.settings import settings
 

@@ -58,6 +58,26 @@ async def get_current_user(
     return token_data
 
 
+async def require_admin(
+    current_user: TokenData = Depends(get_current_user),
+) -> TokenData:
+    """
+    FastAPI dependency that checks if the current user is an admin.
+    Returns 403 Forbidden if is_admin is False.
+    """
+    if not current_user.is_admin:
+        logger.warning(
+            "admin_access_denied",
+            user=current_user.email,
+            user_id=current_user.user_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user
+
+
 def require_permission(permission: str) -> Callable:
     """
     FastAPI dependency factory that checks if the current user has a specific permission.

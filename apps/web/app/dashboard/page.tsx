@@ -216,13 +216,15 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href="/admin"
-              className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
-            >
-              <Shield className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Usuarios</span>
-            </a>
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Usuarios</span>
+              </a>
+            )}
             <span className="inline-flex items-center justify-center h-9 px-3 bg-slate-400/15 border border-slate-400/30 rounded-lg text-slate-200 text-xs font-medium">
               {userName || '-'}
             </span>

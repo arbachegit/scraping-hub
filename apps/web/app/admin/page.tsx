@@ -65,7 +65,11 @@ export default function AdminPage() {
     if (userQuery.isError) {
       router.push('/');
     }
-  }, [userQuery.isError, router]);
+    // Redirect non-admin users back to dashboard
+    if (userQuery.data && !userQuery.data.is_admin) {
+      router.push('/dashboard');
+    }
+  }, [userQuery.isError, userQuery.data, router]);
 
   // Users list
   const usersQuery = useQuery({
