@@ -458,6 +458,7 @@ class DataCollector:
             CronTrigger(
                 hour=settings.scheduler_hour,
                 minute=settings.scheduler_minute,
+                timezone='America/Sao_Paulo',
             ),
             id="daily_collection",
             name="Coleta diária de empresas",
@@ -466,7 +467,7 @@ class DataCollector:
 
         self.scheduler.add_job(
             self.run_daily_audit,
-            CronTrigger(hour=3, minute=0),
+            CronTrigger(hour=3, minute=0, timezone='America/Sao_Paulo'),
             id="daily_audit",
             name="Auditoria diária de gráficos",
             replace_existing=True,

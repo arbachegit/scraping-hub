@@ -144,7 +144,7 @@ async function getAllCounts() {
 
 /**
  * Count rows created on a specific day for a table.
- * Uses UTC day boundaries (00:00 - 00:00 next day).
+ * Uses BRT day boundaries (midnight São Paulo = 03:00 UTC).
  * @param {object} client - Supabase client
  * @param {string} table - Table name
  * @param {string} dateStr - Date in YYYY-MM-DD format
@@ -152,8 +152,8 @@ async function getAllCounts() {
  */
 async function countDayInserts(client, table, dateStr, createdAtColumn = 'created_at') {
   try {
-    const dayStart = dateStr + 'T00:00:00.000Z';
-    const nextDay = new Date(dateStr + 'T00:00:00.000Z');
+    const dayStart = dateStr + 'T03:00:00.000Z';
+    const nextDay = new Date(dateStr + 'T03:00:00.000Z');
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
     const dayEnd = nextDay.toISOString();
 

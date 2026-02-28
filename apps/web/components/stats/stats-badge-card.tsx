@@ -78,8 +78,9 @@ function formatNumber(num: number): string {
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '--/--';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  return `${parts[2]}/${parts[1]}`;
 }
 
 function formatShortDate(dateStr: string): string {
@@ -405,10 +406,7 @@ export function StatsBadgeCard({
   const config = colorConfig[color];
   const historyValues = history.map((h) => h.value);
   const historyDates = history.map((h) => h.data);
-  const historyLabels = history.map((h) => {
-    const d = new Date(h.data);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  });
+  const historyLabels = history.map((h) => formatShortDate(h.data));
   const countdownProgress = countdown / maxCountdown;
 
   const growthIcon =
