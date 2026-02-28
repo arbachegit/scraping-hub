@@ -213,15 +213,13 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <a
-                href="/admin"
-                className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
-              >
-                <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Admin</span>
-              </a>
-            )}
+            <a
+              href="/admin"
+              className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Usuarios</span>
+            </a>
             <span className="inline-flex items-center justify-center h-9 px-3 bg-slate-400/15 border border-slate-400/30 rounded-lg text-slate-200 text-xs font-medium">
               {userName || '-'}
             </span>
@@ -243,12 +241,48 @@ export default function DashboardPage() {
           countdown={countdown}
           maxCountdown={COUNTDOWN_MAX}
           onRefreshComplete={handleRefreshComplete}
+          isLoading={!statsQuery.data}
         />
       </div>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
         <div className="max-w-6xl mx-auto">
+          {/* Intelligence Modules - Neo Glow Cards */}
+          <div className="py-5 mb-2">
+            <div className="flex flex-wrap justify-center gap-4">
+              <NeoGlowCompactCard
+                icon={Building2}
+                iconColor="red"
+                title="Empresas"
+                description="CNPJ via BrasilAPI + Serper"
+                onClick={() => setCompanyModalOpen(true)}
+              />
+              <NeoGlowCompactCard
+                icon={Users}
+                iconColor="orange"
+                title="Pessoas"
+                description="Perfis profissionais"
+                onClick={() => setPeopleModalOpen(true)}
+              />
+              <NeoGlowCompactCard
+                icon={Flag}
+                iconColor="blue"
+                title="Politicos"
+                description="Perfis e percepcao"
+                badge="Ativo"
+                onClick={openPoliticosFromCard}
+              />
+              <NeoGlowCompactCard
+                icon={Newspaper}
+                iconColor="green"
+                title="Noticias"
+                description="Monitore noticias"
+                onClick={() => setNewsModalOpen(true)}
+              />
+            </div>
+          </div>
+
           {/* Stats Badges */}
           <div className="mb-6">
             <h2 className="text-[25px] font-semibold text-slate-400 mb-3">Estatisticas em Tempo Real</h2>
@@ -338,41 +372,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Module Cards */}
-          <div>
-            <h2 className="text-[25px] font-semibold text-slate-400 mb-3">Modulos de Inteligencia</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-              <CompactModuleCard
-                icon={Building2}
-                iconColor="red"
-                title="Empresas"
-                description="CNPJ via BrasilAPI + Serper"
-                onClick={() => setCompanyModalOpen(true)}
-              />
-              <CompactModuleCard
-                icon={Users}
-                iconColor="orange"
-                title="Pessoas"
-                description="Perfis profissionais"
-                onClick={() => setPeopleModalOpen(true)}
-              />
-              <CompactModuleCard
-                icon={Flag}
-                iconColor="blue"
-                title="Politicos"
-                description="Perfis e percepcao"
-                badge="Ativo"
-                onClick={openPoliticosFromCard}
-              />
-              <CompactModuleCard
-                icon={Newspaper}
-                iconColor="green"
-                title="Noticias"
-                description="Monitore noticias"
-                onClick={() => setNewsModalOpen(true)}
-              />
-            </div>
-          </div>
         </div>
       </main>
 
@@ -439,7 +438,7 @@ export default function DashboardPage() {
   );
 }
 
-function CompactModuleCard({
+function NeoGlowCompactCard({
   icon: Icon,
   iconColor,
   title,
@@ -454,36 +453,40 @@ function CompactModuleCard({
   badge?: string;
   onClick: () => void;
 }) {
-  const iconColorMap = {
-    red: 'bg-red-500/10 text-red-400',
-    orange: 'bg-orange-500/10 text-orange-400',
-    blue: 'bg-blue-500/10 text-blue-400',
-    green: 'bg-green-500/10 text-green-400',
-    cyan: 'bg-cyan-500/10 text-cyan-400',
-    purple: 'bg-purple-500/10 text-purple-400',
+  const glowConfig = {
+    red: { gradient: 'from-red-500/40 via-red-500/10 to-red-500/40', icon: 'bg-red-500/10 text-red-400' },
+    orange: { gradient: 'from-orange-500/40 via-orange-500/10 to-orange-500/40', icon: 'bg-orange-500/10 text-orange-400' },
+    blue: { gradient: 'from-blue-500/40 via-blue-500/10 to-blue-500/40', icon: 'bg-blue-500/10 text-blue-400' },
+    green: { gradient: 'from-green-500/40 via-green-500/10 to-green-500/40', icon: 'bg-green-500/10 text-green-400' },
+    cyan: { gradient: 'from-cyan-500/40 via-cyan-500/10 to-cyan-500/40', icon: 'bg-cyan-500/10 text-cyan-400' },
+    purple: { gradient: 'from-purple-500/40 via-purple-500/10 to-purple-500/40', icon: 'bg-purple-500/10 text-purple-400' },
   };
 
+  const glow = glowConfig[iconColor];
+
   return (
-    <div
-      onClick={onClick}
-      className="bg-[#0f1629]/80 border border-white/5 rounded-xl p-5 cursor-pointer transition-all duration-300 hover:border-cyan-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
-    >
-      <div className="flex items-center gap-3.5 mb-3">
-        <div
-          className={`w-14 h-14 rounded-lg flex items-center justify-center ${iconColorMap[iconColor]}`}
-        >
-          <Icon className="w-7 h-7" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-semibold text-slate-300 truncate">{title}</h3>
-          {badge && (
-            <span className="inline-block px-2.5 py-0.5 text-[13px] bg-green-500/10 border border-green-500/30 text-green-400 rounded">
-              {badge}
-            </span>
-          )}
+    <div onClick={onClick} className="relative group cursor-pointer">
+      {/* Neo Glow Layer */}
+      <div className={`absolute -inset-[2px] rounded-lg bg-gradient-to-r ${glow.gradient} blur-sm opacity-50 group-hover:opacity-100 transition-opacity duration-500 animate-pulse`} />
+      {/* Card */}
+      <div className="relative bg-[#0f1629]/95 backdrop-blur-sm border border-white/10 rounded-lg p-2.5 transition-all duration-300 group-hover:border-white/20 group-hover:-translate-y-0.5">
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${glow.icon}`}>
+            <Icon className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-slate-300 truncate">{title}</h3>
+              {badge && (
+                <span className="flex-shrink-0 px-1.5 py-0.5 text-[9px] bg-green-500/10 border border-green-500/30 text-green-400 rounded">
+                  {badge}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-500 truncate">{description}</p>
+          </div>
         </div>
       </div>
-      <p className="text-slate-400/80 text-base leading-relaxed line-clamp-2">{description}</p>
     </div>
   );
 }

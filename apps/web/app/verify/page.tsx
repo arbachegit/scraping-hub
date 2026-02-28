@@ -129,8 +129,8 @@ function VerifyContent() {
               <>
                 <CardTitle>Verificar Conta</CardTitle>
                 <CardDescription>
-                  Digite o codigo de 6 digitos enviado para{' '}
-                  {email ? <strong>{email}</strong> : 'seu email'}
+                  Digite o codigo de 6 digitos enviado por SMS{' '}
+                  {email ? <>para <strong>{email}</strong></> : ''}
                 </CardDescription>
               </>
             )}

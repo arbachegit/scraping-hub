@@ -19,6 +19,9 @@ cryptography==46.0.5
 # Email
 aiosmtplib==5.1.0
 
+# Messaging (WhatsApp + SMS)
+twilio>=9.0.0
+
 # HTTP Clients
 httpx==0.28.1
 aiohttp==3.13.3

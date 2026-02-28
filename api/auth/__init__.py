@@ -3,14 +3,15 @@ Auth package — modular authentication system.
 
 Contains:
   - auth_controller: Auth endpoints (login, set-password, verify, recover, reset, refresh, me, profile)
-  - user_controller: Admin user management endpoints
+  - user_controller: User management endpoints (any authenticated user)
   - auth_service: JWT, password hashing, token management
-  - auth_middleware: get_current_user, require_admin dependencies
+  - auth_middleware: get_current_user dependency
   - email_service: SMTP email sending
+  - messaging_service: WhatsApp + SMS via Twilio/Infobip
   - verification_service: 6-digit verification codes
   - field_encryption: AES-256 field-level encryption (CPF, phone)
   - audit_service: Action logging
-  - seed: Admin user seeding
+  - seed: Initial user seeding
   - schemas/: Pydantic schemas for auth and user management
 
 Re-exports below provide backwards compatibility for code that imports from api.auth directly.
@@ -18,7 +19,7 @@ Re-exports below provide backwards compatibility for code that imports from api.
 
 # Re-export from auth_service (functions + constants)
 # Re-export from auth_middleware
-from api.auth.auth_middleware import get_current_user, require_admin
+from api.auth.auth_middleware import get_current_user
 from api.auth.auth_service import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     authenticate_user,
@@ -32,6 +33,7 @@ from api.auth.auth_service import (
     validate_refresh_token,
     verify_password,
 )
+from api.auth.messaging_service import messaging_service
 
 # Re-export schemas (backwards compat)
 from api.auth.schemas.auth_schemas import (
@@ -63,7 +65,7 @@ __all__ = [
     "decode_special_token",
     "get_current_user",
     "hash_password",
-    "require_admin",
+    "messaging_service",
     "update_user",
     "validate_refresh_token",
     "verify_password",

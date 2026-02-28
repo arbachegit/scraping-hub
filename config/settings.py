@@ -149,6 +149,24 @@ class Settings(BaseSettings):
     app_base_url: str = "https://scraping.iconsai.ai"
 
     # ===========================================
+    # Twilio (Primary Messaging)
+    # ===========================================
+
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = ""  # whatsapp:+14155238886
+    twilio_sms_from: str = ""  # +1234567890
+
+    # ===========================================
+    # Infobip (Fallback Messaging)
+    # ===========================================
+
+    infobip_base_url: str = ""
+    infobip_api_key: str = ""
+    infobip_whatsapp_from: str = ""
+    infobip_sms_from: str = ""
+
+    # ===========================================
     # Seed Admin
     # ===========================================
 
@@ -237,6 +255,16 @@ class Settings(BaseSettings):
     def has_cnpja(self) -> bool:
         """Verifica se CNPJá está configurado"""
         return bool(self.cnpja_api_key)
+
+    @property
+    def has_twilio(self) -> bool:
+        """Verifica se Twilio está configurado"""
+        return bool(self.twilio_account_sid and self.twilio_auth_token)
+
+    @property
+    def has_infobip(self) -> bool:
+        """Verifica se Infobip está configurado"""
+        return bool(self.infobip_base_url and self.infobip_api_key)
 
     @property
     def parsed_allowed_origins(self) -> list:
