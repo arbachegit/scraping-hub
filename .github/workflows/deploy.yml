@@ -20,7 +20,7 @@
 #   BRASIL_DATA_HUB_URL, BRASIL_DATA_HUB_KEY
 #   JWT_SECRET_KEY, ANTHROPIC_API_KEY
 #   FIELD_ENCRYPTION_KEY, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD
-#   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM
+#   RESEND_API_KEY, EMAIL_FROM
 # =============================================================================
 
 name: Deploy
@@ -324,11 +324,8 @@ jobs:
           SEED_ADMIN_EMAIL=${{ secrets.SEED_ADMIN_EMAIL }}
           SEED_ADMIN_PASSWORD=${{ secrets.SEED_ADMIN_PASSWORD }}
 
-          # SMTP
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          # Email (Resend)
+          RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM=${{ secrets.EMAIL_FROM }}
 
           # Scheduler
