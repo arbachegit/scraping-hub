@@ -25,9 +25,9 @@ import { PERMISSIONS } from './constants.js';
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3006;
 
-const ALLOWED_PORT = 3006;
-if (Number(PORT) !== ALLOWED_PORT) {
-  logger.error(`PORTA BLOQUEADA: Backend tentou iniciar na porta ${PORT}. Porta permitida: ${ALLOWED_PORT}`);
+const ALLOWED_PORTS = [3006, 3001]; // dev=3006, prod=3001
+if (!ALLOWED_PORTS.includes(Number(PORT))) {
+  logger.error(`PORTA BLOQUEADA: Backend tentou iniciar na porta ${PORT}. Portas permitidas: ${ALLOWED_PORTS.join(', ')}`);
   process.exit(1);
 }
 
