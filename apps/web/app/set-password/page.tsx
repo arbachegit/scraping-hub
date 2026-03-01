@@ -53,6 +53,16 @@ function SetPasswordContent() {
       return;
     }
 
+    if (!/[A-Z]/.test(password)) {
+      setError('A senha deve conter pelo menos 1 letra maiuscula.');
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError('A senha deve conter pelo menos 1 numero.');
+      return;
+    }
+
     setLoading(true);
     try {
       const result = await setPassword(token, password);

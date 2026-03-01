@@ -110,7 +110,9 @@ export async function setPassword(token: string, password: string): Promise<{ su
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Erro ao definir senha' }));
-    throw new Error(error.detail || 'Erro ao definir senha');
+    const detail = error.detail;
+    const message = Array.isArray(detail) ? detail.map((e: { msg?: string }) => e.msg).join('; ') : detail || 'Erro ao definir senha';
+    throw new Error(message);
   }
 
   return res.json();
