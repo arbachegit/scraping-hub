@@ -294,8 +294,8 @@ class TestRequirePermissionUnit:
             require_permission("superuser")
 
     def test_valid_permissions_set(self):
-        """VALID_PERMISSIONS should contain exactly the 4 module permissions."""
-        assert {"empresas", "pessoas", "politicos", "noticias"} == VALID_PERMISSIONS
+        """VALID_PERMISSIONS should contain exactly the 6 module permissions."""
+        assert {"empresas", "pessoas", "politicos", "noticias", "mandatos", "emendas"} == VALID_PERMISSIONS
 
 
 class TestRequireAdminUnit:
