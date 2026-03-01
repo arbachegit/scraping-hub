@@ -128,7 +128,7 @@ async def create_user(
         # Admin role gets all permissions automatically
         permissions = user_data.permissions
         if role == "admin":
-            permissions = ["empresas", "pessoas", "politicos", "noticias"]
+            permissions = ["empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias"]
 
         # Criar usuario
         new_user = {
@@ -444,7 +444,7 @@ async def update_admin_user(
             updates["is_admin"] = user_data.role in ("superadmin", "admin")
             # Admin gets all permissions automatically
             if user_data.role == "admin":
-                updates["permissions"] = ["empresas", "pessoas", "politicos", "noticias"]
+                updates["permissions"] = ["empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias"]
         if user_data.is_active is not None:
             updates["is_active"] = user_data.is_active
         if user_data.new_password:

@@ -1,10 +1,12 @@
 /**
  * Module permissions constants and helpers.
  *
- * 4 permissions control access to routes and dashboard visibility:
+ * 6 permissions control access to routes and dashboard visibility:
  *   - empresas
  *   - pessoas
- *   - politicos (includes mandatos + emendas)
+ *   - politicos
+ *   - mandatos
+ *   - emendas
  *   - noticias
  */
 
@@ -12,6 +14,8 @@ export const PERMISSIONS = {
   EMPRESAS: 'empresas',
   PESSOAS: 'pessoas',
   POLITICOS: 'politicos',
+  MANDATOS: 'mandatos',
+  EMENDAS: 'emendas',
   NOTICIAS: 'noticias',
 } as const;
 
@@ -21,14 +25,13 @@ export const ALL_PERMISSIONS: Permission[] = Object.values(PERMISSIONS);
 
 /**
  * Maps dashboard module keys to the permission that controls them.
- * "mandatos" and "emendas" are sub-modules of "politicos".
  */
 export const MODULE_PERMISSIONS: Record<string, Permission> = {
   empresas: PERMISSIONS.EMPRESAS,
   pessoas: PERMISSIONS.PESSOAS,
   politicos: PERMISSIONS.POLITICOS,
-  mandatos: PERMISSIONS.POLITICOS,
-  emendas: PERMISSIONS.POLITICOS,
+  mandatos: PERMISSIONS.MANDATOS,
+  emendas: PERMISSIONS.EMENDAS,
   noticias: PERMISSIONS.NOTICIAS,
 };
 
@@ -48,11 +51,13 @@ export function hasModuleAccess(
 /**
  * Permission metadata for UI (admin panel labels/descriptions).
  */
-export const PERMISSION_INFO: Record<Permission, { label: string; description: string }> = {
-  empresas: { label: 'Empresas', description: 'Busca, detalhes e aprovacao de empresas' },
-  pessoas: { label: 'Pessoas', description: 'Busca, perfis e agente de pessoas' },
-  politicos: { label: 'Politicos', description: 'Politicos, mandatos e emendas' },
-  noticias: { label: 'Noticias', description: 'Busca e listagem de noticias' },
+export const PERMISSION_INFO: Record<Permission, { label: string; description: string; icon: string; color: string }> = {
+  empresas: { label: 'Empresas', description: 'Busca e detalhes de empresas', icon: 'Building2', color: 'red' },
+  pessoas: { label: 'Pessoas', description: 'Busca e perfis de pessoas', icon: 'Users', color: 'orange' },
+  politicos: { label: 'Politicos', description: 'Perfis de politicos', icon: 'Landmark', color: 'blue' },
+  mandatos: { label: 'Mandatos', description: 'Mandatos parlamentares', icon: 'ScrollText', color: 'purple' },
+  emendas: { label: 'Emendas', description: 'Emendas parlamentares', icon: 'Receipt', color: 'cyan' },
+  noticias: { label: 'Noticias', description: 'Busca e listagem de noticias', icon: 'Newspaper', color: 'green' },
 };
 
 /**

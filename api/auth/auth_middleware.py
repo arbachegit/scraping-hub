@@ -17,7 +17,7 @@ logger = structlog.get_logger()
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 
-VALID_PERMISSIONS = {"empresas", "pessoas", "politicos", "noticias"}
+VALID_PERMISSIONS = {"empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias"}
 VALID_ROLES = {"superadmin", "admin", "user"}
 
 security = HTTPBearer()

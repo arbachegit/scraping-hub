@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-VALID_PERMISSIONS = {"empresas", "pessoas", "politicos", "noticias"}
+VALID_PERMISSIONS = {"empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias"}
 VALID_ROLES = {"superadmin", "admin", "user"}
 
 

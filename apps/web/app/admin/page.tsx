@@ -20,6 +20,12 @@ import {
   Phone,
   Send,
   Trash2,
+  Building2,
+  Users,
+  Landmark,
+  ScrollText,
+  Receipt,
+  Newspaper,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -305,18 +311,30 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         {(user.permissions || []).length > 0 ? (
                           (user.permissions || []).map((perm) => {
                             const info = PERMISSION_INFO[perm as Permission];
-                            const label = info ? info.label : perm;
+                            if (!info) return null;
+                            const colorMap: Record<string, string> = {
+                              red: 'text-red-400',
+                              orange: 'text-orange-400',
+                              blue: 'text-blue-400',
+                              purple: 'text-purple-400',
+                              cyan: 'text-cyan-400',
+                              green: 'text-green-400',
+                            };
+                            const iconMap: Record<string, React.ReactNode> = {
+                              empresas: <Building2 className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                              pessoas: <Users className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                              politicos: <Landmark className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                              mandatos: <ScrollText className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                              emendas: <Receipt className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                              noticias: <Newspaper className={`h-3.5 w-3.5 ${colorMap[info.color]}`} />,
+                            };
                             return (
-                              <span
-                                key={perm}
-                                className="inline-flex px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded"
-                                title={info?.description}
-                              >
-                                {label}
+                              <span key={perm} title={`${info.label}: ${info.description}`}>
+                                {iconMap[perm]}
                               </span>
                             );
                           })
@@ -584,7 +602,7 @@ function CreateUserModal({
         name,
         email,
         password,
-        permissions: selectedRole === 'admin' ? ['empresas', 'pessoas', 'politicos', 'noticias'] : permissions,
+        permissions: selectedRole === 'admin' ? ['empresas', 'pessoas', 'politicos', 'mandatos', 'emendas', 'noticias'] : permissions,
         role: selectedRole,
       });
     } else {
@@ -774,17 +792,26 @@ function CreateUserModal({
           {(selectedRole === 'user' || mode === 'invite') && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300">Permissoes</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {ALL_PERMISSIONS.map((perm) => {
                 const info = PERMISSION_INFO[perm as Permission];
+                const permIconMap: Record<string, React.ReactNode> = {
+                  empresas: <Building2 className="h-3.5 w-3.5" />,
+                  pessoas: <Users className="h-3.5 w-3.5" />,
+                  politicos: <Landmark className="h-3.5 w-3.5" />,
+                  mandatos: <ScrollText className="h-3.5 w-3.5" />,
+                  emendas: <Receipt className="h-3.5 w-3.5" />,
+                  noticias: <Newspaper className="h-3.5 w-3.5" />,
+                };
                 return (
                 <label
                   key={perm}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border cursor-pointer transition-colors ${
                     permissions.includes(perm)
                       ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
                       : 'bg-[#0a0e1a] border-white/5 text-slate-400 hover:border-white/10'
                   }`}
+                  title={info.description}
                 >
                   <input
                     type="checkbox"
@@ -792,21 +819,8 @@ function CreateUserModal({
                     onChange={() => togglePermission(perm)}
                     className="sr-only"
                   />
-                  <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center flex-shrink-0 ${
-                    permissions.includes(perm)
-                      ? 'bg-cyan-500 border-cyan-500'
-                      : 'border-slate-500'
-                  }`}>
-                    {permissions.includes(perm) && (
-                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-medium">{info.label}</span>
-                    <p className="text-[10px] opacity-60">{info.description}</p>
-                  </div>
+                  {permIconMap[perm]}
+                  <span className="text-[10px] font-medium">{info.label}</span>
                 </label>
                 );
               })}
@@ -1075,17 +1089,26 @@ function EditUserModal({
           {editRole === 'user' && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300">Permissoes</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {ALL_PERMISSIONS.map((perm) => {
                 const info = PERMISSION_INFO[perm as Permission];
+                const permIconMap: Record<string, React.ReactNode> = {
+                  empresas: <Building2 className="h-3.5 w-3.5" />,
+                  pessoas: <Users className="h-3.5 w-3.5" />,
+                  politicos: <Landmark className="h-3.5 w-3.5" />,
+                  mandatos: <ScrollText className="h-3.5 w-3.5" />,
+                  emendas: <Receipt className="h-3.5 w-3.5" />,
+                  noticias: <Newspaper className="h-3.5 w-3.5" />,
+                };
                 return (
                 <label
                   key={perm}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border cursor-pointer transition-colors ${
                     editPermissions.includes(perm)
                       ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
                       : 'bg-[#0a0e1a] border-white/5 text-slate-400 hover:border-white/10'
                   }`}
+                  title={info.description}
                 >
                   <input
                     type="checkbox"
@@ -1093,21 +1116,8 @@ function EditUserModal({
                     onChange={() => toggleEditPermission(perm)}
                     className="sr-only"
                   />
-                  <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center flex-shrink-0 ${
-                    editPermissions.includes(perm)
-                      ? 'bg-cyan-500 border-cyan-500'
-                      : 'border-slate-500'
-                  }`}>
-                    {editPermissions.includes(perm) && (
-                      <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-medium">{info.label}</span>
-                    <p className="text-[10px] opacity-60">{info.description}</p>
-                  </div>
+                  {permIconMap[perm]}
+                  <span className="text-[10px] font-medium">{info.label}</span>
                 </label>
                 );
               })}

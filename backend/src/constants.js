@@ -172,6 +172,8 @@ export const PERMISSIONS = {
   EMPRESAS: 'empresas',
   PESSOAS: 'pessoas',
   POLITICOS: 'politicos',
+  MANDATOS: 'mandatos',
+  EMENDAS: 'emendas',
   NOTICIAS: 'noticias',
 };
 
