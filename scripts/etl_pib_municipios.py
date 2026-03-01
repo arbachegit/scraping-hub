@@ -17,9 +17,11 @@ Variáveis SIDRA:
 Nota: Valores SIDRA em R$ 1.000 → banco armazena × 1000 (R$).
 """
 
+import contextlib
 import os
 import sys
 import time
+
 import requests
 from dotenv import load_dotenv
 
@@ -115,11 +117,9 @@ def fetch_pib_ano(ano: int, full_sectors: bool = True) -> dict[int, dict]:
             if cod not in municipios:
                 municipios[cod] = {"codigo_ibge": cod}
 
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 # SIDRA retorna em R$ 1.000 → multiplicar por 1000
                 municipios[cod][campo] = float(r["V"]) * 1000
-            except (ValueError, TypeError):
-                pass
 
         if i % 5 == 0:
             print(f"    {i}/{len(UFS)} UFs processadas...")
@@ -166,7 +166,7 @@ def process_year(ano: int, full_sectors: bool = True) -> int:
     print(f"  Existentes: {real} SIDRA + {estimated} Estimados")
 
     if estimated == 0:
-        print(f"  Nenhum registro estimado para atualizar, pulando.")
+        print("  Nenhum registro estimado para atualizar, pulando.")
         return 0
 
     # Buscar PIB
@@ -175,7 +175,7 @@ def process_year(ano: int, full_sectors: bool = True) -> int:
     print(f"  -> {len(municipios)} municípios com dados")
 
     if not municipios:
-        print(f"  Nenhum dado encontrado")
+        print("  Nenhum dado encontrado")
         return 0
 
     # Buscar população para calcular per capita
@@ -251,7 +251,7 @@ def main():
 
     # Resumo
     print(f"\n{'=' * 50}")
-    print(f"  RESUMO FINAL - pib_municipios")
+    print("  RESUMO FINAL - pib_municipios")
     print(f"{'=' * 50}")
     for ano in range(2010, 2026):
         real = count_by_fonte(ano, "IBGE/SIDRA Tabela 5938")

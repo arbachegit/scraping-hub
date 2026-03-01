@@ -21,9 +21,11 @@ Indicadores:
 Substitui projeções de 2022 por dados reais do Censo.
 """
 
+import contextlib
 import os
 import sys
 import time
+
 import requests
 from dotenv import load_dotenv
 
@@ -111,10 +113,8 @@ def fetch_saneamento_uf(uf: int) -> dict[int, dict]:
                 continue
             if code7 not in raw:
                 raw[code7] = {}
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 raw[code7][iid] = int(float(val_str))
-            except (ValueError, TypeError):
-                pass
 
     # Transform into table columns
     municipios: dict[int, dict] = {}
@@ -207,7 +207,7 @@ def main():
         return
 
     # Fetch all municipalities
-    print(f"\n  Buscando Censo 2022 via IBGE Cidades (27 UFs)...")
+    print("\n  Buscando Censo 2022 via IBGE Cidades (27 UFs)...")
     all_munis: dict = {}
     for i, uf in enumerate(UF_CODES, 1):
         munis = fetch_saneamento_uf(uf)
