@@ -833,6 +833,16 @@ async def create_stats_snapshot(request: Request):
 
 @app.on_event("startup")
 async def startup():
+    import sys
+
+    ALLOWED_PORT = 8000
+    port = int(os.environ.get("PORT", os.environ.get("PYTHON_PORT", "8000")))
+    if port != ALLOWED_PORT:
+        logger.error(
+            f"PORTA BLOQUEADA: API Python tentou iniciar na porta {port}. Porta permitida: {ALLOWED_PORT}"
+        )
+        sys.exit(1)
+
     logger.info("api_starting", version=APP_VERSION)
 
     # Seed super admin from env vars

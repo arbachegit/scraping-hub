@@ -23,7 +23,13 @@ import { requireAuth, requirePermission } from './middleware/auth.js';
 import { PERMISSIONS } from './constants.js';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.BACKEND_PORT || 3006;
+
+const ALLOWED_PORT = 3006;
+if (Number(PORT) !== ALLOWED_PORT) {
+  logger.error(`PORTA BLOQUEADA: Backend tentou iniciar na porta ${PORT}. Porta permitida: ${ALLOWED_PORT}`);
+  process.exit(1);
+}
 
 // Rate limiter - 100 requests per minute per IP
 const limiter = rateLimit({
@@ -35,7 +41,7 @@ const limiter = rateLimit({
 });
 
 // CORS - whitelist from ALLOWED_ORIGINS env var
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3002')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
