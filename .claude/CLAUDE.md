@@ -456,13 +456,12 @@ O layout aprovado do dashboard é imutável sem aprovação explícita documenta
 **Layout aprovado (top→bottom):**
 1. Header
 2. Counter Line (6 items): empresas | pessoas | politicos | mandatos | emendas | noticias
-3. Título "Estatisticas em Tempo Real"
-4. Row 1 Stats Badges (large): empresas + pessoas
-5. Row 2 Stats Badges (large): politicos + mandatos
-6. Row 3 Stats Badges (large): emendas + noticias
-7. Título "Modulos de Inteligencia"
-8. 4 Compact Cards: empresas, pessoas, politicos, noticias
-9. Atlas FAB
+3. 4 Compact Cards (50% compact, neon glow): empresas, pessoas, politicos, noticias
+4. Título "Estatisticas em Tempo Real"
+5. Row 1 Stats Badges (large): empresas + pessoas
+6. Row 2 Stats Badges (large): politicos + mandatos
+7. Row 3 Stats Badges (large): emendas + noticias
+8. Atlas FAB
 
 **Para alterar:**
 - Requer aprovação explícita do usuário
@@ -526,6 +525,7 @@ Os gráficos de Stats Badges aprovados são imutáveis sem aprovação explícit
 | 2026-02-27 | v3.1.0 | Scripts: +audit_graphs.py, +audit cron 3AM | Fernando |
 | 2026-02-28 | v3.2.0 | Stats Badges: +Row 3 emendas (cyan) + noticias (green) | Fernando |
 | 2026-02-28 | v3.2.0 | Golden Rule 4: Stats Graphs Immutability adicionada | Fernando |
+| 2026-03-01 | v3.3.0 | Compact Cards 50% menores, neon glow, entre Counter Line e Stats | Fernando |
 
 ---
 
