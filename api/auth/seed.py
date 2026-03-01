@@ -49,12 +49,14 @@ async def seed_super_admin() -> None:
             )
             return
 
-        # Create seed user (no special privileges)
+        # Create seed user as superadmin
         new_user = {
             "email": settings.seed_admin_email.lower(),
             "name": settings.seed_admin_name,
             "password_hash": hash_password(settings.seed_admin_password),
-            "permissions": ["empresas", "pessoas", "politicos", "noticias"],
+            "role": "superadmin",
+            "is_admin": True,
+            "permissions": ["empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias"],
             "is_active": True,
             "is_verified": True,
         }

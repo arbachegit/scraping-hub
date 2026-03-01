@@ -21,6 +21,8 @@ class AdminInviteUser(BaseModel):
     name: str = Field(..., min_length=2, max_length=200)
     email: EmailStr
     phone: str = Field(..., min_length=10, max_length=20)
+    role: str = "user"
+    permissions: List[str] = []
 
     @field_validator("email")
     @classmethod
@@ -39,6 +41,25 @@ class AdminInviteUser(BaseModel):
                 "Telefone deve ter formato brasileiro (+55XXXXXXXXXXX)"
             )
         return clean
+
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, v: List[str]) -> List[str]:
+        invalid = set(v) - VALID_PERMISSIONS
+        if invalid:
+            raise ValueError(
+                f"Invalid permissions: {invalid}. Valid: {VALID_PERMISSIONS}"
+            )
+        return list(set(v))
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in VALID_ROLES:
+            raise ValueError(
+                f"Invalid role: {v}. Valid: {VALID_ROLES}"
+            )
+        return v
 
 
 class AdminCreateUserDirect(BaseModel):

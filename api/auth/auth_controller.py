@@ -201,10 +201,32 @@ async def set_password(data: SetPasswordRequest, request: Request):
     if user.get("is_verified"):
         raise HTTPException(status_code=400, detail="Usuario ja verificado")
 
-    # Set password
-    supabase.table("users").update(
-        {"password_hash": hash_password(data.password)}
-    ).eq("id", user_id).execute()
+    # Build update payload: password + optional profile data
+    update_payload = {"password_hash": hash_password(data.password)}
+
+    # Save profile data if provided
+    if data.cpf and field_encryption and field_encryption.is_configured:
+        try:
+            update_payload["cpf_encrypted"] = field_encryption.encrypt_cpf(data.cpf)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    if data.cep:
+        update_payload["cep"] = re.sub(r"\D", "", data.cep)
+    if data.logradouro:
+        update_payload["logradouro"] = data.logradouro
+    if data.numero:
+        update_payload["numero"] = data.numero
+    if data.complemento is not None:
+        update_payload["complemento"] = data.complemento
+    if data.bairro:
+        update_payload["bairro"] = data.bairro
+    if data.cidade:
+        update_payload["cidade"] = data.cidade
+    if data.uf:
+        update_payload["uf"] = data.uf
+
+    supabase.table("users").update(update_payload).eq("id", user_id).execute()
 
     # Generate activation code and send via SMS (+ email as fallback)
     code = await create_verification_code(user_id, "activation")

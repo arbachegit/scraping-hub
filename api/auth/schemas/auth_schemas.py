@@ -82,12 +82,20 @@ class UserUpdate(BaseModel):
 
 
 class SetPasswordRequest(BaseModel):
-    """Schema para definir senha via token."""
+    """Schema para definir senha via token (with optional profile data)."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     token: str
     password: str = Field(min_length=8, max_length=128)
+    cpf: Optional[str] = Field(default=None, pattern=r"^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$")
+    cep: Optional[str] = Field(default=None, pattern=r"^\d{5}-?\d{3}$")
+    logradouro: Optional[str] = Field(default=None, min_length=2, max_length=255)
+    numero: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    complemento: Optional[str] = Field(default=None, max_length=100)
+    bairro: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    cidade: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    uf: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}$")
 
     @field_validator("password")
     @classmethod

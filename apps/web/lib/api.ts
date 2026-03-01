@@ -101,11 +101,28 @@ export async function lookupCep(cep: string): Promise<CepResult> {
   return res.json();
 }
 
-export async function setPassword(token: string, password: string): Promise<{ success: boolean; message: string; email?: string }> {
+export interface SetPasswordData {
+  token: string;
+  password: string;
+  cpf?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+}
+
+export async function setPassword(tokenOrData: string | SetPasswordData, password?: string): Promise<{ success: boolean; message: string; email?: string }> {
+  const body = typeof tokenOrData === 'string'
+    ? { token: tokenOrData, password }
+    : tokenOrData;
+
   const res = await fetch(`${API_BASE}/auth/set-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, password }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -179,7 +196,7 @@ export async function resetPassword(token: string, new_password: string, code: s
 }
 
 export async function getHealth(): Promise<{ version: string; status: string }> {
-  const res = await fetchWithAuth('/health');
+  const res = await fetchWithAuth(`${API_BASE}/health`);
   if (!res.ok) {
     return { version: '1.0.0', status: 'unknown' };
   }
@@ -1377,6 +1394,8 @@ export interface AdminCreateUserFlowRequest {
   name: string;
   email: string;
   phone: string;
+  role?: string;
+  permissions?: string[];
 }
 
 export interface AdminCreateUserFlowResponse {
