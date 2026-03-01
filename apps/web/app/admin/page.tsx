@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Shield,
+  ShieldCheck,
+  Crown,
   UserPlus,
   Pencil,
   UserX,
@@ -97,7 +99,7 @@ export default function AdminPage() {
     return null;
   }
 
-  const currentUserRole = (userQuery.data as { role?: string })?.role || 'user';
+  const currentUserRole = userQuery.data.role || 'user';
   const currentIsSuperAdmin = isSuperAdmin(currentUserRole);
 
   const allUsers = usersQuery.data?.users || [];
@@ -275,15 +277,16 @@ export default function AdminPage() {
                       {(() => {
                         const role = (user.role || 'user') as Role;
                         const info = ROLE_INFO[role] || ROLE_INFO.user;
-                        const colorMap: Record<string, string> = {
-                          red: 'bg-red-500/10 border-red-500/20 text-red-400',
-                          amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-                          blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+                        const iconMap: Record<string, React.ReactNode> = {
+                          superadmin: <Crown className="h-4 w-4 text-red-400" />,
+                          admin: <ShieldCheck className="h-4 w-4 text-amber-400" />,
+                          user: <User className="h-4 w-4 text-blue-400" />,
                         };
                         return (
-                          <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold border rounded ${colorMap[info.color] || colorMap.blue}`}>
-                            {info.label}
-                          </span>
+                          <div className="flex items-center gap-1.5" title={info.description}>
+                            {iconMap[role] || iconMap.user}
+                            <span className="text-xs text-slate-300">{info.label}</span>
+                          </div>
                         );
                       })()}
                     </td>
@@ -304,14 +307,19 @@ export default function AdminPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1">
                         {(user.permissions || []).length > 0 ? (
-                          (user.permissions || []).map((perm) => (
-                            <span
-                              key={perm}
-                              className="inline-flex px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded"
-                            >
-                              {perm}
-                            </span>
-                          ))
+                          (user.permissions || []).map((perm) => {
+                            const info = PERMISSION_INFO[perm as Permission];
+                            const label = info ? info.label : perm;
+                            return (
+                              <span
+                                key={perm}
+                                className="inline-flex px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded"
+                                title={info?.description}
+                              >
+                                {label}
+                              </span>
+                            );
+                          })
                         ) : (
                           <span className="text-[10px] text-slate-500">Nenhuma</span>
                         )}
@@ -767,7 +775,9 @@ function CreateUserModal({
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300">Permissoes</label>
             <div className="grid grid-cols-2 gap-2">
-              {ALL_PERMISSIONS.map((perm) => (
+              {ALL_PERMISSIONS.map((perm) => {
+                const info = PERMISSION_INFO[perm as Permission];
+                return (
                 <label
                   key={perm}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -794,10 +804,12 @@ function CreateUserModal({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-medium">{PERMISSION_INFO[perm as Permission].label}</span>
+                    <span className="text-xs font-medium">{info.label}</span>
+                    <p className="text-[10px] opacity-60">{info.description}</p>
                   </div>
                 </label>
-              ))}
+                );
+              })}
             </div>
             <p className="text-[10px] text-slate-500">
               {selectedRole === 'admin' ? 'Admins tem acesso a todos os modulos automaticamente' : 'Selecione os modulos que o usuario podera acessar'}
@@ -942,13 +954,12 @@ function EditUserModal({
               <p className="text-sm font-medium text-slate-200 truncate">{user.name || '-'}</p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
             </div>
-            <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold border rounded ${
-              roleInfo.color === 'red' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-              roleInfo.color === 'amber' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-              'bg-blue-500/10 border-blue-500/20 text-blue-400'
-            }`}>
-              {roleInfo.label}
-            </span>
+            <div className="flex items-center gap-1" title={roleInfo.description}>
+              {(user.role || 'user') === 'superadmin' ? <Crown className="h-4 w-4 text-red-400" /> :
+               (user.role || 'user') === 'admin' ? <ShieldCheck className="h-4 w-4 text-amber-400" /> :
+               <User className="h-4 w-4 text-blue-400" />}
+              <span className="text-[10px] text-slate-400">{roleInfo.label}</span>
+            </div>
           </div>
         </div>
 
@@ -1065,7 +1076,9 @@ function EditUserModal({
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300">Permissoes</label>
             <div className="grid grid-cols-2 gap-2">
-              {ALL_PERMISSIONS.map((perm) => (
+              {ALL_PERMISSIONS.map((perm) => {
+                const info = PERMISSION_INFO[perm as Permission];
+                return (
                 <label
                   key={perm}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -1092,10 +1105,12 @@ function EditUserModal({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-medium">{PERMISSION_INFO[perm as Permission].label}</span>
+                    <span className="text-xs font-medium">{info.label}</span>
+                    <p className="text-[10px] opacity-60">{info.description}</p>
                   </div>
                 </label>
-              ))}
+                );
+              })}
             </div>
           </div>
           )}

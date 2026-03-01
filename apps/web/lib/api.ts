@@ -40,6 +40,7 @@ export interface UserProfile {
   email: string;
   name: string | null;
   is_admin: boolean;
+  role: string;
   permissions: string[];
   is_active: boolean;
   is_verified: boolean;
