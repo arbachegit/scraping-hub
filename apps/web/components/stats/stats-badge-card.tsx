@@ -552,6 +552,7 @@ interface CounterLineProps {
   countdown?: number;
   maxCountdown?: number;
   onRefreshComplete?: () => void;
+  isLoading?: boolean;
 }
 
 function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: number }) {
@@ -584,7 +585,7 @@ function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: 
   return <span className="tabular-nums">{displayValue.toLocaleString('pt-BR')}</span>;
 }
 
-export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComplete }: CounterLineProps) {
+export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComplete, isLoading }: CounterLineProps) {
   const colorMap = {
     red: 'text-red-400',
     orange: 'text-orange-400',
