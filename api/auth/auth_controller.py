@@ -163,8 +163,8 @@ async def update_me(
     """Update current user."""
     result = await update_user(current_user.email, update_data)
     if not result:
-        raise HTTPException(status_code=400, detail="Erro ao atualizar usuario")
-    return {"message": "Usuario atualizado"}
+        raise HTTPException(status_code=400, detail="Erro ao atualizar usuário")
+    return {"message": "Usuário atualizado"}
 
 
 # ===========================================

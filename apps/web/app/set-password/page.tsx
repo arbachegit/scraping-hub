@@ -82,7 +82,7 @@ function SetPasswordContent() {
       setCidade(data.city || '');
       setUf(data.state || '');
     } catch {
-      setCepError('CEP nao encontrado. Preencha manualmente.');
+      setCepError('CEP não encontrado. Preencha manualmente.');
     } finally {
       setCepLoading(false);
     }
@@ -93,52 +93,52 @@ function SetPasswordContent() {
     setError('');
 
     if (!token) {
-      setError('Token nao encontrado. Verifique o link recebido por email.');
+      setError('Token não encontrado. Verifique o link recebido por email.');
       return;
     }
 
     // Validate CPF
     const cpfDigits = cpf.replace(/\D/g, '');
     if (cpfDigits.length !== 11) {
-      setError('CPF deve ter 11 digitos.');
+      setError('CPF deve ter 11 dígitos.');
       return;
     }
 
     // Validate CEP
     const cepDigits = cep.replace(/\D/g, '');
     if (cepDigits.length !== 8) {
-      setError('CEP deve ter 8 digitos.');
+      setError('CEP deve ter 8 dígitos.');
       return;
     }
 
     // Validate address fields
     if (!logradouro || !numero || !bairro || !cidade || !uf) {
-      setError('Preencha todos os campos obrigatorios do endereco.');
+      setError('Preencha todos os campos obrigatórios do endereço.');
       return;
     }
     if (!/^[A-Z]{2}$/.test(uf)) {
-      setError('UF deve ter 2 letras maiusculas (ex: SP, RJ).');
+      setError('UF deve ter 2 letras maiúsculas (ex: SP, RJ).');
       return;
     }
 
     // Validate password
     if (password !== confirmPassword) {
-      setError('As senhas nao coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
 
     if (password.length < 8) {
-      setError('A senha deve ter no minimo 8 caracteres.');
+      setError('A senha deve ter no mínimo 8 caracteres.');
       return;
     }
 
     if (!/[A-Z]/.test(password)) {
-      setError('A senha deve conter pelo menos 1 letra maiuscula.');
+      setError('A senha deve conter pelo menos 1 letra maiúscula.');
       return;
     }
 
     if (!/[0-9]/.test(password)) {
-      setError('A senha deve conter pelo menos 1 numero.');
+      setError('A senha deve conter pelo menos 1 número.');
       return;
     }
 
@@ -191,7 +191,7 @@ function SetPasswordContent() {
 
           {!token && (
             <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
-              Link invalido ou expirado. Solicite um novo convite ao administrador.
+              Link inválido ou expirado. Solicite um novo convite ao administrador.
             </div>
           )}
 
@@ -215,7 +215,7 @@ function SetPasswordContent() {
             </div>
 
             {/* Section: Address */}
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">Endereco</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">Endereço</p>
 
             {/* CEP */}
             <div className="space-y-1">
@@ -258,7 +258,7 @@ function SetPasswordContent() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-foreground">
-                  Numero <span className="text-red-400">*</span>
+                  Número <span className="text-red-400">*</span>
                 </label>
                 <Input
                   value={numero}
@@ -331,7 +331,7 @@ function SetPasswordContent() {
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-cyan-500/50" />
                 <Input
                   type="password"
-                  placeholder="Minimo 8 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   value={password}
                   onChange={(e) => setPasswordValue(e.target.value)}
                   className="pl-11"
@@ -360,7 +360,7 @@ function SetPasswordContent() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              A senha deve conter pelo menos 1 letra maiuscula e 1 numero.
+              A senha deve conter pelo menos 1 letra maiúscula e 1 número.
             </p>
 
             <Button type="submit" className="w-full" disabled={loading || !token}>

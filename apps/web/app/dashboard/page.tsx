@@ -36,10 +36,10 @@ const COUNTDOWN_MAX = 60; // 1 minute in seconds
 const categoryConfig = {
   empresas: { icon: Building2, color: 'red' as const, label: 'Empresas' },
   pessoas: { icon: Users, color: 'orange' as const, label: 'Pessoas' },
-  politicos: { icon: Flag, color: 'blue' as const, label: 'Politicos' },
+  politicos: { icon: Flag, color: 'blue' as const, label: 'Políticos' },
   mandatos: { icon: Vote, color: 'purple' as const, label: 'Mandatos' },
   emendas: { icon: Receipt, color: 'cyan' as const, label: 'Emendas' },
-  noticias: { icon: Newspaper, color: 'green' as const, label: 'Noticias' },
+  noticias: { icon: Newspaper, color: 'green' as const, label: 'Notícias' },
 };
 
 type CategoryKey = keyof typeof categoryConfig;
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                 className="inline-flex items-center gap-1.5 h-9 px-3 bg-cyan-500/15 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs font-semibold hover:bg-cyan-500 hover:text-white transition-colors"
               >
                 <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Usuarios</span>
+                <span className="hidden sm:inline">Usuários</span>
               </a>
             )}
             <span className="inline-flex items-center justify-center h-9 px-3 bg-slate-400/15 border border-slate-400/30 rounded-lg text-slate-200 text-xs font-medium">
@@ -279,8 +279,8 @@ export default function DashboardPage() {
                 <NeoGlowCompactCard
                   icon={Flag}
                   iconColor="blue"
-                  title="Politicos"
-                  description="Perfis e percepcao"
+                  title="Políticos"
+                  description="Perfis e percepção"
                   onClick={openPoliticosFromCard}
                 />
               )}
@@ -306,8 +306,8 @@ export default function DashboardPage() {
                 <NeoGlowCompactCard
                   icon={Newspaper}
                   iconColor="green"
-                  title="Noticias"
-                  description="Monitore noticias"
+                  title="Notícias"
+                  description="Monitore notícias"
                   onClick={() => setNewsModalOpen(true)}
                 />
               )}
@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
           {/* Stats Badges */}
           <div className="mb-6">
-            <h2 className="text-[25px] font-semibold text-slate-400 mb-3">Estatisticas em Tempo Real</h2>
+            <h2 className="text-[25px] font-semibold text-slate-400 mb-3">Estatísticas em Tempo Real</h2>
 
             {/* Row 1: Empresas + Pessoas (large) */}
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -514,7 +514,7 @@ function NeoGlowCompactCard({
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-slate-500 truncate">{description}</p>
+            <p className="text-[10px] text-slate-500 truncate group-hover:opacity-0 transition-opacity">{description}</p>
           </div>
         </div>
       </div>

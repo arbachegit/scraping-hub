@@ -106,6 +106,7 @@ export default function AdminPage() {
   }
 
   const currentUserRole = userQuery.data.role || 'user';
+  const currentUserId = userQuery.data.id;
   const currentIsSuperAdmin = isSuperAdmin(currentUserRole);
 
   const allUsers = usersQuery.data?.users || [];
@@ -129,7 +130,7 @@ export default function AdminPage() {
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-cyan-400" />
               <h1 className="text-lg font-bold text-slate-100">
-                Gestao de Usuarios
+                Gestão de Usuários
               </h1>
             </div>
           </div>
@@ -139,7 +140,7 @@ export default function AdminPage() {
             className="gap-1.5"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            Novo Usuario
+            Novo Usuário
           </Button>
         </div>
       </header>
@@ -150,7 +151,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-xs text-cyan-400">
             <span className="font-semibold">{allUsers.length}</span>
-            <span>usuarios cadastrados</span>
+            <span>usuários cadastrados</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">
             <span className="font-semibold">{activeUsers.length}</span>
@@ -201,7 +202,7 @@ export default function AdminPage() {
           </div>
         ) : usersQuery.isError ? (
           <div className="text-center py-20">
-            <p className="text-red-400 text-sm">Erro ao carregar usuarios</p>
+            <p className="text-red-400 text-sm">Erro ao carregar usuários</p>
             <button
               onClick={() => usersQuery.refetch()}
               className="mt-2 text-cyan-400 text-sm hover:underline"
@@ -216,7 +217,7 @@ export default function AdminPage() {
               <thead>
                 <tr className="border-b border-white/5">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Usuario
+                    Usuário
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     CPF
@@ -225,7 +226,7 @@ export default function AdminPage() {
                     Telefone
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Endereco
+                    Endereço
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Role
@@ -234,10 +235,10 @@ export default function AdminPage() {
                     Status
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Permissoes
+                    Permissões
                   </th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Acoes
+                    Ações
                   </th>
                 </tr>
               </thead>
@@ -276,7 +277,7 @@ export default function AdminPage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500">Nao preenchido</span>
+                        <span className="text-xs text-slate-500">Não preenchido</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -348,7 +349,7 @@ export default function AdminPage() {
                         {!user.is_verified && (
                           <ResendInviteButton userId={user.id} queryClient={queryClient} />
                         )}
-                        {currentIsSuperAdmin && user.role !== 'superadmin' && (
+                        {isAdminRole(currentUserRole) && user.id !== currentUserId && (
                           <button
                             onClick={() => setEditingUser(user)}
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors"
@@ -357,7 +358,7 @@ export default function AdminPage() {
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        {currentIsSuperAdmin && user.role !== 'superadmin' && (
+                        {isAdminRole(currentUserRole) && user.id !== currentUserId && (
                           user.is_active ? (
                             <button
                               onClick={() => setConfirmDeactivate(user)}
@@ -387,8 +388,8 @@ export default function AdminPage() {
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">
                       {activeTab === 'ativos'
-                        ? 'Nenhum usuario ativo.'
-                        : 'Nenhum usuario inativo.'}
+                        ? 'Nenhum usuário ativo.'
+                        : 'Nenhum usuário inativo.'}
                     </td>
                   </tr>
                 )}
@@ -570,7 +571,7 @@ function CreateUserModal({
     mutationFn: (data: AdminCreateUserRequest) => adminCreateUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      setSuccessMsg('Usuario criado com sucesso.');
+      setSuccessMsg('Usuário criado com sucesso.');
       setTimeout(onClose, 1500);
     },
     onError: (err: Error) => {
@@ -625,7 +626,7 @@ function CreateUserModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Novo Usuario</h2>
+            <h2 className="text-sm font-semibold text-slate-100">Novo Usuário</h2>
           </div>
           <button
             onClick={onClose}
@@ -795,7 +796,7 @@ function CreateUserModal({
           {/* Permissions (only for role=user) */}
           {selectedRole === 'user' && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Permissoes</label>
+            <label className="text-xs font-medium text-slate-300">Permissões</label>
             <div className="grid grid-cols-3 gap-1.5">
               {ALL_PERMISSIONS.map((perm) => {
                 const info = PERMISSION_INFO[perm as Permission];
@@ -851,7 +852,7 @@ function CreateUserModal({
               ) : (
                 <>
                   <UserPlus className="h-4 w-4" />
-                  Criar Usuario
+                  Criar Usuário
                 </>
               )}
             </Button>
@@ -902,7 +903,7 @@ function EditUserModal({
     mutationFn: (data: AdminUpdateUserRequest) => adminUpdateUser(user.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      setSuccessMsg('Usuario atualizado com sucesso.');
+      setSuccessMsg('Usuário atualizado com sucesso.');
       setTimeout(onClose, 1500);
     },
     onError: (err: Error) => {
@@ -952,7 +953,7 @@ function EditUserModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 sticky top-0 bg-[#0f1629] z-10">
           <div className="flex items-center gap-2">
             <Pencil className="h-4 w-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Editar Usuario</h2>
+            <h2 className="text-sm font-semibold text-slate-100">Editar Usuário</h2>
           </div>
           <button
             onClick={onClose}
@@ -1016,8 +1017,8 @@ function EditUserModal({
             </div>
           </div>
 
-          {/* Endereco */}
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider pt-2">Endereco</p>
+          {/* Endereço */}
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider pt-2">Endereço</p>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
@@ -1029,7 +1030,7 @@ function EditUserModal({
               <Input value={editLogradouro} onChange={(e) => setEditLogradouro(e.target.value)} placeholder="Rua, Av..." className="h-9 text-sm" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-300">Numero</label>
+              <label className="text-xs font-medium text-slate-300">Número</label>
               <Input value={editNumero} onChange={(e) => setEditNumero(e.target.value)} placeholder="123" className="h-9 text-sm" />
             </div>
             <div className="space-y-1 col-span-2">
@@ -1092,7 +1093,7 @@ function EditUserModal({
           {/* Permissions (only for role=user) */}
           {editRole === 'user' && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Permissoes</label>
+            <label className="text-xs font-medium text-slate-300">Permissões</label>
             <div className="grid grid-cols-3 gap-1.5">
               {ALL_PERMISSIONS.map((perm) => {
                 const info = PERMISSION_INFO[perm as Permission];
@@ -1202,7 +1203,7 @@ function ConfirmDeactivateModal({
         <div className="px-5 py-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <UserX className="h-4 w-4 text-red-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Desativar Usuario</h2>
+            <h2 className="text-sm font-semibold text-slate-100">Desativar Usuário</h2>
           </div>
         </div>
 
@@ -1214,10 +1215,10 @@ function ConfirmDeactivateModal({
           )}
 
           <p className="text-sm text-slate-300">
-            Deseja desativar o usuario <strong className="text-slate-100">{user.name || user.email}</strong>?
+            Deseja desativar o usuário <strong className="text-slate-100">{user.name || user.email}</strong>?
           </p>
           <p className="text-xs text-slate-400">
-            O usuario nao podera mais fazer login. Ele sera movido para a aba Inativos.
+            O usuário não poderá mais fazer login. Ele será movido para a aba Inativos.
           </p>
 
           <div className="flex items-center gap-2 pt-2">

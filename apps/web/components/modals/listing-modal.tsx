@@ -158,7 +158,7 @@ export function EmpresasListingModal({ isOpen, onClose, filters }: EmpresasListi
               <thead>
                 <tr className="bg-cyan-500/5">
                   <SortableHeader
-                    label="Razao Social"
+                    label="Razão Social"
                     column="razao_social"
                     currentColumn={sortColumn}
                     direction={sortDirection}
@@ -385,7 +385,7 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
                     color="orange"
                   />
                   <SortableHeader
-                    label="Pais"
+                    label="País"
                     column="pais"
                     currentColumn={sortColumn}
                     direction={sortDirection}
@@ -393,7 +393,7 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
                     color="orange"
                   />
                   <SortableHeader
-                    label="Faixa Etaria"
+                    label="Faixa Etária"
                     column="faixa_etaria"
                     currentColumn={sortColumn}
                     direction={sortDirection}
@@ -532,7 +532,7 @@ export function NoticiasListingModal({ isOpen, onClose, filters }: NoticiasListi
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <h2 className="text-lg font-semibold text-white flex items-center gap-3">
             <span className="w-1 h-5 bg-gradient-to-b from-green-400 to-green-600 rounded" />
-            Noticias
+            Notícias
             <span className="bg-green-500/15 text-green-400 px-2.5 py-1 rounded text-sm">
               {filteredData.length}
             </span>
@@ -560,22 +560,22 @@ export function NoticiasListingModal({ isOpen, onClose, filters }: NoticiasListi
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-green-400 mb-4" />
-              <span>Carregando noticias...</span>
+              <span>Carregando notícias...</span>
             </div>
           ) : query.isError ? (
             <div className="text-center py-12 text-red-400">
-              Erro ao carregar noticias. Tente novamente mais tarde.
+              Erro ao carregar notícias. Tente novamente mais tarde.
             </div>
           ) : filteredData.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              Nenhuma noticia encontrada com os filtros aplicados.
+              Nenhuma notícia encontrada com os filtros aplicados.
             </div>
           ) : (
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-green-500/5">
                   <SortableHeader
-                    label="Titulo"
+                    label="Título"
                     column="titulo"
                     currentColumn={sortColumn}
                     direction={sortDirection}
@@ -749,7 +749,7 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <h2 className="text-lg font-semibold text-white flex items-center gap-3">
             <span className="w-1 h-5 bg-gradient-to-b from-blue-400 to-blue-600 rounded" />
-            Politicos
+            Políticos
             {!query.isLoading && (
               <span className="bg-blue-500/15 text-blue-400 px-2.5 py-1 rounded text-sm">
                 {sortedData.length}
@@ -770,7 +770,7 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Nome do politico..."
+            placeholder="Nome do político..."
             className="max-w-xs"
           />
           <Input
@@ -793,15 +793,15 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
           {query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-blue-400 mb-4" />
-              <span>Buscando politicos...</span>
+              <span>Buscando políticos...</span>
             </div>
           ) : query.isError ? (
             <div className="text-center py-12 text-red-400">
-              Erro ao buscar politicos. Verifique se o Brasil Data Hub esta configurado.
+              Erro ao buscar políticos. Verifique se o Brasil Data Hub está configurado.
             </div>
           ) : sortedData.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              Nenhum politico encontrado. Tente outro nome ou partido.
+              Nenhum político encontrado. Tente outro nome ou partido.
             </div>
           ) : (
             <table className="w-full border-collapse text-sm">
@@ -833,7 +833,7 @@ export function PoliticosListingModal({ isOpen, onClose }: PoliticosListingModal
                     color="blue"
                   />
                   <SortableHeader
-                    label="Municipio"
+                    label="Município"
                     column="municipio"
                     currentColumn={sortColumn}
                     direction={sortDirection}
@@ -938,7 +938,7 @@ function PoliticoRow({ politico }: { politico: Politician }) {
                             </span>
                           ) : m.eleito === false ? (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-500/15 text-red-400">
-                              Nao eleito
+                              Não eleito
                             </span>
                           ) : (
                             <span className="text-slate-500">-</span>
