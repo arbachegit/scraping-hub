@@ -526,7 +526,7 @@ class TestFrontendPermissions:
         from pathlib import Path
 
         admin = Path("apps/web/app/admin/page.tsx").read_text()
-        assert "Permissoes" in admin  # column header
+        assert "Permiss" in admin  # column header (Permissões)
         assert "ALL_PERMISSIONS" in admin  # checkbox iteration
         assert "PERMISSION_INFO" in admin  # label display
         assert "togglePermission" in admin or "toggleEditPermission" in admin
