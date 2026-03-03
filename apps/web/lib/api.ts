@@ -622,12 +622,13 @@ export interface Company {
   cnpj: string;
   razao_social: string;
   nome_fantasia?: string;
-  cidade?: string;
-  estado?: string;
-  cnae_descricao?: string;
-  regime_tributario?: string;
+  cidade?: string | null;
+  estado?: string | null;
+  cnae_descricao?: string | null;
+  regime_tributario?: string | null;
   linkedin?: string;
   situacao_cadastral?: string;
+  fonte?: string | null;
 }
 
 export interface CompanyListResponse {

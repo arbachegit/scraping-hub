@@ -48,10 +48,10 @@ export async function insertCompany(company) {
       numero: company.numero,
       complemento: company.complemento,
       bairro: company.bairro,
+      cep: company.cep,
+      codigo_ibge: company.codigo_municipio_ibge || company.codigo_ibge,
       cidade: company.cidade,
       estado: company.estado,
-      cep: company.cep,
-      codigo_municipio_ibge: company.codigo_municipio_ibge,
 
       // Contact (BrasilAPI)
       telefone: company.telefone_1,
@@ -266,24 +266,27 @@ export async function listCompanies(filters = {}) {
 
   const hasFilter = !!(nome || cidade || empresaIds);
 
+  // Base columns that always exist
+  const baseCols = 'id, cnpj, razao_social, nome_fantasia, situacao_cadastral, linkedin_url, cep, codigo_ibge, fonte';
+
+  // Try with cidade/estado first, fallback without if columns don't exist yet
+  let data, error, count;
+  let hasCidadeCol = true;
+
   let query = supabase
     .from('dim_empresas')
-    .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, situacao_cadastral, linkedin_url')
+    .select(`${baseCols}, cidade, estado`, { count: 'estimated' })
     .range(from, to);
 
-  // Only ORDER BY when listing without filters (uses PK index, fast)
-  // With ilike filters, skip ORDER to let Postgres pick fastest plan
   if (!hasFilter) {
     query = query.order('id', { ascending: false });
   }
 
   if (nome) {
-    // Split search terms and filter out Portuguese stop words
     const stopWords = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas', 'a', 'o', 'os', 'as', 'um', 'uma', 'para', 'com', 'por']);
     const words = nome.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
 
     if (words.length > 0) {
-      // Use prefix match (word%) when possible for index usage, fallback to contains (%word%)
       for (const word of words) {
         const ew = escapeLike(word);
         query = query.or(`razao_social.ilike.${ew}%,nome_fantasia.ilike.${ew}%,razao_social.ilike.% ${ew}%,nome_fantasia.ilike.% ${ew}%`);
@@ -295,18 +298,60 @@ export async function listCompanies(filters = {}) {
   }
 
   if (cidade) {
-    query = query.ilike('cidade', `${escapeLike(cidade)}%`);
+    const ec = escapeLike(cidade);
+    query = query.ilike('cidade', `%${ec}%`);
   }
 
   if (empresaIds && empresaIds.length > 0) {
     query = query.in('id', empresaIds);
   }
 
-  const { data, error } = await query;
+  ({ data, error, count } = await query);
+
+  // Fallback: if cidade/estado columns don't exist yet, retry without them
+  if (error && error.message && error.message.includes('cidade')) {
+    hasCidadeCol = false;
+    let fallbackQuery = supabase
+      .from('dim_empresas')
+      .select(baseCols, { count: 'estimated' })
+      .range(from, to);
+
+    if (!hasFilter) {
+      fallbackQuery = fallbackQuery.order('id', { ascending: false });
+    }
+
+    if (nome) {
+      const stopWords = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas', 'a', 'o', 'os', 'as', 'um', 'uma', 'para', 'com', 'por']);
+      const words = nome.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
+
+      if (words.length > 0) {
+        for (const word of words) {
+          const ew = escapeLike(word);
+          fallbackQuery = fallbackQuery.or(`razao_social.ilike.${ew}%,nome_fantasia.ilike.${ew}%,razao_social.ilike.% ${ew}%,nome_fantasia.ilike.% ${ew}%`);
+        }
+      } else {
+        const en = escapeLike(nome);
+        fallbackQuery = fallbackQuery.or(`razao_social.ilike.${en}%,nome_fantasia.ilike.${en}%`);
+      }
+    }
+
+    if (empresaIds && empresaIds.length > 0) {
+      fallbackQuery = fallbackQuery.in('id', empresaIds);
+    }
+
+    ({ data, error, count } = await fallbackQuery);
+  }
 
   if (error) throw error;
 
-  return { data: data || [], total: (data || []).length };
+  // Ensure cidade/estado fields exist in response (null if column missing)
+  const results = (data || []).map(row => ({
+    ...row,
+    cidade: row.cidade ?? null,
+    estado: row.estado ?? null,
+  }));
+
+  return { data: results, total: count || results.length };
 }
 
 /**

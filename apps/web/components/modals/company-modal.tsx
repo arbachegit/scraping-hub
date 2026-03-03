@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Plus,
   Download,
   AlertTriangle,
@@ -33,6 +35,7 @@ import {
   listCompanies,
   checkExistingCnpjs,
   formatCnpj,
+  formatRegime,
   type CompanyDetails,
   type Socio,
   type CompanyCandidate,
@@ -78,6 +81,8 @@ export function CompanyModal({
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [insertingCnpj, setInsertingCnpj] = useState<string | null>(null);
   const [massInserting, setMassInserting] = useState(false);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -433,6 +438,26 @@ export function CompanyModal({
     return [...dbMapped, ...externalNew];
   }, [dbResults, externalResults, page]);
 
+  const sortedResults = useMemo(() => {
+    if (!sortField) return mergedResults;
+    return [...mergedResults].sort((a, b) => {
+      const aRec = a as unknown as Record<string, unknown>;
+      const bRec = b as unknown as Record<string, unknown>;
+      const valA = String(aRec[sortField] ?? '').toLowerCase();
+      const valB = String(bRec[sortField] ?? '').toLowerCase();
+      return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+  }, [mergedResults, sortField, sortDirection]);
+
+  function handleResultSort(column: string) {
+    if (sortField === column) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(column);
+      setSortDirection('asc');
+    }
+  }
+
   const countDb = mergedResults.filter(c => c.fonte === 'interno' || registeredCnpjs.has(c.cnpj)).length;
   const countNew = mergedResults.filter(c => c.fonte !== 'interno' && !registeredCnpjs.has(c.cnpj)).length;
 
@@ -609,27 +634,96 @@ export function CompanyModal({
                 </div>
               )}
 
-              {/* Unified Results List */}
+              {/* Unified Results Table */}
               {debouncedNome.length >= 2 && !isLoading && mergedResults.length > 0 && (
-                <div className="space-y-2">
-                  {mergedResults.map((c) => {
-                    const isRegistered = c.fonte === 'interno' || registeredCnpjs.has(c.cnpj);
-                    return (
-                      <CompanyRow
-                        key={c.cnpj}
-                        cnpj={c.cnpj}
-                        cnpjFormatted={c.cnpj_formatted || formatCnpj(c.cnpj)}
-                        razaoSocial={c.razao_social}
-                        nomeFantasia={c.nome_fantasia}
-                        localizacao={c.localizacao}
-                        isRegistered={isRegistered}
-                        onClickDetail={() => setDetailCnpj(c.cnpj)}
-                        onClickInsert={!isRegistered ? () => handleInsertOne(c.cnpj) : undefined}
-                        isInserting={insertingCnpj === c.cnpj}
-                      />
-                    );
-                  })}
-                </div>
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-cyan-500/5">
+                      <ResultSortHeader label="Nome" column="razao_social" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                      <ResultSortHeader label="Base" column="fonte" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                      <ResultSortHeader label="Cidade" column="localizacao" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                      <ResultSortHeader label="Regime" column="regime_tributario" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                      <ResultSortHeader label="CNAE" column="cnae_descricao" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                      <th className="text-left p-3 text-cyan-400 font-semibold text-xs uppercase w-24">Acao</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedResults.map((c) => {
+                      const isRegistered = c.fonte === 'interno' || registeredCnpjs.has(c.cnpj);
+                      return (
+                        <tr
+                          key={c.cnpj}
+                          onClick={() => setDetailCnpj(c.cnpj)}
+                          className="border-b border-white/5 hover:bg-cyan-500/5 transition-colors cursor-pointer"
+                        >
+                          <td className="p-3 min-w-0 max-w-[260px]">
+                            <div className="truncate text-slate-200 font-medium">
+                              {c.nome_fantasia || c.razao_social || 'Sem nome'}
+                            </div>
+                            {c.nome_fantasia && c.razao_social && (
+                              <div className="truncate text-slate-500 text-xs">{c.razao_social}</div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={cn(
+                                'inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded border',
+                                isRegistered
+                                  ? 'bg-green-500/15 text-green-400 border-green-500/30'
+                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                              )}
+                            >
+                              {isRegistered ? 'DB' : 'Externo'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-300 whitespace-nowrap">
+                            {c.localizacao || '\u2014'}
+                          </td>
+                          <td className="p-3">
+                            {c.regime_tributario ? (
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-slate-500/15 text-slate-300">
+                                {formatRegime(c.regime_tributario)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">{'\u2014'}</span>
+                            )}
+                          </td>
+                          <td className="p-3 min-w-0 max-w-[200px]">
+                            {c.cnae_descricao ? (
+                              <div className="truncate text-slate-300 text-xs">{c.cnae_descricao}</div>
+                            ) : (
+                              <span className="text-slate-600">{'\u2014'}</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {!isRegistered ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInsertOne(c.cnpj);
+                                }}
+                                disabled={insertingCnpj === c.cnpj}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500/15 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {insertingCnpj === c.cnpj ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                                Inserir
+                              </button>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
+                                <Check className="h-3 w-3" />
+                                Cadastrada
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               )}
 
               {/* External search loading indicator (below DB results) */}
@@ -704,93 +798,41 @@ export function CompanyModal({
 }
 
 // ============================================
-// Company Row (with insert button)
+// Result Sort Header
 // ============================================
 
-function CompanyRow({
-  cnpj,
-  cnpjFormatted,
-  razaoSocial,
-  nomeFantasia,
-  localizacao,
-  isRegistered,
-  onClickDetail,
-  onClickInsert,
-  isInserting,
+function ResultSortHeader({
+  label,
+  column,
+  currentColumn,
+  direction,
+  onSort,
 }: {
-  cnpj: string;
-  cnpjFormatted: string;
-  razaoSocial: string;
-  nomeFantasia?: string;
-  localizacao?: string;
-  isRegistered: boolean;
-  onClickDetail: () => void;
-  onClickInsert?: () => void;
-  isInserting?: boolean;
+  label: string;
+  column: string;
+  currentColumn: string | null;
+  direction: 'asc' | 'desc';
+  onSort: (column: string) => void;
 }) {
+  const isActive = currentColumn === column;
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-colors">
-      {/* Icon */}
-      <div className="flex-shrink-0">
-        {isRegistered ? (
-          <Database className="h-4 w-4 text-green-400" />
+    <th
+      onClick={() => onSort(column)}
+      className="text-left p-3 text-cyan-400 font-semibold text-xs uppercase cursor-pointer select-none hover:bg-white/5 transition-colors"
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive ? (
+          direction === 'asc' ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
         ) : (
-          <Sparkles className="h-4 w-4 text-amber-400" />
+          <span className="opacity-40">{'\u2195'}</span>
         )}
       </div>
-
-      {/* Company info (clickable for detail) */}
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={onClickDetail}>
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-slate-200 font-semibold text-sm truncate">
-            {razaoSocial || 'Sem nome'}
-          </span>
-          <span
-            className={cn(
-              'flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded',
-              isRegistered
-                ? 'bg-green-500/15 text-green-400 border border-green-500/30'
-                : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-            )}
-          >
-            {isRegistered ? 'DB' : 'Nova'}
-          </span>
-          {nomeFantasia && (
-            <span className="text-slate-500 text-xs truncate max-w-[180px]">{nomeFantasia}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-slate-500 text-xs">{cnpjFormatted}</span>
-          {localizacao && (
-            <span className="text-xs text-slate-500">{localizacao}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Insert button */}
-      {onClickInsert && !isRegistered ? (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClickInsert();
-          }}
-          disabled={isInserting}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500/15 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50"
-        >
-          {isInserting ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Plus className="h-3 w-3" />
-          )}
-          Inserir
-        </button>
-      ) : isRegistered ? (
-        <span className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs text-slate-500">
-          <Check className="h-3 w-3" />
-          Cadastrada
-        </span>
-      ) : null}
-    </div>
+    </th>
   );
 }
 
