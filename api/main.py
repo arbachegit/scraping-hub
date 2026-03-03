@@ -845,6 +845,12 @@ async def startup():
 
     logger.info("api_starting", version=APP_VERSION)
 
+    # Validate critical env vars
+    if not settings.jwt_secret_key:
+        logger.error("FATAL: JWT_SECRET_KEY is empty. Auth will not work. Set JWT_SECRET_KEY env var.")
+    if not settings.supabase_url or not settings.supabase_service_key:
+        logger.error("FATAL: SUPABASE_URL or SUPABASE_SERVICE_KEY missing. Database will not work.")
+
     # Seed super admin from env vars
     try:
         from api.seed import seed_super_admin

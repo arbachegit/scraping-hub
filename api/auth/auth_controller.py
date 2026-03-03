@@ -59,6 +59,15 @@ router = APIRouter(tags=["Auth"])
 @router.post("/login", response_model=TokenWithRefresh)
 async def login(user_data: LoginRequest, request: Request):
     """User login — returns access + refresh token."""
+    # Pre-check: Supabase must be available
+    from src.database.client import get_supabase
+    if not get_supabase():
+        logger.error("login_no_database", msg="Supabase client not available")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Servico temporariamente indisponivel. Tente novamente.",
+        )
+
     user = await authenticate_user(user_data.email, user_data.password)
     if not user:
         raise HTTPException(

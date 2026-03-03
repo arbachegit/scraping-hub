@@ -44,10 +44,20 @@ async def seed_super_admin() -> None:
         )
 
         if existing.data:
+            # Ensure password is up-to-date (re-hash from env var)
+            user_id = existing.data[0]["id"]
+            new_hash = hash_password(settings.seed_admin_password)
+            client.table("users").update({
+                "password_hash": new_hash,
+                "is_active": True,
+                "is_verified": True,
+                "is_admin": True,
+                "role": "superadmin",
+            }).eq("id", user_id).execute()
             logger.info(
-                "seed_admin_exists",
+                "seed_admin_password_synced",
                 email=settings.seed_admin_email,
-                msg="Super admin already exists, skipping seed.",
+                msg="Super admin password re-synced from env var.",
             )
             return
 

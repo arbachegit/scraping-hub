@@ -47,21 +47,26 @@ async def get_user_from_db(email: str) -> Optional[dict]:
         from src.database.client import get_supabase
 
         client = get_supabase()
-        if client:
-            result = (
-                client.table("users")
-                .select("*")
-                .eq("email", email)
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
+        if not client:
+            logger.error("get_user_no_supabase", msg="Supabase client is None. Check SUPABASE_URL and SUPABASE_SERVICE_KEY.")
+            return None
 
-            if result.data:
-                logger.info("user_found_db", email=email)
-                return result.data[0]
+        result = (
+            client.table("users")
+            .select("*")
+            .eq("email", email)
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+
+        if result.data:
+            logger.info("user_found_db", email=email)
+            return result.data[0]
+
+        logger.info("user_not_found_db", email=email)
     except Exception as e:
-        logger.warning("db_user_lookup_failed", error=str(e))
+        logger.error("db_user_lookup_failed", email=email, error=str(e), error_type=type(e).__name__)
 
     return None
 
@@ -201,7 +206,7 @@ def decode_special_token(token: str, expected_type: str) -> Optional[dict]:
 
 async def authenticate_user(email: str, password: str) -> Optional[dict]:
     """Authenticate user by email and password."""
-    user = await get_user_from_db(email)
+    user = await get_user_from_db(email.lower().strip())
     if not user:
         logger.warning("auth_user_not_found", email=email)
         return None
