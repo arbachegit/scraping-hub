@@ -283,7 +283,8 @@ function analyzeCompanyQuery({ nome, cnpj, cidade, segmento, regime, extractedFi
 
 /**
  * Estimate how many matches a query would return.
- * Uses DB COUNT + heuristics.
+ * Person searches may use DB counts; company searches are heuristic-only
+ * to avoid COUNT timeouts on dim_empresas.
  *
  * @param {Object} query - The analyzed query
  * @param {string} query.type - 'person' or 'company'
@@ -377,60 +378,50 @@ async function estimateCompanyCardinality(fields) {
 
   // CNPJ → at most 1
   if (cnpj) {
-    const { count } = await supabase
-      .from('dim_empresas')
-      .select('id', { count: 'exact', head: true })
-      .eq('cnpj', cnpj);
     return {
-      estimatedMatches: count || 0,
-      dbCount: count || 0,
-      source: 'db',
-      confidence: 0.95
+      estimatedMatches: 1,
+      dbCount: 1,
+      source: 'heuristic',
+      confidence: 0.99
     };
   }
 
-  // Nome + optional cidade → count in DB + heuristic
+  // Nome + optional cidade → heuristic only.
+  // Exact COUNT on dim_empresas (64M+ rows) was causing systematic timeouts.
   if (nome) {
     const searchName = nome.trim();
-    const escapedName = escapeLike(searchName);
-    let query = supabase
-      .from('dim_empresas')
-      .select('id', { count: 'exact', head: true })
-      .or(`razao_social.ilike.%${escapedName}%,nome_fantasia.ilike.%${escapedName}%`);
-
-    if (cidade) {
-      query = query.ilike('cidade', `%${escapeLike(cidade)}%`);
-    }
-
-    const { count } = await query;
-    const dbCount = count || 0;
-
-    // Heuristic for external (Google returns max ~20 CNPJs per search)
     const normalized = searchName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const tokens = normalized.split(/\s+/).filter(t => t.length >= 2);
     const significantTokens = tokens.filter(t => !GENERIC_COMPANY_TERMS.has(t));
+    const hasCidade = !!cidade;
 
-    let externalEstimate = 0;
     if (significantTokens.length === 0) {
-      externalEstimate = 100_000; // "comercio" alone → massive
-    } else if (significantTokens.length === 1 && !cidade) {
-      externalEstimate = 5_000;
-    } else if (significantTokens.length === 1 && cidade) {
-      externalEstimate = 500;
-    } else {
-      externalEstimate = 100;
+      return {
+        estimatedMatches: hasCidade ? 10_000 : 200_000,
+        dbCount: 0,
+        source: 'heuristic',
+        confidence: hasCidade ? 0.7 : 0.8
+      };
+    }
+
+    if (significantTokens.length === 1) {
+      return {
+        estimatedMatches: hasCidade ? 500 : 5_000,
+        dbCount: 0,
+        source: 'heuristic',
+        confidence: hasCidade ? 0.7 : 0.6
+      };
     }
 
     return {
-      estimatedMatches: dbCount + externalEstimate,
-      dbCount,
-      externalEstimate,
-      source: externalEstimate > 0 ? 'heuristic' : 'db',
-      confidence: externalEstimate > 0 ? 0.3 : 0.8
+      estimatedMatches: hasCidade ? 25 : 250,
+      dbCount: 0,
+      source: 'heuristic',
+      confidence: hasCidade ? 0.9 : 0.8
     };
   }
 
-  return { estimatedMatches: 0, dbCount: 0, source: 'db', confidence: 1.0 };
+  return { estimatedMatches: 0, dbCount: 0, source: 'heuristic', confidence: 1.0 };
 }
 
 // ============================================
