@@ -23,7 +23,7 @@ router.get('/list', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const { data, error, count } = await supabase
-      .from('fato_pessoas')
+      .from('dim_pessoas')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -104,9 +104,9 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get person data from fato_pessoas
+    // Get person data from dim_pessoas
     const { data: pessoa, error: pessoaError } = await supabase
-      .from('fato_pessoas')
+      .from('dim_pessoas')
       .select('*')
       .eq('id', id)
       .single();
@@ -172,7 +172,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
         qualificacao,
         data_transacao,
         ativo,
-        fato_pessoas (*)
+        dim_pessoas (*)
       `)
       .eq('empresa_id', empresaId)
       .order('data_transacao', { ascending: false });
@@ -186,7 +186,7 @@ router.get('/by-company/:empresaId', async (req, res) => {
       success: true,
       count: data.length,
       people: data.map(item => ({
-        ...item.fato_pessoas,
+        ...item.dim_pessoas,
         tipo_transacao: item.tipo_transacao,
         cargo: item.cargo,
         qualificacao: item.qualificacao,
@@ -216,10 +216,10 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    // Search in fato_pessoas by name
+    // Search in dim_pessoas by name
     const escapedNome = escapeLike(nome.trim());
     const { data, error } = await supabase
-      .from('fato_pessoas')
+      .from('dim_pessoas')
       .select('*')
       .or(`nome_completo.ilike.%${escapedNome}%,primeiro_nome.ilike.%${escapedNome}%`)
       .limit(20);
@@ -268,7 +268,7 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
 
       const escapedName = escapeLike(nameTrimmed);
       const { data: dbMatches, error: dbError } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('*')
         .or(`primeiro_nome.ilike.%${escapedName}%,nome_completo.ilike.%${escapedName}%`)
         .limit(10);
@@ -330,14 +330,14 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     }
 
     // =============================================
-    // 1. Search internal database (fato_pessoas)
+    // 1. Search internal database (dim_pessoas)
     // =============================================
     sourcesTried.push('database');
     let existingPerson = null;
 
     if (hasCpf) {
       const { data, error } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('*')
         .eq('cpf', cpf)
         .single();
@@ -347,7 +347,7 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     if (!existingPerson && hasNome) {
       const escapedNomeCpf = escapeLike(nome.trim());
       const { data, error } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('*')
         .or(`nome_completo.ilike.%${escapedNomeCpf}%,primeiro_nome.ilike.%${escapedNomeCpf}%`)
         .limit(1)
@@ -569,12 +569,16 @@ router.post('/save', async (req, res) => {
 
     logger.info('Saving person', { nome: maskPII(pessoa.nome_completo), aprovado_por });
 
-    // Check if person already exists by CPF or nome in fato_pessoas
-    if (pessoa.cpf) {
+    // Normalize CPF: remove non-digits
+    const normalizedCpf = pessoa.cpf ? String(pessoa.cpf).replace(/[^\d]/g, '') : null;
+    const cleanCpf = normalizedCpf && normalizedCpf.length === 11 ? normalizedCpf : null;
+
+    // Check if person already exists by CPF in dim_pessoas
+    if (cleanCpf) {
       const { data: existing } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('id')
-        .eq('cpf', pessoa.cpf)
+        .eq('cpf', cleanCpf)
         .single();
 
       if (existing) {
@@ -586,15 +590,15 @@ router.post('/save', async (req, res) => {
       }
     }
 
-    // Insert person into fato_pessoas
+    // Insert person into dim_pessoas (CPF already normalized above)
     const nomeParts = pessoa.nome_completo?.split(' ') || [];
     const { data: novaPessoa, error: pessoaError } = await supabase
-      .from('fato_pessoas')
+      .from('dim_pessoas')
       .insert({
         nome_completo: pessoa.nome_completo,
         primeiro_nome: nomeParts[0] || null,
         sobrenome: nomeParts.length > 1 ? nomeParts.slice(1).join(' ') : null,
-        cpf: pessoa.cpf || null,
+        cpf: cleanCpf,
         email: pessoa.email || null,
         linkedin_url: pessoa.linkedin_url || null,
         foto_url: pessoa.foto_url || null,
@@ -750,7 +754,7 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
 
     if (searchType === 'cpf') {
       const { data, error, count } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('*', { count: 'exact' })
         .eq('cpf', cpf)
         .range(offset, offset + pageSize - 1);
@@ -763,7 +767,7 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       const searchName = guardrail.normalizedQuery || nome.trim();
       const escapedSearchName = escapeLike(searchName);
       let query = supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('*', { count: 'exact' })
         .or(`nome_completo.ilike.%${escapedSearchName}%,primeiro_nome.ilike.%${escapedSearchName}%`);
 
@@ -1063,7 +1067,7 @@ router.post('/check-existing', async (req, res) => {
       checked += batchIds.length;
 
       const { data, error } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('id')
         .in('id', batchIds);
 
@@ -1080,7 +1084,7 @@ router.post('/check-existing', async (req, res) => {
       checked += batchCpfs.length;
 
       const { data, error } = await supabase
-        .from('fato_pessoas')
+        .from('dim_pessoas')
         .select('id, cpf')
         .in('cpf', batchCpfs);
 
@@ -1123,12 +1127,16 @@ router.post('/save-batch', validateBody(saveBatchSchema), async (req, res) => {
 
     for (const pessoa of pessoas) {
       try {
+        // Normalize CPF
+        const batchRawCpf = pessoa.cpf ? String(pessoa.cpf).replace(/[^\d]/g, '') : null;
+        const batchCleanCpf = batchRawCpf && batchRawCpf.length === 11 ? batchRawCpf : null;
+
         // Check if person already exists by CPF
-        if (pessoa.cpf) {
+        if (batchCleanCpf) {
           const { data: existing } = await supabase
-            .from('fato_pessoas')
+            .from('dim_pessoas')
             .select('id')
-            .eq('cpf', pessoa.cpf)
+            .eq('cpf', batchCleanCpf)
             .single();
 
           if (existing) {
@@ -1141,12 +1149,12 @@ router.post('/save-batch', validateBody(saveBatchSchema), async (req, res) => {
         // Insert person
         const nomeParts = pessoa.nome_completo?.split(' ') || [];
         const { data: novaPessoa, error: insertError } = await supabase
-          .from('fato_pessoas')
+          .from('dim_pessoas')
           .insert({
             nome_completo: pessoa.nome_completo,
             primeiro_nome: nomeParts[0] || null,
             sobrenome: nomeParts.length > 1 ? nomeParts.slice(1).join(' ') : null,
-            cpf: pessoa.cpf || null,
+            cpf: batchCleanCpf,
             email: pessoa.email || null,
             linkedin_url: pessoa.linkedin_url || null,
             foto_url: pessoa.foto_url || null,

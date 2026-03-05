@@ -81,11 +81,11 @@ export const approveCompanySchema = z.object({
     telefone_2: z.string().optional().nullable(),
     email: z.string().email().optional().nullable(),
     website: z.string().url().optional().nullable(),
-    linkedin: z.string().optional().nullable(),
+    linkedin: z.string().url().optional().nullable(),
     logo_url: z.string().url().optional().nullable(),
-    twitter: z.string().optional().nullable(),
-    facebook: z.string().optional().nullable(),
-    instagram: z.string().optional().nullable(),
+    twitter: z.string().url().optional().nullable(),
+    facebook: z.string().url().optional().nullable(),
+    instagram: z.string().url().optional().nullable(),
     porte: z.string().optional().nullable(),
     natureza_juridica: z.string().optional().nullable(),
     capital_social: z.number().optional().nullable(),
@@ -284,6 +284,59 @@ export function validateParams(schema) {
 }
 
 // ============================================
+// GRAPH / NETWORK SCHEMAS
+// ============================================
+
+// Entity type enum
+const entityTypeSchema = z.enum(['empresa', 'pessoa', 'politico', 'emenda', 'noticia']);
+
+// Relationship type enum
+const relationshipTypeSchema = z.enum([
+  'societaria', 'fornecedor', 'concorrente', 'parceiro', 'regulador',
+  'beneficiario', 'mencionado_em', 'cnae_similar', 'geografico', 'politico_empresarial'
+]);
+
+// Hybrid search request (POST /search/hybrid)
+export const hybridSearchSchema = z.object({
+  query: z.string()
+    .min(2, 'Query deve ter pelo menos 2 caracteres')
+    .max(500, 'Query muito longa')
+    .transform(val => val.trim()),
+  mode: z.enum(['text', 'vector', 'relational', 'hybrid']).default('hybrid'),
+  filters: z.object({
+    cidade: z.string().max(100).optional(),
+    estado: z.string().max(2).optional()
+  }).optional().default({}),
+  limit: z.coerce.number().int().min(1).max(200).default(50)
+});
+
+// Stream search query params (GET /search/stream)
+export const streamSearchSchema = z.object({
+  q: z.string()
+    .min(2, 'Query deve ter pelo menos 2 caracteres')
+    .max(500)
+    .transform(val => val.trim()),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cidade: z.string().max(100).optional(),
+  estado: z.string().max(2).optional()
+});
+
+// Network query params (GET /:id/network)
+export const networkQuerySchema = z.object({
+  hops: z.coerce.number().int().min(1).max(3).default(2),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+  tipo_relacao: relationshipTypeSchema.optional(),
+  min_strength: z.coerce.number().min(0).max(1).optional()
+});
+
+// Direct relationships query params (GET /:id/relationships)
+export const relationshipsQuerySchema = z.object({
+  tipo_relacao: relationshipTypeSchema.optional(),
+  min_strength: z.coerce.number().min(0).max(1).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100)
+});
+
+// ============================================
 // ATLAS CHAT SCHEMAS
 // ============================================
 
@@ -395,6 +448,40 @@ export const newsListSchema = z.object({
 });
 
 // ============================================
+// EMENDAS SCHEMAS
+// ============================================
+
+// Emendas list query params (GET /api/emendas/list)
+export const listEmendasSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  autor: safeStringSchema.optional(),
+  uf: z.string()
+    .max(2)
+    .transform(val => val?.toUpperCase())
+    .refine(val => !val || /^[A-Z]{2}$/.test(val), {
+      message: 'UF deve ter 2 letras'
+    })
+    .optional(),
+  ano: z.coerce
+    .number()
+    .int()
+    .min(2000, 'Ano minimo: 2000')
+    .max(2030, 'Ano maximo: 2030')
+    .optional(),
+  tipo: safeStringSchema.optional()
+});
+
+// Emendas search query params (GET /api/emendas/search)
+export const searchEmendasSchema = z.object({
+  q: z.string()
+    .min(2, 'Query deve ter pelo menos 2 caracteres')
+    .max(300, 'Query muito longa (maximo 300 caracteres)')
+    .transform(val => val.trim()),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+// ============================================
 // PEOPLE BATCH SCHEMAS
 // ============================================
 
@@ -405,11 +492,11 @@ export const saveBatchSchema = z.object({
     nome_completo: z.string().min(1, 'nome_completo é obrigatório'),
     cargo_atual: z.string().optional().nullable(),
     empresa_atual: z.string().optional().nullable(),
-    linkedin_url: z.string().optional().nullable(),
-    email: z.string().optional().nullable(),
+    linkedin_url: z.string().url().optional().nullable(),
+    email: z.string().email().optional().nullable(),
     localizacao: z.string().optional().nullable(),
     resumo_profissional: z.string().optional().nullable(),
-    foto_url: z.string().optional().nullable()
+    foto_url: z.string().url().optional().nullable()
   })).min(1, 'Mínimo 1 pessoa').max(100, 'Máximo 100 pessoas por lote'),
   aprovado_por: z.string().min(1, 'aprovado_por é obrigatório')
 });

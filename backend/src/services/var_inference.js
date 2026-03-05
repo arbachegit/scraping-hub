@@ -2,33 +2,26 @@
  * VAR Inference Service
  * Estimates revenue and predicts tax regime changes
  */
+import {
+  LIMITES_REGIME as IMPORTED_LIMITES,
+  FATURAMENTO_POR_FUNCIONARIO,
+  PESOS_VAR,
+  CAPITAL_SOCIAL_THRESHOLDS,
+  GROWTH_RATE_PER_YEAR,
+  GROWTH_MIN_YEARS,
+  VAR_SCORE_THRESHOLDS,
+  MONTHS_TO_CHANGE,
+  CNAE_SECTOR_MAP,
+  REGIME_PROGRESSION,
+  REGIME_TRIBUTARIO
+} from '../constants.js';
 
-// Limites dos regimes tributários (valores anuais em R$)
+// Extend LIMITES_REGIME with Infinity for LUCRO_REAL and sub-types
 const LIMITES_REGIME = {
-  MEI: 81000,
-  SIMPLES_ME: 360000,
-  SIMPLES_EPP: 4800000,
-  LUCRO_PRESUMIDO: 78000000,
+  ...IMPORTED_LIMITES,
+  SIMPLES_ME: IMPORTED_LIMITES.SIMPLES_ME || 360000,
+  SIMPLES_EPP: IMPORTED_LIMITES.SIMPLES_EPP || 4800000,
   LUCRO_REAL: Infinity
-};
-
-// Pesos das variáveis no modelo VAR (calibrados empiricamente)
-const PESOS_VAR = {
-  qtd_funcionarios: 0.30,      // Forte correlação com faturamento
-  capital_social: 0.15,        // Correlação moderada
-  anos_operando: 0.20,         // Empresas mais velhas tendem a crescer
-  qtd_mudancas_regime: 0.15,   // Histórico de crescimento
-  qtd_socios: 0.10,            // Mais sócios = mais capital/operação
-  qtd_cnaes: 0.10              // Diversificação indica escala
-};
-
-// Faturamento médio por funcionário por setor (estimativas)
-const FATURAMENTO_POR_FUNCIONARIO = {
-  comercio: 180000,
-  servicos: 120000,
-  industria: 250000,
-  tecnologia: 200000,
-  default: 150000
 };
 
 /**
@@ -112,15 +105,15 @@ function estimarFaturamento(variaveis) {
   let estimativaBase = Math.max(qtd_funcionarios, 1) * fatPorFunc;
 
   // Ajuste por capital social (capital alto sugere operação maior)
-  if (capital_social > 100000) {
-    estimativaBase *= 1.2;
-  } else if (capital_social > 500000) {
-    estimativaBase *= 1.5;
+  if (capital_social > CAPITAL_SOCIAL_THRESHOLDS.HIGH.value) {
+    estimativaBase *= CAPITAL_SOCIAL_THRESHOLDS.HIGH.multiplier;
+  } else if (capital_social > CAPITAL_SOCIAL_THRESHOLDS.MODERATE.value) {
+    estimativaBase *= CAPITAL_SOCIAL_THRESHOLDS.MODERATE.multiplier;
   }
 
   // Ajuste por anos operando (empresas mais velhas tendem a ter mais receita)
-  if (anos_operando > 5) {
-    estimativaBase *= 1 + (anos_operando * 0.02); // +2% por ano após 5 anos
+  if (anos_operando > GROWTH_MIN_YEARS) {
+    estimativaBase *= 1 + (anos_operando * GROWTH_RATE_PER_YEAR);
   }
 
   // Limites baseados no regime atual
@@ -169,32 +162,32 @@ function calcularProbabilidadeMudanca(variaveis, faturamento) {
 
   // Fator 1: Proximidade do limite (faturamento estimado vs limite)
   const proximidadeLimite = faturamento.medio / limiteAtual;
-  if (proximidadeLimite > 0.9) {
-    score += 40;
+  if (proximidadeLimite > VAR_SCORE_THRESHOLDS.PROXIMITY_HIGH.threshold) {
+    score += VAR_SCORE_THRESHOLDS.PROXIMITY_HIGH.score;
     confianca = 'alta';
-  } else if (proximidadeLimite > 0.7) {
-    score += 25;
+  } else if (proximidadeLimite > VAR_SCORE_THRESHOLDS.PROXIMITY_MEDIUM.threshold) {
+    score += VAR_SCORE_THRESHOLDS.PROXIMITY_MEDIUM.score;
     confianca = 'media';
-  } else if (proximidadeLimite > 0.5) {
-    score += 10;
+  } else if (proximidadeLimite > VAR_SCORE_THRESHOLDS.PROXIMITY_LOW.threshold) {
+    score += VAR_SCORE_THRESHOLDS.PROXIMITY_LOW.score;
   }
 
   // Fator 2: MEI com funcionário (limite é 1)
   if (mei_optante && qtd_funcionarios > 1) {
-    score += 50; // Já ultrapassou limite
+    score += VAR_SCORE_THRESHOLDS.MEI_EXCEEDED_EMPLOYEES;
     confianca = 'alta';
   }
 
   // Fator 3: Histórico de mudanças (empresas que já mudaram tendem a mudar de novo)
-  if (qtd_mudancas_regime >= 2) {
-    score += 15;
-  } else if (qtd_mudancas_regime >= 1) {
-    score += 10;
+  if (qtd_mudancas_regime >= VAR_SCORE_THRESHOLDS.REGIME_CHANGES_MANY.count) {
+    score += VAR_SCORE_THRESHOLDS.REGIME_CHANGES_MANY.score;
+  } else if (qtd_mudancas_regime >= VAR_SCORE_THRESHOLDS.REGIME_CHANGES_ONE.count) {
+    score += VAR_SCORE_THRESHOLDS.REGIME_CHANGES_ONE.score;
   }
 
   // Fator 4: Anos no regime atual (quanto mais tempo, maior chance)
-  if (anos_operando > 10 && regime_atual === 'MEI') {
-    score += 20; // MEI há muito tempo é suspeito
+  if (anos_operando > VAR_SCORE_THRESHOLDS.MEI_LONG_TENURE.years && regime_atual === REGIME_TRIBUTARIO.MEI) {
+    score += VAR_SCORE_THRESHOLDS.MEI_LONG_TENURE.score;
     confianca = 'media';
   }
 
@@ -203,10 +196,10 @@ function calcularProbabilidadeMudanca(variaveis, faturamento) {
 
   // Tempo estimado para mudança (em meses)
   let mesesParaMudanca = null;
-  if (score > 50) {
-    mesesParaMudanca = 12; // Próximo ano
-  } else if (score > 30) {
-    mesesParaMudanca = 24; // 2 anos
+  if (score > MONTHS_TO_CHANGE.HIGH.minScore) {
+    mesesParaMudanca = MONTHS_TO_CHANGE.HIGH.months;
+  } else if (score > MONTHS_TO_CHANGE.MEDIUM.minScore) {
+    mesesParaMudanca = MONTHS_TO_CHANGE.MEDIUM.months;
   }
 
   return {
@@ -270,17 +263,7 @@ function identificarSinais(variaveis, faturamento) {
 function determinarSetor(cnae) {
   if (!cnae) return 'default';
   const codigo = cnae.toString().substring(0, 2);
-
-  // CNAE groups
-  const setores = {
-    '01': 'industria', '02': 'industria', '03': 'industria', // Agro
-    '10': 'industria', '11': 'industria', '12': 'industria', // Alimentos
-    '45': 'comercio', '46': 'comercio', '47': 'comercio',    // Comércio
-    '62': 'tecnologia', '63': 'tecnologia',                   // TI
-    '69': 'servicos', '70': 'servicos', '71': 'servicos'      // Serviços
-  };
-
-  return setores[codigo] || 'default';
+  return CNAE_SECTOR_MAP[codigo] || 'default';
 }
 
 /**
@@ -297,13 +280,7 @@ function getLimiteAnterior(regime) {
  * Determine next probable regime
  */
 function determinarProximoRegime(regimeAtual) {
-  const progressao = {
-    'MEI': 'SIMPLES_NACIONAL',
-    'SIMPLES_NACIONAL': 'LUCRO_PRESUMIDO',
-    'LUCRO_PRESUMIDO': 'LUCRO_REAL',
-    'LUCRO_REAL': 'LUCRO_REAL'
-  };
-  return progressao[regimeAtual] || 'SIMPLES_NACIONAL';
+  return REGIME_PROGRESSION[regimeAtual] || REGIME_TRIBUTARIO.SIMPLES_NACIONAL;
 }
 
 /**

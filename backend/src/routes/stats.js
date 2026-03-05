@@ -2,29 +2,26 @@ import { Router } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../database/supabase.js';
 import logger from '../utils/logger.js';
+import { cacheGet, cacheSet, CACHE_TTL, getCacheStats } from '../utils/cache.js';
+import { STATS_TIMEZONE, STATS_UTC_OFFSET } from '../constants.js';
 
 const router = Router();
 
 // Timezone helper — sempre usar horário de São Paulo (BRT/BRST)
-const BRT_FORMATTER = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' });
+const BRT_FORMATTER = new Intl.DateTimeFormat('sv-SE', { timeZone: STATS_TIMEZONE });
 
 function getDateBRT(date = new Date()) {
   return BRT_FORMATTER.format(date); // returns 'YYYY-MM-DD'
 }
 
-// Cache in-memory para getAllCounts() — zero deps, TTL 30s
-let countsCache = null;
-let countsCacheTime = 0;
-const COUNTS_CACHE_TTL = 30_000; // 30 segundos
-
+// Cache via Redis (with in-memory fallback) — TTL 30s
 async function getAllCountsCached() {
-  const now = Date.now();
-  if (countsCache && (now - countsCacheTime) < COUNTS_CACHE_TTL) {
-    return countsCache;
-  }
+  const cacheKey = 'stats:all_counts';
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+
   const counts = await getAllCounts();
-  countsCache = counts;
-  countsCacheTime = now;
+  await cacheSet(cacheKey, counts, CACHE_TTL.STATS);
   return counts;
 }
 
@@ -152,8 +149,8 @@ async function getAllCounts() {
  */
 async function countDayInserts(client, table, dateStr, createdAtColumn = 'created_at') {
   try {
-    const dayStart = dateStr + 'T03:00:00.000Z';
-    const nextDay = new Date(dateStr + 'T03:00:00.000Z');
+    const dayStart = dateStr + STATS_UTC_OFFSET;
+    const nextDay = new Date(dateStr + STATS_UTC_OFFSET);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
     const dayEnd = nextDay.toISOString();
 
@@ -350,7 +347,7 @@ router.get('/history', async (req, res) => {
 
       historico[cat] = {
         unit: 'registros',
-        timezone: 'America/Sao_Paulo',
+        timezone: STATS_TIMEZONE,
         today: todayInserts,
         periodTotal: periodGrowth,
         points: filled,
@@ -622,11 +619,13 @@ router.get('/diagnostic', async (req, res) => {
       histCount[row.categoria] = (histCount[row.categoria] || 0) + 1;
     }
 
+    const cacheInfo = await getCacheStats();
+
     res.json({
       success: true,
       categories: results,
       stats_historico_rows: histCount,
-      cache_age_ms: countsCacheTime > 0 ? Date.now() - countsCacheTime : null,
+      cache: cacheInfo,
     });
   } catch (error) {
     logger.error('Error in stats diagnostic', { error: error.message });

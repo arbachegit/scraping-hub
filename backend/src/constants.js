@@ -141,6 +141,17 @@ export const DATA_SOURCES = {
     cobertura_temporal: '2010-presente',
     observacoes: 'Dados de municipios e estados brasileiros via Supabase (geo_municipios, geo_estados)'
   },
+  GEMINI: {
+    nome: 'Google Gemini AI',
+    categoria: 'ia',
+    fonte_primaria: 'Google',
+    url: 'https://generativelanguage.googleapis.com',
+    documentacao_url: 'https://ai.google.dev/docs',
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'media',
+    observacoes: 'Busca de website de empresa via IA generativa (fallback)'
+  },
   IBGE_CNAE: {
     nome: 'IBGE - Classificação Nacional de Atividades Econômicas',
     categoria: 'economico',
@@ -190,3 +201,112 @@ export const ALL_ROLES = Object.values(ROLES);
 
 // Search sources order (fallback chain)
 export const SEARCH_FALLBACK_ORDER = ['serper', 'perplexity', 'serper_exact'];
+
+// Graph relationship types
+export const RELATIONSHIP_TYPES = {
+  SOCIETARIA: 'societaria',
+  FORNECEDOR: 'fornecedor',
+  CONCORRENTE: 'concorrente',
+  PARCEIRO: 'parceiro',
+  REGULADOR: 'regulador',
+  BENEFICIARIO: 'beneficiario',
+  MENCIONADO_EM: 'mencionado_em',
+  CNAE_SIMILAR: 'cnae_similar',
+  GEOGRAFICO: 'geografico',
+  POLITICO_EMPRESARIAL: 'politico_empresarial'
+};
+
+export const ALL_RELATIONSHIP_TYPES = Object.values(RELATIONSHIP_TYPES);
+
+// Entity types for graph nodes
+export const ENTITY_TYPES = {
+  EMPRESA: 'empresa',
+  PESSOA: 'pessoa',
+  POLITICO: 'politico',
+  EMENDA: 'emenda',
+  NOTICIA: 'noticia'
+};
+
+export const ALL_ENTITY_TYPES = Object.values(ENTITY_TYPES);
+
+// Average revenue per employee by sector (annual, BRL)
+export const FATURAMENTO_POR_FUNCIONARIO = {
+  comercio: 180000,
+  servicos: 120000,
+  industria: 250000,
+  tecnologia: 200000,
+  default: 150000
+};
+
+// VAR model weights (empirically calibrated)
+export const PESOS_VAR = {
+  qtd_funcionarios: 0.30,
+  capital_social: 0.15,
+  anos_operando: 0.20,
+  qtd_mudancas_regime: 0.15,
+  qtd_socios: 0.10,
+  qtd_cnaes: 0.10
+};
+
+// Capital social thresholds for revenue adjustment
+export const CAPITAL_SOCIAL_THRESHOLDS = {
+  MODERATE: { value: 100000, multiplier: 1.2 },
+  HIGH: { value: 500000, multiplier: 1.5 }
+};
+
+// Growth adjustment per year (after 5 years operating)
+export const GROWTH_RATE_PER_YEAR = 0.02;
+export const GROWTH_MIN_YEARS = 5;
+
+// Regime change probability score thresholds
+export const VAR_SCORE_THRESHOLDS = {
+  PROXIMITY_HIGH: { threshold: 0.9, score: 40 },
+  PROXIMITY_MEDIUM: { threshold: 0.7, score: 25 },
+  PROXIMITY_LOW: { threshold: 0.5, score: 10 },
+  MEI_EXCEEDED_EMPLOYEES: 50,
+  REGIME_CHANGES_MANY: { count: 2, score: 15 },
+  REGIME_CHANGES_ONE: { count: 1, score: 10 },
+  MEI_LONG_TENURE: { years: 10, score: 20 }
+};
+
+// Estimated months to regime change based on score
+export const MONTHS_TO_CHANGE = {
+  HIGH: { minScore: 50, months: 12 },
+  MEDIUM: { minScore: 30, months: 24 }
+};
+
+// CNAE sector mapping (first 2 digits → sector)
+export const CNAE_SECTOR_MAP = {
+  '01': 'industria', '02': 'industria', '03': 'industria',
+  '10': 'industria', '11': 'industria', '12': 'industria',
+  '45': 'comercio', '46': 'comercio', '47': 'comercio',
+  '62': 'tecnologia', '63': 'tecnologia',
+  '69': 'servicos', '70': 'servicos', '71': 'servicos'
+};
+
+// Regime progression order
+export const REGIME_PROGRESSION = {
+  'MEI': 'SIMPLES_NACIONAL',
+  'SIMPLES_NACIONAL': 'LUCRO_PRESUMIDO',
+  'LUCRO_PRESUMIDO': 'LUCRO_REAL',
+  'LUCRO_REAL': 'LUCRO_REAL'
+};
+
+// Portuguese stop words for search queries
+export const SEARCH_STOP_WORDS = new Set([
+  'e', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na',
+  'nos', 'nas', 'a', 'o', 'os', 'as', 'um', 'uma', 'para', 'com', 'por'
+]);
+
+// Timezone for stats snapshots
+export const STATS_TIMEZONE = 'America/Sao_Paulo';
+export const STATS_UTC_OFFSET = 'T03:00:00.000Z';
+
+// Data source labels (used in inserts)
+export const FONTE = {
+  BRASILAPI_SERPER_APOLLO: 'brasilapi+serper+apollo',
+  PERPLEXITY: 'perplexity',
+  BATCH_INSERT: 'batch_insert',
+  BRASILAPI: 'brasilapi',
+  MANUAL: 'manual'
+};

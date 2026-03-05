@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import logger from '../utils/logger.js';
 import { escapeLike } from '../utils/sanitize.js';
+import { SEARCH_STOP_WORDS } from '../constants.js';
 
 // Ensure dotenv is loaded (ESM modules load before code execution)
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +13,7 @@ dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const readReplicaUrl = process.env.SUPABASE_READ_REPLICA_URL;
 
 if (!supabaseUrl || !supabaseKey) {
   const missing = [];
@@ -24,17 +26,32 @@ if (!supabaseUrl || !supabaseKey) {
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
+ * Read replica client for heavy read queries (stats, search, graph traversal).
+ * Falls back to primary if SUPABASE_READ_REPLICA_URL is not set.
+ */
+export const supabaseRead = readReplicaUrl
+  ? createClient(readReplicaUrl, supabaseKey)
+  : supabase;
+
+if (readReplicaUrl) {
+  logger.info('Supabase read replica configured', { url: readReplicaUrl.replace(/\/\/.*@/, '//***@') });
+}
+
+/**
  * Insert company into dim_empresas
  * Sources: BrasilAPI (official) + Serper (enrichment)
  * @param {Object} company - Company data
  * @returns {Promise<Object>} Inserted company
  */
 export async function insertCompany(company) {
+  // Normalize CNPJ: remove non-digits
+  const cleanCnpj = company.cnpj ? String(company.cnpj).replace(/[^\d]/g, '') : company.cnpj;
+
   const { data, error } = await supabase
     .from('dim_empresas')
     .insert([{
       // Identification
-      cnpj: company.cnpj,
+      cnpj: cleanCnpj,
       razao_social: company.razao_social,
       nome_fantasia: company.nome_fantasia,
 
@@ -81,44 +98,71 @@ export async function insertCompany(company) {
 }
 
 /**
- * Insert person into dim_pessoas
- * CPF from BrasilAPI QSA, LinkedIn from Serper
+ * Insert or update person in dim_pessoas.
+ * If CPF exists, updates with new data (keeping non-null fields).
+ * If no CPF or CPF not found, inserts new record.
  * @param {Object} person - Person data
- * @returns {Promise<Object>} Inserted person
+ * @returns {Promise<Object>} Inserted or updated person
  */
 export async function insertPerson(person) {
+  // Normalize CPF: remove non-digits, null if empty/masked
+  const rawCpf = person.cpf ? String(person.cpf).replace(/[^\d]/g, '') : null;
+  const cpf = rawCpf && rawCpf.length === 11 && !rawCpf.includes('0'.repeat(11)) ? rawCpf : null;
+
   // Extract first and last name
   const nameParts = (person.nome || '').split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
+  const record = {
+    nome_completo: person.nome,
+    primeiro_nome: firstName,
+    sobrenome: lastName,
+    cpf,
+    linkedin_url: person.linkedin,
+    email: person.email,
+    foto_url: person.foto_url,
+    faixa_etaria: person.faixa_etaria,
+    pais: person.pais_origem || 'Brasil',
+    raw_apollo_data: person.raw_apollo,
+    fonte: 'brasilapi+serper+apollo',
+    data_coleta: new Date().toISOString()
+  };
+
+  // If CPF is available, try to find existing person first
+  if (cpf) {
+    const { data: existing } = await supabase
+      .from('dim_pessoas')
+      .select('*')
+      .eq('cpf', cpf)
+      .maybeSingle();
+
+    if (existing) {
+      // Update only fields that are non-null in the new data
+      const updates = {};
+      for (const [key, value] of Object.entries(record)) {
+        if (value != null && value !== '' && key !== 'cpf') {
+          updates[key] = value;
+        }
+      }
+      updates.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('dim_pessoas')
+        .update(updates)
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
+  }
+
+  // No CPF or person not found: insert new
   const { data, error } = await supabase
     .from('dim_pessoas')
-    .insert([{
-      // Name
-      nome_completo: person.nome,
-      primeiro_nome: firstName,
-      sobrenome: lastName,
-
-      // CPF from BrasilAPI QSA
-      cpf: person.cpf,
-
-      // LinkedIn and contact
-      linkedin_url: person.linkedin,
-      email: person.email,
-      foto_url: person.foto_url,
-
-      // BrasilAPI QSA fields
-      faixa_etaria: person.faixa_etaria,
-      pais: person.pais_origem || 'Brasil',
-
-      // Raw data
-      raw_apollo_data: person.raw_apollo,
-
-      // Metadata
-      fonte: 'brasilapi+serper+apollo',
-      data_coleta: new Date().toISOString()
-    }])
+    .insert([record])
     .select()
     .single();
 
@@ -256,102 +300,124 @@ export async function findCompanyByCnpj(cnpj) {
 
 /**
  * List all companies with optional filters
- * @param {Object} filters - Optional filters: nome, cidade, segmento, regime
+ * Includes regime_tributario + cnae_descricao via nested JOIN with fato_regime_tributario
+ * @param {Object} filters - Optional filters: nome, cidade, segmento, regime, empresaIds, limit, offset
  */
 export async function listCompanies(filters = {}) {
-  const { nome, cidade, empresaIds, limit = 100, offset = 0 } = filters;
+  const { nome, cidade, segmento, regime, empresaIds, limit = 100, offset = 0 } = filters;
 
   const from = offset;
   const to = offset + limit - 1;
+  const hasTextFilter = !!(nome || cidade);
 
-  const hasFilter = !!(nome || cidade || empresaIds);
+  // Base columns
+  const baseCols = 'id, cnpj, razao_social, nome_fantasia, situacao_cadastral, linkedin_url, cep, codigo_ibge, fonte, cidade, estado';
 
-  // Base columns that always exist
-  const baseCols = 'id, cnpj, razao_social, nome_fantasia, situacao_cadastral, linkedin_url, cep, codigo_ibge, fonte';
+  // For text searches (nome/cidade): split into 2 queries to avoid timeout
+  // Query 1: fast ID lookup with ILIKE only (no JOINs)
+  // Query 2: fetch full data + regime for matched IDs
+  if (hasTextFilter) {
+    let searchQuery = supabase
+      .from('dim_empresas')
+      .select('id')
+      .limit(limit);
 
-  // Try with cidade/estado first, fallback without if columns don't exist yet
-  let data, error, count;
-  let hasCidadeCol = true;
+    if (nome) {
+      const words = nome.split(/\s+/).filter(w => w.length >= 2 && !SEARCH_STOP_WORDS.has(w.toLowerCase()));
+      const termsToSearch = words.length > 0 ? words : [nome];
+      for (const word of termsToSearch) {
+        const ew = escapeLike(word);
+        searchQuery = searchQuery.or(`razao_social.ilike.%${ew}%,nome_fantasia.ilike.%${ew}%`);
+      }
+    }
+
+    if (cidade) {
+      const ec = escapeLike(cidade);
+      searchQuery = searchQuery.ilike('cidade', `${ec}%`);
+    }
+
+    const { data: idRows, error: searchError } = await searchQuery;
+    if (searchError) throw searchError;
+
+    const matchedIds = (idRows || []).map(r => r.id);
+    if (matchedIds.length === 0) {
+      return { data: [], total: 0 };
+    }
+
+    // Query 2: fetch full data for matched IDs (fast - IN query on PKs)
+    const regimeJoin = (segmento || regime)
+      ? 'fato_regime_tributario!inner(regime_tributario, cnae_descricao)'
+      : 'fato_regime_tributario(regime_tributario, cnae_descricao)';
+
+    let dataQuery = supabase
+      .from('dim_empresas')
+      .select(`${baseCols}, ${regimeJoin}`)
+      .in('id', matchedIds)
+      .eq('fato_regime_tributario.ativo', true);
+
+    if (segmento) {
+      const es = escapeLike(segmento);
+      dataQuery = dataQuery.ilike('fato_regime_tributario.cnae_descricao', `%${es}%`);
+    }
+    if (regime) {
+      const er = escapeLike(regime);
+      dataQuery = dataQuery.ilike('fato_regime_tributario.regime_tributario', `%${er}%`);
+    }
+
+    const { data, error } = await dataQuery;
+    if (error) throw error;
+
+    const results = flattenRegimeData(data);
+    return { data: results, total: results.length };
+  }
+
+  // Non-text filters: single query with JOINs (no ILIKE, so fast)
+  const regimeJoin = (segmento || regime)
+    ? 'fato_regime_tributario!inner(regime_tributario, cnae_descricao)'
+    : 'fato_regime_tributario(regime_tributario, cnae_descricao)';
 
   let query = supabase
     .from('dim_empresas')
-    .select(`${baseCols}, cidade, estado`, { count: 'estimated' })
-    .range(from, to);
+    .select(`${baseCols}, ${regimeJoin}`, { count: 'estimated' })
+    .range(from, to)
+    .eq('fato_regime_tributario.ativo', true)
+    .order('id', { ascending: false });
 
-  if (!hasFilter) {
-    query = query.order('id', { ascending: false });
+  if (segmento) {
+    const es = escapeLike(segmento);
+    query = query.ilike('fato_regime_tributario.cnae_descricao', `%${es}%`);
   }
-
-  if (nome) {
-    const stopWords = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas', 'a', 'o', 'os', 'as', 'um', 'uma', 'para', 'com', 'por']);
-    const words = nome.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
-
-    if (words.length > 0) {
-      for (const word of words) {
-        const ew = escapeLike(word);
-        query = query.or(`razao_social.ilike.${ew}%,nome_fantasia.ilike.${ew}%,razao_social.ilike.% ${ew}%,nome_fantasia.ilike.% ${ew}%`);
-      }
-    } else {
-      const en = escapeLike(nome);
-      query = query.or(`razao_social.ilike.${en}%,nome_fantasia.ilike.${en}%`);
-    }
+  if (regime) {
+    const er = escapeLike(regime);
+    query = query.ilike('fato_regime_tributario.regime_tributario', `%${er}%`);
   }
-
-  if (cidade) {
-    const ec = escapeLike(cidade);
-    query = query.ilike('cidade', `%${ec}%`);
-  }
-
   if (empresaIds && empresaIds.length > 0) {
     query = query.in('id', empresaIds);
   }
 
-  ({ data, error, count } = await query);
-
-  // Fallback: if cidade/estado columns don't exist yet, retry without them
-  if (error && error.message && error.message.includes('cidade')) {
-    hasCidadeCol = false;
-    let fallbackQuery = supabase
-      .from('dim_empresas')
-      .select(baseCols, { count: 'estimated' })
-      .range(from, to);
-
-    if (!hasFilter) {
-      fallbackQuery = fallbackQuery.order('id', { ascending: false });
-    }
-
-    if (nome) {
-      const stopWords = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas', 'a', 'o', 'os', 'as', 'um', 'uma', 'para', 'com', 'por']);
-      const words = nome.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
-
-      if (words.length > 0) {
-        for (const word of words) {
-          const ew = escapeLike(word);
-          fallbackQuery = fallbackQuery.or(`razao_social.ilike.${ew}%,nome_fantasia.ilike.${ew}%,razao_social.ilike.% ${ew}%,nome_fantasia.ilike.% ${ew}%`);
-        }
-      } else {
-        const en = escapeLike(nome);
-        fallbackQuery = fallbackQuery.or(`razao_social.ilike.${en}%,nome_fantasia.ilike.${en}%`);
-      }
-    }
-
-    if (empresaIds && empresaIds.length > 0) {
-      fallbackQuery = fallbackQuery.in('id', empresaIds);
-    }
-
-    ({ data, error, count } = await fallbackQuery);
-  }
-
+  const { data, error, count } = await query;
   if (error) throw error;
 
-  // Ensure cidade/estado fields exist in response (null if column missing)
-  const results = (data || []).map(row => ({
-    ...row,
-    cidade: row.cidade ?? null,
-    estado: row.estado ?? null,
-  }));
+  const results = flattenRegimeData(data);
+  return { data: results, total: count ?? results.length };
+}
 
-  return { data: results, total: count || results.length };
+/**
+ * Flatten nested fato_regime_tributario array into top-level fields
+ */
+function flattenRegimeData(data) {
+  return (data || []).map(row => {
+    const { fato_regime_tributario: regimeArr, ...rest } = row;
+    const regimeRecord = Array.isArray(regimeArr) ? regimeArr[0] : null;
+    return {
+      ...rest,
+      cidade: rest.cidade ?? null,
+      estado: rest.estado ?? null,
+      regime_tributario: regimeRecord?.regime_tributario || null,
+      cnae_descricao: regimeRecord?.cnae_descricao || null,
+      linkedin: rest.linkedin_url || null,
+    };
+  });
 }
 
 /**
