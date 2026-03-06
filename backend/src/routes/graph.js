@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { getNetworkGraph, getNetworkStats } from '../services/graph-queries.js';
 import { supabase } from '../database/supabase.js';
-import { getCompanyFull } from '../services/cnpja.js';
 import {
   getEstimatedCompanyCount,
   listCompanyNodes,
@@ -442,10 +441,8 @@ router.get('/stats', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /explore?q=cesla  - Real-time graph exploration by company name or CNPJ
-// Uses CNPJá API as primary data source for company + QSA (sócios).
-// Falls back to local DB if CNPJá is unavailable.
-// News are always searched locally via name correlation.
+// GET /explore?q=cesla  - Graph exploration by company name or CNPJ
+// 100% local DB — searches dim_empresas, fato_transacao_empresas, dim_noticias
 // ---------------------------------------------------------------------------
 router.get('/explore', async (req, res) => {
   try {
@@ -458,157 +455,107 @@ router.get('/explore', async (req, res) => {
     const cleanDigits = q.replace(/[^\d]/g, '');
     const isCnpjQuery = cleanDigits.length >= 11 && cleanDigits.length <= 14 && /^\d+$/.test(cleanDigits);
 
-    let cnpjToLookup = null;
     let localEmpresa = null;
 
     if (isCnpjQuery) {
-      // Query is a CNPJ - pad to 14 digits and use directly
-      cnpjToLookup = cleanDigits.padStart(14, '0');
+      const cnpj = cleanDigits.padStart(14, '0');
+      const { data } = await supabase
+        .from('dim_empresas')
+        .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, situacao_cadastral, cnae_descricao, porte, capital_social')
+        .eq('cnpj', cnpj)
+        .limit(1)
+        .maybeSingle();
+      localEmpresa = data;
     } else {
-      // Query is a company name - search local DB to find CNPJ
       const candidates = await searchCompaniesByName({ query: q, limit: 20 });
       if (candidates && candidates.length > 0) {
-        localEmpresa = candidates[0];
-        if (localEmpresa.cnpj) {
-          cnpjToLookup = localEmpresa.cnpj.replace(/[^\d]/g, '');
-        }
+        // Fetch extra columns not returned by searchCompaniesByName
+        const { data } = await supabase
+          .from('dim_empresas')
+          .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, situacao_cadastral, cnae_descricao, porte, capital_social')
+          .eq('id', candidates[0].id)
+          .maybeSingle();
+        localEmpresa = data || candidates[0];
       }
     }
 
-    // No CNPJ found at all
-    if (!cnpjToLookup && !localEmpresa) {
+    if (!localEmpresa) {
       return res.json({ success: true, nodes: [], edges: [], center: null, stats: { total_nodes: 0, total_edges: 0, empresas: 0, socios: 0, noticias: 0 }, message: 'Nenhuma empresa encontrada' });
     }
 
-    // Step 1: Fetch company + QSA from CNPJá
-    let cnpjaData = null;
-    if (cnpjToLookup) {
-      cnpjaData = await getCompanyFull(cnpjToLookup);
-      if (cnpjaData) {
-        logger.info('explore_cnpja_ok', { cnpj: cnpjToLookup, socios: cnpjaData.socios.length });
-      } else {
-        logger.warn('explore_cnpja_fail', { cnpj: cnpjToLookup });
-      }
-    }
-
-    // Build empresa node - prefer CNPJá data, fallback to local
-    const empresaId = localEmpresa ? String(localEmpresa.id) : `cnpja-${cnpjToLookup}`;
-    const empresaLabel = cnpjaData
-      ? (cnpjaData.nome_fantasia || cnpjaData.razao_social)
-      : (localEmpresa?.nome_fantasia || localEmpresa?.razao_social || `CNPJ ${cnpjToLookup}`);
-    const empresaCidade = cnpjaData?.cidade || localEmpresa?.cidade || null;
-    const empresaEstado = cnpjaData?.estado || localEmpresa?.estado || null;
-    const empresaCnpj = cnpjaData?.cnpj || localEmpresa?.cnpj || cnpjToLookup;
+    const empresaId = String(localEmpresa.id);
+    const empresaLabel = localEmpresa.nome_fantasia || localEmpresa.razao_social || `CNPJ ${localEmpresa.cnpj}`;
 
     const nodes = [];
     const edges = [];
     let edgeId = 0;
 
-    // Add empresa as center node
+    // Step 1: Add empresa as center node
     nodes.push({
       id: empresaId,
       type: 'empresa',
       label: empresaLabel,
       hop: 0,
       data: {
-        cnpj: empresaCnpj,
-        cidade: empresaCidade,
-        estado: empresaEstado,
-        cnae: cnpjaData?.cnae_descricao || null,
-        porte: cnpjaData?.porte || null,
-        capital_social: cnpjaData?.capital_social || null,
-        situacao: cnpjaData?.situacao_cadastral || null,
-        fonte: cnpjaData ? 'CNPJá' : 'Local DB'
+        cnpj: localEmpresa.cnpj,
+        cidade: localEmpresa.cidade,
+        estado: localEmpresa.estado,
+        cnae: localEmpresa.cnae_descricao || null,
+        porte: localEmpresa.porte || null,
+        capital_social: localEmpresa.capital_social || null,
+        situacao: localEmpresa.situacao_cadastral || null,
       }
     });
 
-    // Step 2: Add sócios from CNPJá QSA
+    // Step 2: Fetch sócios from fato_transacao_empresas + dim_pessoas
     const sociosMap = new Map();
 
-    if (cnpjaData && cnpjaData.socios.length > 0) {
-      for (const socio of cnpjaData.socios) {
-        const socioId = `socio-${socio.cpf_cnpj || socio.nome.replace(/\s/g, '-').toLowerCase()}`;
-        if (sociosMap.has(socioId)) continue;
+    const { data: transacoes, error: txError } = await supabase
+      .from('fato_transacao_empresas')
+      .select(`
+        cargo,
+        qualificacao,
+        dim_pessoas (
+          id,
+          nome_completo,
+          cargo_atual,
+          empresa_atual
+        )
+      `)
+      .eq('empresa_id', localEmpresa.id);
 
-        sociosMap.set(socioId, {
-          id: socioId,
-          nome: socio.nome,
-          cargo: socio.cargo
-        });
-
-        nodes.push({
-          id: socioId,
-          type: 'pessoa',
-          label: socio.nome,
-          hop: 1,
-          data: {
-            cargo: socio.cargo,
-            desde: socio.desde,
-            tipo: socio.tipo,
-            fonte: 'CNPJá'
-          }
-        });
-
-        edges.push({
-          id: `e${++edgeId}`,
-          source: socioId,
-          target: empresaId,
-          tipo_relacao: 'societaria',
-          strength: 0.9,
-          label: socio.cargo || 'Sócio'
-        });
-      }
+    if (txError) {
+      logger.warn('explore_socios_error', { error: txError.message });
     }
 
-    // Fallback: if CNPJá didn't return sócios, try local fato_transacao_empresas
-    if (sociosMap.size === 0 && localEmpresa) {
-      const { data: transacoes, error: txError } = await supabase
-        .from('fato_transacao_empresas')
-        .select(`
-          cargo,
-          qualificacao,
-          dim_pessoas (
-            id,
-            nome_completo,
-            cargo_atual,
-            empresa_atual
-          )
-        `)
-        .eq('empresa_id', localEmpresa.id);
+    for (const tx of (transacoes || [])) {
+      const pessoa = tx.dim_pessoas;
+      if (!pessoa || !pessoa.id) continue;
+      const pessoaId = String(pessoa.id);
+      if (sociosMap.has(pessoaId)) continue;
 
-      if (txError) {
-        logger.warn('explore_socios_fallback_error', { error: txError.message });
-      }
+      sociosMap.set(pessoaId, {
+        id: pessoaId,
+        nome: pessoa.nome_completo,
+        cargo: tx.cargo || tx.qualificacao || pessoa.cargo_atual
+      });
 
-      for (const tx of (transacoes || [])) {
-        const pessoa = tx.dim_pessoas;
-        if (!pessoa || !pessoa.id) continue;
-        const pessoaId = String(pessoa.id);
-        if (sociosMap.has(pessoaId)) continue;
+      nodes.push({
+        id: pessoaId,
+        type: 'pessoa',
+        label: pessoa.nome_completo || `Pessoa #${pessoaId}`,
+        hop: 1,
+        data: { cargo: tx.cargo || tx.qualificacao || pessoa.cargo_atual, empresa: pessoa.empresa_atual }
+      });
 
-        sociosMap.set(pessoaId, {
-          id: pessoaId,
-          nome: pessoa.nome_completo,
-          cargo: tx.cargo || tx.qualificacao || pessoa.cargo_atual
-        });
-
-        nodes.push({
-          id: pessoaId,
-          type: 'pessoa',
-          label: pessoa.nome_completo || `Pessoa #${pessoaId}`,
-          hop: 1,
-          data: { cargo: tx.cargo || tx.qualificacao || pessoa.cargo_atual, empresa: pessoa.empresa_atual, fonte: 'Local DB' }
-        });
-
-        edges.push({
-          id: `e${++edgeId}`,
-          source: pessoaId,
-          target: empresaId,
-          tipo_relacao: 'societaria',
-          strength: 0.9,
-          label: tx.cargo || tx.qualificacao || 'Sócio'
-        });
-      }
+      edges.push({
+        id: `e${++edgeId}`,
+        source: pessoaId,
+        target: empresaId,
+        tipo_relacao: 'societaria',
+        strength: 0.9,
+        label: tx.cargo || tx.qualificacao || 'Socio'
+      });
     }
 
     // Step 3: Search news mentioning empresa name OR sócios names
@@ -696,7 +643,7 @@ router.get('/explore', async (req, res) => {
       noticias: noticiasAdded.size
     };
 
-    logger.info('graph_explore', { query: q, source: cnpjaData ? 'cnpja' : 'local', ...stats });
+    logger.info('graph_explore', { query: q, ...stats });
 
     return res.json({
       success: true,
