@@ -106,7 +106,7 @@ router.get('/list-enriched', async (req, res) => {
     // 1. Fetch pessoas (avoid full table scan on 22M rows)
     let pessoasQuery = supabase
       .from('dim_pessoas')
-      .select('id, nome_completo, primeiro_nome, email, cidade, estado, cargo_atual, empresa_atual_nome, telefone, headline, sobre, raw_apollo_data')
+      .select('*')
       .order('nome_completo', { ascending: true });
 
     if (search.length >= 2) {
