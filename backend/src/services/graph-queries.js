@@ -336,7 +336,7 @@ async function resolveEntityNames(nodes) {
     const ids = grouped.pessoa.map(n => n.id);
     const { data } = await supabase
       .from('dim_pessoas')
-      .select('id, nome_completo, cargo_atual, empresa_atual')
+      .select('id, nome_completo, cargo_atual, empresa_atual_nome')
       .in('id', ids);
 
     const lookup = new Map((data || []).map(d => [String(d.id), d]));
@@ -346,7 +346,7 @@ async function resolveEntityNames(nodes) {
         ...node,
         label: info.nome_completo || `Pessoa #${node.id}`,
         cargo: info.cargo_atual,
-        empresa: info.empresa_atual
+        empresa: info.empresa_atual_nome
       });
     }
   }

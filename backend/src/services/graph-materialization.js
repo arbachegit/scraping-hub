@@ -19,7 +19,7 @@ function dedupeSocios(socios) {
 export async function getCompanyGraphContext(empresaId) {
   const { data: empresa, error: empresaError } = await supabase
     .from('dim_empresas')
-    .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, cnae_principal, cnae_descricao, created_at')
+    .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, cnae_id, created_at')
     .eq('id', empresaId)
     .maybeSingle();
 
@@ -51,12 +51,11 @@ export async function getCompanyGraphContext(empresaId) {
       cargo,
       qualificacao,
       data_transacao,
-      ativo,
       dim_pessoas (
         id,
         nome_completo,
         cargo_atual,
-        empresa_atual
+        empresa_atual_nome
       )
     `)
     .eq('empresa_id', empresaId);
@@ -72,7 +71,7 @@ export async function getCompanyGraphContext(empresaId) {
     const pessoaIds = [...new Set(missingPessoaRows.map((tx) => String(tx.pessoa_id)).filter(Boolean))];
     const { data: fallbackPessoas, error: fallbackError } = await supabase
       .from('dim_pessoas')
-      .select('id, nome_completo, cargo_atual, empresa_atual')
+      .select('id, nome_completo, cargo_atual, empresa_atual_nome')
       .in('id', pessoaIds);
 
     if (fallbackError) {
@@ -95,7 +94,7 @@ export async function getCompanyGraphContext(empresaId) {
       cargo: tx.cargo || tx.qualificacao || tx.dim_pessoas.cargo_atual,
       qualificacao: tx.qualificacao || null,
       data_entrada: tx.data_transacao || null,
-      ativo: tx.ativo !== false,
+      ativo: true,
     })));
 
   return {
@@ -104,8 +103,8 @@ export async function getCompanyGraphContext(empresaId) {
     nome: normalizeCompanyName(empresa),
     cidade: empresa.cidade || null,
     estado: empresa.estado || null,
-    cnae_principal: regime?.cnae_principal || empresa.cnae_principal || null,
-    cnae_descricao: regime?.cnae_descricao || empresa.cnae_descricao || null,
+    cnae_principal: regime?.cnae_principal || empresa.cnae_id || null,
+    cnae_descricao: regime?.cnae_descricao || null,
   };
 }
 
