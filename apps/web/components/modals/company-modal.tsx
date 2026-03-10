@@ -360,7 +360,9 @@ export function CompanyModal({
       razao_social: e.razao_social,
       nome_fantasia: e.nome_fantasia,
       localizacao: [e.cidade, e.estado].filter(Boolean).join(' - ') || undefined,
+      cnae_principal: e.cnae_principal,
       cnae_descricao: e.cnae_descricao,
+      descricao_classe: e.descricao_classe,
       regime_tributario: e.regime_tributario,
       fonte: 'interno' as const,
     }));
@@ -407,7 +409,7 @@ export function CompanyModal({
     <>
       {/* Modal 1: Buscar Empresa */}
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-        <div className="w-[1000px] max-w-[95vw] flex flex-col rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl" style={{ maxHeight: '90vh' }}>
+        <div className="w-[1200px] max-w-[95vw] flex flex-col rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0f1629] to-[#0a0e1a] shadow-2xl" style={{ maxHeight: '90vh' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
@@ -430,7 +432,7 @@ export function CompanyModal({
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Nome da empresa (min. 2 letras para auto-busca)"
+                placeholder="Razao Social (min. 2 letras para buscar)"
                 className="flex-[2]"
               />
               <Input
@@ -571,94 +573,96 @@ export function CompanyModal({
 
               {/* Unified Results Table */}
               {debouncedNome.length >= 2 && !isLoading && mergedResults.length > 0 && (
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-cyan-500/5">
-                      <ResultSortHeader label="Nome" column="razao_social" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
-                      <ResultSortHeader label="Base" column="fonte" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
-                      <ResultSortHeader label="Cidade" column="localizacao" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
-                      <ResultSortHeader label="Regime" column="regime_tributario" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
-                      <ResultSortHeader label="CNAE" column="cnae_descricao" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
-                      <th className="text-left p-3 text-cyan-400 font-semibold text-xs uppercase w-24">Acao</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedResults.map((c) => {
-                      const isRegistered = c.fonte === 'interno' || registeredCnpjs.has(c.cnpj);
-                      return (
-                        <tr
-                          key={c.cnpj}
-                          onClick={() => setDetailCnpj(c.cnpj)}
-                          className="border-b border-white/5 hover:bg-cyan-500/5 transition-colors cursor-pointer"
-                        >
-                          <td className="p-3 min-w-0 max-w-[260px]">
-                            <div className="truncate text-slate-200 font-medium">
-                              {c.nome_fantasia || c.razao_social || 'Sem nome'}
-                            </div>
-                            {c.nome_fantasia && c.razao_social && (
-                              <div className="truncate text-slate-500 text-xs">{c.razao_social}</div>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <span
-                              className={cn(
-                                'inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded border',
-                                isRegistered
-                                  ? 'bg-green-500/15 text-green-400 border-green-500/30'
-                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-cyan-500/5">
+                        <ResultSortHeader label="Razao Social" column="razao_social" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <ResultSortHeader label="CNPJ" column="cnpj" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <ResultSortHeader label="CNAE" column="cnae_principal" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <ResultSortHeader label="Descricao" column="cnae_descricao" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <ResultSortHeader label="Classe" column="descricao_classe" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <ResultSortHeader label="Regime" column="regime_tributario" currentColumn={sortField} direction={sortDirection} onSort={handleResultSort} />
+                        <th className="text-left p-3 text-cyan-400 font-semibold text-xs uppercase w-20">Acao</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedResults.map((c) => {
+                        const isRegistered = c.fonte === 'interno' || registeredCnpjs.has(c.cnpj);
+                        return (
+                          <tr
+                            key={c.cnpj}
+                            onClick={() => setDetailCnpj(c.cnpj)}
+                            className="border-b border-white/5 hover:bg-cyan-500/5 transition-colors cursor-pointer"
+                          >
+                            <td className="p-2.5 min-w-0 max-w-[220px]">
+                              <div className="truncate text-slate-200 font-medium text-xs">
+                                {c.razao_social || 'Sem nome'}
+                              </div>
+                            </td>
+                            <td className="p-2.5 whitespace-nowrap">
+                              <span className="text-slate-300 text-xs font-mono">{c.cnpj_formatted}</span>
+                            </td>
+                            <td className="p-2.5 whitespace-nowrap">
+                              {c.cnae_principal ? (
+                                <span className="text-slate-400 text-xs font-mono">{c.cnae_principal}</span>
+                              ) : (
+                                <span className="text-slate-600">{'\u2014'}</span>
                               )}
-                            >
-                              {isRegistered ? 'DB' : 'Externo'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-slate-300 whitespace-nowrap">
-                            {c.localizacao || '\u2014'}
-                          </td>
-                          <td className="p-3">
-                            {c.regime_tributario ? (
-                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-slate-500/15 text-slate-300">
-                                {formatRegime(c.regime_tributario)}
-                              </span>
-                            ) : (
-                              <span className="text-slate-600">{'\u2014'}</span>
-                            )}
-                          </td>
-                          <td className="p-3 min-w-0 max-w-[200px]">
-                            {c.cnae_descricao ? (
-                              <div className="truncate text-slate-300 text-xs">{c.cnae_descricao}</div>
-                            ) : (
-                              <span className="text-slate-600">{'\u2014'}</span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            {!isRegistered ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleInsertOne(c.cnpj);
-                                }}
-                                disabled={insertingCnpj === c.cnpj}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500/15 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap"
-                              >
-                                {insertingCnpj === c.cnpj ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Plus className="h-3 w-3" />
-                                )}
-                                Inserir
-                              </button>
-                            ) : (
-                              <span className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
-                                <Check className="h-3 w-3" />
-                                Cadastrada
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="p-2.5 min-w-0 max-w-[180px]">
+                              {c.cnae_descricao ? (
+                                <div className="truncate text-slate-300 text-xs">{c.cnae_descricao}</div>
+                              ) : (
+                                <span className="text-slate-600">{'\u2014'}</span>
+                              )}
+                            </td>
+                            <td className="p-2.5 min-w-0 max-w-[160px]">
+                              {c.descricao_classe ? (
+                                <div className="truncate text-slate-300 text-xs">{c.descricao_classe}</div>
+                              ) : (
+                                <span className="text-slate-600">{'\u2014'}</span>
+                              )}
+                            </td>
+                            <td className="p-2.5">
+                              {c.regime_tributario ? (
+                                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded bg-slate-500/15 text-slate-300 whitespace-nowrap">
+                                  {formatRegime(c.regime_tributario)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600">{'\u2014'}</span>
+                              )}
+                            </td>
+                            <td className="p-2.5">
+                              {!isRegistered ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInsertOne(c.cnpj);
+                                  }}
+                                  disabled={insertingCnpj === c.cnpj}
+                                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-green-500/15 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  {insertingCnpj === c.cnpj ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3 w-3" />
+                                  )}
+                                  Inserir
+                                </button>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
+                                  <Check className="h-3 w-3" />
+                                  OK
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {/* External search loading indicator (below DB results) */}

@@ -489,7 +489,9 @@ export interface CompanyCandidate {
   razao_social: string;
   nome_fantasia?: string;
   localizacao?: string;
+  cnae_principal?: string | null;
   cnae_descricao?: string | null;
+  descricao_classe?: string | null;
   regime_tributario?: string | null;
   fonte?: 'interno' | 'externo';
 }
@@ -659,7 +661,9 @@ export interface Company {
   nome_fantasia?: string;
   cidade?: string | null;
   estado?: string | null;
+  cnae_principal?: string | null;
   cnae_descricao?: string | null;
+  descricao_classe?: string | null;
   regime_tributario?: string | null;
   linkedin?: string;
   situacao_cadastral?: string;
@@ -2269,6 +2273,70 @@ export async function getGraphStats(): Promise<GraphStatsResponse> {
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Failed to fetch graph stats' }));
     throw new Error(error.detail || error.error || 'Failed to fetch graph stats');
+  }
+
+  return res.json();
+}
+
+// ============================================
+// DEEP SEARCH API
+// ============================================
+
+export interface DeepSearchNode {
+  id: string;
+  type: string;
+  label: string;
+  hop: number;
+  data: {
+    subtitle?: string;
+    sources: string[];
+    sourceCount: number;
+    confidence: number;
+    evidenceScore: number;
+    relevance: number;
+    [key: string]: unknown;
+  };
+}
+
+export interface DeepSearchEdge {
+  id: string;
+  source: string;
+  target: string;
+  tipo_relacao: string;
+  strength: number;
+  label: string;
+}
+
+export interface DeepSearchResponse {
+  success: boolean;
+  query: string;
+  nodes: DeepSearchNode[];
+  edges: DeepSearchEdge[];
+  center: null;
+  stats: {
+    total_nodes: number;
+    total_edges: number;
+    empresas: number;
+    socios: number;
+    noticias: number;
+    politicos: number;
+    emendas: number;
+    mandatos: number;
+  };
+}
+
+export async function deepSearchGraph(
+  query: string,
+): Promise<DeepSearchResponse> {
+  const res = await fetchWithAuth(
+    `${API_BASE}/graph/deep-search?q=${encodeURIComponent(query)}`,
+  );
+
+  if (!res.ok) {
+    const error = await res
+      .json()
+      .catch(() => ({ detail: 'Deep search failed' }));
+    throw new Error(error.detail || error.error || 'Deep search failed');
   }
 
   return res.json();

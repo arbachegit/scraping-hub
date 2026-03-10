@@ -325,7 +325,7 @@ async function getApprovedCompanies() {
     const to = from + pageSize - 1;
     const { data, error } = await supabase
       .from('fato_transacao_empresas')
-      .select('empresa_id, dim_empresas(id, razao_social, nome_fantasia, cnpj, cidade, estado, situacao_cadastral, linkedin_url, cep, codigo_ibge, fonte)')
+      .select('empresa_id, dim_empresas(id, razao_social, nome_fantasia, cnpj, cidade, estado, situacao_cadastral, linkedin_url, cep, codigo_ibge, fonte, cnae_principal, cnae_id)')
       .range(from, to);
 
     if (error || !data || data.length === 0) break;
@@ -344,7 +344,7 @@ async function getApprovedCompanies() {
   const regimeMap = new Map();
   const { data: regimeRows } = await supabase
     .from('fato_regime_tributario')
-    .select('empresa_id, regime_tributario, cnae_descricao')
+    .select('empresa_id, regime_tributario, cnae_descricao, cnae_principal')
     .eq('ativo', true)
     .limit(10000);
   for (const r of (regimeRows || [])) {
@@ -353,15 +353,47 @@ async function getApprovedCompanies() {
     }
   }
 
-  // Merge regime data
+  // Collect all CNAE codes for batch lookup in raw_cnae
+  const cnaeCodeSet = new Set();
+  const cnaeIdSet = new Set();
+  for (const c of companies) {
+    const regime = regimeMap.get(c.id);
+    const code = regime?.cnae_principal || c.cnae_principal;
+    if (code) cnaeCodeSet.add(code.replace(/[.\-/]/g, ''));
+    if (c.cnae_id) cnaeIdSet.add(c.cnae_id);
+  }
+
+  // Batch fetch raw_cnae details
+  const cnaeMap = new Map();
+  if (cnaeCodeSet.size > 0 || cnaeIdSet.size > 0) {
+    const cnaeCodes = [...cnaeCodeSet];
+    // Fetch in batches of 500 to avoid URL length limits
+    for (let i = 0; i < cnaeCodes.length; i += 500) {
+      const batch = cnaeCodes.slice(i, i + 500);
+      const { data: cnaeRows } = await supabase
+        .from('raw_cnae')
+        .select('codigo, codigo_numerico, descricao, descricao_classe')
+        .in('codigo_numerico', batch);
+      for (const row of (cnaeRows || [])) {
+        cnaeMap.set(row.codigo_numerico, row);
+        if (row.codigo) cnaeMap.set(row.codigo.replace(/[.\-/]/g, ''), row);
+      }
+    }
+  }
+
+  // Merge regime + cnae data
   const enriched = companies.map(c => {
     const regime = regimeMap.get(c.id);
+    const cnaeCode = (regime?.cnae_principal || c.cnae_principal || '').replace(/[.\-/]/g, '');
+    const cnae = cnaeMap.get(cnaeCode) || null;
     return {
       ...c,
       cidade: c.cidade ?? null,
       estado: c.estado ?? null,
       regime_tributario: regime?.regime_tributario || null,
-      cnae_descricao: regime?.cnae_descricao || null,
+      cnae_principal: regime?.cnae_principal || c.cnae_principal || null,
+      cnae_descricao: cnae?.descricao || regime?.cnae_descricao || null,
+      descricao_classe: cnae?.descricao_classe || null,
       linkedin: c.linkedin_url || null,
     };
   });
@@ -404,13 +436,12 @@ export async function listCompanies(filters = {}) {
 
   let companies = await getApprovedCompanies();
 
-  // Apply text filters in JS
+  // Apply text filters in JS — search by razao_social (substring match)
   if (nome) {
-    const words = nome.split(/\s+/).filter(w => w.length >= 2 && !SEARCH_STOP_WORDS.has(w.toLowerCase()));
-    const termsToSearch = words.length > 0 ? words : [nome];
+    const searchTerm = nome.toLowerCase();
     companies = companies.filter(c => {
-      const text = ((c.razao_social || '') + ' ' + (c.nome_fantasia || '')).toLowerCase();
-      return termsToSearch.every(t => text.includes(t.toLowerCase()));
+      const razao = (c.razao_social || '').toLowerCase();
+      return razao.includes(searchTerm);
     });
   }
 
