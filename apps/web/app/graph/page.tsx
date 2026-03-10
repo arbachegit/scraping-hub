@@ -11,8 +11,12 @@ import {
   type GraphExploreResponse,
   type GraphSearchResult,
   type DeepSearchResponse,
+  type GraphNodeData,
+  type GraphEdgeData,
+  type DeepSearchNode,
 } from '@/lib/api';
 import { GraphCanvas } from '@/components/graph/graph-canvas';
+import type { GraphData } from '@/components/graph/types';
 import {
   LayoutDashboard,
   Network,
@@ -42,6 +46,17 @@ const ENTITY_LABELS: Record<string, string> = {
   noticia: 'Noticia',
 };
 
+type GraphStats = GraphExploreResponse['stats'];
+
+function getNodeRelevance(node: DeepSearchNode): number {
+  return typeof node.data?.relevance === 'number' ? node.data.relevance : 0;
+}
+
+function getStatsCount(stats: GraphStats, type: string): number {
+  const statsKey = type === 'pessoa' ? 'socios' : `${type}s`;
+  return stats[statsKey as keyof GraphStats] ?? 0;
+}
+
 export default function GraphPage() {
   const router = useRouter();
 
@@ -64,12 +79,12 @@ export default function GraphPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Stabilize canvas data to avoid infinite re-renders
-  const canvasData = useMemo(() => {
+  const canvasData = useMemo<GraphData | null>(() => {
     if (isDeepSearch && deepSearchData && deepSearchData.nodes.length > 0) {
-      return { nodes: deepSearchData.nodes as any, edges: deepSearchData.edges as any };
+      return { nodes: deepSearchData.nodes, edges: deepSearchData.edges };
     }
     if (!isDeepSearch && graphData && graphData.nodes.length > 0) {
-      return { nodes: graphData.nodes as any, edges: graphData.edges as any };
+      return { nodes: graphData.nodes, edges: graphData.edges };
     }
     return null;
   }, [graphData, deepSearchData, isDeepSearch]);
@@ -183,24 +198,24 @@ export default function GraphPage() {
 
     try {
       const data = await expandGraphNode(result.type, result.id);
-      const nodes = (data.nodes || []).map((n: any) => ({
+      const nodes = (data.nodes || []).map((n: GraphNodeData & { hop?: number }) => ({
         ...n,
         data: {
           ...n.data,
           hop: n.data?.hop ?? n.hop ?? 1,
         },
       }));
-      const edges = data.edges || [];
+      const edges: GraphEdgeData[] = data.edges || [];
       const statsMap: Record<string, number> = {};
       for (const n of nodes) {
-        const t = (n as any).type || 'unknown';
+        const t = n.type || 'unknown';
         statsMap[t] = (statsMap[t] || 0) + 1;
       }
       const adapted: GraphExploreResponse = {
         success: true,
         nodes,
         edges,
-        center: (data as any).center || { id: result.id, type: result.type, label: result.label },
+        center: data.center || { id: `${result.type}:${result.id}`, type: result.type, label: result.label },
         stats: {
           total_nodes: nodes.length,
           total_edges: edges.length,
@@ -422,8 +437,7 @@ export default function GraphPage() {
             </h3>
             <div className="space-y-2">
               {Object.entries(ENTITY_COLORS).map(([type, color]) => {
-                const statsKey = type === 'pessoa' ? 'socios' : (type + 's');
-                const count = (deepSearchData.stats as any)[statsKey] || 0;
+                const count = getStatsCount(deepSearchData.stats, type);
                 if (count === 0) return null;
                 return (
                   <button
@@ -617,7 +631,7 @@ export default function GraphPage() {
                   </thead>
                   <tbody>
                     {categoryNodes
-                      .sort((a, b) => ((b as any).data?.relevance || 0) - ((a as any).data?.relevance || 0))
+                      .sort((a, b) => getNodeRelevance(b) - getNodeRelevance(a))
                       .map((node, idx) => {
                         const rel = typeof node.data?.relevance === 'number' ? node.data.relevance : null;
                         const srcCount = typeof node.data?.sourceCount === 'number' ? node.data.sourceCount : 0;

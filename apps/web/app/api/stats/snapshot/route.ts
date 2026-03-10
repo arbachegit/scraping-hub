@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     const response = await fetch(`${NODEJS_API_URL}/stats/snapshot`, {
       method: 'POST',

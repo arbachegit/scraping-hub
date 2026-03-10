@@ -30,6 +30,7 @@ import { isAuthenticated } from '@/lib/auth';
 import { isAdminRole } from '@/lib/permissions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DbDiagram } from '@/components/db-model/db-diagram';
+import { TableColumnModal } from '@/components/db-model/table-column-modal';
 // RefreshPieChart removed — DB loads once on session start
 
 function formatCompactNumber(value: number) {
@@ -70,6 +71,8 @@ export default function DbPage() {
   const [tableErrors, setTableErrors] = useState<Record<string, string>>({});
   const [loadingTables, setLoadingTables] = useState<Record<string, boolean>>({});
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [openModals, setOpenModals] = useState<string[]>([]);
+  const [modalZOrder, setModalZOrder] = useState<string[]>([]);
   const deferredSearch = useDeferredValue(searchQuery);
   const snapshotDoneRef = useRef(false);
 
@@ -187,6 +190,29 @@ export default function DbPage() {
 
   function toggleInfo(tableName: string) {
     setInfoTables((current) => ({ ...current, [tableName]: !current[tableName] }));
+  }
+
+  function openTableModal(tableName: string) {
+    setOpenModals((current) => {
+      if (current.includes(tableName)) return current;
+      return [...current, tableName];
+    });
+    setModalZOrder((current) => {
+      const filtered = current.filter((n) => n !== tableName);
+      return [...filtered, tableName];
+    });
+  }
+
+  function closeTableModal(tableName: string) {
+    setOpenModals((current) => current.filter((n) => n !== tableName));
+    setModalZOrder((current) => current.filter((n) => n !== tableName));
+  }
+
+  function focusTableModal(tableName: string) {
+    setModalZOrder((current) => {
+      const filtered = current.filter((n) => n !== tableName);
+      return [...filtered, tableName];
+    });
   }
 
   const selectedTable = selectedTableName
@@ -668,6 +694,7 @@ export default function DbPage() {
                       relationships={visibleRelationships}
                       selectedTableName={selectedTableName}
                       onSelectTable={setSelectedTableName}
+                      onOpenTableModal={openTableModal}
                     />
 
                     {selectedTable && (
@@ -711,6 +738,26 @@ export default function DbPage() {
           </div>
         )}
       </main>
+
+      {/* Draggable table column modals */}
+      {openModals.map((tableName) => {
+        const tableData = (overview?.tables || []).find((t) => t.name === tableName);
+        if (!tableData) return null;
+
+        const zIdx = 100 + modalZOrder.indexOf(tableName);
+        const modalIndex = openModals.indexOf(tableName);
+
+        return (
+          <TableColumnModal
+            key={tableName}
+            table={tableData}
+            index={modalIndex}
+            onClose={closeTableModal}
+            onFocus={focusTableModal}
+            zIndex={zIdx}
+          />
+        );
+      })}
     </div>
   );
 }

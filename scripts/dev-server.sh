@@ -53,12 +53,6 @@ check_dependencies() {
     fi
     echo -e "${GREEN}  ✓ PM2 $(pm2 -v)${NC}"
 
-    # Check serve
-    if ! command -v serve &> /dev/null; then
-        echo -e "${YELLOW}  ⚠ serve nao encontrado. Instalando...${NC}"
-        npm install -g serve
-    fi
-    echo -e "${GREEN}  ✓ serve instalado${NC}"
 }
 
 check_env() {
@@ -119,9 +113,15 @@ install_deps() {
     fi
 }
 
+check_ports() {
+    echo ""
+    echo -e "${YELLOW}[4/5] Verificando portas de desenvolvimento...${NC}"
+    "$SCRIPT_DIR/check-dev-ports.sh"
+}
+
 start_servers() {
     echo ""
-    echo -e "${YELLOW}[4/4] Iniciando servidores...${NC}"
+    echo -e "${YELLOW}[5/5] Iniciando servidores...${NC}"
 
     # Stop existing
     pm2 delete all 2>/dev/null || true
@@ -139,10 +139,9 @@ print_urls() {
     echo -e "${GREEN} Servidores Iniciados!${NC}"
     echo -e "${GREEN}=============================================${NC}"
     echo ""
-    echo -e "  ${CYAN}Frontend Next.js:${NC}    http://localhost:3000"
-    echo -e "  ${CYAN}Backend Node.js:${NC}     http://localhost:3001"
+    echo -e "  ${CYAN}Frontend Next.js:${NC}    http://localhost:3002"
+    echo -e "  ${CYAN}Backend Node.js:${NC}     http://localhost:3006"
     echo -e "  ${CYAN}API Python:${NC}          http://localhost:8000"
-    echo -e "  ${CYAN}Dashboard Static:${NC}    http://localhost:8080"
     echo ""
     echo -e "${YELLOW}Comandos uteis:${NC}"
     echo -e "  pm2 logs           # Ver logs em tempo real"
@@ -159,6 +158,7 @@ case "${1:-start}" in
         check_dependencies
         check_env
         install_deps
+        check_ports
         start_servers
         print_urls
         ;;

@@ -18,8 +18,13 @@ function getStrokeDash(tipo: string): string {
   return 'none';
 }
 
+function getNodeHop(node: GraphNode): number | null {
+  const hop = node.data?.hop;
+  return typeof hop === 'number' ? hop : null;
+}
+
 function isHub(d: GraphNode): boolean {
-  return d.data?.hop === 0 || (d as any).hop === 0;
+  return getNodeHop(d) === 0;
 }
 
 function getNodeRadius(d: GraphNode): number {

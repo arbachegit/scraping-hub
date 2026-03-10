@@ -7,13 +7,14 @@
     "backend"
   ],
   "scripts": {
-    "dev": "npm run dev:all",
+    "dev": "./scripts/check-dev-ports.sh && npm run dev:all",
     "dev:web": "npm run dev --workspace=iconsai-scraping-web",
     "dev:backend": "npm run dev --workspace=iconsai-scraping-backend",
     "dev:api": "python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload",
     "dev:all": "npm run dev:api & npm run dev:backend & npm run dev:web",
     "build": "npm run build --workspace=iconsai-scraping-web",
     "lint": "npm run lint --workspace=iconsai-scraping-web",
+    "verify:backend": "npm run verify --workspace=iconsai-scraping-backend",
     "format": "npm run format --workspace=iconsai-scraping-web",
     "start:web": "npm run start --workspace=iconsai-scraping-web",
     "start:backend": "npm run start --workspace=iconsai-scraping-backend",

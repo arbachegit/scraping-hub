@@ -17,6 +17,27 @@ const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA
   ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
   : null;
 
+function makeGraphNodeId(type, id) {
+  return `${type}:${id}`;
+}
+
+function getRawEntityId(value) {
+  const str = String(value || '');
+  const idx = str.indexOf(':');
+  return idx === -1 ? str : str.slice(idx + 1);
+}
+
+function normalizeGraphNode(node) {
+  return {
+    ...node,
+    id: makeGraphNodeId(node.type, node.id),
+    data: {
+      ...(node.data || {}),
+      entityId: String(node.id),
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Helper: resolve entity names for an array of {id, type} nodes
 // ---------------------------------------------------------------------------
@@ -102,7 +123,7 @@ router.get('/data', async (req, res) => {
             id: String(d.id),
             type: 'empresa',
             label: d.nome_fantasia || d.razao_social || `Empresa #${d.id}`,
-            data: { cnpj: d.cnpj, cidade: d.cidade, estado: d.estado }
+            data: { cnpj: d.cnpj, cidade: d.cidade, estado: d.estado, entityId: String(d.id) }
           })))
       );
     }
@@ -118,7 +139,7 @@ router.get('/data', async (req, res) => {
             id: String(d.id),
             type: 'pessoa',
             label: d.nome_completo || `Pessoa #${d.id}`,
-            data: { cargo: d.cargo_atual, empresa: d.empresa_atual }
+            data: { cargo: d.cargo_atual, empresa: d.empresa_atual, entityId: String(d.id) }
           })))
       );
     }
@@ -134,7 +155,7 @@ router.get('/data', async (req, res) => {
             id: String(d.id),
             type: 'politico',
             label: d.nome_completo || `Politico #${d.id}`,
-            data: { partido: d.partido_sigla, cargo: d.cargo_atual }
+            data: { partido: d.partido_sigla, cargo: d.cargo_atual, entityId: String(d.id) }
           })))
       );
     }
@@ -152,7 +173,7 @@ router.get('/data', async (req, res) => {
       edgesPromise
     ]);
 
-    const nodes = nodeArrays.flat();
+    const nodes = nodeArrays.flat().map(normalizeGraphNode);
 
     if (edgesError) {
       logger.error('graph_data_edges_error', { error: edgesError.message, code: edgesError.code });
@@ -160,8 +181,8 @@ router.get('/data', async (req, res) => {
 
     const edges = (edgesRaw || []).map(e => ({
       id: String(e.id),
-      source: String(e.source_id),
-      target: String(e.target_id),
+      source: makeGraphNodeId(e.source_type, e.source_id),
+      target: makeGraphNodeId(e.target_type, e.target_id),
       tipo_relacao: e.tipo_relacao,
       strength: e.strength
     }));
@@ -173,7 +194,7 @@ router.get('/data', async (req, res) => {
       nodes,
       edges,
       next_cursor_id: entityType === 'empresa' || !entityType
-        ? (nodes.filter(n => n.type === 'empresa').at(-1)?.id || null)
+        ? (nodes.filter(n => n.type === 'empresa').at(-1)?.data?.entityId || null)
         : null,
       total_nodes: nodes.length,
       total_edges: edges.length
@@ -206,16 +227,16 @@ router.get('/expand/:entityType/:entityId', async (req, res) => {
     const centerNode = result.nodes.find(n => n.hop === 0) || { id: entityId, type: entityType, label: `${entityType} #${entityId}` };
 
     const nodes = result.nodes.map(n => ({
-      id: String(n.id),
+      id: makeGraphNodeId(n.type, n.id),
       type: n.type,
       label: n.label,
-      data: { hop: n.hop, cnpj: n.cnpj, cargo: n.cargo, partido: n.partido }
+      data: { hop: n.hop, cnpj: n.cnpj, cargo: n.cargo, partido: n.partido, entityId: String(n.id) }
     }));
 
     const edges = result.edges.map(e => ({
       id: String(e.id),
-      source: String(e.source_id),
-      target: String(e.target_id),
+      source: makeGraphNodeId(e.source_type, e.source_id),
+      target: makeGraphNodeId(e.target_type, e.target_id),
       tipo_relacao: e.tipo_relacao,
       strength: e.strength
     }));
@@ -226,7 +247,7 @@ router.get('/expand/:entityType/:entityId', async (req, res) => {
       success: true,
       nodes,
       edges,
-      center: { id: String(centerNode.id), type: centerNode.type, label: centerNode.label }
+      center: { id: makeGraphNodeId(centerNode.type, centerNode.id), type: centerNode.type, label: centerNode.label }
     });
   } catch (err) {
     logger.error('graph_expand_error', { entityType: req.params.entityType, entityId: req.params.entityId, error: err.message });
@@ -1087,7 +1108,7 @@ router.get('/explore', async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/node-details/empresa/:empresaId', async (req, res) => {
   try {
-    const { empresaId } = req.params;
+    const empresaId = getRawEntityId(req.params.empresaId);
     if (!empresaId) {
       return res.status(400).json({ success: false, error: 'empresa_id is required' });
     }
@@ -1219,6 +1240,13 @@ const SOURCE_WEIGHTS = {
   vw_noticias_completas: 0.5,
 };
 
+const RELATION_EVIDENCE_WEIGHTS = {
+  contrato_social: 1.0,
+  database: 0.85,
+  eleicao: 0.85,
+  cross_reference: 0.4,
+};
+
 const SOURCE_CATEGORY = {
   dim_empresas: 'empresa',
   dim_pessoas: 'pessoa',
@@ -1272,12 +1300,28 @@ router.get('/deep-search', async (req, res) => {
       }
     }
 
-    function addLink(srcKey, tgtKey, tipo_relacao, evidence) {
+    function addLink(srcKey, tgtKey, tipo_relacao, evidence, weight = RELATION_EVIDENCE_WEIGHTS[evidence] || 0.5) {
       const k = `${srcKey}::${tgtKey}`;
       const r = `${tgtKey}::${srcKey}`;
-      if (!linkMap.has(k) && !linkMap.has(r)) {
-        linkMap.set(k, { source: srcKey, target: tgtKey, tipo_relacao, evidence });
+      const existingKey = linkMap.has(k) ? k : (linkMap.has(r) ? r : null);
+
+      if (existingKey) {
+        const existing = linkMap.get(existingKey);
+        if (!existing.evidences.some(item => item.label === evidence)) {
+          existing.evidences.push({ label: evidence, weight });
+        }
+        if (existing.tipo_relacao === 'mencionado_em' && tipo_relacao !== 'mencionado_em') {
+          existing.tipo_relacao = tipo_relacao;
+        }
+        return;
       }
+
+      linkMap.set(k, {
+        source: srcKey,
+        target: tgtKey,
+        tipo_relacao,
+        evidences: [{ label: evidence, weight }],
+      });
     }
 
     const searchPromises = [];
@@ -1523,7 +1567,13 @@ router.get('/deep-search', async (req, res) => {
 
           // Only add edge if BOTH endpoints are in our discovered resultMap
           if (resultMap.has(srcKey) && resultMap.has(tgtKey)) {
-            addLink(srcKey, tgtKey, edge.tipo_relacao, 'database');
+            addLink(
+              srcKey,
+              tgtKey,
+              edge.tipo_relacao,
+              'database',
+              Math.max(Number(edge.strength) || 0, RELATION_EVIDENCE_WEIGHTS.database)
+            );
           }
 
           // Also discover nodes connected to our results but not yet in resultMap
@@ -1542,7 +1592,13 @@ router.get('/deep-search', async (req, res) => {
                 source: 'fato_relacoes_entidades', weight: 0.7,
                 data: { discovered_via: 'relationship' },
               });
-              addLink(presentKey, missingKey, edge.tipo_relacao, 'database');
+              addLink(
+                presentKey,
+                missingKey,
+                edge.tipo_relacao,
+                'database',
+                Math.max(Number(edge.strength) || 0, RELATION_EVIDENCE_WEIGHTS.database)
+              );
             }
           }
         }
@@ -1782,12 +1838,14 @@ router.get('/deep-search', async (req, res) => {
         id: key, type: node.type, label: node.label, hop: 1,
         data: {
           ...node.data,
+          hop: 1,
           subtitle: node.subtitle,
           sources: node.sources.map(s => s.table),
           sourceCount: node.sources.length,
           confidence,
           evidenceScore: Math.round(sourceWeights.reduce((a, b) => a + b, 0) * 100) / 100,
           relevance: Math.round(confidence * 100),
+          entityId: String(node.id),
         },
       });
     }
@@ -1796,14 +1854,13 @@ router.get('/deep-search', async (req, res) => {
       const srcNode = resultMap.get(link.source);
       const tgtNode = resultMap.get(link.target);
       if (!srcNode || !tgtNode) continue;
-      const srcConf = bayesianConfidence(srcNode.sources.map(s => s.weight));
-      const tgtConf = bayesianConfidence(tgtNode.sources.map(s => s.weight));
+      const relationConfidence = bayesianConfidence(link.evidences.map(item => item.weight));
       edgesOut.push({
         id: `de${++edgeId}`,
         source: link.source, target: link.target,
         tipo_relacao: link.tipo_relacao,
-        strength: Math.round(((srcConf + tgtConf) / 2) * 100) / 100,
-        label: link.evidence,
+        strength: Math.round(relationConfidence * 100) / 100,
+        label: link.evidences.map(item => item.label).join(', '),
       });
     }
 

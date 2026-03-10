@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import cytoscape, { type Core, type ElementDefinition, type EventObject } from 'cytoscape';
+import cytoscape, {
+  type Core,
+  type ElementDefinition,
+  type EventObject,
+  type LayoutOptions,
+  type Stylesheet,
+} from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import type { DbModelRelationship, DbModelTableSummary } from '@/lib/api';
 
@@ -54,7 +60,7 @@ function buildElements(
   return [...nodes, ...edges];
 }
 
-const stylesheet = [
+const stylesheet: Stylesheet[] = [
   {
     selector: 'node',
     style: {
@@ -122,6 +128,7 @@ interface DbDiagramProps {
   relationships: DbModelRelationship[];
   selectedTableName: string | null;
   onSelectTable: (tableName: string | null) => void;
+  onOpenTableModal?: (tableName: string) => void;
 }
 
 export function DbDiagram({
@@ -129,6 +136,7 @@ export function DbDiagram({
   relationships,
   selectedTableName,
   onSelectTable,
+  onOpenTableModal,
 }: DbDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
@@ -140,7 +148,7 @@ export function DbDiagram({
     const cy = cytoscape({
       container: containerRef.current,
       elements: [],
-      style: stylesheet as any,
+      style: stylesheet,
       minZoom: 0.2,
       maxZoom: 2.5,
       wheelSensitivity: 0.15,
@@ -149,8 +157,9 @@ export function DbDiagram({
     cyRef.current = cy;
 
     cy.on('tap', 'node', (event: EventObject) => {
-      const tableName = event.target.data('id');
-      onSelectTable(String(tableName));
+      const tableName = String(event.target.data('id'));
+      onSelectTable(tableName);
+      onOpenTableModal?.(tableName);
     });
 
     cy.on('tap', (event: EventObject) => {
@@ -163,7 +172,7 @@ export function DbDiagram({
       cy.destroy();
       cyRef.current = null;
     };
-  }, [onSelectTable]);
+  }, [onSelectTable, onOpenTableModal]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -175,7 +184,7 @@ export function DbDiagram({
 
     cy.add(buildElements(tables, relationships));
 
-    const layoutOptions = {
+    const layoutOptions: LayoutOptions = {
       name: 'dagre',
       rankDir: 'LR',
       fit: true,
@@ -184,7 +193,7 @@ export function DbDiagram({
       nodeSep: 50,
       edgeSep: 24,
       animate: false,
-    } as any;
+    };
 
     cy.layout(layoutOptions).run();
   }, [relationships, tables]);

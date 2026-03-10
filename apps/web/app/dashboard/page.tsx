@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
@@ -14,6 +15,8 @@ import {
   Receipt,
   Network,
   Database,
+  LayoutDashboard,
+  BookOpen,
 } from 'lucide-react';
 import {
   getUser,
@@ -150,8 +153,18 @@ export default function DashboardPage() {
     if (!snapshotDoneRef.current) {
       snapshotDoneRef.current = true;
       createStatsSnapshot()
-        .catch(() => {})
-        .finally(() => setSnapshotReady(true));
+        .then((result) => {
+          setSnapshotReady(true);
+          // If snapshot failed (backend timeout), retry once
+          if (!result.success) {
+            createStatsSnapshot()
+              .catch(() => {});
+          }
+        })
+        .catch(() => {
+          // Even on network error, enable queries so UI isn't stuck
+          setSnapshotReady(true);
+        });
     }
   }, [authReady]);
 
@@ -319,7 +332,64 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:flex-row lg:items-start">
+          <aside className="w-full lg:sticky lg:top-4 lg:w-64 lg:flex-shrink-0">
+            <div className="overflow-hidden rounded-2xl border border-cyan-500/15 bg-[#0f1629]/90 shadow-[0_24px_80px_-40px_rgba(34,211,238,0.45)] backdrop-blur">
+              <div className="border-b border-cyan-500/10 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400/80">
+                  Navegação
+                </p>
+                <h2 className="mt-1 text-sm font-semibold text-slate-200">
+                  Módulos analíticos
+                </h2>
+              </div>
+
+              <nav className="p-3">
+                <div className="grid gap-2">
+                  <DashboardNavLink
+                    href="/dashboard"
+                    icon={LayoutDashboard}
+                    title="Dashboard"
+                    description="Visão operacional e estatísticas"
+                    active
+                  />
+                  <DashboardNavLink
+                    href="/graph"
+                    icon={Network}
+                    title="Graph"
+                    description="Relações entre entidades"
+                  />
+                  <DashboardNavLink
+                    href="/modelo-estatistico"
+                    icon={BookOpen}
+                    title="Modelo Estatístico"
+                    description="Fórmula, vantagens, riscos e casos"
+                  />
+                  {isAdmin && (
+                    <DashboardNavLink
+                      href="/db"
+                      icon={Database}
+                      title="DB"
+                      description="Modelo e exploração de tabelas"
+                    />
+                  )}
+                </div>
+              </nav>
+
+              <div className="border-t border-cyan-500/10 px-4 py-3">
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  O modelo estatístico agora separa relevância do nó e confiança da relação. A documentação completa está em
+                  {' '}
+                  <Link href="/modelo-estatistico" className="text-cyan-400 hover:text-cyan-300">
+                    Modelo Estatístico
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0 flex-1">
           {/* Intelligence Modules - Neo Glow Cards (filtered by permissions) */}
           <div className="py-4 mb-1 overflow-visible">
             <div className="flex flex-wrap justify-center gap-3">
@@ -476,6 +546,7 @@ export default function DashboardPage() {
           </div>
           {/* ================ END GOLDEN RULE 5 (charts) ================ */}
         </div>
+        </div>
       </main>
 
       {/* Atlas Chat */}
@@ -536,6 +607,41 @@ export default function DashboardPage() {
         onClose={() => setEmendasListingOpen(false)}
       />
     </div>
+  );
+}
+
+function DashboardNavLink({
+  href,
+  icon: Icon,
+  title,
+  description,
+  active = false,
+}: {
+  href: string;
+  icon: typeof Building2;
+  title: string;
+  description: string;
+  active?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`group flex items-start gap-3 rounded-xl border px-3 py-3 transition-all ${
+        active
+          ? 'border-cyan-400/40 bg-cyan-500/10 text-cyan-300'
+          : 'border-slate-800 bg-slate-950/20 text-slate-300 hover:border-cyan-500/20 hover:bg-cyan-500/5 hover:text-white'
+      }`}
+    >
+      <div className={`mt-0.5 rounded-lg p-2 ${active ? 'bg-cyan-500/15 text-cyan-300' : 'bg-slate-900/80 text-slate-500 group-hover:text-cyan-300'}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold">{title}</div>
+        <div className="mt-0.5 text-xs leading-relaxed text-slate-500 group-hover:text-slate-400">
+          {description}
+        </div>
+      </div>
+    </Link>
   );
 }
 

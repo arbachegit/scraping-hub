@@ -21,7 +21,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import pytest
-from fastapi.testclient import TestClient
 from jose import jwt
 
 from api.auth.auth_middleware import (
@@ -46,6 +45,7 @@ from api.auth.schemas.user_schemas import (
     AdminUpdateUser,
 )
 from api.main import app
+from tests.compat_client import AppClient as TestClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -294,8 +294,17 @@ class TestRequirePermissionUnit:
             require_permission("superuser")
 
     def test_valid_permissions_set(self):
-        """VALID_PERMISSIONS should contain exactly the 6 module permissions."""
-        assert {"empresas", "pessoas", "politicos", "noticias", "mandatos", "emendas"} == VALID_PERMISSIONS
+        """VALID_PERMISSIONS should contain the current module permission set."""
+        assert {
+            "empresas",
+            "pessoas",
+            "politicos",
+            "noticias",
+            "mandatos",
+            "emendas",
+            "graph",
+            "intelligence",
+        } == VALID_PERMISSIONS
 
 
 class TestRequireAdminUnit:

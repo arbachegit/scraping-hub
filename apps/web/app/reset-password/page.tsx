@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { KeyRound, Loader2 } from 'lucide-react';
@@ -192,9 +193,9 @@ function ResetPasswordContent() {
           </form>
 
           <div className="flex justify-center pt-4">
-            <a href="/" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+            <Link href="/" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
               Voltar ao Login
-            </a>
+            </Link>
           </div>
         </CardContent>
 

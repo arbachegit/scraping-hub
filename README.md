@@ -1,152 +1,121 @@
 # IconsAI Scraping Hub
 
-Sistema de Business Intelligence Brasil com analise de empresas em 11 blocos tematicos, busca de pessoas e identificacao de concorrentes.
+Plataforma de business intelligence para empresas, pessoas, noticias, politicos, grafo de relacionamentos e agentes de consulta.
 
-## Stack Tecnologico
+## Estado Atual
+
+O layout ativo do repositorio hoje e:
+
+```text
+iconsai-scraping/
+├── apps/web/                    # Next.js 16 + React 19
+├── api/                         # FastAPI (auth, admin, inteligencia)
+├── backend/                     # Express (dados, busca, modulos)
+├── services/pipeline-worker/    # jobs continuos + LISTEN/NOTIFY
+├── scheduler/                   # coletor legacy com MCPs
+├── config/                      # settings centralizados
+├── database/                    # schema e migrations SQL
+├── tests/                       # testes Python
+└── docs/ARCHITECTURE_CURRENT.md # mapa atual do sistema
+```
+
+Arquitetura detalhada: `docs/ARCHITECTURE_CURRENT.md`
+
+## Stack
 
 | Componente | Tecnologia |
 |------------|------------|
-| **Backend Python** | FastAPI, Anthropic Claude, Pydantic |
-| **Backend Node.js** | Express, Supabase |
-| **Frontend** | Next.js 14, React 18, TypeScript, Tailwind |
-| **Banco de Dados** | Supabase (PostgreSQL) |
-| **APIs Integradas** | Serper, Apollo, Perplexity, Tavily, BrasilAPI |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind |
+| API Python | FastAPI, Pydantic, Anthropic/OpenAI |
+| Backend Node | Express 5, Supabase, Redis fallback |
+| Background | APScheduler, asyncpg, Postgres LISTEN/NOTIFY |
+| Banco | Supabase / PostgreSQL |
 
-## Estrutura do Projeto
+## Portas
 
-```
-iconsai-scraping/
-├── src/                          # Backend Python (analise avancada)
-│   ├── scrapers/                 # Clientes de API
-│   │   ├── apollo.py             # LinkedIn B2B
-│   │   ├── brasil_api.py         # Dados CNPJ
-│   │   ├── perplexity.py         # AI Research
-│   │   ├── serper.py             # Google Search
-│   │   └── tavily.py             # AI Search
-│   ├── services/                 # Servicos de negocio
-│   │   ├── company_analysis.py   # Analise 11 blocos
-│   │   ├── ai_analyzer.py        # Claude AI
-│   │   └── keyword_extractor.py  # Extracao de keywords
-│   └── database/                 # Repositories
-│       └── star_repository.py    # Star schema
-├── backend/                      # Backend Node.js (API Gateway)
-│   └── src/
-│       ├── routes/               # Rotas Express
-│       ├── services/             # Servicos
-│       └── database/             # Supabase client
-├── frontend/                     # Frontend Next.js
-│   └── src/
-│       ├── app/admin/            # Paginas admin
-│       └── components/analysis/  # Componentes de analise
-├── api/                          # FastAPI routes
-├── config/                       # Configuracoes
-├── database/                     # Migrations SQL
-└── .env                          # Variaveis de ambiente
-```
+### Desenvolvimento
 
-## Funcionalidades
+- Web: `http://localhost:3002`
+- Backend Node: `http://localhost:3006`
+- API Python: `http://localhost:8000`
 
-### Analise de Empresas (11 Blocos)
+### Producao
 
-1. **A Empresa** - Dados cadastrais, historia, mercado
-2. **Pessoas da Empresa** - Colaboradores e executivos
-3. **Formacao das Pessoas** - Background educacional
-4. **Ativo Humano** - Competencias agregadas
-5. **Capacidade do Ativo** - Capacidade de entrega
-6. **Comunicacao vs Caracteristicas** - Alinhamento
-7. **Fraquezas na Comunicacao** - Gaps identificados
-8. **Visao do Leigo** - Perspectiva do publico geral
-9. **Visao do Profissional** - Avaliacao tecnica
-10. **Visao do Concorrente** - Analise competitiva
-11. **Visao do Fornecedor** - Avaliacao como cliente
+- Web: `3000`
+- Backend Node: `3001`
+- API Python: `8000`
+- Pipeline Worker: `8001`
 
-### Sintese Final
+## Fluxo de Roteamento
 
-- **Hipotese de Objetivo** vs OKR sugerido
-- **Concorrentes** com Stamps (Forte/Medio/Fraco)
-- **SWOT Contemporaneo** com scoring e TOWS
+O browser acessa o Next app. O Next faz rewrites de `/api/*`:
+
+- `/api/auth/*` -> FastAPI
+- `/api/admin/*` -> FastAPI
+- `/api/atlas/*` -> FastAPI
+- `/api/stats/*` -> route handlers do Next que fazem proxy para o backend Node
+- restante de `/api/*` -> backend Node
 
 ## Instalacao
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/iconsai/iconsai-scraping.git
-cd iconsai-scraping
-
-# Backend Python
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Backend Node.js
-cd backend && npm install
-
-# Frontend
-cd frontend && npm install
-
-# Configurar variaveis
 cp .env.example .env
-# Editar .env com suas chaves
+
+python3 -m pip install -r requirements.txt
+npm install
+npm --workspace=iconsai-scraping-backend install
+npm --workspace=iconsai-scraping-web install
 ```
 
 ## Execucao Local
 
+### Sem Docker
+
 ```bash
-# Terminal 1 - Backend Python (porta 8000)
-python -m uvicorn api.main:app --port 8000
-
-# Terminal 2 - Backend Node.js (porta 3001)
-cd backend && npm run dev
-
-# Terminal 3 - Frontend (porta 3000)
-cd frontend && npm run dev
+npm run dev
 ```
 
-## Variaveis de Ambiente
+Ou via PM2:
 
 ```bash
-# APIs de Busca
-SERPER_API_KEY=
-PERPLEXITY_API_KEY=
-TAVILY_API_KEY=
+npm run server
+```
 
-# APIs B2B
-APOLLO_API_KEY=
+### Com Docker Compose
 
-# AI
-ANTHROPIC_API_KEY=
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
 
-# Banco de Dados
+## Variaveis Criticas
+
+```bash
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
-
-# Autenticacao
 JWT_SECRET_KEY=
+SERPER_API_KEY=
+ANTHROPIC_API_KEY=
 ```
 
-## Banco de Dados (Star Schema)
+As demais integracoes estao descritas em `.env.example`.
 
-- `dim_empresas` - Dimensao de empresas
-- `dim_pessoas` - Dimensao de pessoas
-- `fato_analises_empresa` - Fato de analises
-- `fato_concorrentes` - Fato de concorrentes
-- `fato_eventos_pessoa` - Eventos de carreira
+## Verificacao Rapida
 
-## API Endpoints
+```bash
+curl -s http://localhost:8000/health | jq .
+curl -s http://localhost:3006/health | jq .
+curl -I http://localhost:3002
+```
 
-### Empresas
-- `POST /api/v2/company/analyze-complete` - Analise completa
-- `GET /api/v2/company/:id` - Buscar por ID
-- `GET /api/v2/company/search?name=` - Buscar por nome
+## Testes
 
-### Pessoas
-- `POST /api/v2/people/search` - Buscar pessoas
-- `GET /api/v2/people/empresa/:empresaId` - Listar por empresa
-
-### Concorrentes
-- `POST /api/v2/competitors/search` - Buscar concorrentes
-- `GET /api/v2/competitors/empresa/:empresaId` - Listar por empresa
+```bash
+python3 -m pytest tests/test_health.py -q
+npm run verify:backend
+npm --workspace=iconsai-scraping-web run lint
+npm --workspace=iconsai-scraping-web run test:e2e
+```
 
 ## Licenca
 
-MIT License - IconsAI 2026
+MIT

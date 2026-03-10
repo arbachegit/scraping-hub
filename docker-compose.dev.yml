@@ -1,30 +1,30 @@
-version: '3.8'
-
 # IconsAI Scraping - Docker Compose Development
 # Uso: docker compose -f docker-compose.dev.yml up -d
 
 services:
   # =============================================
-  # Backend Node.js (porta 3001)
+  # Backend Node.js (porta 3006)
   # =============================================
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
-    container_name: iconsai-backend
+      dockerfile: Dockerfile
+    container_name: iconsai-backend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3006:3006"
     env_file:
       - .env
     environment:
       - NODE_ENV=development
-      - PORT=3001
+      - BACKEND_PORT=3006
+      - ALLOWED_ORIGINS=http://localhost:3002
     volumes:
-      - ./backend/src:/app/src:ro
-      - ./backend/package.json:/app/package.json:ro
+      - ./backend:/app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,8 +38,10 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api.dev
-    container_name: iconsai-api
+      dockerfile: Dockerfile
+    container_name: iconsai-api-dev
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -47,10 +49,14 @@ services:
       - .env
     environment:
       - ENVIRONMENT=development
+      - PYTHONPATH=/app
     volumes:
-      - ./api:/app/api:ro
-      - ./config:/app/config:ro
-      - ./backend/src/services:/app/backend/src/services:ro
+      - ./api:/app/api
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./backend:/app/backend
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ./VERSION:/app/VERSION:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -61,26 +67,33 @@ services:
       - iconsai-network
 
   # =============================================
-  # Frontend Next.js (porta 3000)
+  # Frontend Next.js (porta 3002)
   # =============================================
   web:
     build:
-      context: ./web
-      dockerfile: Dockerfile.dev
-    container_name: iconsai-web
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: iconsai-web-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3002"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
-      - NEXT_PUBLIC_PYTHON_API_URL=http://localhost:8000
+      - PYTHON_API_URL=http://api:8000
+      - NODEJS_API_URL=http://backend:3006
     volumes:
-      - ./web/src:/app/src:ro
-      - ./web/public:/app/public:ro
+      - ./apps/web:/app
     depends_on:
       - backend
       - api
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     networks:
       - iconsai-network
 

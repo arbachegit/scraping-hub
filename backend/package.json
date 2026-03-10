@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "verify": "node scripts/verify-runtime.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.52.0",

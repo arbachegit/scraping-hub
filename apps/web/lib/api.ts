@@ -2156,6 +2156,13 @@ export interface GraphDataResponse {
   total_edges: number;
 }
 
+export interface GraphExpandResponse {
+  success: boolean;
+  nodes: GraphNodeData[];
+  edges: GraphEdgeData[];
+  center: { id: string; type: string; label: string } | null;
+}
+
 export interface GraphSearchResult {
   id: string;
   type: string;
@@ -2185,7 +2192,7 @@ export async function getGraphData(params?: {
 export async function expandGraphNode(
   entityType: string,
   entityId: string
-): Promise<GraphDataResponse> {
+): Promise<GraphExpandResponse> {
   const res = await fetchWithAuth(`${API_BASE}/graph/expand/${entityType}/${entityId}`);
 
   if (!res.ok) {

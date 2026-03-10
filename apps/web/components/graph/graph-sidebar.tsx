@@ -6,7 +6,7 @@ import {
   Phone, Mail, Globe, Linkedin, Loader2, Receipt, BadgeCheck, CalendarDays,
   Layers,
 } from 'lucide-react';
-import type { GraphNode } from './types';
+import { getGraphEntityId, type GraphNode } from './types';
 import { ENTITY_COLORS } from './styles';
 import {
   getGraphNodeDetails,
@@ -50,6 +50,7 @@ type TabKey = 'empresa' | 'fiscal';
 export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) {
   const entityColor = ENTITY_COLORS[node.type] || '#6b7280';
   const isEmpresa = node.type === 'empresa';
+  const entityId = getGraphEntityId(node);
 
   const [details, setDetails] = useState<GraphNodeDetailsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,13 +70,13 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
     setIsLoading(true);
     setDetailsError(null);
 
-    getGraphNodeDetails(node.id)
+    getGraphNodeDetails(entityId)
       .then((data) => { if (!cancelled) setDetails(data); })
       .catch((err) => { if (!cancelled) setDetailsError(err instanceof Error ? err.message : 'Erro ao carregar detalhes'); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [isEmpresa, node.id]);
+  }, [entityId, isEmpresa]);
 
   const empresa = details?.empresa;
   const regime = details?.regime;
@@ -85,7 +86,7 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
   const dataEntries = useMemo(() => {
     if (isEmpresa && details) return [];
     if (!node.data) return [];
-    const exclude = new Set(['id', 'label', 'type', 'hop', 'index', 'vx', 'vy', 'fx', 'fy', 'x', 'y']);
+    const exclude = new Set(['id', 'label', 'type', 'hop', 'entityId', 'index', 'vx', 'vy', 'fx', 'fy', 'x', 'y']);
     return Object.entries(node.data).filter(
       ([key, value]) => !exclude.has(key) && value !== undefined && value !== null
     );
@@ -120,7 +121,7 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
       <div className="border-b border-cyan-500/10 px-3 py-2 flex-shrink-0">
         <h3 className="text-sm font-semibold text-white truncate">{node.label}</h3>
         {cnpj && <p className="mt-0.5 text-[10px] text-cyan-400/70 font-mono">{formatCnpj(cnpj)}</p>}
-        {!cnpj && <p className="mt-0.5 text-[10px] text-slate-500">ID: {node.id}</p>}
+        {!cnpj && <p className="mt-0.5 text-[10px] text-slate-500">ID: {entityId}</p>}
 
         {/* Relevance badge (deep search nodes) */}
         {(() => {
@@ -461,4 +462,3 @@ function ContactLink({ icon, text, href }: { icon: ReactNode; text: string; href
     </a>
   );
 }
-

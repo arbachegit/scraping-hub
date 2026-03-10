@@ -18,7 +18,7 @@ SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 
 VALID_PERMISSIONS = {"empresas", "pessoas", "politicos", "mandatos", "emendas", "noticias", "graph", "intelligence"}
-VALID_ROLES = {"superadmin", "admin", "user", "viewer"}
+VALID_ROLES = {"superadmin", "admin", "user"}
 VALID_ACTIONS = {"read", "write", "delete", "export", "approve"}
 
 security = HTTPBearer()
@@ -190,5 +190,4 @@ async def get_tenant_context(
     if tenant_id:
         return {"tenant_id": tenant_id, "user_id": current_user.user_id}
     return {"tenant_id": None, "user_id": current_user.user_id}
-
 

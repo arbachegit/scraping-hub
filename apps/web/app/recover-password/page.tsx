@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Mail, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,12 +64,12 @@ export default function RecoverPasswordPage() {
               <p className="text-xs text-muted-foreground text-center">
                 Verifique seu email (incluindo spam) e SMS. O link expira em 1 hora.
               </p>
-              <a href="/" className="block">
+              <Link href="/" className="block">
                 <Button variant="outline" className="w-full gap-1.5">
                   <ArrowLeft className="h-4 w-4" />
                   Voltar ao Login
                 </Button>
-              </a>
+              </Link>
             </div>
           ) : (
             <>
@@ -107,9 +108,9 @@ export default function RecoverPasswordPage() {
               </form>
 
               <div className="flex justify-center pt-4">
-                <a href="/" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+                <Link href="/" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
                   Voltar ao Login
-                </a>
+                </Link>
               </div>
             </>
           )}

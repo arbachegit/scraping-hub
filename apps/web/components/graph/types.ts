@@ -1,20 +1,6 @@
-export type EntityType =
-  | 'empresa'
-  | 'pessoa'
-  | 'politico'
-  | 'mandato'
-  | 'emenda'
-  | 'noticia';
+export type EntityType = string;
 
-export type RelationshipType =
-  | 'societaria'
-  | 'fundador'
-  | 'diretor'
-  | 'fornecedor'
-  | 'empregado'
-  | 'emenda_beneficiario'
-  | 'mencionado_em'
-  | 'noticia_menciona';
+export type RelationshipType = string;
 
 export interface GraphNode {
   id: string;
@@ -45,3 +31,10 @@ export interface GraphData {
   edges: GraphEdge[];
 }
 
+export function getGraphEntityId(node: Pick<GraphNode, 'id' | 'data'>): string {
+  const raw = node.data?.entityId;
+  if (typeof raw === 'string' && raw.trim() !== '') return raw;
+
+  const idx = node.id.indexOf(':');
+  return idx === -1 ? node.id : node.id.slice(idx + 1);
+}

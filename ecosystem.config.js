@@ -25,7 +25,7 @@ module.exports = {
       ignore_watch: ['node_modules', 'logs'],
       env: {
         NODE_ENV: 'development',
-        PORT: 3006,
+        BACKEND_PORT: 3006,
       },
       env_file: '../.env',
       instances: 1,
@@ -78,23 +78,6 @@ module.exports = {
       restart_delay: 1000,
       error_file: '../../logs/web-error.log',
       out_file: '../../logs/web-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-    },
-
-    // =============================================
-    // Static Server para Dashboard (porta 8080)
-    // =============================================
-    {
-      name: 'dashboard',
-      script: 'npx',
-      args: 'serve static -l 8080 -s',
-      watch: false,
-      instances: 1,
-      autorestart: true,
-      max_restarts: 5,
-      restart_delay: 1000,
-      error_file: './logs/dashboard-error.log',
-      out_file: './logs/dashboard-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
   ],
