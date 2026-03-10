@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -192,7 +192,7 @@ export default function DbPage() {
     setInfoTables((current) => ({ ...current, [tableName]: !current[tableName] }));
   }
 
-  function openTableModal(tableName: string) {
+  const openTableModal = useCallback((tableName: string) => {
     setOpenModals((current) => {
       if (current.includes(tableName)) return current;
       return [...current, tableName];
@@ -201,19 +201,19 @@ export default function DbPage() {
       const filtered = current.filter((n) => n !== tableName);
       return [...filtered, tableName];
     });
-  }
+  }, []);
 
-  function closeTableModal(tableName: string) {
+  const closeTableModal = useCallback((tableName: string) => {
     setOpenModals((current) => current.filter((n) => n !== tableName));
     setModalZOrder((current) => current.filter((n) => n !== tableName));
-  }
+  }, []);
 
-  function focusTableModal(tableName: string) {
+  const focusTableModal = useCallback((tableName: string) => {
     setModalZOrder((current) => {
       const filtered = current.filter((n) => n !== tableName);
       return [...filtered, tableName];
     });
-  }
+  }, []);
 
   const selectedTable = selectedTableName
     ? visibleTables.find((table) => table.name === selectedTableName) || null

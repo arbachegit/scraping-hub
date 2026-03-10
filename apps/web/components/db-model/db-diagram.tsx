@@ -139,6 +139,12 @@ export function DbDiagram({
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
 
+  // Store callbacks in refs so cytoscape instance is never recreated
+  const onSelectRef = useRef(onSelectTable);
+  const onOpenModalRef = useRef(onOpenTableModal);
+  onSelectRef.current = onSelectTable;
+  onOpenModalRef.current = onOpenTableModal;
+
   useEffect(() => {
     registerDagre();
     if (!containerRef.current) return;
@@ -156,13 +162,13 @@ export function DbDiagram({
 
     cy.on('tap', 'node', (event: EventObject) => {
       const tableName = String(event.target.data('id'));
-      onSelectTable(tableName);
-      onOpenTableModal?.(tableName);
+      onSelectRef.current(tableName);
+      onOpenModalRef.current?.(tableName);
     });
 
     cy.on('tap', (event: EventObject) => {
       if (event.target === cy) {
-        onSelectTable(null);
+        onSelectRef.current(null);
       }
     });
 
@@ -170,7 +176,7 @@ export function DbDiagram({
       cy.destroy();
       cyRef.current = null;
     };
-  }, [onSelectTable, onOpenTableModal]);
+  }, []);
 
   useEffect(() => {
     const cy = cyRef.current;
