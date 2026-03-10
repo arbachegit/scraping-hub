@@ -6,7 +6,7 @@ import cytoscape, {
   type ElementDefinition,
   type EventObject,
   type LayoutOptions,
-  type StylesheetStyle,
+  type StylesheetJsonBlock,
 } from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import type { DbModelRelationship, DbModelTableSummary } from '@/lib/api';
@@ -60,7 +60,7 @@ function buildElements(
   return [...nodes, ...edges];
 }
 
-const stylesheet: StylesheetStyle[] = [
+const stylesheet: StylesheetJsonBlock[] = [
   {
     selector: 'node',
     style: {
