@@ -147,7 +147,7 @@ export function DbDiagram({
     const cy = cytoscape({
       container: containerRef.current,
       elements: [],
-      style: stylesheet,
+      style: stylesheet as cytoscape.StylesheetJson,
       minZoom: 0.2,
       maxZoom: 2.5,
       wheelSensitivity: 0.15,
