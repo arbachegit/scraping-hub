@@ -880,43 +880,129 @@ router.post('/approve', validateBody(approveCompanySchema), async (req, res) => 
 
 /**
  * GET /api/companies/list
- * List all approved companies with optional filters
+ * Search dim_empresas directly using GIN trigram index (64M+ rows).
+ * Uses RPC search_empresas_ranked_v1 for text search on razao_social/nome_fantasia.
+ * Enriches results with regime_tributario and cnae details.
  * Query params: nome, cidade, segmento, regime, limit, offset
  */
 router.get('/list', validateQuery(listCompaniesSchema), async (req, res) => {
   const requestId = `list-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const startTime = Date.now();
   try {
-    const { nome, cidade, segmento, regime, limit, offset } = req.query;
+    const { nome, cidade, regime, limit = 50, offset = 0 } = req.query;
+    const searchLimit = Math.min(Number(limit) || 50, 50);
 
-    // Single query with nested JOIN — regime_tributario + cnae_descricao included
-    const { data: companies, total } = await listCompanies({
-      nome, cidade, segmento, regime, limit, offset
-    });
+    // ---------------------------------------------------------------
+    // Strategy: search dim_empresas directly via RPC (uses GIN trigram)
+    // Then enrich with regime_tributario and raw_cnae
+    // ---------------------------------------------------------------
+    let empresas = [];
+
+    if (nome && nome.length >= 2) {
+      // Use the ranked search RPC (trigram index on razao_social + nome_fantasia)
+      const { data: rpcResults, error: rpcErr } = await supabase.rpc(
+        'search_empresas_ranked_v1',
+        {
+          p_query: nome,
+          p_cidade: cidade || null,
+          p_estado: null,
+          p_limit: searchLimit,
+        }
+      );
+
+      if (rpcErr) {
+        logger.warn('RPC search_empresas_ranked_v1 failed, falling back to approved cache', {
+          requestId,
+          error: rpcErr.message,
+        });
+        // Fallback to approved cache
+        const { data: fallback } = await listCompanies({ nome, cidade, regime, limit: searchLimit, offset: 0 });
+        empresas = fallback;
+      } else {
+        empresas = rpcResults || [];
+      }
+    } else {
+      // No search term — return approved companies (cached)
+      const { data: cached } = await listCompanies({ nome, cidade, regime, limit: searchLimit, offset: Number(offset) || 0 });
+      empresas = cached;
+    }
+
+    // Enrich with regime_tributario + cnae details (batch)
+    if (empresas.length > 0) {
+      const ids = empresas.map(e => e.id).filter(Boolean);
+
+      // Fetch regime_tributario for these companies
+      const { data: regimeRows } = await supabase
+        .from('fato_regime_tributario')
+        .select('empresa_id, regime_tributario, cnae_descricao, cnae_principal')
+        .in('empresa_id', ids)
+        .eq('ativo', true);
+
+      const regimeMap = new Map();
+      for (const r of (regimeRows || [])) {
+        regimeMap.set(r.empresa_id, r);
+      }
+
+      // Collect CNAE codes for raw_cnae lookup
+      const cnaeCodeSet = new Set();
+      for (const e of empresas) {
+        const regime = regimeMap.get(e.id);
+        const code = regime?.cnae_principal || e.cnae_principal;
+        if (code) cnaeCodeSet.add(code.replace(/[.\-/]/g, ''));
+      }
+
+      // Batch fetch raw_cnae
+      const cnaeMap = new Map();
+      if (cnaeCodeSet.size > 0) {
+        const { data: cnaeRows } = await supabase
+          .from('raw_cnae')
+          .select('codigo, codigo_numerico, descricao, descricao_classe')
+          .in('codigo_numerico', [...cnaeCodeSet]);
+        for (const row of (cnaeRows || [])) {
+          cnaeMap.set(row.codigo_numerico, row);
+        }
+      }
+
+      // Merge enrichment data
+      empresas = empresas.map(e => {
+        const regime = regimeMap.get(e.id);
+        const cnaeCode = (regime?.cnae_principal || e.cnae_principal || '').replace(/[.\-/]/g, '');
+        const cnae = cnaeMap.get(cnaeCode) || null;
+        return {
+          ...e,
+          regime_tributario: regime?.regime_tributario || null,
+          cnae_principal: regime?.cnae_principal || e.cnae_principal || null,
+          cnae_descricao: cnae?.descricao || regime?.cnae_descricao || null,
+          descricao_classe: cnae?.descricao_classe || null,
+        };
+      });
+
+      // Filter by regime if provided (post-enrichment filter)
+      if (regime) {
+        const rl = regime.toLowerCase();
+        empresas = empresas.filter(e => (e.regime_tributario || '').toLowerCase().includes(rl));
+      }
+    }
 
     const durationMs = Date.now() - startTime;
     logger.info('DB search completed', {
       requestId,
-      source: 'db',
-      filters: { nome, cidade, segmento, regime },
-      page: Math.floor(offset / limit) + 1,
-      pageSize: limit,
-      offset,
+      source: 'dim_empresas_rpc',
+      filters: { nome, cidade, regime },
       durationMs,
-      returnedCount: companies.length,
-      totalEstimate: total
+      returnedCount: empresas.length,
     });
 
     return res.json({
       success: true,
-      count: companies.length,
-      total,
-      empresas: companies,
-      offset,
-      limit,
+      count: empresas.length,
+      total: empresas.length,
+      empresas,
+      offset: 0,
+      limit: searchLimit,
       requestId,
-      source: 'db',
-      durationMs
+      source: 'dim_empresas',
+      durationMs,
     });
   } catch (error) {
     logger.error('List search failed', {

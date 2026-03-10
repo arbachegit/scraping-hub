@@ -131,17 +131,16 @@ export function CompanyModal({
     scrollRef.current?.scrollTo(0, 0);
   }, [page]);
 
-  // DB auto-search (paginated) — now includes segmento and regime
+  // DB auto-search — searches dim_empresas directly via RPC (trigram index, 64M+ rows)
   const dbQuery = useQuery({
-    queryKey: ['companies-search', debouncedNome, cidade, segmento, regime, page],
+    queryKey: ['companies-search', debouncedNome, cidade, regime],
     queryFn: async () => {
       const result = await listCompanies({
         nome: debouncedNome || undefined,
         cidade: cidade || undefined,
-        segmento: segmento || undefined,
         regime: regime || undefined,
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
+        limit: 50,
+        offset: 0,
       });
       if (result.requestId) {
         console.info('[DB-SEARCH]', {
@@ -149,9 +148,6 @@ export function CompanyModal({
           source: result.source,
           durationMs: result.durationMs,
           returnedCount: result.count,
-          totalEstimate: result.total,
-          page,
-          pageSize: PAGE_SIZE,
         });
       }
       return result;
@@ -690,7 +686,7 @@ export function CompanyModal({
                   <div className="text-center py-10 text-slate-500">
                     <p>Nenhuma empresa encontrada para &quot;{debouncedNome}&quot;.</p>
                     {!externalDone && (
-                      <p className="mt-2 text-sm">Use o botao <strong>&quot;Buscar (externo)&quot;</strong> para pesquisar via Serper/BrasilAPI/Perplexity.</p>
+                      <p className="mt-2 text-sm">Use o botao <strong>&quot;Buscar Fora&quot;</strong> para pesquisar via Serper/BrasilAPI/Perplexity.</p>
                     )}
                   </div>
                 )}
