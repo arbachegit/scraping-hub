@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { dirname, join } from "path";
 
 // Load .env from parent directory (project root)
@@ -27,16 +27,20 @@ import { requireAuth, requirePermission } from "./middleware/auth.js";
 import { PERMISSIONS } from "./constants.js";
 import { warmApprovedCache } from "./database/supabase.js";
 
-const app = express();
-const PORT = process.env.BACKEND_PORT || 3006;
-const allowNonstandardPorts = process.env.BACKEND_ALLOW_NONSTANDARD_PORTS === "true";
+export const DEFAULT_PORT = Number(process.env.BACKEND_PORT || 3006);
 
 const ALLOWED_PORTS = [3006, 3001]; // dev=3006, prod=3001
-if (!allowNonstandardPorts && !ALLOWED_PORTS.includes(Number(PORT))) {
-  logger.error(
-    `PORTA BLOQUEADA: Backend tentou iniciar na porta ${PORT}. Portas permitidas: ${ALLOWED_PORTS.join(", ")}`,
-  );
-  process.exit(1);
+function assertAllowedPort(port) {
+  const allowNonstandardPorts =
+    process.env.BACKEND_ALLOW_NONSTANDARD_PORTS === "true";
+  if (!allowNonstandardPorts && !ALLOWED_PORTS.includes(Number(port))) {
+    logger.error(
+      `PORTA BLOQUEADA: Backend tentou iniciar na porta ${port}. Portas permitidas: ${ALLOWED_PORTS.join(", ")}`,
+    );
+    throw new Error(
+      `Invalid backend port ${port}. Allowed ports: ${ALLOWED_PORTS.join(", ")}`,
+    );
+  }
 }
 
 // Rate limiter - 100 requests per minute per IP
@@ -48,80 +52,100 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-// CORS - whitelist from ALLOWED_ORIGINS env var
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3002")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+export function createApp() {
+  const app = express();
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  }),
-);
-app.use(express.json());
-app.use(requestLogger);
-app.use("/companies", limiter);
-app.use("/people", limiter);
-app.use("/news", limiter);
-app.use("/politicians", limiter);
-app.use("/geo", limiter);
-app.use("/atlas", limiter);
-app.use("/people-agent", limiter);
-app.use("/graph", limiter);
-app.use("/emendas", limiter);
-app.use("/db-model", limiter);
+  // CORS - whitelist from ALLOWED_ORIGINS env var
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3002")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
 
-// Routes (nginx strips /api/ prefix, so use /companies directly)
-// All data routes require JWT authentication
-// Module routes also require specific permissions
-app.use(
-  "/companies",
-  requireAuth,
-  requirePermission(PERMISSIONS.EMPRESAS),
-  companiesRouter,
-);
-app.use(
-  "/people",
-  requireAuth,
-  requirePermission(PERMISSIONS.PESSOAS),
-  peopleRouter,
-);
-app.use(
-  "/news",
-  requireAuth,
-  requirePermission(PERMISSIONS.NOTICIAS),
-  newsRouter,
-);
-app.use(
-  "/politicians",
-  requireAuth,
-  requirePermission(PERMISSIONS.POLITICOS),
-  politiciansRouter,
-);
-app.use(
-  "/people-agent",
-  requireAuth,
-  requirePermission(PERMISSIONS.PESSOAS),
-  peopleAgentRouter,
-);
-app.use(
-  "/emendas",
-  requireAuth,
-  requirePermission(PERMISSIONS.EMENDAS),
-  emendasRouter,
-);
-// Auth-only routes (no module permission required)
-app.use("/geo", requireAuth, geoRouter);
-app.use("/atlas", requireAuth, atlasRouter);
-app.use("/stats", requireAuth, statsRouter);
-app.use("/graph", requireAuth, graphRouter);
-app.use("/db-model", requireAuth, dbModelRouter);
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      credentials: true,
+    }),
+  );
+  app.use(express.json());
+  app.use(requestLogger);
+  app.use("/companies", limiter);
+  app.use("/people", limiter);
+  app.use("/news", limiter);
+  app.use("/politicians", limiter);
+  app.use("/geo", limiter);
+  app.use("/atlas", limiter);
+  app.use("/people-agent", limiter);
+  app.use("/graph", limiter);
+  app.use("/emendas", limiter);
+  app.use("/db-model", limiter);
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({
+  // Routes (nginx strips /api/ prefix, so use /companies directly)
+  // All data routes require JWT authentication
+  // Module routes also require specific permissions
+  app.use(
+    "/companies",
+    requireAuth,
+    requirePermission(PERMISSIONS.EMPRESAS),
+    companiesRouter,
+  );
+  app.use(
+    "/people",
+    requireAuth,
+    requirePermission(PERMISSIONS.PESSOAS),
+    peopleRouter,
+  );
+  app.use(
+    "/news",
+    requireAuth,
+    requirePermission(PERMISSIONS.NOTICIAS),
+    newsRouter,
+  );
+  app.use(
+    "/politicians",
+    requireAuth,
+    requirePermission(PERMISSIONS.POLITICOS),
+    politiciansRouter,
+  );
+  app.use(
+    "/people-agent",
+    requireAuth,
+    requirePermission(PERMISSIONS.PESSOAS),
+    peopleAgentRouter,
+  );
+  app.use(
+    "/emendas",
+    requireAuth,
+    requirePermission(PERMISSIONS.EMENDAS),
+    emendasRouter,
+  );
+  // Auth-only routes (no module permission required)
+  app.use("/geo", requireAuth, geoRouter);
+  app.use("/atlas", requireAuth, atlasRouter);
+  app.use("/stats", requireAuth, statsRouter);
+  app.use("/graph", requireAuth, graphRouter);
+  app.use("/db-model", requireAuth, dbModelRouter);
+
+  // Health check
+  app.get("/health", (req, res) => {
+    res.json(buildHealthPayload());
+  });
+
+  // Version endpoint for deployment verification
+  app.get("/version", (req, res) => {
+    res.json({
+      version: process.env.npm_package_version || "1.0.0",
+      git_sha: process.env.GIT_SHA || "unknown",
+      build_date: process.env.BUILD_DATE || "unknown",
+      service: "iconsai-scraping-backend",
+    });
+  });
+
+  return app;
+}
+
+export function buildHealthPayload() {
+  return {
     status: "healthy",
     service: "iconsai-scraping-backend",
     timestamp: new Date().toISOString(),
@@ -138,18 +162,8 @@ app.get("/health", (req, res) => {
       process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY
     ),
     redis_configured: !!process.env.REDIS_URL,
-  });
-});
-
-// Version endpoint for deployment verification
-app.get("/version", (req, res) => {
-  res.json({
-    version: process.env.npm_package_version || "1.0.0",
-    git_sha: process.env.GIT_SHA || "unknown",
-    build_date: process.env.BUILD_DATE || "unknown",
-    service: "iconsai-scraping-backend",
-  });
-});
+  };
+}
 
 // Startup credential validation
 function validateCredentials() {
@@ -204,7 +218,7 @@ function validateCredentials() {
 validateCredentials();
 
 // Initialize cache (Redis or in-memory fallback)
-initCache()
+const cacheInitPromise = initCache()
   .then(() => {
     logger.info("Cache initialized");
   })
@@ -214,16 +228,42 @@ initCache()
     });
   });
 
-// Start server
-app.listen(PORT, () => {
-  logger.info("Backend started", {
-    port: PORT,
-    apollo_configured: !!process.env.APOLLO_API_KEY,
-    cnpja_configured: !!process.env.CNPJA_API_KEY,
-    perplexity_configured: !!process.env.PERPLEXITY_API_KEY,
-    redis_configured: !!process.env.REDIS_URL,
-  });
+export const app = createApp();
 
-  // Eagerly warm approved companies cache so first request is fast (~2ms vs ~10s)
-  warmApprovedCache();
-});
+export async function startServer({ port = DEFAULT_PORT } = {}) {
+  assertAllowedPort(port);
+  await cacheInitPromise;
+
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, () => {
+      const address = server.address();
+      const actualPort =
+        typeof address === "object" && address ? address.port : port;
+
+      logger.info("Backend started", {
+        port: actualPort,
+        apollo_configured: !!process.env.APOLLO_API_KEY,
+        cnpja_configured: !!process.env.CNPJA_API_KEY,
+        perplexity_configured: !!process.env.PERPLEXITY_API_KEY,
+        redis_configured: !!process.env.REDIS_URL,
+      });
+
+      // Eagerly warm approved companies cache so first request is fast (~2ms vs ~10s)
+      warmApprovedCache();
+      resolve(server);
+    });
+
+    server.on("error", reject);
+  });
+}
+
+const invokedAsEntryPoint =
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedAsEntryPoint) {
+  startServer().catch((error) => {
+    logger.error("Backend failed to start", { error: error.message });
+    process.exit(1);
+  });
+}

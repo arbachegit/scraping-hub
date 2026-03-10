@@ -5,7 +5,6 @@ import cytoscape, {
   type Core,
   type ElementDefinition,
   type EventObject,
-  type LayoutOptions,
 } from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import type { DbModelRelationship, DbModelTableSummary } from '@/lib/api';
@@ -183,7 +182,7 @@ export function DbDiagram({
 
     cy.add(buildElements(tables, relationships));
 
-    const layoutOptions: LayoutOptions = {
+    const layoutOptions = {
       name: 'dagre',
       rankDir: 'LR',
       fit: true,

@@ -28,7 +28,7 @@ import {
   type CategoryHistory,
 } from '@/lib/api';
 import { isAuthenticated, clearTokens } from '@/lib/auth';
-import { hasModuleAccess, MODULE_PERMISSIONS, isAdminRole } from '@/lib/permissions';
+import { hasModuleAccess, isAdminRole } from '@/lib/permissions';
 import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';

@@ -1,13 +1,14 @@
 import { readdir } from "node:fs/promises";
-import { execFileSync, spawn } from "node:child_process";
-import net from "node:net";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildHealthPayload, startServer } from "../src/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const backendDir = path.resolve(__dirname, "..");
 const srcDir = path.join(backendDir, "src");
+const verifyPorts = [3106, 3107, 3108, 3906];
 async function listJsFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = await Promise.all(
@@ -22,39 +23,6 @@ async function listJsFiles(dir) {
   return files.flat();
 }
 
-async function isPortFree(port) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once("error", () => resolve(false));
-    server.once("listening", () => {
-      server.close(() => resolve(true));
-    });
-    server.listen(port, "127.0.0.1");
-  });
-}
-
-async function pickPort() {
-  const server = net.createServer();
-
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close(() => reject(new Error("Failed to determine free port")));
-        return;
-      }
-      server.close((closeError) => {
-        if (closeError) {
-          reject(closeError);
-          return;
-        }
-        resolve(address.port);
-      });
-    });
-  });
-}
-
 async function syntaxCheck() {
   const files = await listJsFiles(srcDir);
   for (const file of files) {
@@ -66,60 +34,14 @@ async function syntaxCheck() {
   console.log(`syntax-ok ${files.length} files`);
 }
 
-async function fetchHealth(port) {
-  const urls = [
-    `http://127.0.0.1:${port}/health`,
-    `http://localhost:${port}/health`,
-    `http://[::1]:${port}/health`,
-  ];
-
-  let lastError = null;
-
-  for (const url of urls) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Health check failed with status ${response.status}`);
+async function stopServer(server) {
+  if (!server?.listening) return;
+  await new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
       }
-      return await response.json();
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError ?? new Error("Health check failed");
-}
-
-async function waitForHealthy(port, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = null;
-
-  while (Date.now() < deadline) {
-    try {
-      return await fetchHealth(port);
-    } catch (error) {
-      lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
-
-  throw new Error(`Timed out waiting for backend health: ${lastError?.message ?? "unknown error"}`);
-}
-
-async function stopChild(child) {
-  if (!child || child.killed) return;
-
-  child.kill("SIGINT");
-  await new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      if (!child.killed) {
-        child.kill("SIGKILL");
-      }
-      resolve();
-    }, 3000);
-
-    child.once("exit", () => {
-      clearTimeout(timer);
       resolve();
     });
   });
@@ -127,49 +49,45 @@ async function stopChild(child) {
 
 async function verifyRuntime() {
   await syntaxCheck();
+  process.env.BACKEND_ALLOW_NONSTANDARD_PORTS = "true";
 
-  const port = await pickPort();
+  let server = null;
+  let port = null;
 
-  const env = {
-    ...process.env,
-    BACKEND_PORT: String(port),
-    BACKEND_ALLOW_NONSTANDARD_PORTS: "true",
-  };
+  for (const candidatePort of verifyPorts) {
+    try {
+      server = await startServer({ port: candidatePort });
+      port = candidatePort;
+      break;
+    } catch (error) {
+      if (error?.code !== "EADDRINUSE") {
+        throw error;
+      }
+    }
+  }
 
-  const child = spawn(process.execPath, ["src/index.js"], {
-    cwd: backendDir,
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  let output = "";
-  child.stdout.on("data", (chunk) => {
-    const text = chunk.toString();
-    output += text;
-    process.stdout.write(text);
-  });
-  child.stderr.on("data", (chunk) => {
-    const text = chunk.toString();
-    output += text;
-    process.stderr.write(text);
-  });
+  if (!server || port === null) {
+    throw new Error(
+      `Could not start backend on verify ports: ${verifyPorts.join(", ")}`,
+    );
+  }
 
   try {
-    const health = await waitForHealthy(port);
+    const health = buildHealthPayload();
     if (health?.status !== "healthy" || health?.service !== "iconsai-scraping-backend") {
       throw new Error(`Unexpected health payload: ${JSON.stringify(health)}`);
     }
-    console.log(`health-ok port=${port} mode=spawn`);
+    console.log(`health-ok port=${port} mode=direct-start`);
   } finally {
-    await stopChild(child);
-  }
-
-  if (child.exitCode && child.exitCode !== 0) {
-    throw new Error(`Backend exited with code ${child.exitCode}\n${output}`);
+    await stopServer(server);
   }
 }
 
-verifyRuntime().catch((error) => {
-  console.error(`backend-verify-failed: ${error.message}`);
-  process.exit(1);
-});
+verifyRuntime()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(`backend-verify-failed: ${error.message}`);
+    process.exit(1);
+  });
