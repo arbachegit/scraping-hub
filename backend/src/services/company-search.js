@@ -36,16 +36,27 @@ function cityMatches(companyCity, requestedCity) {
   return !!requestedNorm && companyNorm.includes(requestedNorm);
 }
 
+function startsWithWord(text, term) {
+  if (text.startsWith(term)) return true;
+  // Check if term appears at the start of any word (after space, -, /, etc.)
+  const idx = text.indexOf(term);
+  if (idx <= 0) return false;
+  const charBefore = text[idx - 1];
+  return /[\s\-\/\(\)]/.test(charBefore);
+}
+
 function baseSearchScore(candidate, queryNorm) {
   if (!candidate) return 0;
   if (candidate === queryNorm) return 1000;
   if (candidate.startsWith(queryNorm)) return 800;
-  if (candidate.includes(queryNorm)) return 600;
+  // Word-start match (term at beginning of any word)
+  if (startsWithWord(candidate, queryNorm)) return 600;
 
   const queryWords = queryNorm.split(/\s+/).filter(Boolean);
   if (queryWords.length === 0) return 0;
 
-  const matchedWords = queryWords.filter(word => candidate.includes(word));
+  // Each query word must start a word in the candidate (not substring)
+  const matchedWords = queryWords.filter(word => startsWithWord(candidate, word));
   return matchedWords.length > 0
     ? Math.round((matchedWords.length / queryWords.length) * 400)
     : 0;
@@ -122,12 +133,17 @@ async function fallbackSearch({ query, cidade = null, estado = null, limit = DEF
   const fetchLimit = cidade
     ? Math.min(safeLimit * PREFETCH_MULTIPLIER, PREFETCH_LIMIT)
     : safeLimit;
-  const pattern = `%${escapeLike(query)}%`;
+  const escaped = escapeLike(query);
+
+  // Word-start matching: match at string start OR after a space/separator
+  // "cesla" matches "Cesla Ltda" but NOT "Venceslau"
+  const startPattern = `${escaped}%`;
+  const wordPattern = `% ${escaped}%`;
 
   let dbQuery = supabase
     .from('dim_empresas')
     .select('id, cnpj, razao_social, nome_fantasia, cidade, estado, situacao_cadastral')
-    .or(`nome_fantasia.ilike.${pattern},razao_social.ilike.${pattern}`)
+    .or(`nome_fantasia.ilike.${startPattern},nome_fantasia.ilike.${wordPattern},razao_social.ilike.${startPattern},razao_social.ilike.${wordPattern}`)
     .limit(fetchLimit);
 
   const normalizedState = normalizeState(estado);

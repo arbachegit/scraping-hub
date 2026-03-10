@@ -1,3 +1,17 @@
+// ==========================================================================
+// GOLDEN RULE 5: Stats Display Components (IMMUTABLE)
+//
+// StatsBadgeCard  — chart card with MiniSparkline, growth, footer
+// StatsCounterLine — horizontal counter bar with AnimatedNumber
+// MiniSparkline   — SVG cumulative chart
+//
+// These components render data fed by the Golden Rule 5 pipeline
+// (dashboard snapshot → query → statsMap/historyMap → props).
+//
+// StatsCounterLine right side: loading spinner during initial load, then
+// RefreshPieChart 60s countdown cron (triggers refetch, never resets to zero).
+// DO NOT change the data mapping (history.points → chart, stat.total → counter).
+// ==========================================================================
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,8 +33,8 @@ interface StatsBadgeCardProps {
   online: boolean;
   history: HistoryPoint[];
   color: 'red' | 'orange' | 'blue' | 'green' | 'purple' | 'cyan';
-  countdown: number;
-  maxCountdown: number;
+  countdown?: number;
+  maxCountdown?: number;
   size?: 'default' | 'large';
   isLoading?: boolean;
 }
@@ -407,7 +421,8 @@ export function StatsBadgeCard({
   const historyValues = history.map((h) => h.value);
   const historyDates = history.map((h) => h.data);
   const historyLabels = history.map((h) => formatShortDate(h.data));
-  const countdownProgress = countdown / maxCountdown;
+  const countdownProgress = countdown != null && maxCountdown ? countdown / maxCountdown : 0;
+  const showCountdown = countdown != null && maxCountdown != null;
 
   const growthIcon =
     crescimento > 0 ? TrendingUp : crescimento < 0 ? TrendingDown : Minus;
@@ -448,9 +463,9 @@ export function StatsBadgeCard({
                 <circle cx="10" cy="10" r="8" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
                 <path d="M10 2 A8 8 0 0 1 18 10" stroke={config.line} strokeWidth="2" strokeLinecap="round" />
               </svg>
-            ) : (
+            ) : showCountdown ? (
               <CountdownRing progress={countdownProgress} color={config.line} size={isLarge ? 22 : 18} />
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -606,7 +621,19 @@ export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComp
           <span className="text-xs text-slate-500 lowercase">{stat.label}</span>
         </div>
       ))}
-      {countdown !== undefined && maxCountdown !== undefined && (
+      {/* Right side: loading spinner during initial load, countdown ring after */}
+      {isLoading ? (
+        <>
+          <div className="w-px h-6 bg-white/10 mx-1" />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <svg className="animate-spin" width={32} height={32} viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="13" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5" />
+              <path d="M16 3 A13 13 0 0 1 29 16" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+            <span className="text-[11px] text-slate-500 tabular-nums font-mono">--:--</span>
+          </div>
+        </>
+      ) : countdown !== undefined && maxCountdown !== undefined ? (
         <>
           <div className="w-px h-6 bg-white/10 mx-1" />
           <RefreshPieChart
@@ -615,7 +642,7 @@ export function StatsCounterLine({ stats, countdown, maxCountdown, onRefreshComp
             onComplete={onRefreshComplete}
           />
         </>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -31,9 +31,9 @@ interface PeopleModalProps {
   userName?: string;
 }
 
-export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 'sistema' }: PeopleModalProps) {
+export function PeopleModal({ isOpen, onClose, onOpenListingModal: _onOpenListingModal, userName = 'sistema' }: PeopleModalProps) {
   // Search state
-  const [searchType, setSearchType] = useState<'cpf' | 'nome'>('cpf');
+  const [searchType, setSearchType] = useState<'cpf' | 'nome'>('nome');
   const [cpf, setCpf] = useState('');
   const [nome, setNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
@@ -62,6 +62,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
   const abortControllerRef = useRef<AbortController | null>(null);
   const cpfInputRef = useRef<HTMLInputElement>(null);
   const nomeInputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (isOpen) {
@@ -72,6 +73,29 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
       }
     }
   }, [isOpen, searchType]);
+
+  // Auto-search when nome has 2+ characters (debounced)
+  useEffect(() => {
+    if (searchType !== 'nome') return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (nome.trim().length < 2) {
+      setResponse(null);
+      setGuardrailResult(null);
+      setMessage(null);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      searchMutation.mutate({ pageOverride: 1 });
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nome, searchType]);
 
   // ---- Search mutation ----
   const searchMutation = useMutation({
@@ -261,6 +285,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setCpf('');
     setNome('');
     setCidadeUf('');
@@ -415,23 +440,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
 
           {/* Action bar */}
           <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="h-10 px-5 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Search className="h-4 w-4 mr-2" />
-              )}
-              Buscar
-            </Button>
-
-            <Button onClick={onOpenListingModal} variant="outline" className="h-10 px-4">
-              Listar
-            </Button>
-
             {newCount > 0 && (
               <Button
                 onClick={handleMassInsert}
@@ -513,18 +521,19 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
           )}
         </div>}
 
-        {/* ---- Content area (results + chat) ---- */}
+        {/* ---- Content area ---- */}
         {!detailPerson && (
         <div className="flex-1 min-h-0 flex flex-row">
-          {/* Results table (scrollable) */}
           <div className="flex-1 min-w-0 overflow-y-auto overscroll-contain" style={{ maxHeight: '60vh' }}>
+            {/* Loading */}
             {isLoading && (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <Loader2 className="h-10 w-10 animate-spin text-cyan-400 mb-4" />
-                <span>Buscando em banco de dados e fontes externas...</span>
+                <span>Buscando...</span>
               </div>
             )}
 
+            {/* Empty results */}
             {!isLoading && results.length === 0 && response && guardrailResult?.allowed && (
               <div className="flex flex-col items-center justify-center py-16 text-slate-500">
                 <AlertCircle className="h-10 w-10 mb-3 opacity-40" />
@@ -532,6 +541,7 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
               </div>
             )}
 
+            {/* ---- Results list ---- */}
             {!isLoading && results.length > 0 && (
               <div className="divide-y divide-white/5">
                 {results.map((pessoa, i) => {
@@ -546,7 +556,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
                       className="flex items-center gap-3 px-6 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer"
                       onClick={() => setDetailPerson(pessoa)}
                     >
-                      {/* Source badge */}
                       <span
                         className={cn(
                           'flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded uppercase',
@@ -558,7 +567,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
                         {isDb ? 'DB' : 'NEW'}
                       </span>
 
-                      {/* Avatar */}
                       <div className="w-9 h-9 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {pessoa.foto_url ? (
                           <Image
@@ -574,7 +582,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
                         )}
                       </div>
 
-                      {/* Name + role */}
                       <div className="min-w-0 flex-1">
                         <div className="text-white text-sm font-medium truncate">
                           {pessoa.nome_completo || 'Nome não disponível'}
@@ -598,7 +605,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
                         </div>
                       </div>
 
-                      {/* Quality badge */}
                       {pessoa.qualityScore !== undefined && (
                         <span
                           className={cn(
@@ -612,7 +618,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal, userName = 's
                         </span>
                       )}
 
-                      {/* Action */}
                       <div className="flex-shrink-0">
                         {isRegistered || isDb ? (
                           <span className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded bg-green-500/10 text-green-400 border border-green-500/30 whitespace-nowrap">

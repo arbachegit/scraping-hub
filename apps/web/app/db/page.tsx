@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import {
   Search,
 } from 'lucide-react';
 import {
+  createStatsSnapshot,
   getDbModelOverview,
   getDbModelTableDetails,
   getUser,
@@ -29,6 +30,7 @@ import { isAuthenticated } from '@/lib/auth';
 import { isAdminRole } from '@/lib/permissions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DbDiagram } from '@/components/db-model/db-diagram';
+// RefreshPieChart removed — DB loads once on session start
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -51,6 +53,9 @@ function normalizeText(value: string) {
   return value.toLowerCase().trim();
 }
 
+// DB loads once on session start — no periodic cron
+const DB_REFRESH_INTERVAL = 60000; // kept for overviewQuery refetch
+
 export default function DbPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,13 +69,25 @@ export default function DbPage() {
   >({});
   const [tableErrors, setTableErrors] = useState<Record<string, string>>({});
   const [loadingTables, setLoadingTables] = useState<Record<string, boolean>>({});
+  const [lastSync, setLastSync] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(searchQuery);
+  const snapshotDoneRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
     }
   }, [router]);
+
+  // Snapshot once on mount
+  useEffect(() => {
+    if (!snapshotDoneRef.current) {
+      snapshotDoneRef.current = true;
+      createStatsSnapshot()
+        .then(() => setLastSync(new Date().toLocaleTimeString('pt-BR')))
+        .catch(() => {});
+    }
+  }, []);
 
   const userQuery = useQuery({
     queryKey: ['user'],
@@ -97,6 +114,7 @@ export default function DbPage() {
     queryKey: ['db-model-overview'],
     queryFn: getDbModelOverview,
     enabled: isAdmin,
+    refetchInterval: DB_REFRESH_INTERVAL,
   });
 
   const overview = overviewQuery.data;
@@ -194,26 +212,38 @@ export default function DbPage() {
             </div>
           </div>
 
-          <nav className="flex items-center gap-2">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 h-9 px-3 bg-slate-400/10 border border-slate-400/20 text-slate-300 rounded-lg text-xs font-medium hover:bg-slate-400/20 transition-colors"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Link>
-            <Link
-              href="/graph"
-              className="inline-flex items-center gap-1.5 h-9 px-3 bg-purple-500/15 border border-purple-500/50 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500 hover:text-white transition-colors"
-            >
-              <Network className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Graph</span>
-            </Link>
-            <span className="inline-flex items-center gap-1.5 h-9 px-3 bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 rounded-lg text-xs font-semibold">
-              <Database className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">DB</span>
-            </span>
-          </nav>
+          <div className="flex items-center gap-3">
+            {/* Sync indicator — loaded on session start */}
+            {lastSync && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="text-[10px] text-slate-500 hidden lg:block">
+                  Sync {lastSync}
+                </span>
+              </div>
+            )}
+
+            <nav className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 h-9 px-3 bg-slate-400/10 border border-slate-400/20 text-slate-300 rounded-lg text-xs font-medium hover:bg-slate-400/20 transition-colors"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Link>
+              <Link
+                href="/graph"
+                className="inline-flex items-center gap-1.5 h-9 px-3 bg-purple-500/15 border border-purple-500/50 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500 hover:text-white transition-colors"
+              >
+                <Network className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Graph</span>
+              </Link>
+              <span className="inline-flex items-center gap-1.5 h-9 px-3 bg-emerald-500/15 border border-emerald-500/50 text-emerald-300 rounded-lg text-xs font-semibold">
+                <Database className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">DB</span>
+              </span>
+            </nav>
+          </div>
         </div>
       </header>
 

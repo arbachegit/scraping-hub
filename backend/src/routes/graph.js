@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createClient } from '@supabase/supabase-js';
 import { getNetworkGraph, getNetworkStats } from '../services/graph-queries.js';
 import { supabase } from '../database/supabase.js';
 import {
@@ -10,6 +11,11 @@ import logger from '../utils/logger.js';
 import { escapeLike } from '../utils/sanitize.js';
 
 const router = Router();
+
+// Brasil Data Hub client (dim_politicos, fato_emendas_parlamentares)
+const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY
+  ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
+  : null;
 
 // ---------------------------------------------------------------------------
 // Helper: resolve entity names for an array of {id, type} nodes
@@ -239,16 +245,63 @@ router.get('/search', async (req, res) => {
     }
 
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 25);
-    const pattern = `%${escapeLike(q)}%`;
+    const escaped = escapeLike(q);
+    // Word-start matching: "cesla" matches "Cesla" but NOT "Venceslau"
+    const startPattern = `${escaped}%`;
+    const wordPattern = `% ${escaped}%`;
 
-    const [empresasRes, pessoasRes] = await Promise.all([
-      searchCompaniesByName({ query: q, limit }),
-      supabase
+    // Search all entity types in parallel (22M rows — avoid full scan)
+    const upperQ = q.toUpperCase();
+    const escapedUpper = escapeLike(upperQ);
+    let pessoasQuery;
+    if (upperQ.split(/\s+/).length === 1) {
+      // Single word: primeiro_nome exact match OR nome_completo starts-with
+      pessoasQuery = supabase
         .from('dim_pessoas')
         .select('id, nome_completo, cargo_atual, empresa_atual')
-        .ilike('nome_completo', pattern)
-        .limit(limit)
-    ]);
+        .or(`primeiro_nome.eq.${escapedUpper},nome_completo.ilike.${escapedUpper}%`)
+        .limit(200);
+    } else {
+      // Multi-word: contains match on nome_completo
+      pessoasQuery = supabase
+        .from('dim_pessoas')
+        .select('id, nome_completo, cargo_atual, empresa_atual')
+        .ilike('nome_completo', `%${escapedUpper}%`)
+        .limit(200);
+    }
+
+    const searchPromises = [
+      // Empresas
+      searchCompaniesByName({ query: q, limit }),
+      // Pessoas (all from DB when short query, contains-match otherwise)
+      pessoasQuery,
+      // Noticias
+      supabase
+        .from('dim_noticias')
+        .select('id, titulo, fonte_nome, data_publicacao')
+        .or(`titulo.ilike.${startPattern},titulo.ilike.${wordPattern}`)
+        .limit(limit),
+    ];
+
+    // Politicos + Emendas from brasilDataHub (if configured)
+    if (brasilDataHub) {
+      searchPromises.push(
+        brasilDataHub
+          .from('dim_politicos')
+          .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual')
+          .or(`nome_completo.ilike.${startPattern},nome_completo.ilike.${wordPattern},nome_urna.ilike.${startPattern},nome_urna.ilike.${wordPattern}`)
+          .limit(limit),
+        brasilDataHub
+          .from('fato_emendas_parlamentares')
+          .select('id, autor, tipo, valor_empenhado, ano, uf')
+          .or(`autor.ilike.${startPattern},autor.ilike.${wordPattern}`)
+          .limit(limit)
+      );
+    }
+
+    const [empresasRes, pessoasRes, noticiasRes, ...optionalRes] = await Promise.all(searchPromises);
+    const politicosRes = optionalRes[0] || { data: [] };
+    const emendasRes = optionalRes[1] || { data: [] };
 
     const results = [];
 
@@ -270,9 +323,37 @@ router.get('/search', async (req, res) => {
       });
     }
 
+    for (const pol of (politicosRes.data || [])) {
+      results.push({
+        id: String(pol.id),
+        type: 'politico',
+        label: pol.nome_urna || pol.nome_completo,
+        subtitle: [pol.partido_sigla, pol.cargo_atual].filter(Boolean).join(' - ')
+      });
+    }
+
+    for (const n of (noticiasRes.data || [])) {
+      results.push({
+        id: String(n.id),
+        type: 'noticia',
+        label: (n.titulo || '').substring(0, 80),
+        subtitle: [n.fonte_nome, n.data_publicacao].filter(Boolean).join(' - ')
+      });
+    }
+
+    for (const em of (emendasRes.data || [])) {
+      results.push({
+        id: String(em.id),
+        type: 'emenda',
+        label: em.autor,
+        subtitle: [em.tipo, em.ano, em.uf].filter(Boolean).join(' - ')
+      });
+    }
+
     logger.info('graph_search', { query: q, results: results.length });
 
-    return res.json({ success: true, results: results.slice(0, limit) });
+    // Pessoas are not capped — return all from DB as a directory
+    return res.json({ success: true, results });
   } catch (err) {
     logger.error('graph_search_error', { query: req.query.q, error: err.message });
     return res.status(500).json({ success: false, error: 'Search failed' });
@@ -558,7 +639,33 @@ router.get('/explore', async (req, res) => {
       });
     }
 
-    // Step 3: Search news mentioning empresa name OR sócios names
+    // ---------------------------------------------------------------
+    // Helper: count occurrences of a term in text (case-insensitive)
+    // ---------------------------------------------------------------
+    function countMentions(text, term) {
+      if (!text || !term || term.length < 3) return 0;
+      const lower = text.toLowerCase();
+      const termLower = term.toLowerCase();
+      let count = 0;
+      let pos = 0;
+      while ((pos = lower.indexOf(termLower, pos)) !== -1) {
+        count++;
+        pos += termLower.length;
+      }
+      return count;
+    }
+
+    // Collect all searchable names (hub + sócios) for cross-entity matching
+    const hubNameLower = empresaLabel.toLowerCase();
+    const allNodeNames = new Map(); // nodeId -> name (for inter-node edges later)
+    allNodeNames.set(empresaId, empresaLabel);
+    for (const [socioId, socio] of sociosMap) {
+      if (socio.nome) allNodeNames.set(socioId, socio.nome);
+    }
+
+    // ---------------------------------------------------------------
+    // Step 3: Search noticias mentioning hub name OR sócios names
+    // ---------------------------------------------------------------
     const searchTerms = [empresaLabel];
     for (const [, socio] of sociosMap) {
       if (socio.nome && socio.nome.length >= 5) {
@@ -583,18 +690,25 @@ router.get('/explore', async (req, res) => {
       logger.warn('explore_news_error', { error: newsError.message, code: newsError.code });
     }
 
-    // Step 4: Create news nodes and edges based on name matching
+    // Track mention counts per node for strength normalization
+    const mentionCounts = new Map(); // nodeId -> total mention count relative to hub
+
+    // Add noticias nodes
     const noticiasAdded = new Set();
 
     for (const noticia of (noticias || [])) {
       const noticiaId = String(noticia.id);
-      const textToSearch = `${noticia.titulo || ''} ${noticia.conteudo || ''}`.toLowerCase();
+      const fullText = `${noticia.titulo || ''} ${noticia.conteudo || ''}`;
+      const textLower = fullText.toLowerCase();
 
-      const mentionsEmpresa = textToSearch.includes(empresaLabel.toLowerCase());
+      // Count direct hub name mentions
+      const hubMentions = countMentions(fullText, empresaLabel);
+      const mentionsEmpresa = hubMentions > 0;
+
+      // Count sócio mentions
       const mentionedSocios = [];
-
       for (const [socioId, socio] of sociosMap) {
-        if (socio.nome && textToSearch.includes(socio.nome.toLowerCase())) {
+        if (socio.nome && textLower.includes(socio.nome.toLowerCase())) {
           mentionedSocios.push(socioId);
         }
       }
@@ -603,12 +717,14 @@ router.get('/explore', async (req, res) => {
 
       if (!noticiasAdded.has(noticiaId)) {
         noticiasAdded.add(noticiaId);
+        mentionCounts.set(noticiaId, hubMentions);
+        allNodeNames.set(noticiaId, noticia.titulo || '');
         nodes.push({
           id: noticiaId,
           type: 'noticia',
           label: (noticia.titulo || '').substring(0, 80),
           hop: 2,
-          data: { fonte: noticia.fonte_nome, data_publicacao: noticia.data_publicacao }
+          data: { fonte: noticia.fonte_nome, data_publicacao: noticia.data_publicacao, _text: fullText }
         });
       }
 
@@ -618,8 +734,8 @@ router.get('/explore', async (req, res) => {
           source: empresaId,
           target: noticiaId,
           tipo_relacao: 'mencionado_em',
-          strength: 0.7,
-          label: 'Mencionado'
+          strength: 0, // will be normalized below
+          label: `${hubMentions}x mencionado`
         });
       }
 
@@ -629,18 +745,325 @@ router.get('/explore', async (req, res) => {
           source: socioId,
           target: noticiaId,
           tipo_relacao: 'mencionado_em',
-          strength: 0.6,
+          strength: 0, // will be normalized below
           label: 'Mencionado'
         });
       }
     }
 
+    // ---------------------------------------------------------------
+    // Step 4: Search politicos from brasilDataHub
+    // ---------------------------------------------------------------
+    let politicosAdded = 0;
+    let mandatosAdded = 0;
+    let emendasAdded = 0;
+
+    if (brasilDataHub) {
+      const hubEsc = `%${escapeLike(empresaLabel)}%`;
+      const cidadeEsc = localEmpresa.cidade ? `%${escapeLike(localEmpresa.cidade)}%` : null;
+
+      // 4a: Emendas that mention hub name or cidade in descricao/localidade
+      const emendasFilters = [`autor.ilike.${hubEsc}`, `descricao.ilike.${hubEsc}`];
+      if (cidadeEsc) {
+        emendasFilters.push(`localidade.ilike.${cidadeEsc}`);
+      }
+
+      const { data: emendas, error: emErr } = await brasilDataHub
+        .from('fato_emendas_parlamentares')
+        .select('id, autor, descricao, localidade, uf, ano, tipo, valor_empenhado')
+        .or(emendasFilters.join(','))
+        .limit(20);
+
+      if (emErr) {
+        logger.warn('explore_emendas_error', { error: emErr.message });
+      }
+
+      const politicoAutors = new Set();
+
+      for (const emenda of (emendas || [])) {
+        const emendaId = `emenda_${emenda.id}`;
+        const emendaText = `${emenda.autor || ''} ${emenda.descricao || ''} ${emenda.localidade || ''}`;
+        const hubMentions = countMentions(emendaText, empresaLabel);
+
+        mentionCounts.set(emendaId, hubMentions);
+        allNodeNames.set(emendaId, emenda.autor || '');
+
+        nodes.push({
+          id: emendaId,
+          type: 'emenda',
+          label: `${(emenda.autor || '').substring(0, 30)} - ${emenda.tipo || 'Emenda'} ${emenda.ano || ''}`,
+          hop: 2,
+          data: {
+            autor: emenda.autor,
+            tipo: emenda.tipo,
+            ano: emenda.ano,
+            uf: emenda.uf,
+            valor: emenda.valor_empenhado,
+            localidade: emenda.localidade,
+            _text: emendaText
+          }
+        });
+
+        edges.push({
+          id: `e${++edgeId}`,
+          source: empresaId,
+          target: emendaId,
+          tipo_relacao: 'emenda_beneficiario',
+          strength: 0,
+          label: hubMentions > 0 ? `${hubMentions}x mencionado` : emenda.localidade || ''
+        });
+
+        if (emenda.autor) politicoAutors.add(emenda.autor);
+        emendasAdded++;
+      }
+
+      // 4b: Politicos who authored connected emendas
+      if (politicoAutors.size > 0) {
+        const autorFilters = [...politicoAutors]
+          .map(a => {
+            const e = `%${escapeLike(a)}%`;
+            return `nome_completo.ilike.${e},nome_urna.ilike.${e}`;
+          })
+          .join(',');
+
+        const { data: politicos, error: polErr } = await brasilDataHub
+          .from('dim_politicos')
+          .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual')
+          .or(autorFilters)
+          .limit(20);
+
+        if (polErr) {
+          logger.warn('explore_politicos_error', { error: polErr.message });
+        }
+
+        const politicoIds = new Map(); // nome -> id
+
+        for (const pol of (politicos || [])) {
+          const polId = `pol_${pol.id}`;
+          const polName = pol.nome_urna || pol.nome_completo;
+          politicoIds.set(polName, polId);
+          allNodeNames.set(polId, polName);
+
+          // Count how many times politico name appears in hub-related content
+          let polMentions = 0;
+          for (const noticia of (noticias || [])) {
+            const text = `${noticia.titulo || ''} ${noticia.conteudo || ''}`;
+            polMentions += countMentions(text, polName);
+          }
+          mentionCounts.set(polId, polMentions);
+
+          nodes.push({
+            id: polId,
+            type: 'politico',
+            label: polName,
+            hop: 2,
+            data: { partido: pol.partido_sigla, cargo: pol.cargo_atual }
+          });
+
+          // Connect politico to hub
+          edges.push({
+            id: `e${++edgeId}`,
+            source: polId,
+            target: empresaId,
+            tipo_relacao: 'politico_empresarial',
+            strength: 0,
+            label: pol.partido_sigla || ''
+          });
+
+          // Connect politico to their emendas
+          for (const emenda of (emendas || [])) {
+            if (emenda.autor && (
+              emenda.autor.toLowerCase().includes(polName.toLowerCase()) ||
+              polName.toLowerCase().includes(emenda.autor.toLowerCase())
+            )) {
+              edges.push({
+                id: `e${++edgeId}`,
+                source: polId,
+                target: `emenda_${emenda.id}`,
+                tipo_relacao: 'societaria',
+                strength: 1.0,
+                label: 'Autor'
+              });
+            }
+          }
+          politicosAdded++;
+        }
+
+        // 4c: Mandatos for found politicos
+        if (politicos && politicos.length > 0) {
+          const polIds = politicos.map(p => p.id);
+          const { data: mandatos, error: mandErr } = await brasilDataHub
+            .from('fato_politicos_mandatos')
+            .select('id, cargo, partido_sigla, partido_nome, municipio, codigo_ibge, ano_eleicao, eleito, politico_id')
+            .in('politico_id', polIds)
+            .limit(30);
+
+          if (mandErr) {
+            logger.warn('explore_mandatos_error', { error: mandErr.message });
+          }
+
+          for (const mandato of (mandatos || [])) {
+            const mandatoId = `mandato_${mandato.id}`;
+            const mandatoLabel = `${mandato.cargo || 'Mandato'} ${mandato.municipio || ''} ${mandato.ano_eleicao || ''}`;
+            allNodeNames.set(mandatoId, mandatoLabel);
+
+            // Check if mandato municipality matches empresa cidade
+            const municipioMatch = mandato.municipio && localEmpresa.cidade &&
+              mandato.municipio.toLowerCase().includes(localEmpresa.cidade.toLowerCase());
+            mentionCounts.set(mandatoId, municipioMatch ? 2 : 0);
+
+            nodes.push({
+              id: mandatoId,
+              type: 'mandato',
+              label: mandatoLabel.substring(0, 60),
+              hop: 3,
+              data: {
+                cargo: mandato.cargo,
+                municipio: mandato.municipio,
+                ano: mandato.ano_eleicao,
+                eleito: mandato.eleito,
+                partido: mandato.partido_sigla
+              }
+            });
+
+            // Connect mandato to its politico
+            const parentPolId = `pol_${mandato.politico_id}`;
+            if (nodes.some(n => n.id === parentPolId)) {
+              edges.push({
+                id: `e${++edgeId}`,
+                source: parentPolId,
+                target: mandatoId,
+                tipo_relacao: 'societaria',
+                strength: 1.0,
+                label: mandato.partido_sigla || ''
+              });
+            }
+
+            // If municipio matches, also connect to hub
+            if (municipioMatch) {
+              edges.push({
+                id: `e${++edgeId}`,
+                source: empresaId,
+                target: mandatoId,
+                tipo_relacao: 'mencionado_em',
+                strength: 0,
+                label: mandato.municipio || ''
+              });
+            }
+            mandatosAdded++;
+          }
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Step 5: Normalize strengths based on mention counts
+    // ---------------------------------------------------------------
+    // Sócios always get strength 1.0 (direct relationship)
+    // Other nodes: normalize mentions relative to max mentions
+    const mentionValues = [...mentionCounts.values()].filter(v => v > 0);
+    const maxMentions = mentionValues.length > 0 ? Math.max(...mentionValues) : 1;
+
+    // Build node strength map (nodeId -> normalized strength 0-1)
+    const nodeStrengthMap = new Map();
+
+    // Sócios = direct reference = super strong
+    for (const [socioId] of sociosMap) {
+      nodeStrengthMap.set(socioId, 1.0);
+    }
+
+    // All other nodes: normalize by mention count
+    for (const [nodeId, mentions] of mentionCounts) {
+      if (nodeStrengthMap.has(nodeId)) continue;
+      if (mentions > 0) {
+        // Range: 0.2 (1 mention) to 0.95 (max mentions)
+        nodeStrengthMap.set(nodeId, 0.2 + 0.75 * (mentions / maxMentions));
+      } else {
+        // No direct mention but still connected (e.g. through location)
+        nodeStrengthMap.set(nodeId, 0.1);
+      }
+    }
+
+    // Apply normalized strengths to edges connected to hub
+    for (const edge of edges) {
+      if (edge.strength !== 0) continue; // skip already-set edges (e.g. autor=1.0)
+      const src = String(edge.source);
+      const tgt = String(edge.target);
+      const otherNodeId = src === empresaId ? tgt : (tgt === empresaId ? src : null);
+      if (otherNodeId) {
+        edge.strength = nodeStrengthMap.get(otherNodeId) || 0.3;
+      } else {
+        // Inter-node edge: use average of both nodes' strengths
+        const s1 = nodeStrengthMap.get(src) || 0.3;
+        const s2 = nodeStrengthMap.get(tgt) || 0.3;
+        edge.strength = (s1 + s2) / 2;
+      }
+    }
+
+    // Also update sócio edge strengths
+    for (const edge of edges) {
+      if (edge.tipo_relacao === 'societaria' && edge.strength === 0.9) {
+        edge.strength = 1.0;
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Step 6: Inter-node edges (dot-to-dot connections)
+    // ---------------------------------------------------------------
+    const nonHubNodes = nodes.filter(n => n.id !== empresaId);
+    const existingEdgePairs = new Set(edges.map(e => `${e.source}::${e.target}`));
+
+    for (let i = 0; i < nonHubNodes.length; i++) {
+      for (let j = i + 1; j < nonHubNodes.length; j++) {
+        const a = nonHubNodes[i];
+        const b = nonHubNodes[j];
+
+        const pairKey1 = `${a.id}::${b.id}`;
+        const pairKey2 = `${b.id}::${a.id}`;
+        if (existingEdgePairs.has(pairKey1) || existingEdgePairs.has(pairKey2)) continue;
+
+        const aName = allNodeNames.get(a.id) || '';
+        const bName = allNodeNames.get(b.id) || '';
+        const aText = (a.data?._text || a.label || '').toLowerCase();
+        const bText = (b.data?._text || b.label || '').toLowerCase();
+
+        // Check if A's name appears in B's text or vice versa
+        const aMentionsB = bName.length >= 4 && countMentions(aText, bName);
+        const bMentionsA = aName.length >= 4 && countMentions(bText, aName);
+        const totalMentions = aMentionsB + bMentionsA;
+
+        if (totalMentions > 0) {
+          const interStrength = Math.min(0.95, 0.2 + 0.75 * (totalMentions / Math.max(maxMentions, 1)));
+          edges.push({
+            id: `e${++edgeId}`,
+            source: a.id,
+            target: b.id,
+            tipo_relacao: 'mencionado_em',
+            strength: interStrength,
+            label: `${totalMentions}x ref`
+          });
+          existingEdgePairs.add(pairKey1);
+        }
+      }
+    }
+
+    // Clean up internal _text field before sending response
+    for (const node of nodes) {
+      if (node.data?._text) delete node.data._text;
+    }
+
+    // ---------------------------------------------------------------
+    // Step 7: Return response
+    // ---------------------------------------------------------------
     const stats = {
       total_nodes: nodes.length,
       total_edges: edges.length,
       empresas: 1,
       socios: sociosMap.size,
-      noticias: noticiasAdded.size
+      noticias: noticiasAdded.size,
+      politicos: politicosAdded,
+      emendas: emendasAdded,
+      mandatos: mandatosAdded
     };
 
     logger.info('graph_explore', { query: q, ...stats });
@@ -655,6 +1078,126 @@ router.get('/explore', async (req, res) => {
   } catch (err) {
     logger.error('graph_explore_error', { query: req.query.q, error: err.message, stack: err.stack });
     return res.status(500).json({ success: false, error: 'Explore failed' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /node-details/empresa/:empresaId  — Full empresa details for sidebar
+// Joins dim_empresas + fato_regime_tributario + raw_cnae + socios
+// ---------------------------------------------------------------------------
+router.get('/node-details/empresa/:empresaId', async (req, res) => {
+  try {
+    const { empresaId } = req.params;
+    if (!empresaId) {
+      return res.status(400).json({ success: false, error: 'empresa_id is required' });
+    }
+
+    // 1. dim_empresas (select * to avoid column mismatch issues)
+    const { data: empresa, error: e1 } = await supabase
+      .from('dim_empresas')
+      .select('*')
+      .eq('id', empresaId)
+      .maybeSingle();
+
+    if (e1 || !empresa) {
+      logger.warn('graph_node_details_not_found', { empresaId, error: e1?.message });
+      return res.status(404).json({ success: false, error: 'Empresa not found' });
+    }
+
+    // 2. fato_regime_tributario (all records, ordered by date)
+    const { data: regimes, error: e2 } = await supabase
+      .from('fato_regime_tributario')
+      .select('*')
+      .eq('empresa_id', empresaId)
+      .order('data_registro', { ascending: false });
+
+    if (e2) {
+      logger.warn('graph_node_details_regime_error', { empresaId, error: e2.message });
+    }
+
+    const activeRegime = (regimes || []).find(r => r.ativo) || (regimes || [])[0] || null;
+
+    // 3. raw_cnae lookup — try cnae_id FK first, then code match
+    let cnaeDetails = null;
+    if (empresa.cnae_id) {
+      const { data: cnae } = await supabase
+        .from('raw_cnae')
+        .select('codigo, descricao, secao, descricao_secao, divisao, descricao_divisao, grupo, descricao_grupo, classe, descricao_classe')
+        .eq('id', empresa.cnae_id)
+        .maybeSingle();
+      cnaeDetails = cnae || null;
+    }
+    if (!cnaeDetails) {
+      const cnaeCode = activeRegime?.cnae_principal || empresa.cnae_principal || empresa.cnae_descricao;
+      if (cnaeCode) {
+        const cleanCode = cnaeCode.replace(/[.\-/]/g, '');
+        const { data: cnae } = await supabase
+          .from('raw_cnae')
+          .select('codigo, descricao, secao, descricao_secao, divisao, descricao_divisao, grupo, descricao_grupo, classe, descricao_classe')
+          .or(`codigo_numerico.eq.${cleanCode},codigo.eq.${cnaeCode}`)
+          .limit(1)
+          .maybeSingle();
+        cnaeDetails = cnae || null;
+      }
+    }
+
+    // 4. Socios (fato_transacao_empresas → dim_pessoas via embedded join)
+    const { data: transacoes, error: e3 } = await supabase
+      .from('fato_transacao_empresas')
+      .select(`
+        cargo,
+        qualificacao,
+        data_transacao,
+        dim_pessoas (
+          id,
+          nome_completo,
+          primeiro_nome,
+          sobrenome,
+          cpf,
+          email,
+          linkedin_url,
+          foto_url,
+          faixa_etaria
+        )
+      `)
+      .eq('empresa_id', empresaId);
+
+    if (e3) {
+      logger.warn('graph_node_details_socios_error', { empresaId, error: e3.message });
+    }
+
+    let socios = [];
+    if (transacoes && transacoes.length > 0) {
+      for (const tx of transacoes) {
+        const p = tx.dim_pessoas;
+        if (!p || !p.id) continue;
+        socios.push({
+          nome: p.nome_completo || [p.primeiro_nome, p.sobrenome].filter(Boolean).join(' ') || `Pessoa #${p.id}`,
+          cpf: p.cpf,
+          cargo: tx.cargo || tx.qualificacao,
+          qualificacao: tx.qualificacao,
+          email: p.email,
+          linkedin: p.linkedin_url,
+          foto_url: p.foto_url,
+          faixa_etaria: p.faixa_etaria,
+          data_entrada: tx.data_transacao,
+        });
+      }
+    }
+
+    logger.info('graph_node_details', { empresaId, regimes: (regimes || []).length, socios: socios.length });
+
+    return res.json({
+      success: true,
+      empresa,
+      regime: activeRegime,
+      regimes: regimes || [],
+      cnae: cnaeDetails,
+      socios,
+    });
+  } catch (err) {
+    logger.error('graph_node_details_error', { empresaId: req.params.empresaId, error: err.message });
+    return res.status(500).json({ success: false, error: 'Failed to fetch node details' });
   }
 });
 

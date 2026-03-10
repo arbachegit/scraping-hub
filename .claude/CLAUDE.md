@@ -515,6 +515,41 @@ Os gráficos de Stats Badges aprovados são imutáveis sem aprovação explícit
 
 ---
 
+<!-- GOLDEN_RULE_APPROVED: STATS_LOAD_PIPELINE | 2026-03-10 | v3.4.0 -->
+### Golden Rule 5: Stats Load Pipeline Immutability
+
+O pipeline de carregamento de stats (index + charts) é imutável sem aprovação explícita documentada.
+
+**Fluxo aprovado (session start + 60s cron):**
+```
+1. createStatsSnapshot() → writes to stats_historico (await)
+2. snapshotReady = true → enables queries + starts countdown
+3. getStatsCurrent() → fills statsMap → Counter Line (index numbers)
+4. getStatsHistory(365) → fills historyMap → StatsBadgeCard (charts)
+5. Countdown ring (right side of Counter Line): loading spinner during initial load
+6. After data loads: 60s countdown, on complete → re-snapshot → refetch
+7. placeholderData: keepPreviousData — numbers NEVER flash to zero on refetch
+```
+
+**Regras do pipeline:**
+- Snapshot SEMPRE executa ANTES das queries (gate: `enabled: snapshotReady`)
+- Números SÓ sobem (monotonic: `Math.max(current, previous)` no backend)
+- `safeCount`: exact → estimated fallback (tabelas grandes como dim_empresas/mandatos)
+- `placeholderData: keepPreviousData` — old data shown during refetch (no zero-flash)
+- Countdown ring: loading spinner when `isLoading`, 60s cron after first load
+- On countdown complete: re-snapshot → invalidate queries → refetch with keepPreviousData
+
+**Arquivos protegidos:**
+- `apps/web/app/dashboard/page.tsx` — Pipeline: snapshot → query → statsMap/historyMap
+- `apps/web/components/stats/stats-badge-card.tsx` — StatsBadgeCard + StatsCounterLine + MiniSparkline
+- `backend/src/routes/stats.js` — safeCount, getAllCounts, /stats/current, /stats/snapshot
+
+**Para alterar:**
+- Requer ordem explícita do usuário
+- Documentar mudança no Change Log abaixo
+
+---
+
 ## CHANGE LOG (Aprovações)
 
 | Data | Versão | Mudança | Aprovado por |
@@ -526,6 +561,13 @@ Os gráficos de Stats Badges aprovados são imutáveis sem aprovação explícit
 | 2026-02-28 | v3.2.0 | Stats Badges: +Row 3 emendas (cyan) + noticias (green) | Fernando |
 | 2026-02-28 | v3.2.0 | Golden Rule 4: Stats Graphs Immutability adicionada | Fernando |
 | 2026-03-01 | v3.3.0 | Compact Cards 50% menores, neon glow, entre Counter Line e Stats | Fernando |
+| 2026-03-10 | v3.4.0 | Golden Rule 5: Stats Load Pipeline Immutability | Fernando |
+| 2026-03-10 | v3.4.0 | Fix: safeCount exact→estimated fallback (empresas/mandatos) | Fernando |
+| 2026-03-10 | v3.4.0 | Fix: race condition snapshot→queries (snapshotReady gate) | Fernando |
+| 2026-03-10 | v3.4.0 | Removed: countdown timer/cron — load once on session start | Fernando |
+| 2026-03-10 | v3.4.0 | Graph sync: +politicos +emendas +mandatos in pipeline | Fernando |
+| 2026-03-10 | v3.4.1 | Re-added countdown ring (right side): loading spinner → 60s cron | Fernando |
+| 2026-03-10 | v3.4.1 | placeholderData: keepPreviousData — numbers never zero on refetch | Fernando |
 
 ---
 

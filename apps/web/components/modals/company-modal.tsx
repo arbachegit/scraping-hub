@@ -23,6 +23,7 @@ import {
   Plus,
   Download,
   AlertTriangle,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,71 +159,7 @@ export function CompanyModal({
     enabled: isOpen && debouncedNome.length >= 2,
   });
 
-  // Auto-trigger external search after DB results arrive (page 1 only)
-  useEffect(() => {
-    if (
-      page !== 1 ||
-      externalDone ||
-      externalLoading ||
-      !dbQuery.isSuccess ||
-      debouncedNome.length < 2
-    ) return;
-
-    // Cancel previous in-flight external search
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setExternalLoading(true);
-
-    const payload: Record<string, string> = {};
-    if (debouncedNome) payload.nome = debouncedNome;
-    if (cidade) payload.cidade = cidade;
-    if (segmento) payload.segmento = segmento;
-    if (regime) payload.regime = regime;
-
-    searchCompany(payload)
-      .then((data) => {
-        if (controller.signal.aborted) return;
-
-        console.info('[EXTERNAL-SEARCH-AUTO]', {
-          requestId: data.requestId,
-          source: data.source,
-          durationMs: data.durationMs,
-          searchSource: data.searchSource,
-          found: data.found,
-          candidateCount: data.candidates?.length || (data.company ? 1 : 0),
-          limits: data.limits,
-        });
-
-        if (data.found) {
-          if (data.single_match && data.company) {
-            setExternalResults([data.company]);
-          } else {
-            setExternalResults(data.candidates || []);
-          }
-          setExternalMeta({ requestId: data.requestId, durationMs: data.durationMs, searchSource: data.searchSource, limits: data.limits });
-        }
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        console.warn('[EXTERNAL-SEARCH-AUTO] Error:', err.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setExternalLoading(false);
-          setExternalDone(true);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [dbQuery.isSuccess, debouncedNome, cidade, segmento, regime, page, externalDone, externalLoading]);
-
-  // Manual external search (refresh button)
+  // Manual external search ("Buscar Fora" button only — no auto-trigger)
   function handleSearch() {
     const campos = [
       { nome: 'Nome', valor: nome },
@@ -542,17 +479,15 @@ export function CompanyModal({
               <Button
                 onClick={handleSearch}
                 disabled={externalLoading}
-                className="h-12 px-6 bg-cyan-500/15 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-white"
+                variant="outline"
+                className="h-12 px-6 border-amber-500/30 text-amber-400 hover:bg-amber-500/15"
               >
                 {externalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <Search className="h-4 w-4 mr-2" />
+                  <Globe className="h-4 w-4 mr-2" />
                 )}
-                Buscar (externo)
-              </Button>
-              <Button onClick={onOpenListingModal} variant="outline" className="h-12 px-6">
-                Listar DB
+                Buscar Fora
               </Button>
 
               {/* Mass insert button */}

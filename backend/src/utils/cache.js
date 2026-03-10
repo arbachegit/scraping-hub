@@ -16,7 +16,7 @@ let redisModule = null;
 // ---------------------------------------------------------------------------
 
 export const CACHE_TTL = {
-  STATS: 30,           // 30 seconds
+  STATS: 600,          // 10 minutes (exact counts are slow but accurate)
   GRAPH: 300,          // 5 minutes
   COMPANY_DETAIL: 600, // 10 minutes
   SEARCH: 120,         // 2 minutes

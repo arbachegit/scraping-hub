@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   Building2,
   Users,
@@ -30,7 +30,6 @@ import { AtlasChat } from '@/components/atlas/atlas-chat';
 import { CompanyModal } from '@/components/modals/company-modal';
 import { CnaeModal } from '@/components/modals/cnae-modal';
 import { RegimeModal } from '@/components/modals/regime-modal';
-import { PeopleModal } from '@/components/modals/people-modal';
 import { NewsModal } from '@/components/modals/news-modal';
 import {
   EmpresasListingModal,
@@ -41,8 +40,11 @@ import {
 } from '@/components/modals/listing-modal';
 import { StatsBadgeCard, StatsCounterLine } from '@/components/stats/stats-badge-card';
 
-const STATS_REFRESH_INTERVAL = 60000; // 1 minute
-const COUNTDOWN_MAX = 60; // 1 minute in seconds
+// ==========================================================================
+// GOLDEN RULE 5: Stats Constants (IMMUTABLE)
+// DO NOT change COUNTDOWN_MAX, categoryConfig colors, or category keys.
+// ==========================================================================
+const COUNTDOWN_MAX = 60;
 
 const categoryConfig = {
   empresas: { icon: Building2, color: 'red' as const, label: 'Empresas' },
@@ -54,21 +56,19 @@ const categoryConfig = {
 };
 
 type CategoryKey = keyof typeof categoryConfig;
+// ======================== END GOLDEN RULE 5 (constants) ==================
 
 export default function DashboardPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [userName, setUserName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [version, setVersion] = useState('v1.14.2026');
-  const [countdown, setCountdown] = useState(COUNTDOWN_MAX);
 
   // Modal states
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [cnaeModalOpen, setCnaeModalOpen] = useState(false);
   const [regimeModalOpen, setRegimeModalOpen] = useState(false);
-  const [peopleModalOpen, setPeopleModalOpen] = useState(false);
   const [newsModalOpen, setNewsModalOpen] = useState(false);
   const [empresasListingOpen, setEmpresasListingOpen] = useState(false);
   const [pessoasListingOpen, setPessoasListingOpen] = useState(false);
@@ -80,12 +80,15 @@ export default function DashboardPage() {
   const [selectedCnae, setSelectedCnae] = useState<string>('');
   const [selectedRegime, setSelectedRegime] = useState<string>('');
 
-  // Auth check
+  // Auth check — gates all data fetching
+  const [authReady, setAuthReady] = useState(false);
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
       return;
     }
+    setAuthReady(true);
   }, [router]);
 
   // Load user info
@@ -93,6 +96,7 @@ export default function DashboardPage() {
     queryKey: ['user'],
     queryFn: getUser,
     retry: false,
+    enabled: authReady,
   });
 
   useEffect(() => {
@@ -111,6 +115,7 @@ export default function DashboardPage() {
   const healthQuery = useQuery({
     queryKey: ['health'],
     queryFn: getHealth,
+    enabled: authReady,
   });
 
   useEffect(() => {
@@ -119,53 +124,74 @@ export default function DashboardPage() {
     }
   }, [healthQuery.data]);
 
-  // Create initial snapshot to populate stats_historico
+  // ==========================================================================
+  // GOLDEN RULE 5: Stats Load Pipeline (IMMUTABLE)
+  //
+  // Flow: snapshot → wait → fetch current + history → fill counters + charts
+  //       → 60s countdown → re-snapshot → refetch (keep previous data)
+  //
+  // 1. createStatsSnapshot() writes to stats_historico FIRST
+  // 2. snapshotReady gate ensures queries only fire AFTER snapshot completes
+  // 3. placeholderData: keepPreviousData — numbers NEVER flash to zero on refetch
+  // 4. Numbers only go UP (monotonic rule enforced by backend)
+  // 5. Countdown ring: loading spinner during initial load, 60s cron after
+  //
+  // DO NOT remove snapshotReady — it prevents the race condition.
+  // DO NOT remove placeholderData — it prevents zero-flash on refetch.
+  // DO NOT move createStatsSnapshot() after the queries.
+  // ==========================================================================
+  const queryClient = useQueryClient();
+  const [snapshotReady, setSnapshotReady] = useState(false);
   const snapshotDoneRef = useRef(false);
+  const [countdown, setCountdown] = useState(COUNTDOWN_MAX);
+
   useEffect(() => {
+    if (!authReady) return;
     if (!snapshotDoneRef.current) {
       snapshotDoneRef.current = true;
-      createStatsSnapshot().catch(() => {});
+      createStatsSnapshot()
+        .catch(() => {})
+        .finally(() => setSnapshotReady(true));
     }
-  }, []);
+  }, [authReady]);
 
-  // Load stats
+  // Countdown timer: starts after initial data loads
+  useEffect(() => {
+    if (!snapshotReady) return;
+    const interval = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? COUNTDOWN_MAX : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [snapshotReady]);
+
+  // Refresh handler: re-snapshot then invalidate queries (keepPreviousData prevents zero)
+  const handleRefreshComplete = useCallback(() => {
+    createStatsSnapshot()
+      .catch(() => {})
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['stats-current'] });
+        queryClient.invalidateQueries({ queryKey: ['stats-history'] });
+      });
+  }, [queryClient]);
+
   const statsQuery = useQuery({
     queryKey: ['stats-current'],
-    queryFn: async () => {
-      // Create snapshot on each refresh to keep history updated
-      await createStatsSnapshot().catch(() => {});
-      return getStatsCurrent();
-    },
-    refetchInterval: STATS_REFRESH_INTERVAL,
+    queryFn: () => getStatsCurrent(),
+    enabled: snapshotReady,
+    staleTime: 55_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 
-  // Load history (limit=365 to get all available data)
   const historyQuery = useQuery({
     queryKey: ['stats-history'],
     queryFn: () => getStatsHistory(365),
-    refetchInterval: STATS_REFRESH_INTERVAL,
+    enabled: snapshotReady,
+    staleTime: 55_000,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
-
-  // Countdown timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          return COUNTDOWN_MAX;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Reset countdown when stats refresh
-  useEffect(() => {
-    if (statsQuery.dataUpdatedAt) {
-      setCountdown(COUNTDOWN_MAX);
-    }
-  }, [statsQuery.dataUpdatedAt]);
+  // ======================== END GOLDEN RULE 5 ==============================
 
   function handleLogout() {
     clearTokens();
@@ -188,7 +214,14 @@ export default function DashboardPage() {
     setEmendasListingOpen(true);
   }
 
-  // Build stats data
+  // ==========================================================================
+  // GOLDEN RULE 5 (cont.): Stats Data Mapping (IMMUTABLE)
+  //
+  // statsMap  → feeds StatsCounterLine (index numbers)
+  // historyMap → feeds StatsBadgeCard (charts)
+  //
+  // DO NOT change the mapping logic or fallback values.
+  // ==========================================================================
   const statsMap = new Map<string, StatItem>();
   for (const stat of statsQuery.data?.stats || []) {
     statsMap.set(stat.categoria, stat);
@@ -197,15 +230,8 @@ export default function DashboardPage() {
   const historyMap: Record<string, CategoryHistory> = historyQuery.data?.historico || {};
   const dataReferencia = statsQuery.data?.data_referencia || '';
   const isOnline = statsQuery.data?.online ?? false;
-  const isStatsLoading = statsQuery.isFetching || historyQuery.isFetching;
+  const isStatsLoading = statsQuery.isLoading || historyQuery.isLoading;
 
-  // Callback when pie chart completes a cycle
-  const handleRefreshComplete = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['stats-current'] });
-    queryClient.invalidateQueries({ queryKey: ['stats-history'] });
-  }, [queryClient]);
-
-  // Counter line data
   const counterStats = Object.keys(categoryConfig).map((key) => {
     const cat = key as CategoryKey;
     return {
@@ -214,6 +240,7 @@ export default function DashboardPage() {
       color: categoryConfig[cat].color,
     };
   });
+  // ======================== END GOLDEN RULE 5 ==============================
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0e1a] overflow-hidden">
@@ -272,7 +299,13 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Stats Counter Line - Landing Page Style */}
+      {/* ================================================================ */}
+      {/* GOLDEN RULE 5: Counter Line + Cron Ring (IMMUTABLE)             */}
+      {/* Shows 6 animated counters + countdown ring on right side.       */}
+      {/* Ring = loading spinner during initial load, 60s cron after.     */}
+      {/* DO NOT remove countdown/maxCountdown/onRefreshComplete props.   */}
+      {/* DO NOT change isLoading logic — it gates spinner vs ring.       */}
+      {/* ================================================================ */}
       <div className="flex-shrink-0">
         <StatsCounterLine
           stats={counterStats}
@@ -282,6 +315,7 @@ export default function DashboardPage() {
           isLoading={!statsQuery.data}
         />
       </div>
+      {/* ==================== END GOLDEN RULE 5 (counter line) ========= */}
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
@@ -304,7 +338,7 @@ export default function DashboardPage() {
                   iconColor="orange"
                   title="Pessoas"
                   description="Perfis profissionais"
-                  onClick={() => setPeopleModalOpen(true)}
+                  onClick={() => setPessoasListingOpen(true)}
                 />
               )}
               {hasModuleAccess(userPermissions, 'politicos') && (
@@ -346,7 +380,17 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Badges */}
+          {/* ============================================================ */}
+          {/* GOLDEN RULE 5: Stats Badge Charts (IMMUTABLE)                */}
+          {/*                                                              */}
+          {/* 3 rows x 2 cols of StatsBadgeCard with MiniSparkline charts. */}
+          {/* Row 1: empresas (red) + pessoas (orange)                     */}
+          {/* Row 2: politicos (blue) + mandatos (purple)                  */}
+          {/* Row 3: emendas (cyan) + noticias (green)                     */}
+          {/*                                                              */}
+          {/* DO NOT change row layout, category order, or prop mapping.   */}
+          {/* DO NOT remove any category or add new rows without approval. */}
+          {/* ============================================================ */}
           <div className="mb-6">
             <h2 className="text-[25px] font-semibold text-slate-400 mb-3">
               Estatísticas em Tempo Real
@@ -371,8 +415,6 @@ export default function DashboardPage() {
                     online={isOnline}
                     history={catHistory?.points || []}
                     color={config.color}
-                    countdown={countdown}
-                    maxCountdown={COUNTDOWN_MAX}
                     size="large"
                     isLoading={isStatsLoading}
                   />
@@ -399,8 +441,6 @@ export default function DashboardPage() {
                     online={isOnline}
                     history={catHistory?.points || []}
                     color={config.color}
-                    countdown={countdown}
-                    maxCountdown={COUNTDOWN_MAX}
                     size="large"
                     isLoading={isStatsLoading}
                   />
@@ -427,8 +467,6 @@ export default function DashboardPage() {
                     online={isOnline}
                     history={catHistory?.points || []}
                     color={config.color}
-                    countdown={countdown}
-                    maxCountdown={COUNTDOWN_MAX}
                     size="large"
                     isLoading={isStatsLoading}
                   />
@@ -436,6 +474,7 @@ export default function DashboardPage() {
               })}
             </div>
           </div>
+          {/* ================ END GOLDEN RULE 5 (charts) ================ */}
         </div>
       </main>
 
@@ -464,13 +503,6 @@ export default function DashboardPage() {
         isOpen={regimeModalOpen}
         onClose={() => setRegimeModalOpen(false)}
         onSelect={handleRegimeSelect}
-      />
-
-      <PeopleModal
-        isOpen={peopleModalOpen}
-        onClose={() => setPeopleModalOpen(false)}
-        onOpenListingModal={() => setPessoasListingOpen(true)}
-        userName={userName}
       />
 
       <NewsModal

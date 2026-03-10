@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Loader2, ExternalLink, ArrowUp, ArrowDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   listCompanies,
-  listPeople,
+  listPeopleEnriched,
   listNews,
   listPoliticians,
   searchPoliticians,
@@ -15,7 +15,7 @@ import {
   searchEmendas,
   formatRegime,
   type Company,
-  type Person,
+  type PeopleEnrichedRow,
   type NewsItem,
   type Politician,
   type PoliticianMandate,
@@ -269,16 +269,22 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
   const [search, setSearch] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTerm = search.trim();
+  const initialSearch = filters?.nome?.trim() || '';
+  const apiSearch = searchTerm.length >= 2 ? searchTerm : initialSearch;
+  const shouldFetch = apiSearch.length >= 2;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = window.setTimeout(() => searchInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(t);
+  }, [isOpen]);
 
   const query = useQuery({
-    queryKey: ['pessoas', 'listing', filters],
-    queryFn: () =>
-      listPeople({
-        nome: filters?.nome,
-        cidade: filters?.cidade,
-        limit: 500,
-      }),
-    enabled: isOpen,
+    queryKey: ['pessoas', 'listing', filters, apiSearch],
+    queryFn: () => listPeopleEnriched(apiSearch, 500, 0),
+    enabled: isOpen && shouldFetch,
     retry: 1,
     staleTime: 30_000,
   });
@@ -286,14 +292,24 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
   const filteredData = useMemo(() => {
     let data = query.data?.people || [];
 
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (searchTerm.length >= 2) {
+      const searchLower = searchTerm.toLowerCase();
       data = data.filter(
         (p) =>
-          (p.nome_completo || p.nome || '').toLowerCase().includes(searchLower) ||
+          (p.nome || '').toLowerCase().includes(searchLower) ||
+          (p.empresa || '').toLowerCase().includes(searchLower) ||
+          (p.cidade || '').toLowerCase().includes(searchLower) ||
+          (p.estado || '').toLowerCase().includes(searchLower) ||
+          (p.cnae || '').toLowerCase().includes(searchLower) ||
+          (p.descricao || p.cnae_descricao || '').toLowerCase().includes(searchLower) ||
           (p.email || '').toLowerCase().includes(searchLower) ||
-          (p.pais || '').toLowerCase().includes(searchLower)
+          (p.phone || p.telefone || '').toLowerCase().includes(searchLower)
       );
+    }
+
+    if (filters?.cidade) {
+      const cityLower = filters.cidade.toLowerCase();
+      data = data.filter((p) => (p.cidade || '').toLowerCase().includes(cityLower));
     }
 
     if (sortColumn) {
@@ -309,7 +325,7 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
     }
 
     return data;
-  }, [query.data?.people, search, sortColumn, sortDirection]);
+  }, [filters?.cidade, query.data?.people, searchTerm, sortColumn, sortDirection]);
 
   function handleSort(column: string) {
     if (sortColumn === column) {
@@ -345,16 +361,21 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
         {/* Filters */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-white/5">
           <Input
+            ref={searchInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrar resultados..."
+            placeholder="Digite pelo menos 2 letras do nome..."
             className="max-w-xs"
           />
         </div>
 
         {/* Table */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {query.isLoading ? (
+          {!shouldFetch ? (
+            <div className="text-center py-12 text-slate-500">
+              Digite pelo menos 2 letras para buscar pessoas no banco.
+            </div>
+          ) : query.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Loader2 className="h-10 w-10 animate-spin text-orange-400 mb-4" />
               <span>Carregando pessoas...</span>
@@ -373,7 +394,47 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
                 <tr className="bg-orange-500/5">
                   <SortableHeader
                     label="Nome"
-                    column="nome_completo"
+                    column="nome"
+                    currentColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    color="orange"
+                  />
+                  <SortableHeader
+                    label="Empresa"
+                    column="empresa"
+                    currentColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    color="orange"
+                  />
+                  <SortableHeader
+                    label="Cidade"
+                    column="cidade"
+                    currentColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    color="orange"
+                  />
+                  <SortableHeader
+                    label="UF"
+                    column="estado"
+                    currentColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    color="orange"
+                  />
+                  <SortableHeader
+                    label="CNAE"
+                    column="cnae"
+                    currentColumn={sortColumn}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                    color="orange"
+                  />
+                  <SortableHeader
+                    label="Descricao"
+                    column="descricao"
                     currentColumn={sortColumn}
                     direction={sortDirection}
                     onSort={handleSort}
@@ -388,24 +449,13 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
                     color="orange"
                   />
                   <SortableHeader
-                    label="País"
-                    column="pais"
+                    label="Phone"
+                    column="phone"
                     currentColumn={sortColumn}
                     direction={sortDirection}
                     onSort={handleSort}
                     color="orange"
                   />
-                  <SortableHeader
-                    label="Faixa Etária"
-                    column="faixa_etaria"
-                    currentColumn={sortColumn}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    color="orange"
-                  />
-                  <th className="text-left p-3 text-orange-400 font-semibold text-xs uppercase">
-                    LinkedIn
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -421,29 +471,17 @@ export function PessoasListingModal({ isOpen, onClose, filters }: PessoasListing
   );
 }
 
-function PessoaRow({ pessoa }: { pessoa: Person }) {
-  const hasLinkedin = pessoa.linkedin_url && pessoa.linkedin_url !== 'inexistente';
-
+function PessoaRow({ pessoa }: { pessoa: PeopleEnrichedRow }) {
   return (
     <tr className="border-b border-white/5 hover:bg-orange-500/5 transition-colors">
-      <td className="p-3 text-slate-300">{pessoa.nome_completo || pessoa.nome || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.nome || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.empresa || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.cidade || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.estado || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.cnae || '-'}</td>
+      <td className="p-3 text-slate-300">{pessoa.descricao || pessoa.cnae_descricao || '-'}</td>
       <td className="p-3 text-slate-300">{pessoa.email || '-'}</td>
-      <td className="p-3 text-slate-300">{pessoa.pais || '-'}</td>
-      <td className="p-3 text-slate-300">{pessoa.faixa_etaria || '-'}</td>
-      <td className="p-3">
-        {hasLinkedin ? (
-          <a
-            href={pessoa.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-400 hover:underline inline-flex items-center gap-1"
-          >
-            Ver <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : (
-          <span className="text-slate-500">-</span>
-        )}
-      </td>
+      <td className="p-3 text-slate-300">{pessoa.phone || pessoa.telefone || '-'}</td>
     </tr>
   );
 }

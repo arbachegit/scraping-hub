@@ -4,6 +4,7 @@ import { supabase } from '../database/supabase.js';
 import logger from '../utils/logger.js';
 import { cacheGet, cacheSet, CACHE_TTL, getCacheStats } from '../utils/cache.js';
 import { STATS_TIMEZONE, STATS_UTC_OFFSET } from '../constants.js';
+import { syncGraphRelationships } from '../services/graph-sync.js';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function getDateBRT(date = new Date()) {
   return BRT_FORMATTER.format(date); // returns 'YYYY-MM-DD'
 }
 
-// Cache via Redis (with in-memory fallback) — TTL 30s
+// Cache via Redis (with in-memory fallback) — TTL 10min (exact counts are slow)
 async function getAllCountsCached() {
   const cacheKey = 'stats:all_counts';
   const cached = await cacheGet(cacheKey);
@@ -50,33 +51,22 @@ function getCategoryMapping() {
  */
 router.get('/', async (req, res) => {
   try {
-    const localPromises = [
-      supabase.from('dim_empresas').select('id', { count: 'estimated', head: true }),
-      supabase.from('dim_pessoas').select('id', { count: 'estimated', head: true }),
-      supabase.from('dim_noticias').select('id', { count: 'estimated', head: true }),
-    ];
-
-    const brasilDataHubPromises = brasilDataHub
-      ? [
-          brasilDataHub.from('dim_politicos').select('id', { count: 'estimated', head: true }),
-          brasilDataHub.from('fato_politicos_mandatos').select('id', { count: 'estimated', head: true }),
-          brasilDataHub.from('fato_emendas_parlamentares').select('id', { count: 'estimated', head: true }),
-        ]
-      : [Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 }), Promise.resolve({ count: 0 })];
-
-    const [empresas, pessoas, noticias, politicos, mandatos, emendas] = await Promise.all([
-      ...localPromises,
-      ...brasilDataHubPromises,
+    const [empresas, pessoas, noticias] = await Promise.all([
+      safeCount(supabase, 'dim_empresas'),
+      safeCount(supabase, 'dim_pessoas'),
+      safeCount(supabase, 'dim_noticias'),
     ]);
 
-    const stats = {
-      empresas: empresas.count || 0,
-      pessoas: pessoas.count || 0,
-      politicos: politicos.count || 0,
-      mandatos: mandatos.count || 0,
-      emendas: emendas.count || 0,
-      noticias: noticias.count || 0,
-    };
+    let politicos = 0, mandatos = 0, emendas = 0;
+    if (brasilDataHub) {
+      [politicos, mandatos, emendas] = await Promise.all([
+        safeCount(brasilDataHub, 'dim_politicos'),
+        safeCount(brasilDataHub, 'fato_politicos_mandatos'),
+        safeCount(brasilDataHub, 'fato_emendas_parlamentares'),
+      ]);
+    }
+
+    const stats = { empresas, pessoas, politicos, mandatos, emendas, noticias };
 
     logger.info('Stats fetched', stats);
 
@@ -98,17 +88,38 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ==========================================================================
+// GOLDEN RULE 5: Stats Count Pipeline (IMMUTABLE)
+//
+// safeCount: exact → estimated fallback (large tables timeout on exact)
+// getAllCounts: parallel counts for all 6 categories
+//
+// DO NOT remove the estimated fallback — empresas/mandatos need it.
+// DO NOT change the 6 categories or their table mappings.
+// DO NOT add refetchInterval or cron logic here — load once per session.
+// ==========================================================================
+
 /**
- * Helper: safe count for a table (returns 0 on error)
+ * Safe count for a table (returns 0 on error).
+ * Tries exact count first; falls back to estimated count if exact fails
+ * (large tables like dim_empresas/fato_politicos_mandatos timeout on exact).
  */
 async function safeCount(client, table) {
   try {
-    const { count, error } = await client.from(table).select('id', { count: 'estimated', head: true });
-    if (error) {
-      logger.warn('safeCount error', { table, error: error.message });
-      return 0;
+    const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
+    if (!error && count != null) {
+      return count;
     }
-    return count || 0;
+
+    // Fallback: estimated count (uses pg_class reltuples, fast on any size)
+    logger.warn('safeCount exact failed, trying estimated', { table, error: error?.message, status: error?.code });
+    const { count: estimated, error: estError } = await client.from(table).select('id', { count: 'estimated', head: true });
+    if (!estError && estimated != null) {
+      return estimated;
+    }
+
+    logger.warn('safeCount estimated also failed', { table, error: estError?.message });
+    return 0;
   } catch (err) {
     logger.error('safeCount exception', { table, error: err.message });
     return 0;
@@ -116,7 +127,7 @@ async function safeCount(client, table) {
 }
 
 /**
- * Helper: get all current counts
+ * Get all current counts — 6 categories, parallel.
  */
 async function getAllCounts() {
   const [empresas, pessoas, noticias] = await Promise.all([
@@ -138,6 +149,7 @@ async function getAllCounts() {
 
   return { empresas, pessoas, politicos, mandatos, emendas, noticias };
 }
+// ======================== END GOLDEN RULE 5 ==============================
 
 /**
  * Count rows created on a specific day for a table.
@@ -156,7 +168,7 @@ async function countDayInserts(client, table, dateStr, createdAtColumn = 'create
 
     const { count } = await client
       .from(table)
-      .select('id', { count: 'estimated', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte(createdAtColumn, dayStart)
       .lt(createdAtColumn, dayEnd);
 
@@ -373,14 +385,17 @@ router.get('/history', async (req, res) => {
   }
 });
 
-/**
- * POST /stats/snapshot
- * Creates a snapshot of current accumulated counts in stats_historico.
- *
- * REGRA: Monotonically increasing — o total NUNCA pode diminuir.
- * PostgreSQL 'estimated' count flutua em tabelas grandes (40M+),
- * então protegemos contra quedas falsas comparando com o último snapshot.
- */
+// ==========================================================================
+// GOLDEN RULE 5 (cont.): Snapshot Endpoint (IMMUTABLE)
+//
+// POST /stats/snapshot — writes to stats_historico
+// REGRA: Monotonically increasing — o total NUNCA pode diminuir.
+// Math.max(currentEstimate, previousTotal) ensures only upward movement.
+//
+// DO NOT remove the monotonic protection (Math.max).
+// DO NOT change the 6 categories array.
+// DO NOT remove the graph sync trigger.
+// ==========================================================================
 router.post('/snapshot', async (req, res) => {
   try {
     const counts = await getAllCountsCached();
@@ -446,6 +461,18 @@ router.post('/snapshot', async (req, res) => {
     }
 
     logger.info('Stats snapshot created', { date: hojeISO, counts });
+
+    // Trigger graph sync in background (non-blocking)
+    // Finds new empresas without relationships and enriches them
+    syncGraphRelationships()
+      .then(syncResult => {
+        if (syncResult.processed > 0) {
+          logger.info('graph_sync_via_snapshot', syncResult);
+        }
+      })
+      .catch(err => {
+        logger.warn('graph_sync_via_snapshot_error', { error: err.message });
+      });
 
     res.json({
       success: true,
@@ -594,7 +621,7 @@ router.get('/diagnostic', async (req, res) => {
       }
       const start = Date.now();
       try {
-        const { count, error } = await client.from(table).select('id', { count: 'estimated', head: true });
+        const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
         results[cat] = {
           table,
           count: count || 0,

@@ -46,6 +46,151 @@ router.get('/list', async (req, res) => {
 });
 
 /**
+ * GET /api/people/list-enriched
+ * List people with joined empresa data (nome, empresa, cidade, CNAE, telefone)
+ */
+router.get('/list-enriched', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+    const offset = parseInt(req.query.offset) || 0;
+    const search = (req.query.search || '').trim();
+    const normalizeNameKey = (value) => String(value || '').trim().toLowerCase();
+    const getApolloCompanyName = (rawApollo) =>
+      rawApollo?.organization_name ||
+      rawApollo?.organization?.name ||
+      rawApollo?.employment_history?.[0]?.organization_name ||
+      '';
+    const getApolloPhone = (rawApollo) => {
+      const phones = rawApollo?.phone_numbers;
+      if (Array.isArray(phones)) {
+        return phones.find(Boolean) || '';
+      }
+      return typeof phones === 'string' ? phones : '';
+    };
+
+    // 1. Fetch pessoas (avoid full table scan on 22M rows)
+    let pessoasQuery = supabase
+      .from('dim_pessoas')
+      .select('id, nome_completo, primeiro_nome, email, raw_apollo_data')
+      .order('nome_completo', { ascending: true });
+
+    if (search.length >= 2) {
+      const escaped = escapeLike(search);
+      pessoasQuery = pessoasQuery.or(
+        `nome_completo.ilike.%${escaped}%,primeiro_nome.ilike.%${escaped}%`
+      );
+    }
+
+    const { data: pessoas, error: pessoasError } = await pessoasQuery
+      .limit(limit)
+      .range(offset, offset + limit - 1);
+    const count = pessoas?.length || 0;
+
+    if (pessoasError) {
+      logger.error('Error listing enriched people', { error: pessoasError.message });
+      return res.status(500).json({ success: false, error: pessoasError.message });
+    }
+
+    if (!pessoas || pessoas.length === 0) {
+      return res.json({ success: true, count: 0, people: [] });
+    }
+
+    const fallbackCompanyNames = [
+      ...new Set(
+        pessoas
+          .map((p) => getApolloCompanyName(p.raw_apollo_data))
+          .filter(Boolean)
+      ),
+    ];
+
+    // 2. Fetch transactions with empresa data for all pessoa IDs
+    const personIds = pessoas.map(p => p.id);
+    const { data: transactions } = await supabase
+      .from('fato_transacao_empresas')
+      .select(`
+        pessoa_id,
+        cargo,
+        qualificacao,
+        dim_empresas (
+          razao_social,
+          nome_fantasia,
+          cidade,
+          estado,
+          cnae_principal,
+          cnae_descricao,
+          telefone_1,
+          telefone_2
+        )
+      `)
+      .in('pessoa_id', personIds)
+      .order('data_transacao', { ascending: false });
+
+    // 2b. Fallback company lookup by exact company name from raw_apollo_data
+    const companyLookup = new Map();
+    if (fallbackCompanyNames.length > 0) {
+      const [byRazaoSocial, byNomeFantasia] = await Promise.all([
+        supabase
+          .from('dim_empresas')
+          .select('razao_social, nome_fantasia, cidade, estado, cnae_principal, cnae_descricao, telefone_1, telefone_2')
+          .in('razao_social', fallbackCompanyNames),
+        supabase
+          .from('dim_empresas')
+          .select('razao_social, nome_fantasia, cidade, estado, cnae_principal, cnae_descricao, telefone_1, telefone_2')
+          .in('nome_fantasia', fallbackCompanyNames),
+      ]);
+
+      for (const company of [...(byRazaoSocial.data || []), ...(byNomeFantasia.data || [])]) {
+        const fantasiaKey = normalizeNameKey(company.nome_fantasia);
+        const razaoKey = normalizeNameKey(company.razao_social);
+        if (fantasiaKey) companyLookup.set(fantasiaKey, company);
+        if (razaoKey) companyLookup.set(razaoKey, company);
+      }
+    }
+
+    // Build latest transaction map (one empresa per pessoa)
+    const latestTx = {};
+    for (const tx of (transactions || [])) {
+      if (!latestTx[tx.pessoa_id]) {
+        latestTx[tx.pessoa_id] = tx;
+      }
+    }
+
+    // 3. Build enriched list
+    const enriched = pessoas.map(p => {
+      const tx = latestTx[p.id];
+      const rawApollo = p.raw_apollo_data || {};
+      const fallbackCompanyName = getApolloCompanyName(rawApollo);
+      const fallbackCompany = companyLookup.get(normalizeNameKey(fallbackCompanyName)) || {};
+      const emp = tx?.dim_empresas || fallbackCompany || {};
+      const apolloPhone = getApolloPhone(rawApollo);
+      return {
+        id: p.id,
+        nome: p.nome_completo || p.primeiro_nome || '',
+        empresa: emp.nome_fantasia || emp.razao_social || fallbackCompanyName || '',
+        cidade: emp.cidade || rawApollo.city || '',
+        estado: emp.estado || rawApollo.state || '',
+        cnae: emp.cnae_principal || '',
+        descricao: emp.cnae_descricao || '',
+        cnae_descricao: emp.cnae_descricao || '',
+        email: p.email || rawApollo.email || '',
+        phone: apolloPhone || emp.telefone_1 || emp.telefone_2 || '',
+        telefone: apolloPhone || emp.telefone_1 || emp.telefone_2 || '',
+      };
+    });
+
+    res.json({
+      success: true,
+      count: count,
+      people: enriched
+    });
+
+  } catch (error) {
+    logger.error('Error listing enriched people', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/people/credit-bureaus
  * Return information about credit bureau integrations
  */
@@ -216,13 +361,16 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    // Search in dim_pessoas by name
-    const escapedNome = escapeLike(nome.trim());
-    const { data, error } = await supabase
-      .from('dim_pessoas')
-      .select('*')
-      .or(`nome_completo.ilike.%${escapedNome}%,primeiro_nome.ilike.%${escapedNome}%`)
-      .limit(20);
+    // Search in dim_pessoas by name (22M rows — avoid full scan)
+    const upperNome = nome.trim().toUpperCase();
+    const escapedNome = escapeLike(upperNome);
+    let pessoaQuery = supabase.from('dim_pessoas').select('*');
+    if (upperNome.split(/\s+/).length === 1) {
+      pessoaQuery = pessoaQuery.or(`primeiro_nome.eq.${escapedNome},nome_completo.ilike.${escapedNome}%`);
+    } else {
+      pessoaQuery = pessoaQuery.ilike('nome_completo', `%${escapedNome}%`);
+    }
+    const { data, error } = await pessoaQuery.limit(20);
 
     if (error) {
       logger.error('Error searching people', { error: error.message });
@@ -266,12 +414,15 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     if (hasNome && !nameHasSpace && !hasCpf) {
       const nameTrimmed = nome.trim();
 
-      const escapedName = escapeLike(nameTrimmed);
-      const { data: dbMatches, error: dbError } = await supabase
-        .from('dim_pessoas')
-        .select('*')
-        .or(`primeiro_nome.ilike.%${escapedName}%,nome_completo.ilike.%${escapedName}%`)
-        .limit(10);
+      const upperName = nameTrimmed.toUpperCase();
+      const escapedName = escapeLike(upperName);
+      let cpfNameQuery = supabase.from('dim_pessoas').select('*');
+      if (upperName.split(/\s+/).length === 1) {
+        cpfNameQuery = cpfNameQuery.or(`primeiro_nome.eq.${escapedName},nome_completo.ilike.${escapedName}%`);
+      } else {
+        cpfNameQuery = cpfNameQuery.ilike('nome_completo', `%${escapedName}%`);
+      }
+      const { data: dbMatches, error: dbError } = await cpfNameQuery.limit(10);
 
       if (!dbError && dbMatches && dbMatches.length > 0) {
         // Enrich with latest company/cargo per person
@@ -345,13 +496,15 @@ router.post('/search-cpf', validateBody(searchPersonByCpfSchema), async (req, re
     }
 
     if (!existingPerson && hasNome) {
-      const escapedNomeCpf = escapeLike(nome.trim());
-      const { data, error } = await supabase
-        .from('dim_pessoas')
-        .select('*')
-        .or(`nome_completo.ilike.%${escapedNomeCpf}%,primeiro_nome.ilike.%${escapedNomeCpf}%`)
-        .limit(1)
-        .single();
+      const upperNomeCpf = nome.trim().toUpperCase();
+      const escapedNomeCpf = escapeLike(upperNomeCpf);
+      let fallbackQuery = supabase.from('dim_pessoas').select('*');
+      if (upperNomeCpf.split(/\s+/).length === 1) {
+        fallbackQuery = fallbackQuery.or(`primeiro_nome.eq.${escapedNomeCpf},nome_completo.ilike.${escapedNomeCpf}%`);
+      } else {
+        fallbackQuery = fallbackQuery.ilike('nome_completo', `%${escapedNomeCpf}%`);
+      }
+      const { data, error } = await fallbackQuery.limit(1).single();
       if (data && !error) existingPerson = data;
     }
 
@@ -670,78 +823,22 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       pageSize
     });
 
-    // ── 1. Query Analysis (Orchestrator) ──
-    const analysis = analyzeQuery({
-      nome,
-      cpf: searchType === 'cpf' ? cpf : undefined,
-      dataNascimento,
-      cidadeUf,
-      entityType: 'person'
-    });
+    // No restrictions — any name, any length, any format is accepted.
+    // Always allowed. Normalize name with basic capitalization only.
+    const normalizedNome = nome
+      ? nome.trim()
+          .toLowerCase()
+          .replace(/\b(\w)/g, (_, c) => c.toUpperCase())
+          .replace(/\b(Da|De|Do|Das|Dos|E)\b/g, (m) => m.toLowerCase())
+      : '';
 
-    // ── 2. Cardinality Estimation ──
-    const cardinality = await estimateCardinality(analysis);
-
-    // ── 3. Check if refinement is required ──
-    const refinement = buildRefinementResponse(analysis, cardinality);
-
-    if (refinement.status === 'REFINE_REQUIRED') {
-      const durationMs = Date.now() - startTime;
-      logEvidence({
-        requestId,
-        input: { searchType, cpf: cpf ? maskCpf(cpf) : null, nome, dataNascimento, cidadeUf },
-        analysis,
-        cardinality,
-        strategy: analysis.strategy,
-        sourcesUsed: [],
-        returnedCount: 0,
-        durationMs
-      });
-
-      return res.json({
-        success: true,
-        status: 'REFINE_REQUIRED',
-        message: refinement.message,
-        suggestions: refinement.suggestions,
-        estimatedMatches: refinement.estimatedMatches,
-        analysis: {
-          type: analysis.type,
-          strength: analysis.strength,
-          strategy: analysis.strategy,
-          missingFields: analysis.missingFields
-        },
-        guardrail: { allowed: false, reason: refinement.message },
-        results: [],
-        pagination: { page, pageSize, total: 0, totalPages: 0, hasMore: false },
-        badges: { total: 0, db: 0, new: 0 },
-        sources_tried: [],
-        requestId,
-        durationMs
-      });
-    }
-
-    // ── 4. Run guardrail (name normalization, CPF validation) ──
-    const guardrail = await runGuardrail({ searchType, cpf, nome, dataNascimento, cidadeUf });
-
-    if (!guardrail.allowed) {
-      plog.info('Guardrail blocked', { reason: guardrail.reason });
-      return res.json({
-        success: true,
-        status: 'REFINE_REQUIRED',
-        guardrail,
-        analysis: {
-          type: analysis.type,
-          strength: analysis.strength,
-          strategy: analysis.strategy
-        },
-        results: [],
-        pagination: { page, pageSize, total: 0, totalPages: 0, hasMore: false },
-        badges: { total: 0, db: 0, new: 0 },
-        sources_tried: [],
-        requestId,
-        durationMs: Date.now() - startTime
-      });
-    }
+    const guardrail = {
+      allowed: true,
+      reason: 'Busca livre — sem restricoes',
+      requiredFields: [],
+      normalizedQuery: searchType === 'cpf' ? (cpf || '') : normalizedNome,
+      durationMs: 0
+    };
 
     const sourcesTried = [];
     const offset = (page - 1) * pageSize;
@@ -764,20 +861,42 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
         dbTotal = count || data.length;
       }
     } else {
-      const searchName = guardrail.normalizedQuery || nome.trim();
+      // CRITICAL: 22M rows — avoid full table scan.
+      // - No count:exact (forces full scan)
+      // - No order (forces full sort)
+      // - Single word → primeiro_nome exact match (indexed) + nome_completo starts-with
+      // - Multi word → nome_completo ilike (narrower, acceptable)
+      const searchName = (guardrail.normalizedQuery || nome.trim()).toUpperCase();
       const escapedSearchName = escapeLike(searchName);
-      let query = supabase
-        .from('dim_pessoas')
-        .select('*', { count: 'exact' })
-        .or(`nome_completo.ilike.%${escapedSearchName}%,primeiro_nome.ilike.%${escapedSearchName}%`);
+      plog.info('DB query debug', { searchName, escapedSearchName });
 
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
+      let query;
+      if (searchName.split(/\s+/).length === 1) {
+        // Single word: exact match on primeiro_nome OR starts-with on nome_completo
+        query = supabase
+          .from('dim_pessoas')
+          .select('*')
+          .or(`primeiro_nome.eq.${escapedSearchName},nome_completo.ilike.${escapedSearchName}%`);
+      } else {
+        // Multiple words: contains match on nome_completo
+        query = supabase
+          .from('dim_pessoas')
+          .select('*')
+          .ilike('nome_completo', `%${escapedSearchName}%`);
+      }
+
+      const { data, error } = await query
+        .limit(pageSize)
         .range(offset, offset + pageSize - 1);
+
+      plog.info('DB query result', {
+        error: error?.message || null,
+        rowsReturned: data?.length || 0,
+      });
 
       if (!error && data) {
         dbResults = data;
-        dbTotal = count || data.length;
+        dbTotal = data.length;
       }
     }
 
@@ -978,20 +1097,8 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
     const totalPages = Math.ceil(totalEstimate / pageSize);
     const durationMs = Date.now() - startTime;
 
-    // ── 9. Evidence logging ──
-    logEvidence({
-      requestId,
-      input: { searchType, cpf: cpf ? maskCpf(cpf) : null, nome, dataNascimento, cidadeUf, page, pageSize },
-      analysis,
-      cardinality,
-      strategy: analysis.strategy,
-      sourcesUsed: sourcesTried,
-      returnedCount: ranked.length,
-      durationMs
-    });
-
+    // ── 9. Log ──
     plog.info('search-v2 complete', {
-      strength: analysis.strength,
       dbTotal,
       externalCount: newCount,
       mergedCount: ranked.length,
@@ -1003,16 +1110,6 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
       success: true,
       status: 'OK',
       guardrail,
-      analysis: {
-        type: analysis.type,
-        strength: analysis.strength,
-        strategy: analysis.strategy
-      },
-      cardinality: {
-        estimatedMatches: cardinality.estimatedMatches,
-        dbCount: cardinality.dbCount,
-        confidence: cardinality.confidence
-      },
       results: ranked,
       pagination: {
         page,

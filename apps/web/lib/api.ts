@@ -532,17 +532,31 @@ export interface CompanyDetails {
   cnae_principal?: string;
   cnae_descricao?: string;
   porte?: string;
+  natureza_juridica?: string;
   situacao_cadastral?: string;
   capital_social?: number;
+  data_abertura?: string;
   logradouro?: string;
   numero?: string;
   bairro?: string;
   cidade?: string;
   estado?: string;
+  cep?: string;
   telefone_1?: string;
+  telefone_2?: string;
   email?: string;
   website?: string;
   linkedin?: string;
+  // Fiscal / Regime tributario
+  regime_tributario?: string;
+  simples_optante?: boolean;
+  simples_desde?: string;
+  mei_optante?: boolean;
+  mei_desde?: string;
+  simples_nacional?: boolean;
+  simei?: boolean;
+  num_funcionarios?: number;
+  setor?: string;
 }
 
 export interface Socio {
@@ -1489,6 +1503,46 @@ export async function refinePeopleSearch(
   return res.json();
 }
 
+export interface PeopleEnrichedRow {
+  id: string;
+  nome: string;
+  empresa: string;
+  cidade: string;
+  estado: string;
+  cnae: string;
+  descricao: string;
+  cnae_descricao: string;
+  email: string;
+  phone: string;
+  telefone: string;
+}
+
+export interface PeopleListEnrichedResponse {
+  success: boolean;
+  count: number;
+  people: PeopleEnrichedRow[];
+}
+
+export async function listPeopleEnriched(
+  search?: string,
+  limit = 200,
+  offset = 0
+): Promise<PeopleListEnrichedResponse> {
+  const params = new URLSearchParams();
+  if (search && search.trim().length >= 2) params.set('search', search.trim());
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+
+  const res = await fetchWithAuth(`${API_BASE}/people/list-enriched?${params.toString()}`);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'List enriched failed' }));
+    throw new Error(error.error || 'List enriched failed');
+  }
+
+  return res.json();
+}
+
 export interface PeopleCheckExistingResponse {
   success: boolean;
   existing: string[];
@@ -2183,6 +2237,9 @@ export interface GraphExploreResponse {
     empresas: number;
     socios: number;
     noticias: number;
+    politicos: number;
+    emendas: number;
+    mandatos: number;
   };
   message?: string;
 }
@@ -2316,6 +2373,64 @@ export async function getDbModelTableDetails(
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Failed to fetch table details' }));
     throw new Error(error.detail || error.error || 'Failed to fetch table details');
+  }
+
+  return res.json();
+}
+
+// ============================================
+// GRAPH NODE DETAILS API
+// ============================================
+
+export interface CnaeDetails {
+  codigo: string;
+  descricao: string;
+  secao?: string;
+  descricao_secao?: string;
+  divisao?: string;
+  descricao_divisao?: string;
+  grupo?: string;
+  descricao_grupo?: string;
+  classe?: string;
+  descricao_classe?: string;
+}
+
+export interface RegimeTributarioRecord {
+  regime_tributario?: string;
+  porte?: string;
+  natureza_juridica?: string;
+  capital_social?: number;
+  cnae_principal?: string;
+  cnae_descricao?: string;
+  setor?: string;
+  descricao?: string;
+  qtd_funcionarios?: number;
+  data_inicio?: string;
+  data_fim?: string;
+  ativo?: boolean;
+  simples_optante?: boolean;
+  simples_desde?: string;
+  mei_optante?: boolean;
+  mei_desde?: string;
+  raw_cnpja?: Record<string, unknown>;
+  data_registro?: string;
+}
+
+export interface GraphNodeDetailsResponse {
+  success: boolean;
+  empresa: CompanyDetails;
+  regime: RegimeTributarioRecord | null;
+  regimes: RegimeTributarioRecord[];
+  cnae: CnaeDetails | null;
+  socios: Socio[];
+}
+
+export async function getGraphNodeDetails(empresaId: string): Promise<GraphNodeDetailsResponse> {
+  const res = await fetchWithAuth(`${API_BASE}/graph/node-details/empresa/${empresaId}`);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to fetch node details' }));
+    throw new Error(error.error || 'Failed to fetch node details');
   }
 
   return res.json();

@@ -10,8 +10,14 @@
  * - manual: User-created relationships
  */
 
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../database/supabase.js';
 import logger from '../utils/logger.js';
+
+// Brasil Data Hub client (políticos, emendas, mandatos)
+const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA_HUB_KEY
+  ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
+  : null;
 
 // Strength mapping for sócio roles
 const SOCIO_STRENGTH = {
@@ -295,6 +301,238 @@ export async function detectRelationshipsFromNews(empresa_id, nome) {
 }
 
 /**
+ * Escape special characters for ILIKE patterns.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeLike(str) {
+  if (!str) return '';
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
+/**
+ * Detect emenda_beneficiario relationships.
+ * Searches fato_emendas_parlamentares from Brasil Data Hub for emendas
+ * that mention the company name or city.
+ *
+ * @param {number|string} empresa_id - dim_empresas.id
+ * @param {string} nome - Company name
+ * @param {string} cidade - City name
+ * @returns {Promise<{emendas: number, autores: string[]}>} Created count + autor names for politico lookup
+ */
+export async function detectRelationshipsFromEmendas(empresa_id, nome, cidade) {
+  if (!brasilDataHub || !nome || nome.length < 3) return { emendas: 0, autores: [] };
+
+  try {
+    const hubEsc = `%${escapeLike(nome)}%`;
+    const filters = [`autor.ilike.${hubEsc}`, `descricao.ilike.${hubEsc}`];
+
+    if (cidade) {
+      const cidadeEsc = `%${escapeLike(cidade)}%`;
+      filters.push(`localidade.ilike.${cidadeEsc}`);
+    }
+
+    const { data: emendas, error } = await brasilDataHub
+      .from('fato_emendas_parlamentares')
+      .select('id, autor, descricao, localidade, uf, ano, tipo, valor_empenhado')
+      .or(filters.join(','))
+      .limit(20);
+
+    if (error || !emendas || emendas.length === 0) {
+      if (error) logger.warn('detect_emendas_error', { empresa_id, error: error.message });
+      return { emendas: 0, autores: [] };
+    }
+
+    let created = 0;
+    const autores = new Set();
+
+    for (const emenda of emendas) {
+      const result = await upsertRelationship({
+        source_type: 'empresa',
+        source_id: empresa_id,
+        target_type: 'emenda',
+        target_id: String(emenda.id),
+        tipo_relacao: 'emenda_beneficiario',
+        strength: 0.5,
+        confidence: 0.7,
+        bidirecional: false,
+        source: 'brasil_data_hub',
+        detection_method: 'emenda_mention',
+        metadata: {
+          autor: emenda.autor,
+          tipo: emenda.tipo,
+          ano: emenda.ano,
+          uf: emenda.uf,
+          valor: emenda.valor_empenhado,
+          localidade: emenda.localidade,
+        },
+        descricao: `Emenda: ${(emenda.autor || '').substring(0, 50)} - ${emenda.tipo || ''} ${emenda.ano || ''}`
+      });
+
+      if (result) created++;
+      if (emenda.autor) autores.add(emenda.autor);
+    }
+
+    logger.info('detect_emendas_complete', { empresa_id, nome, matches: emendas.length, created });
+    return { emendas: created, autores: [...autores] };
+  } catch (err) {
+    logger.error('detect_emendas_exception', { empresa_id, nome, error: err.message });
+    return { emendas: 0, autores: [] };
+  }
+}
+
+/**
+ * Detect politico_empresarial relationships.
+ * Searches dim_politicos from Brasil Data Hub matching emenda autores.
+ * Also connects políticos back to their emendas.
+ *
+ * @param {number|string} empresa_id - dim_empresas.id
+ * @param {string[]} autores - Autor names from emendas
+ * @returns {Promise<{politicos: number, politicoIds: number[]}>} Created count + raw DB IDs for mandato lookup
+ */
+export async function detectRelationshipsFromPoliticos(empresa_id, autores) {
+  if (!brasilDataHub || !autores || autores.length === 0) return { politicos: 0, politicoIds: [] };
+
+  try {
+    const autorFilters = autores
+      .map(a => {
+        const e = `%${escapeLike(a)}%`;
+        return `nome_completo.ilike.${e},nome_urna.ilike.${e}`;
+      })
+      .join(',');
+
+    const { data: politicos, error } = await brasilDataHub
+      .from('dim_politicos')
+      .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual')
+      .or(autorFilters)
+      .limit(20);
+
+    if (error || !politicos || politicos.length === 0) {
+      if (error) logger.warn('detect_politicos_error', { empresa_id, error: error.message });
+      return { politicos: 0, politicoIds: [] };
+    }
+
+    let created = 0;
+    const politicoIds = [];
+
+    for (const pol of politicos) {
+      const polName = pol.nome_urna || pol.nome_completo;
+
+      // Connect politico to empresa
+      const result = await upsertRelationship({
+        source_type: 'politico',
+        source_id: String(pol.id),
+        target_type: 'empresa',
+        target_id: empresa_id,
+        tipo_relacao: 'politico_empresarial',
+        strength: 0.5,
+        confidence: 0.6,
+        bidirecional: false,
+        source: 'brasil_data_hub',
+        detection_method: 'politico_emenda_link',
+        metadata: {
+          partido: pol.partido_sigla,
+          cargo: pol.cargo_atual,
+        },
+        descricao: `${polName} (${pol.partido_sigla || ''}) - conexão via emendas`
+      });
+
+      if (result) created++;
+      politicoIds.push(pol.id);
+    }
+
+    logger.info('detect_politicos_complete', { empresa_id, matches: politicos.length, created });
+    return { politicos: created, politicoIds };
+  } catch (err) {
+    logger.error('detect_politicos_exception', { empresa_id, error: err.message });
+    return { politicos: 0, politicoIds: [] };
+  }
+}
+
+/**
+ * Detect mandato relationships.
+ * Fetches mandatos from fato_politicos_mandatos for connected políticos.
+ * Connects mandatos to their políticos, and to the empresa if same city.
+ *
+ * @param {number|string} empresa_id - dim_empresas.id
+ * @param {number[]} politicoIds - Raw DB IDs from dim_politicos
+ * @param {string} cidade - Empresa city for geographic matching
+ * @returns {Promise<number>} Number of relationships created
+ */
+export async function detectRelationshipsFromMandatos(empresa_id, politicoIds, cidade) {
+  if (!brasilDataHub || !politicoIds || politicoIds.length === 0) return 0;
+
+  try {
+    const { data: mandatos, error } = await brasilDataHub
+      .from('fato_politicos_mandatos')
+      .select('id, cargo, partido_sigla, municipio, codigo_ibge, ano_eleicao, eleito, politico_id')
+      .in('politico_id', politicoIds)
+      .limit(30);
+
+    if (error || !mandatos || mandatos.length === 0) {
+      if (error) logger.warn('detect_mandatos_error', { empresa_id, error: error.message });
+      return 0;
+    }
+
+    let created = 0;
+
+    for (const mandato of mandatos) {
+      // Connect mandato to its politico
+      const polResult = await upsertRelationship({
+        source_type: 'politico',
+        source_id: String(mandato.politico_id),
+        target_type: 'mandato',
+        target_id: String(mandato.id),
+        tipo_relacao: 'societaria',
+        strength: 1.0,
+        confidence: 0.95,
+        bidirecional: false,
+        source: 'brasil_data_hub',
+        detection_method: 'mandato_link',
+        metadata: {
+          cargo: mandato.cargo,
+          municipio: mandato.municipio,
+          ano: mandato.ano_eleicao,
+          partido: mandato.partido_sigla,
+        },
+        descricao: `${mandato.cargo || 'Mandato'} ${mandato.municipio || ''} ${mandato.ano_eleicao || ''}`
+      });
+
+      if (polResult) created++;
+
+      // If mandato municipality matches empresa city, connect to empresa too
+      const municipioMatch = mandato.municipio && cidade &&
+        mandato.municipio.toLowerCase().includes(cidade.toLowerCase());
+
+      if (municipioMatch) {
+        const geoResult = await upsertRelationship({
+          source_type: 'empresa',
+          source_id: empresa_id,
+          target_type: 'mandato',
+          target_id: String(mandato.id),
+          tipo_relacao: 'mencionado_em',
+          strength: 0.3,
+          confidence: 0.6,
+          bidirecional: false,
+          source: 'brasil_data_hub',
+          detection_method: 'mandato_geo_match',
+          metadata: { municipio: mandato.municipio, cidade },
+          descricao: `Mandato na mesma cidade: ${mandato.municipio}`
+        });
+
+        if (geoResult) created++;
+      }
+    }
+
+    logger.info('detect_mandatos_complete', { empresa_id, matches: mandatos.length, created });
+    return created;
+  } catch (err) {
+    logger.error('detect_mandatos_exception', { empresa_id, error: err.message });
+    return 0;
+  }
+}
+
+/**
  * Orchestrate all relationship detection after a company is approved.
  * Called from POST /api/companies/approve endpoint.
  *
@@ -322,6 +560,9 @@ export async function enrichRelationshipsAfterApproval({
     cnae_similar: 0,
     geografico: 0,
     mencionado_em: 0,
+    emenda_beneficiario: 0,
+    politico_empresarial: 0,
+    mandatos: 0,
     total: 0
   };
 
@@ -331,7 +572,18 @@ export async function enrichRelationshipsAfterApproval({
   results.geografico = await detectRelationshipsFromGeo(empresa_id, cidade, estado);
   results.mencionado_em = await detectRelationshipsFromNews(empresa_id, nome);
 
-  results.total = results.societaria + results.cnae_similar + results.geografico + results.mencionado_em;
+  // Brasil Data Hub: emendas → políticos → mandatos (chained)
+  const emendasResult = await detectRelationshipsFromEmendas(empresa_id, nome, cidade);
+  results.emenda_beneficiario = emendasResult.emendas;
+
+  const politicosResult = await detectRelationshipsFromPoliticos(empresa_id, emendasResult.autores);
+  results.politico_empresarial = politicosResult.politicos;
+
+  results.mandatos = await detectRelationshipsFromMandatos(empresa_id, politicosResult.politicoIds, cidade);
+
+  results.total = results.societaria + results.cnae_similar + results.geografico
+    + results.mencionado_em + results.emenda_beneficiario
+    + results.politico_empresarial + results.mandatos;
 
   logger.info('graph_enrichment_complete', { empresa_id, ...results });
   return results;
