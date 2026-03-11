@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { GraphData } from './types';
 import { useGraph } from './use-graph';
 import { GraphToolbar } from './graph-toolbar';
+import { GraphSidebar } from './graph-sidebar';
 import { GraphControlsPanel } from './graph-controls-panel';
 
 interface GraphCanvasProps {
@@ -19,7 +20,10 @@ export function GraphCanvas({ initialData, className = '', onStatsClick }: Graph
     fitView,
     zoomIn,
     zoomOut,
+    selectedNode,
+    setSelectedNode,
     setGraphData,
+    getConnections,
     controls,
   } = useGraph();
 
@@ -62,6 +66,14 @@ export function GraphCanvas({ initialData, className = '', onStatsClick }: Graph
           )}
         </div>
       </div>
+
+      {selectedNode && (
+        <GraphSidebar
+          node={selectedNode}
+          connections={getConnections(selectedNode.id)}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
     </div>
   );
 }
