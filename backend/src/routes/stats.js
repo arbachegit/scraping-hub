@@ -5,6 +5,7 @@ import logger from '../utils/logger.js';
 import { cacheGet, cacheSet, CACHE_TTL, getCacheStats } from '../utils/cache.js';
 import { STATS_TIMEZONE, STATS_UTC_OFFSET } from '../constants.js';
 import { syncGraphRelationships } from '../services/graph-sync.js';
+import { syncBiToGraph } from '../services/bi-graph-sync.js';
 
 const router = Router();
 
@@ -472,6 +473,18 @@ router.post('/snapshot', async (req, res) => {
       })
       .catch(err => {
         logger.warn('graph_sync_via_snapshot_error', { error: err.message });
+      });
+
+    // Trigger BI → Graph sync in background (non-blocking)
+    // Syncs ecosystem relationships and high-score opportunities to the graph
+    syncBiToGraph()
+      .then(biResult => {
+        if (biResult.synced > 0 || biResult.opportunities_synced > 0) {
+          logger.info('bi_graph_sync_via_snapshot', biResult);
+        }
+      })
+      .catch(err => {
+        logger.warn('bi_graph_sync_via_snapshot_error', { error: err.message });
       });
 
     res.json({

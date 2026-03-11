@@ -1855,20 +1855,30 @@ export async function getPoliticianDetails(id: number): Promise<PoliticianDetail
 
 export interface Emenda {
   id: number;
+  politico_id?: number;
   autor: string;
+  ano: number;
+  codigo_emenda?: string;
+  numero_emenda?: string;
+  tipo_emenda?: string;
+  funcao?: string;
+  subfuncao?: string;
+  localidade?: string;
+  codigo_ibge?: number;
+  valor_empenhado?: number;
+  valor_liquidado?: number;
+  valor_pago?: number;
+  valor_resto_inscrito?: number;
+  valor_resto_cancelado?: number;
+  valor_resto_pago?: number;
+  created_at?: string;
+  // Legacy mapped fields (kept for backward compat)
   descricao?: string;
   valor?: number;
   tipo?: string;
   uf?: string;
-  ano?: number;
-  localidade?: string;
   partido?: string;
-  numero_emenda?: string;
-  codigo_emenda?: string;
   area_governo?: string;
-  subfuncao?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface EmendaListResponse {
@@ -1931,6 +1941,59 @@ export async function getEmendaDetails(id: number): Promise<EmendaDetailResponse
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Emenda details failed' }));
     throw new Error(error.error || 'Emenda details failed');
+  }
+
+  return res.json();
+}
+
+// ============================================
+// EMENDAS AGGREGATION
+// ============================================
+
+export interface EmendasAggregation {
+  totals: {
+    total_emendas: number;
+    valor_total_empenhado: number;
+    valor_total_pago: number;
+    autores_unicos: number;
+  };
+  by_funcao: Array<{ funcao: string; count: number; valor_total: number }>;
+  by_ano: Array<{ ano: number; count: number; valor_total: number }>;
+  by_tipo: Array<{ tipo_emenda: string; count: number }>;
+  by_localidade: Array<{ localidade: string; count: number; valor_total: number }>;
+  top_autores: Array<{ autor: string; count: number; valor_total: number }>;
+}
+
+export async function getEmendasAggregation(): Promise<EmendasAggregation> {
+  const res = await fetchWithAuth(`${API_BASE}/emendas/aggregation`);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Aggregation failed' }));
+    throw new Error(error.error || 'Aggregation failed');
+  }
+
+  return res.json();
+}
+
+// ============================================
+// NEWS AGGREGATION
+// ============================================
+
+export interface NewsAggregation {
+  totals: {
+    total_noticias: number;
+    ultimos_7_dias: number;
+  };
+  by_segmento: Array<{ segmento: string; count: number }>;
+  by_fonte: Array<{ fonte: string; count: number }>;
+}
+
+export async function getNewsAggregation(): Promise<NewsAggregation> {
+  const res = await fetchWithAuth(`${API_BASE}/news/aggregation`);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Aggregation failed' }));
+    throw new Error(error.error || 'Aggregation failed');
   }
 
   return res.json();
@@ -2553,4 +2616,69 @@ export async function getGraphNodeDetails(empresaId: string): Promise<GraphNodeD
   }
 
   return res.json();
+}
+
+// ============================================
+// BI API
+// ============================================
+
+export interface BiProfile {
+  cnae: {
+    setor_economico: string | null;
+    cadeia_valor: string | null;
+    posicao_cadeia: string | null;
+    cnaes_clientes_tipicos: string[];
+    cnaes_fornecedores_tipicos: string[];
+    total_empresas_mesmo_cnae_municipio: number | null;
+    total_empresas_mesmo_cnae_estado: number | null;
+  } | null;
+  tributario: {
+    regime_tributario: string | null;
+    porte: string | null;
+    faturamento_estimado_min: number | null;
+    faturamento_estimado_max: number | null;
+    score_saude_fiscal: number | null;
+    perfil_comprador: string | null;
+    poder_compra_estimado: string | null;
+    idade_empresa_anos: number | null;
+    quantidade_funcionarios_estimado: number | null;
+  } | null;
+  geografico: {
+    arco_atuacao: string | null;
+    densidade_concorrentes: number | null;
+    indice_saturacao: number | null;
+    populacao_alcancavel: number | null;
+    oportunidades_geograficas: { cidades_oportunidade?: Array<{ cidade: string; concorrentes_cnae: number }> } | null;
+  } | null;
+}
+
+export interface BiOpportunity {
+  id: string;
+  nome_alvo: string | null;
+  tipo_oportunidade: string;
+  score_oportunidade: number;
+  lead_temperatura: string | null;
+  lead_score: number | null;
+  prioridade: string;
+  justificativa: string | null;
+  acoes_recomendadas: string[] | null;
+}
+
+export async function getBiProfile(empresaId: string): Promise<BiProfile> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/profile/${empresaId}`);
+  if (!res.ok) throw new Error('Failed to fetch BI profile');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function getBiOpportunities(empresaId: string): Promise<BiOpportunity[]> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/opportunities/${empresaId}?limit=10`);
+  if (!res.ok) throw new Error('Failed to fetch BI opportunities');
+  const json = await res.json();
+  return json.data || [];
+}
+
+export async function triggerBiPipeline(empresaId: string): Promise<void> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/pipeline/${empresaId}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to trigger BI pipeline');
 }

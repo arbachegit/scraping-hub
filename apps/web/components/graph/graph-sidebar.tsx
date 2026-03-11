@@ -5,14 +5,19 @@ import Image from 'next/image';
 import {
   X, Building2, MapPin, Briefcase, Users,
   Phone, Mail, Globe, Linkedin, Loader2, Receipt, BadgeCheck, CalendarDays,
-  Layers,
+  Layers, TrendingUp, Zap, Target, ThermometerSun,
 } from 'lucide-react';
 import { getGraphEntityId, type GraphNode } from './types';
 import { ENTITY_COLORS } from './styles';
 import {
   getGraphNodeDetails,
+  getBiProfile,
+  getBiOpportunities,
+  triggerBiPipeline,
   type GraphNodeDetailsResponse,
   type Socio,
+  type BiProfile,
+  type BiOpportunity,
 } from '@/lib/api';
 
 interface Connection {
@@ -58,7 +63,7 @@ function formatStrength(value?: number | null): string | null {
   return `${Math.round(value)}%`;
 }
 
-type TabKey = 'empresa' | 'fiscal';
+type TabKey = 'empresa' | 'fiscal' | 'bi';
 
 export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) {
   const entityColor = ENTITY_COLORS[node.type] || '#6b7280';
@@ -69,6 +74,12 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('empresa');
+
+  // BI state
+  const [biProfile, setBiProfile] = useState<BiProfile | null>(null);
+  const [biOpportunities, setBiOpportunities] = useState<BiOpportunity[]>([]);
+  const [biLoading, setBiLoading] = useState(false);
+  const [biRunning, setBiRunning] = useState(false);
 
   useEffect(() => { setActiveTab('empresa'); }, [node.id]);
 
@@ -90,6 +101,45 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
 
     return () => { cancelled = true; };
   }, [entityId, isEmpresa]);
+
+  // Fetch BI data when tab switches to 'bi'
+  useEffect(() => {
+    if (activeTab !== 'bi' || !isEmpresa || biProfile) return;
+    let cancelled = false;
+    setBiLoading(true);
+
+    Promise.all([
+      getBiProfile(entityId).catch(() => null),
+      getBiOpportunities(entityId).catch(() => []),
+    ]).then(([profile, opps]) => {
+      if (cancelled) return;
+      setBiProfile(profile as BiProfile | null);
+      setBiOpportunities(opps as BiOpportunity[]);
+    }).finally(() => {
+      if (!cancelled) setBiLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [activeTab, entityId, isEmpresa, biProfile]);
+
+  // Reset BI state on node change
+  useEffect(() => { setBiProfile(null); setBiOpportunities([]); }, [node.id]);
+
+  const handleRunBiPipeline = async () => {
+    setBiRunning(true);
+    try {
+      await triggerBiPipeline(entityId);
+      // Refetch after pipeline runs
+      const [profile, opps] = await Promise.all([
+        getBiProfile(entityId).catch(() => null),
+        getBiOpportunities(entityId).catch(() => []),
+      ]);
+      setBiProfile(profile as BiProfile | null);
+      setBiOpportunities(opps as BiOpportunity[]);
+    } finally {
+      setBiRunning(false);
+    }
+  };
 
   const empresa = details?.empresa;
   const regime = details?.regime;
@@ -193,6 +243,17 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
             <Receipt size={11} className="inline mr-1 -mt-0.5" />
             Fiscal
           </button>
+          <button
+            onClick={() => setActiveTab('bi')}
+            className={`flex-1 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              activeTab === 'bi'
+                ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <TrendingUp size={11} className="inline mr-1 -mt-0.5" />
+            BI
+          </button>
         </div>
       )}
 
@@ -294,12 +355,18 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
                 {has(empresa.telefone_1) && <ContactRow icon={<Phone size={10} />} text={empresa.telefone_1!} />}
                 {has(empresa.telefone_2) && <ContactRow icon={<Phone size={10} />} text={empresa.telefone_2!} />}
                 {has(empresa.email) && <ContactRow icon={<Mail size={10} />} text={empresa.email!} />}
-                {has(empresa.website) && (
-                  <ContactLink icon={<Globe size={10} />} text={empresa.website!} href={empresa.website!.startsWith('http') ? empresa.website! : `https://${empresa.website}`} />
-                )}
-                {has(empresa.linkedin) && (
-                  <ContactLink icon={<Linkedin size={10} />} text="LinkedIn" href={empresa.linkedin!.startsWith('http') ? empresa.linkedin! : `https://${empresa.linkedin}`} />
-                )}
+                {has(empresa.website) && (() => {
+                  const raw = empresa.website!;
+                  const href = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                  try { const u = new URL(href); if (u.protocol === 'http:' || u.protocol === 'https:') return <ContactLink icon={<Globe size={10} />} text={raw} href={href} />; } catch { /* invalid URL */ }
+                  return <ContactLink icon={<Globe size={10} />} text={raw} href="#" />;
+                })()}
+                {has(empresa.linkedin) && (() => {
+                  const raw = empresa.linkedin!;
+                  const href = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                  try { const u = new URL(href); if (u.protocol === 'http:' || u.protocol === 'https:') return <ContactLink icon={<Linkedin size={10} />} text="LinkedIn" href={href} />; } catch { /* invalid URL */ }
+                  return <ContactLink icon={<Linkedin size={10} />} text="LinkedIn" href="#" />;
+                })()}
               </Section>
             )}
           </div>
@@ -403,6 +470,145 @@ export function GraphSidebar({ node, connections, onClose }: GraphSidebarProps) 
             {!hasRegimeFields && !hasSimples && !hasMei && !hasCnae && !hasAdditional && (
               <div className="px-3 py-6 text-center">
                 <p className="text-[10px] text-slate-500">Nenhum dado fiscal disponivel</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════ TAB: BI ═══════════════ */}
+        {empresa && !isLoading && activeTab === 'bi' && (
+          <div className="flex flex-col">
+            {biLoading && (
+              <div className="flex items-center justify-center gap-2 px-3 py-6">
+                <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                <span className="text-[10px] text-slate-400">Carregando perfil BI...</span>
+              </div>
+            )}
+
+            {!biLoading && biProfile && (
+              <>
+                {/* CNAE / Sector */}
+                {biProfile.cnae && (
+                  <Section icon={<Layers size={10} />} title="Classificacao CNAE">
+                    {has(biProfile.cnae.setor_economico) && <Field label="Setor" value={biProfile.cnae.setor_economico!} />}
+                    {has(biProfile.cnae.cadeia_valor) && <Field label="Cadeia" value={biProfile.cnae.cadeia_valor!} />}
+                    {has(biProfile.cnae.posicao_cadeia) && <Field label="Posicao" value={biProfile.cnae.posicao_cadeia!} />}
+                    {biProfile.cnae.total_empresas_mesmo_cnae_municipio != null && (
+                      <Field label="Mesmo CNAE (municipio)" value={String(biProfile.cnae.total_empresas_mesmo_cnae_municipio)} />
+                    )}
+                    {biProfile.cnae.total_empresas_mesmo_cnae_estado != null && (
+                      <Field label="Mesmo CNAE (estado)" value={String(biProfile.cnae.total_empresas_mesmo_cnae_estado)} />
+                    )}
+                  </Section>
+                )}
+
+                {/* Tax / Buyer Persona */}
+                {biProfile.tributario && (
+                  <Section icon={<Target size={10} />} title="Perfil Tributario">
+                    {has(biProfile.tributario.porte) && <Field label="Porte" value={biProfile.tributario.porte!} />}
+                    {has(biProfile.tributario.regime_tributario) && <Field label="Regime" value={biProfile.tributario.regime_tributario!} />}
+                    {has(biProfile.tributario.perfil_comprador) && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                          {biProfile.tributario.perfil_comprador}
+                        </span>
+                      </div>
+                    )}
+                    {has(biProfile.tributario.poder_compra_estimado) && <Field label="Poder de Compra" value={biProfile.tributario.poder_compra_estimado!} />}
+                    {biProfile.tributario.score_saude_fiscal != null && (
+                      <Field label="Saude Fiscal" value={`${Math.round(biProfile.tributario.score_saude_fiscal * 100)}%`} />
+                    )}
+                    {biProfile.tributario.faturamento_estimado_min != null && biProfile.tributario.faturamento_estimado_max != null && (
+                      <Field label="Faturamento Est." value={`R$ ${(biProfile.tributario.faturamento_estimado_min / 1000).toFixed(0)}K - ${(biProfile.tributario.faturamento_estimado_max / 1000).toFixed(0)}K`} />
+                    )}
+                  </Section>
+                )}
+
+                {/* Geographic */}
+                {biProfile.geografico && (
+                  <Section icon={<MapPin size={10} />} title="Perfil Geografico">
+                    {has(biProfile.geografico.arco_atuacao) && <Field label="Arco" value={biProfile.geografico.arco_atuacao!} />}
+                    {biProfile.geografico.indice_saturacao != null && (
+                      <Field label="Saturacao" value={`${(biProfile.geografico.indice_saturacao * 100).toFixed(1)}%`} />
+                    )}
+                    {biProfile.geografico.densidade_concorrentes != null && (
+                      <Field label="Densidade Concorrentes" value={String(biProfile.geografico.densidade_concorrentes)} />
+                    )}
+                    {biProfile.geografico.populacao_alcancavel != null && (
+                      <Field label="Populacao Alcancavel" value={biProfile.geografico.populacao_alcancavel.toLocaleString('pt-BR')} />
+                    )}
+                  </Section>
+                )}
+              </>
+            )}
+
+            {/* Opportunities */}
+            {!biLoading && biOpportunities.length > 0 && (
+              <Section icon={<Zap size={10} />} title={`Oportunidades (${biOpportunities.length})`}>
+                <ul className="space-y-1.5">
+                  {biOpportunities.map((opp) => (
+                    <li key={opp.id} className="rounded bg-slate-800/40 px-2 py-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-[10px] font-medium text-slate-200">
+                          {opp.nome_alvo || opp.tipo_oportunidade}
+                        </span>
+                        <span className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                          opp.score_oportunidade >= 70 ? 'bg-green-500/20 text-green-400' :
+                          opp.score_oportunidade >= 40 ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-slate-500/20 text-slate-400'
+                        }`}>
+                          {opp.score_oportunidade}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[9px] text-slate-500">{opp.tipo_oportunidade.replace(/_/g, ' ')}</span>
+                        {has(opp.lead_temperatura) && (
+                          <span className={`inline-flex items-center gap-0.5 text-[9px] font-medium ${
+                            opp.lead_temperatura === 'quente' ? 'text-red-400' :
+                            opp.lead_temperatura === 'morno' ? 'text-yellow-400' :
+                            'text-blue-400'
+                          }`}>
+                            <ThermometerSun size={8} />
+                            {opp.lead_temperatura}
+                          </span>
+                        )}
+                      </div>
+                      {has(opp.justificativa) && (
+                        <p className="mt-1 text-[9px] text-slate-500 leading-snug line-clamp-2">{opp.justificativa}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            {/* No data / Run pipeline */}
+            {!biLoading && !biProfile && biOpportunities.length === 0 && (
+              <div className="px-3 py-6 text-center">
+                <p className="text-[10px] text-slate-500 mb-2">Nenhum perfil BI disponivel</p>
+              </div>
+            )}
+
+            {/* Run Pipeline button */}
+            {!biLoading && (
+              <div className="px-3 py-2">
+                <button
+                  onClick={handleRunBiPipeline}
+                  disabled={biRunning}
+                  className="w-full flex items-center justify-center gap-1.5 rounded bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5 text-[10px] font-semibold text-cyan-400 transition-colors hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {biRunning ? (
+                    <>
+                      <Loader2 size={10} className="animate-spin" />
+                      Executando Pipeline...
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={10} />
+                      {biProfile ? 'Atualizar Perfil BI' : 'Executar Pipeline BI'}
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>
