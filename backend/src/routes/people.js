@@ -136,32 +136,42 @@ router.get('/list-enriched', async (req, res) => {
       ),
     ];
 
-    // 2. Fetch transactions with empresa data for all pessoa IDs
+    // 2. Fetch transactions with empresa data for all pessoa IDs (batched to avoid URL length limits)
     const personIds = pessoas.map(p => p.id);
-    const { data: transactions } = await supabase
-      .from('fato_transacao_empresas')
-      .select(`
-        empresa_id,
-        pessoa_id,
-        cargo,
-        qualificacao,
-        dim_empresas (
-          id,
-          cnpj,
-          razao_social,
-          nome_fantasia,
-          cidade,
-          estado,
-          situacao_cadastral,
-          cep,
-          codigo_ibge,
-          fonte,
-          cnae_id,
-          telefone_1
-        )
-      `)
-      .in('pessoa_id', personIds)
-      .order('data_transacao', { ascending: false });
+    const TX_BATCH = 80;
+    const txBatches = [];
+    for (let i = 0; i < personIds.length; i += TX_BATCH) {
+      txBatches.push(personIds.slice(i, i + TX_BATCH));
+    }
+    const txResults = await Promise.all(
+      txBatches.map(batch =>
+        supabase
+          .from('fato_transacao_empresas')
+          .select(`
+            empresa_id,
+            pessoa_id,
+            cargo,
+            qualificacao,
+            dim_empresas (
+              id,
+              cnpj,
+              razao_social,
+              nome_fantasia,
+              cidade,
+              estado,
+              situacao_cadastral,
+              cep,
+              codigo_ibge,
+              fonte,
+              cnae_id,
+              telefone_1
+            )
+          `)
+          .in('pessoa_id', batch)
+          .order('data_transacao', { ascending: false })
+      )
+    );
+    const transactions = txResults.flatMap(r => r.data || []);
 
     // 2b. Fallback company lookup by exact company name from raw_apollo_data
     const fallbackBaseCompanies = [];
