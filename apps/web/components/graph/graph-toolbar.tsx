@@ -8,15 +8,26 @@ import {
   Maximize2,
   Expand,
   Database,
+  Snowflake,
+  Play,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface GraphToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
+  frozen?: boolean;
+  onToggleFreeze?: () => void;
+  controlsPanelOpen?: boolean;
+  onToggleControlsPanel?: () => void;
 }
 
-export function GraphToolbar({ onZoomIn, onZoomOut, onFitView }: GraphToolbarProps) {
+export function GraphToolbar({
+  onZoomIn, onZoomOut, onFitView,
+  frozen, onToggleFreeze,
+  controlsPanelOpen, onToggleControlsPanel,
+}: GraphToolbarProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleFullscreen = useCallback(() => {
@@ -54,6 +65,38 @@ export function GraphToolbar({ onZoomIn, onZoomOut, onFitView }: GraphToolbarPro
       >
         <Maximize2 size={16} />
       </button>
+
+      <div className="mx-2 h-5 w-px bg-cyan-500/10" />
+
+      {/* Freeze Physics */}
+      {onToggleFreeze && (
+        <button
+          onClick={onToggleFreeze}
+          title={frozen ? 'Descongelar layout' : 'Congelar layout'}
+          className={`rounded p-1.5 transition-colors ${
+            frozen
+              ? 'bg-cyan-500/15 text-cyan-400'
+              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+          }`}
+        >
+          {frozen ? <Snowflake size={16} /> : <Play size={16} />}
+        </button>
+      )}
+
+      {/* Controls Panel Toggle */}
+      {onToggleControlsPanel && (
+        <button
+          onClick={onToggleControlsPanel}
+          title="Painel de controles"
+          className={`rounded p-1.5 transition-colors ${
+            controlsPanelOpen
+              ? 'bg-cyan-500/15 text-cyan-400'
+              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+          }`}
+        >
+          <SlidersHorizontal size={16} />
+        </button>
+      )}
 
       <div className="mx-2 h-5 w-px bg-cyan-500/10" />
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Orbit } from 'lucide-react';
 import type { GraphData } from './types';
 import { useGraph } from './use-graph';
 import { GraphToolbar } from './graph-toolbar';
 import { GraphSidebar } from './graph-sidebar';
 import { GraphLegend } from './graph-legend';
+import { GraphControlsPanel } from './graph-controls-panel';
 
 interface GraphCanvasProps {
   initialData?: GraphData;
@@ -24,9 +25,10 @@ export function GraphCanvas({ initialData, className = '', onInfoClick }: GraphC
     setSelectedNode,
     setGraphData,
     getConnections,
-    radialDistance,
-    setRadialDistance,
+    controls,
   } = useGraph();
+
+  const [controlsPanelOpen, setControlsPanelOpen] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -41,6 +43,10 @@ export function GraphCanvas({ initialData, className = '', onInfoClick }: GraphC
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
           onFitView={fitView}
+          frozen={controls.frozen}
+          onToggleFreeze={controls.toggleFreeze}
+          controlsPanelOpen={controlsPanelOpen}
+          onToggleControlsPanel={() => setControlsPanelOpen(prev => !prev)}
         />
 
         <div className="relative flex-1">
@@ -58,19 +64,28 @@ export function GraphCanvas({ initialData, className = '', onInfoClick }: GraphC
               min={0.3}
               max={6}
               step={0.1}
-              value={radialDistance}
-              onChange={(e) => setRadialDistance(parseFloat(e.target.value))}
+              value={controls.radialDistance}
+              onChange={(e) => controls.setRadialDistance(parseFloat(e.target.value))}
               className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-slate-700 accent-cyan-500 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-400"
               title="Distancia radial dos nos"
             />
             <span className="min-w-[2rem] text-right text-[10px] font-medium tabular-nums text-slate-400">
-              {radialDistance.toFixed(1)}x
+              {controls.radialDistance.toFixed(1)}x
             </span>
           </div>
         </div>
 
         <GraphLegend onInfoClick={onInfoClick} />
       </div>
+
+      {/* Controls Panel (right side) */}
+      {controlsPanelOpen && (
+        <GraphControlsPanel
+          controls={controls}
+          nodes={initialData?.nodes || []}
+          onClose={() => setControlsPanelOpen(false)}
+        />
+      )}
 
       {selectedNode && (
         <GraphSidebar

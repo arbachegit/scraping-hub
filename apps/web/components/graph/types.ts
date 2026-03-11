@@ -25,11 +25,57 @@ export interface GraphEdge {
   strength: number;
   confidence?: number;
   label?: string;
+  created_at?: string;
 }
 
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+export type ZoomLevel = 'macro' | 'intermediate' | 'detail';
+export type RankingMetric = 'none' | 'degree' | 'betweenness' | 'pagerank';
+
+/** All graph visualization controls exposed by use-graph */
+export interface GraphControls {
+  // Physics
+  frozen: boolean;
+  toggleFreeze: () => void;
+  radialDistance: number;
+  setRadialDistance: (v: number) => void;
+
+  // Semantic zoom
+  zoomLevel: ZoomLevel;
+
+  // Evidence threshold (0-1)
+  evidenceThreshold: number;
+  setEvidenceThreshold: (v: number) => void;
+
+  // Edge density (top %)
+  edgeDensityPercent: number;
+  setEdgeDensityPercent: (v: number) => void;
+
+  // Ego network focus
+  egoNodeId: string | null;
+  egoHops: number;
+  setEgoNodeId: (id: string | null) => void;
+  setEgoHops: (h: number) => void;
+
+  // Smart search / focus
+  focusNode: (nodeId: string) => void;
+  highlightNodeId: string | null;
+  clearHighlight: () => void;
+
+  // Path finder
+  pathSourceId: string | null;
+  pathTargetId: string | null;
+  setPathSourceId: (id: string | null) => void;
+  setPathTargetId: (id: string | null) => void;
+  pathNodeIds: ReadonlySet<string>;
+
+  // Node ranking
+  rankingMetric: RankingMetric;
+  setRankingMetric: (m: RankingMetric) => void;
 }
 
 export function getGraphEntityId(node: Pick<GraphNode, 'id' | 'data'>): string {
