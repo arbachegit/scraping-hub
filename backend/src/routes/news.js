@@ -54,14 +54,30 @@ router.get('/search', validateQuery(newsSearchSchema), async (req, res) => {
   try {
     const { q, limit } = req.query;
 
-    // Search in title and resumo using ilike
-    const escaped = escapeLike(q);
-    const { data, error, count } = await supabase
-      .from('dim_noticias')
-      .select('id, titulo, resumo, fonte_nome, url, segmento, data_publicacao, relevancia_geral', { count: 'exact' })
-      .or(`titulo.ilike.%${escaped}%,resumo.ilike.%${escaped}%`)
-      .order('data_publicacao', { ascending: false })
-      .limit(limit);
+    // Search using RPC with FTS (tsvector) → ilike fallback
+    const { data: rpcData, error: rpcError } = await supabase.rpc('search_noticias_ranked_v1', {
+      p_query: q,
+      p_limit: limit,
+    });
+
+    let data = rpcData;
+    let error = rpcError;
+    let count = rpcData?.length || 0;
+
+    // Fallback to ilike if RPC fails
+    if (rpcError) {
+      logger.warn('RPC search_noticias_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+      const escaped = escapeLike(q);
+      const result = await supabase
+        .from('dim_noticias')
+        .select('id, titulo, resumo, fonte_nome, url, segmento, data_publicacao, relevancia_geral', { count: 'exact' })
+        .or(`titulo.ilike.%${escaped}%,resumo.ilike.%${escaped}%`)
+        .order('data_publicacao', { ascending: false })
+        .limit(limit);
+      data = result.data;
+      error = result.error;
+      count = result.data?.length || 0;
+    }
 
     if (error) {
       logger.error('Error searching news', { error: error.message, query: q });

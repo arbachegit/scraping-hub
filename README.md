@@ -111,8 +111,9 @@ curl -I http://localhost:3002
 
 ```bash
 python3 -m pytest tests/test_health.py -q
-npm run verify:backend
-npm --workspace=iconsai-scraping-web run lint
+python3 -m pytest tests/test_auth_permissions.py -q
+npm ci --prefix mcp-servers/brasil-data-hub
+npm run verify
 npm --workspace=iconsai-scraping-web run test:e2e
 ```
 

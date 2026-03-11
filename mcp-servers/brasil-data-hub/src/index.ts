@@ -232,8 +232,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+server.setRequestHandler(CallToolRequestSchema, async (request: unknown) => {
+  const typedRequest = request as {
+    params: {
+      name: string;
+      arguments?: unknown;
+    };
+  };
+  const { name, arguments: args } = typedRequest.params;
 
   // Rate limit check
   if (!checkRateLimit(name)) {

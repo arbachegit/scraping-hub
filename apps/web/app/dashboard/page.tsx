@@ -110,7 +110,11 @@ export default function DashboardPage() {
       setUserPermissions(userQuery.data.permissions || []);
     }
     if (userQuery.isError) {
-      handleLogout();
+      // Disable query gates first, then clear tokens and redirect
+      setAuthReady(false);
+      setSnapshotReady(false);
+      clearTokens();
+      router.push('/');
     }
   }, [userQuery.data, userQuery.isError]);
 
@@ -207,6 +211,10 @@ export default function DashboardPage() {
   // ======================== END GOLDEN RULE 5 ==============================
 
   function handleLogout() {
+    // Disable all query gates BEFORE clearing tokens to prevent
+    // React Query from firing requests with cleared credentials
+    setAuthReady(false);
+    setSnapshotReady(false);
     clearTokens();
     router.push('/');
   }

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, type KeyboardEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import {
   X,
-  Search,
   Check,
   Users,
   Loader2,
@@ -37,7 +36,6 @@ import {
   checkExistingCnpjs,
   formatCnpj,
   formatRegime,
-  type CompanyDetails,
   type Socio,
   type CompanyCandidate,
   type CompanySearchResponse,
@@ -62,7 +60,7 @@ export function CompanyModal({
   onClose,
   onOpenCnaeModal,
   onOpenRegimeModal,
-  onOpenListingModal,
+  onOpenListingModal: _onOpenListingModal,
   userName,
   selectedCnae,
   selectedRegime,

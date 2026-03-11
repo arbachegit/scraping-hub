@@ -406,8 +406,30 @@ async function searchCompaniesInDimEmpresas({ nome, cidade = null, limit = 100 }
   if (searchTerm.length < 2) return [];
 
   const fetchLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 50), 500);
-  const escapedTerm = escapeLike(searchTerm);
   const { city, state } = parseCityState(cidade);
+
+  // Try RPC with FTS first (fast on large tables)
+  const { data: rpcData, error: rpcError } = await supabaseRead.rpc('search_empresas_ranked_v1', {
+    p_query: searchTerm,
+    p_cidade: city || null,
+    p_estado: state || null,
+    p_limit: fetchLimit,
+  });
+
+  if (!rpcError && rpcData && rpcData.length > 0) {
+    // RPC returns flat rows — map to match expected shape
+    return rpcData.map(r => ({
+      ...r,
+      _source: 'rpc_fts',
+    }));
+  }
+
+  if (rpcError) {
+    logger.warn('RPC search_empresas_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+  }
+
+  // Fallback: direct ilike queries
+  const escapedTerm = escapeLike(searchTerm);
   const escapedCity = city ? escapeLike(city) : null;
 
   const buildQuery = (column) => {

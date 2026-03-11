@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, type KeyboardEvent } from 're
 import { useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import {
-  X, Search, Loader2, User, Building2, Briefcase,
+  X, Loader2, User, Building2, Briefcase,
   AlertCircle, Check, ChevronLeft, ChevronRight, Download,
   Database, Globe, Shield, ArrowLeft, ExternalLink,
   MessageCircle, Filter,
@@ -20,7 +20,6 @@ import {
   type PeopleSearchV2Response,
   type PeopleSearchResult,
   type GuardrailResult,
-  type QualityGateResult,
 } from '@/lib/api';
 import { PeopleAgentInlineChat } from '@/components/people-agent/people-agent-inline-chat';
 
@@ -94,7 +93,6 @@ export function PeopleModal({ isOpen, onClose, onOpenListingModal: _onOpenListin
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nome, searchType]);
 
   // ---- Search mutation ----

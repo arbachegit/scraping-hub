@@ -404,7 +404,6 @@ function CountdownRing({
 export function StatsBadgeCard({
   icon: Icon,
   label,
-  total,
   todayInserts,
   periodTotal,
   crescimento,

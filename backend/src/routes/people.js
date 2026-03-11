@@ -103,20 +103,34 @@ router.get('/list-enriched', async (req, res) => {
       return typeof phones === 'string' ? phones : '';
     };
 
-    // 1. Fetch pessoas (avoid full table scan on 22M rows)
-    let pessoasQuery = supabase
-      .from('dim_pessoas')
-      .select('*')
-      .order('nome_completo', { ascending: true });
+    // 1. Fetch pessoas — use RPC with FTS (tsvector) → prefix → trigram fallback
+    let pessoas = [];
+    let pessoasError = null;
 
     if (search.length >= 2) {
-      const escaped = escapeLike(search);
-      pessoasQuery = pessoasQuery.ilike('nome_completo', `%${escaped}%`);
-    }
+      // RPC uses 3-tier strategy: FTS → prefix → trigram (handles 22M+ rows)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('search_pessoas_ranked_v1', {
+        p_query: search,
+        p_limit: limit,
+      });
 
-    const { data: pessoas, error: pessoasError } = await pessoasQuery
-      .limit(limit)
-      .range(offset, offset + limit - 1);
+      if (!rpcError && rpcData) {
+        pessoas = rpcData;
+      } else {
+        logger.warn('RPC search_pessoas_ranked_v1 failed', { error: rpcError?.message });
+        pessoasError = rpcError;
+      }
+    } else {
+      // No search term: list recent (lightweight columns only)
+      const { data, error } = await supabase
+        .from('dim_pessoas')
+        .select('id, nome_completo, cpf, email, primeiro_nome, raw_apollo_data, codigo_ibge, codigo_ibge_uf, created_at')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+        .range(offset, offset + limit - 1);
+      pessoas = data || [];
+      pessoasError = error;
+    }
     const count = pessoas?.length || 0;
 
     if (pessoasError) {

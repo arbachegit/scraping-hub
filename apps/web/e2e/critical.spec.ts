@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupGuards, assertNoErrors } from './helpers/consoleNetworkGuards';
-import { safeClick, safeFill, generateSyntheticData } from './helpers/actions';
+import { generateSyntheticData } from './helpers/actions';
 
 test.describe('Critical Tests', () => {
   test('smoke - home page loads without errors', async ({ page }) => {

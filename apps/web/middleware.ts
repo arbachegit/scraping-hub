@@ -14,7 +14,6 @@ import type { NextRequest } from 'next/server';
  */
 
 const PROTECTED_ROUTES = ['/dashboard', '/admin', '/profile'];
-const PUBLIC_ROUTES = ['/', '/set-password', '/verify', '/reset-password', '/recover-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

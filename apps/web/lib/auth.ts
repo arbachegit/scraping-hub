@@ -112,10 +112,17 @@ export async function fetchWithAuth(
 ): Promise<Response> {
   const token = getAccessToken();
 
-  const headers = new Headers(options.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // If no token exists, return a synthetic 401 immediately
+  // instead of making a network request that will fail
+  if (!token) {
+    return new Response(JSON.stringify({ detail: 'Not authenticated' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
+
+  const headers = new Headers(options.headers);
+  headers.set('Authorization', `Bearer ${token}`);
   if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
     headers.set('Content-Type', 'application/json');
   }
@@ -134,12 +141,11 @@ export async function fetchWithAuth(
     }
   }
 
-  // If still 401 after refresh attempt, clear and redirect
+  // If still 401 after refresh attempt, clear tokens only.
+  // Components/middleware handle the redirect to avoid hard-reload
+  // race conditions (which cause FrameDoesNotExist extension errors).
   if (res.status === 401) {
     clearTokens();
-    if (typeof window !== 'undefined' && !window.location.pathname.match(/^\/(set-password|verify|reset-password|recover-password)?$/)) {
-      window.location.href = '/';
-    }
   }
 
   return res;

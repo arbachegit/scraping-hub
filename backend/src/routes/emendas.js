@@ -88,14 +88,33 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
     // Query params already validated by Zod (q >= 2 chars, sanitized)
     const { q, limit } = req.query;
 
-    const escaped = escapeLike(q);
+    // Search using RPC with FTS → ilike fallback
+    let data, error, count;
 
-    const { data, error, count } = await brasilDataHub
-      .from('fato_emendas_parlamentares')
-      .select('*', { count: 'exact' })
-      .or(`autor.ilike.%${escaped}%,descricao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
-      .order('ano', { ascending: false })
-      .limit(limit);
+    const { data: rpcData, error: rpcError } = await brasilDataHub.rpc('search_emendas_ranked_v1', {
+      p_query: q,
+      p_limit: limit,
+    });
+
+    if (!rpcError && rpcData) {
+      data = rpcData;
+      count = rpcData.length;
+      error = null;
+    } else {
+      if (rpcError) {
+        logger.warn('RPC search_emendas_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+      }
+      const escaped = escapeLike(q);
+      const result = await brasilDataHub
+        .from('fato_emendas_parlamentares')
+        .select('*', { count: 'exact' })
+        .or(`autor.ilike.%${escaped}%,descricao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
+        .order('ano', { ascending: false })
+        .limit(limit);
+      data = result.data;
+      error = result.error;
+      count = result.data?.length || 0;
+    }
 
     if (error) {
       logger.error('Error searching emendas', { error: error.message, query: q });

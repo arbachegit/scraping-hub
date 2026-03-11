@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+
   useEffect(() => {
     if (isAuthenticated()) {
       router.replace('/dashboard');
@@ -57,7 +58,7 @@ export default function LoginPage() {
             alt="IconsAI"
             width={140}
             height={140}
-            style={{ maxWidth: '160px', height: 'auto' }}
+            style={{ maxWidth: '160px', width: 'auto', height: 'auto' }}
             className="object-contain"
           />
         </div>

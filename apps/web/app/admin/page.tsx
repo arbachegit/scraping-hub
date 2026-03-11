@@ -45,7 +45,7 @@ import {
   type AdminUpdateUserRequest,
 } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
-import { ALL_PERMISSIONS, PERMISSION_INFO, ROLE_INFO, ROLES, isSuperAdmin, isAdminRole, type Permission, type Role } from '@/lib/permissions';
+import { ALL_PERMISSIONS, PERMISSION_INFO, ROLE_INFO, isSuperAdmin, isAdminRole, type Permission, type Role } from '@/lib/permissions';
 
 type CreateMode = 'password' | 'invite';
 type Tab = 'ativos' | 'inativos';
@@ -107,8 +107,6 @@ export default function AdminPage() {
 
   const currentUserRole = userQuery.data.role || 'user';
   const currentUserId = userQuery.data.id;
-  const currentIsSuperAdmin = isSuperAdmin(currentUserRole);
-
   const allUsers = usersQuery.data?.users || [];
   const activeUsers = allUsers.filter((u) => u.is_active);
   const inactiveUsers = allUsers.filter((u) => !u.is_active);

@@ -140,7 +140,7 @@ font-variant-numeric: tabular-nums;
 
 ```
 iconsai-ecosystem/
-├── iconsai-production/     → Sidebar/Admin (Vite + React + TS)
+├── iconsai-production/     → Sidebar/Admin (React + TS)
 │   ├── src/
 │   │   ├── components/     → UI components (shadcn/ui)
 │   │   ├── modules/        → Feature modules
@@ -186,7 +186,7 @@ iconsai-ecosystem/
 ### Frontend (iconsai-production, orcamento-fiscal)
 ```typescript
 // Stack principal
-- Vite + React 18
+- React 18+
 - TypeScript 5+ (strict mode)
 - shadcn/ui + Radix UI
 - TailwindCSS + Framer Motion
@@ -364,7 +364,7 @@ npm run validate         # lint + pre-deploy + build
 ### orcamento-fiscal-municipios
 ```bash
 npm run dev              # Frontend dev
-npm run build            # TypeScript compile + Vite build
+npm run build            # Frontend production build
 npm run lint             # ESLint check
 
 # Python scripts (backend)
@@ -375,13 +375,9 @@ python scripts/aplicar_migration_*.py          # Migrations
 
 ### iconsai-scraping
 ```bash
-# Backend Python
-uvicorn api.main:app --reload     # Dev local
-pytest                            # Run tests
-pytest --cov                      # Com coverage
-
-# Frontend (se houver)
-cd frontend && npm run dev
+npm run dev                       # API Python + backend Node + web
+npm run verify:backend           # Verificacao deterministica do backend Node
+python -m pytest tests/ -v       # Run tests
 ```
 
 ---
@@ -512,11 +508,11 @@ result = await db.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
 
 ## 🧪 TESTES
 
-### Frontend (Vitest)
+### Frontend (test runner agnostico)
 
 ```typescript
 // src/__tests__/calculos.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'test-runner';
 import { calcularStatus } from '../utils/fiscais';
 
 describe('Cálculos Fiscais', () => {

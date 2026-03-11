@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { setupGuards } from './helpers/consoleNetworkGuards';
 import { discoverLinks, getInteractiveElements } from './helpers/discovery';
-import { safeClick, safeFill, generateSyntheticData } from './helpers/actions';
+import { safeFill, generateSyntheticData } from './helpers/actions';
 
 const MAX_PAGES = parseInt(process.env.E2E_MAX_PAGES || '20');
 const MAX_ACTIONS = parseInt(process.env.E2E_MAX_ACTIONS_PER_PAGE || '15');

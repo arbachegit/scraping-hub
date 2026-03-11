@@ -174,12 +174,30 @@ router.get('/search', validateQuery(politiciansSearchSchema), async (req, res) =
     // Query params already validated by Zod (nome >= 2 chars, sanitized)
     const { nome } = req.query;
 
-    // Search in dim_politicos (nome already sanitized by Zod)
-    const { data: politicos, error } = await brasilDataHub
-      .from('dim_politicos')
-      .select('id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao')
-      .or(`nome_completo.ilike.%${nome}%,nome_urna.ilike.%${nome}%`)
-      .limit(20);
+    // Search using RPC with FTS → ilike fallback
+    let politicos = [];
+    let error = null;
+
+    const { data: rpcData, error: rpcError } = await brasilDataHub.rpc('search_politicos_ranked_v1', {
+      p_query: nome,
+      p_limit: 20,
+    });
+
+    if (!rpcError && rpcData) {
+      politicos = rpcData;
+    } else {
+      // Fallback to ilike if RPC unavailable
+      if (rpcError) {
+        logger.warn('RPC search_politicos_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+      }
+      const result = await brasilDataHub
+        .from('dim_politicos')
+        .select('id, nome_completo, nome_urna, sexo, ocupacao, grau_instrucao')
+        .or(`nome_completo.ilike.%${nome}%,nome_urna.ilike.%${nome}%`)
+        .limit(20);
+      politicos = result.data;
+      error = result.error;
+    }
 
     if (error) {
       logger.error('Error searching politicians', { error: error.message });
