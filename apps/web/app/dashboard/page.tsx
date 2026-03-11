@@ -176,7 +176,10 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!snapshotReady) return;
     const interval = setInterval(() => {
-      setCountdown((prev) => (prev <= 1 ? COUNTDOWN_MAX : prev - 1));
+      setCountdown((prev) => {
+        if (prev <= 0) return COUNTDOWN_MAX;
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
   }, [snapshotReady]);
