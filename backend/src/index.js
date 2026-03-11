@@ -23,6 +23,7 @@ import emendasRouter from "./routes/emendas.js";
 import dbModelRouter from "./routes/db-model.js";
 import biRouter from "./routes/bi.js";
 import reportsRouter from "./routes/reports.js";
+import pipelineRouter from "./routes/pipeline.js";
 import { logger, requestLogger } from "./utils/logger.js";
 import { initCache } from "./utils/cache.js";
 import { requireAuth, requirePermission } from "./middleware/auth.js";
@@ -82,6 +83,7 @@ export function createApp() {
   app.use("/emendas", limiter);
   app.use("/db-model", limiter);
   app.use("/bi", limiter);
+  app.use("/pipeline", limiter);
 
   // Routes (nginx strips /api/ prefix, so use /companies directly)
   // All data routes require JWT authentication
@@ -130,6 +132,7 @@ export function createApp() {
   app.use("/db-model", requireAuth, dbModelRouter);
   app.use("/bi", requireAuth, biRouter);
   app.use("/reports", requireAuth, reportsRouter);
+  app.use("/pipeline", requireAuth, pipelineRouter);
 
   // Health check
   app.get("/health", (req, res) => {

@@ -58,7 +58,7 @@ export async function scoreOpportunity(origemId, alvoId, tipoOportunidade) {
     const scoreGeo = calculateGeoScore(origemGeo, alvoGeo);
     const scoreCnae = calculateCnaeScore(origemCnae, alvoCnae, tipoOportunidade);
     const scoreTrib = calculateTribScore(origemTrib, alvoTrib);
-    const scoreTemporal = calculateTemporalScore(); // Simplified for now
+    const scoreTemporal = await calculateTemporalScore(origId, tgtId);
     const scoreEvidencia = calculateEvidenceScore(evidences);
 
     // Composite score
@@ -283,10 +283,87 @@ function calculateTribScore(origemTrib, alvoTrib) {
   return 20;
 }
 
-function calculateTemporalScore() {
-  // Simplified: no temporal data yet
-  // Will be enhanced with seasonal patterns and commemorative dates
-  return 50;
+/**
+ * Calculate temporal score based on commemorative dates and seasonal patterns.
+ * Uses dim_datas_comemorativas to detect favorable timing.
+ *
+ * Scoring:
+ * - Company anniversary within 30 days: +30 pts
+ * - Sector seasonal peak month: +25 pts
+ * - Fiscal dates (end of quarter): +15 pts
+ * - Base score: 30
+ *
+ * @param {string} origemId - Source company UUID
+ * @param {string} alvoId - Target company UUID
+ * @returns {Promise<number>} Score 0-100
+ */
+async function calculateTemporalScore(origemId, alvoId) {
+  let score = 30; // Base score
+
+  try {
+    // Fetch commemorative dates for both companies + global sector dates
+    const { data: dates } = await supabase
+      .from('dim_datas_comemorativas')
+      .select('tipo, data_referencia, mes_referencia, relevancia')
+      .or(`empresa_id.eq.${alvoId},empresa_id.is.null`)
+      .eq('ativo', true);
+
+    if (!dates?.length) return 50; // Default if no data
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate();
+
+    for (const date of dates) {
+      // Anniversary within 30 days
+      if (date.tipo === 'aniversario_empresa' && date.data_referencia) {
+        const ref = new Date(date.data_referencia);
+        const refMonth = ref.getMonth() + 1;
+        const refDay = ref.getDate();
+
+        // Check if anniversary is within 30 days (same year cycle)
+        const thisYearAnniv = new Date(now.getFullYear(), refMonth - 1, refDay);
+        const diffDays = Math.abs((thisYearAnniv.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+        if (diffDays <= 30) {
+          score += 30;
+        } else if (diffDays <= 60) {
+          score += 15;
+        }
+      }
+
+      // Seasonal peak month
+      if (date.tipo === 'sazonalidade' && date.mes_referencia) {
+        if (date.mes_referencia === currentMonth) {
+          score += 25;
+        } else if (Math.abs(date.mes_referencia - currentMonth) <= 1 ||
+                   Math.abs(date.mes_referencia - currentMonth) === 11) {
+          score += 10;
+        }
+      }
+
+      // Sector events
+      if (date.tipo === 'evento_setor' && date.data_referencia) {
+        const ref = new Date(date.data_referencia);
+        const diffDays = (ref.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+        // Upcoming event within 45 days
+        if (diffDays >= 0 && diffDays <= 45) {
+          score += 20;
+        }
+      }
+    }
+
+    // Fiscal quarter bonus (end of quarter = good timing for B2B)
+    const fiscalQuarterEnd = [3, 6, 9, 12];
+    if (fiscalQuarterEnd.includes(currentMonth) && currentDay >= 15) {
+      score += 15;
+    }
+  } catch {
+    // On error, return moderate default
+    return 50;
+  }
+
+  return Math.min(score, 100);
 }
 
 function calculateEvidenceScore(evidences) {

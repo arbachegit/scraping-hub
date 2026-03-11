@@ -1655,7 +1655,12 @@ export interface NewsItem {
   url?: string;
   tipo?: string;
   relevancia?: string;
+  relevancia_geral?: number;
   data?: string;
+  tipo_classificacao?: string;
+  credibilidade_score?: number;
+  tema_principal?: string;
+  segmento?: string;
 }
 
 export interface NewsListResponse {
@@ -1986,6 +1991,9 @@ export interface NewsAggregation {
   };
   by_segmento: Array<{ segmento: string; count: number }>;
   by_fonte: Array<{ fonte: string; count: number }>;
+  by_classificacao: Array<{ tipo: string; count: number }>;
+  by_tema: Array<{ tema: string; count: number }>;
+  credibilidade: { alta: number; media: number; baixa: number };
 }
 
 export async function getNewsAggregation(): Promise<NewsAggregation> {
@@ -2624,6 +2632,7 @@ export async function getGraphNodeDetails(empresaId: string): Promise<GraphNodeD
 
 export interface BiProfile {
   cnae: {
+    cnae_principal: string | null;
     setor_economico: string | null;
     cadeia_valor: string | null;
     posicao_cadeia: string | null;
@@ -2631,6 +2640,8 @@ export interface BiProfile {
     cnaes_fornecedores_tipicos: string[];
     total_empresas_mesmo_cnae_municipio: number | null;
     total_empresas_mesmo_cnae_estado: number | null;
+    ranking_municipal: number | null;
+    ranking_estadual: number | null;
   } | null;
   tributario: {
     regime_tributario: string | null;
@@ -2657,6 +2668,11 @@ export interface BiOpportunity {
   nome_alvo: string | null;
   tipo_oportunidade: string;
   score_oportunidade: number;
+  score_geografico: number | null;
+  score_cnae: number | null;
+  score_tributario: number | null;
+  score_temporal: number | null;
+  score_evidencia: number | null;
   lead_temperatura: string | null;
   lead_score: number | null;
   prioridade: string;
@@ -2681,6 +2697,209 @@ export async function getBiOpportunities(empresaId: string): Promise<BiOpportuni
 export async function triggerBiPipeline(empresaId: string): Promise<void> {
   const res = await fetchWithAuth(`${API_BASE}/bi/pipeline/${empresaId}`, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to trigger BI pipeline');
+}
+
+// ═══════════════ Pipeline Orchestrator API ═══════════════
+
+export interface PipelinePhaseStatus {
+  key: string;
+  label: string;
+  order: number;
+  status: 'pending' | 'running' | 'success' | 'error' | 'skipped';
+  started_at: string | null;
+  completed_at: string | null;
+  duration_ms: number | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
+export interface PipelineRun {
+  id: string;
+  empresa_id: string;
+  status: 'running' | 'completed' | 'completed_with_errors' | 'error';
+  started_at: string;
+  completed_at: string | null;
+  total_duration_ms: number | null;
+  phases: Record<string, PipelinePhaseStatus>;
+  summary: {
+    empresa: string;
+    cnpj: string;
+    phases_success: number;
+    phases_error: number;
+    phases_skipped: number;
+    total_duration_ms: number;
+    profiles: { cnae: boolean; tributario: boolean; geografico: boolean };
+    crawl: string;
+    taxonomy: string | null;
+    evidencias_total: number;
+    oportunidades_total: number;
+    oportunidades_quentes: number;
+    grafo_relacoes: number;
+  } | null;
+}
+
+export interface PipelinePhaseDefinition {
+  key: string;
+  label: string;
+  order: number;
+}
+
+export async function getPipelinePhases(): Promise<PipelinePhaseDefinition[]> {
+  const res = await fetchWithAuth(`${API_BASE}/pipeline/phases`);
+  if (!res.ok) throw new Error('Failed to fetch pipeline phases');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function executePipeline(
+  empresaId: string,
+  options: {
+    skip_crawl?: boolean;
+    skip_graph?: boolean;
+    force_crawl?: boolean;
+    only_phases?: string[];
+  } = {},
+): Promise<PipelineRun> {
+  const res = await fetchWithAuth(`${API_BASE}/pipeline/execute/${empresaId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) throw new Error('Failed to execute pipeline');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function getPipelineStatus(runId: string): Promise<PipelineRun> {
+  const res = await fetchWithAuth(`${API_BASE}/pipeline/status/${runId}`);
+  if (!res.ok) throw new Error('Failed to fetch pipeline status');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function getPipelineHistory(empresaId: string): Promise<PipelineRun[]> {
+  const res = await fetchWithAuth(`${API_BASE}/pipeline/history/${empresaId}`);
+  if (!res.ok) throw new Error('Failed to fetch pipeline history');
+  const json = await res.json();
+  return json.data || [];
+}
+
+// ═══════════════ BI Ecosystem API ═══════════════
+
+export interface EcosystemRelation {
+  id: string;
+  empresa_id: string;
+  empresa_relacionada_id: string | null;
+  nome_empresa_relacionada: string;
+  cnpj_relacionada: string | null;
+  tipo_relacao: string;
+  subtipo: string | null;
+  confianca: number;
+  fonte_deteccao: string;
+  evidencia: string | null;
+}
+
+export interface EcosystemData {
+  confirmados: {
+    clientes: EcosystemRelation[];
+    fornecedores: EcosystemRelation[];
+    concorrentes: EcosystemRelation[];
+    parceiros: EcosystemRelation[];
+  };
+  potenciais_cnae: {
+    clientes: Array<{ id: string; razao_social: string; cidade: string }>;
+    fornecedores: Array<{ id: string; razao_social: string; cidade: string }>;
+    concorrentes: Array<{ id: string; razao_social: string; cidade: string }>;
+  };
+  total: number;
+}
+
+export async function getBiEcosystem(empresaId: string): Promise<EcosystemData> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/ecosystem/${empresaId}`);
+  if (!res.ok) throw new Error('Failed to fetch ecosystem');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function getBiLeads(
+  empresaId: string,
+  temperatura?: string,
+): Promise<BiOpportunity[]> {
+  const params = temperatura ? `?temperatura=${temperatura}` : '';
+  const res = await fetchWithAuth(`${API_BASE}/bi/opportunities/${empresaId}/leads${params}`);
+  if (!res.ok) throw new Error('Failed to fetch leads');
+  const json = await res.json();
+  return json.data || [];
+}
+
+export async function triggerBiScoring(empresaId: string): Promise<BiOpportunity[]> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/score/${empresaId}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to trigger scoring');
+  const json = await res.json();
+  return json.data || [];
+}
+
+export interface BiContext {
+  id: string;
+  codigo: string;
+  nome: string;
+  descricao: string | null;
+  tabelas_requeridas: string[];
+  ativo: boolean;
+}
+
+export async function getBiContexts(): Promise<BiContext[]> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/contexts`);
+  if (!res.ok) throw new Error('Failed to fetch contexts');
+  const json = await res.json();
+  return json.data || [];
+}
+
+export interface TaxonomyNode {
+  id: string;
+  codigo: string;
+  nome: string;
+  nivel: number;
+  segmentos?: TaxonomyNode[];
+}
+
+export async function getBiTaxonomy(): Promise<TaxonomyNode[]> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/taxonomy`);
+  if (!res.ok) throw new Error('Failed to fetch taxonomy');
+  const json = await res.json();
+  return json.data || [];
+}
+
+export async function triggerBiCrawl(empresaId: string, force = false): Promise<unknown> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/crawl/${empresaId}?force=${force}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to trigger crawl');
+  const json = await res.json();
+  return json.data;
+}
+
+export interface BiEvidence {
+  id: string;
+  entidade_origem_type: string;
+  entidade_origem_id: string;
+  entidade_destino_type: string | null;
+  entidade_destino_id: string | null;
+  tipo_evidencia: string;
+  fonte: string;
+  confianca: number;
+  texto_evidencia: string | null;
+  created_at: string;
+}
+
+export async function getBiEvidence(
+  entityType: string,
+  entityId: string,
+): Promise<{ data: BiEvidence[]; aggregate_confidence: number }> {
+  const res = await fetchWithAuth(`${API_BASE}/bi/evidence/${entityType}/${entityId}`);
+  if (!res.ok) throw new Error('Failed to fetch evidence');
+  const json = await res.json();
+  return { data: json.data || [], aggregate_confidence: json.aggregate_confidence || 0 };
 }
 
 // ═══════════════ Reports API ═══════════════
