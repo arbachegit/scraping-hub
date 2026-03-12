@@ -106,24 +106,26 @@ router.get('/', async (req, res) => {
 
 /**
  * Safe count for a table (returns 0 on error).
- * Tries exact count first; falls back to estimated count if exact fails
- * (large tables like dim_empresas/fato_politicos_mandatos timeout on exact).
+ * Tries estimated count first (pg_class reltuples, instant on any size),
+ * then falls back to exact count for small tables where estimated returns 0.
+ * Large tables like dim_empresas (64M+) ALWAYS timeout on exact count.
  */
 async function safeCount(client, table) {
   try {
+    // 1. Estimated count first (instant via pg_class, works on any table size)
+    const { count: estimated, error: estError } = await client.from(table).select('id', { count: 'estimated', head: true });
+    if (!estError && estimated != null && estimated > 0) {
+      return estimated;
+    }
+
+    // 2. Fallback: exact count (only for small tables where estimated returns 0)
+    logger.info('safeCount estimated returned 0, trying exact', { table, estimated, error: estError?.message });
     const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
     if (!error && count != null) {
       return count;
     }
 
-    // Fallback: estimated count (uses pg_class reltuples, fast on any size)
-    logger.warn('safeCount exact failed, trying estimated', { table, error: error?.message, status: error?.code });
-    const { count: estimated, error: estError } = await client.from(table).select('id', { count: 'estimated', head: true });
-    if (!estError && estimated != null) {
-      return estimated;
-    }
-
-    logger.warn('safeCount estimated also failed', { table, error: estError?.message });
+    logger.warn('safeCount both methods failed', { table, error: error?.message });
     return 0;
   } catch (err) {
     logger.error('safeCount exception', { table, error: err.message });
