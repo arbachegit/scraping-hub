@@ -23,9 +23,9 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 import structlog
+from supabase import Client, create_client
 
 from config.settings import settings
-from supabase import Client, create_client
 
 logger = structlog.get_logger()
 
