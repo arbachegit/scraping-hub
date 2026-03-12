@@ -105,19 +105,25 @@ router.get('/', async (req, res) => {
 // ==========================================================================
 
 /**
- * Fast count via pg_class (instant, no table scan).
- * Uses RPC count_empresas_estimate for dim_empresas, or direct pg_class query.
- * Falls back to Supabase estimated/exact count for other tables.
+ * Fast count via pg_class RPC (instant, no table scan).
+ * Uses dedicated RPCs for large tables (dim_empresas, dim_pessoas).
+ * Falls back to Supabase estimated/exact count for smaller tables.
  */
+const RPC_COUNT_MAP = {
+  'dim_empresas': 'count_empresas_estimate',
+  'dim_pessoas': 'count_pessoas_estimate',
+};
+
 async function safeCount(client, table) {
   try {
-    // 1. For dim_empresas: use dedicated RPC (reads pg_class directly, instant)
-    if (table === 'dim_empresas') {
-      const { data, error } = await client.rpc('count_empresas_estimate', {});
+    // 1. Try dedicated RPC for large tables (reads pg_class, instant)
+    const rpcName = RPC_COUNT_MAP[table];
+    if (rpcName) {
+      const { data, error } = await client.rpc(rpcName, {});
       if (!error && data != null && data > 0) {
         return data;
       }
-      logger.warn('safeCount RPC failed for dim_empresas', { error: error?.message });
+      logger.warn('safeCount RPC failed', { table, rpc: rpcName, error: error?.message });
     }
 
     // 2. Estimated count (pg_class reltuples via PostgREST, works on most tables)
@@ -155,11 +161,14 @@ async function getAllCounts() {
   let mandatos = 0;
   let emendas = 0;
   if (brasilDataHub) {
-    [politicos, mandatos, emendas] = await Promise.all([
+    let emendasFederais = 0, emendasSubnacionais = 0;
+    [politicos, mandatos, emendasFederais, emendasSubnacionais] = await Promise.all([
       safeCount(brasilDataHub, 'dim_politicos'),
       safeCount(brasilDataHub, 'fato_politicos_mandatos'),
       safeCount(brasilDataHub, 'fato_emendas_parlamentares'),
+      safeCount(brasilDataHub, 'fato_emendas_subnacionais'),
     ]);
+    emendas = emendasFederais + emendasSubnacionais;
   }
 
   return { empresas, pessoas, politicos, mandatos, emendas, noticias };

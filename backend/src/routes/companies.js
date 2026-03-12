@@ -806,34 +806,48 @@ router.post('/approve', validateBody(approveCompanySchema), async (req, res) => 
 
     if (socios && socios.length > 0) {
       for (const socio of socios) {
-        const linkedinValue = socio.linkedin === LINKEDIN_STATUS.NAO_POSSUI ? null : socio.linkedin;
+        try {
+          if (!socio.nome || !socio.nome.trim()) {
+            logger.warn('skipping_socio_without_name', { empresa_id: insertedCompany.id });
+            continue;
+          }
 
-        // Insert person (dim_pessoas)
-        const person = await insertPerson({
-          nome: socio.nome,
-          cpf: socio.cpf || null,
-          linkedin: linkedinValue,
-          email: socio.email || null,
-          foto_url: socio.foto_url || null,
-          faixa_etaria: socio.faixa_etaria,
-          pais_origem: socio.pais_origem
-        });
+          const linkedinValue = socio.linkedin === LINKEDIN_STATUS.NAO_POSSUI ? null : socio.linkedin;
 
-        // Insert transaction (fato_transacao_empresas)
-        await insertTransacaoEmpresa({
-          pessoa_id: person.id,
-          empresa_id: insertedCompany.id,
-          tipo_transacao: 'entrada_sociedade',
-          data_transacao: socio.data_entrada || null,
-          qualificacao: socio.qualificacao,
-          cargo: socio.cargo || socio.qualificacao || 'Socio',
-          headline: socio.headline || null,
-          tipo: 'fundador',
-          logo_url: socio.foto_url || null,
-          ativo: true
-        });
+          // Insert person (dim_pessoas)
+          const person = await insertPerson({
+            nome: socio.nome,
+            cpf: socio.cpf || null,
+            linkedin: linkedinValue,
+            email: socio.email || null,
+            foto_url: socio.foto_url || null,
+            faixa_etaria: socio.faixa_etaria,
+            pais_origem: socio.pais_origem
+          });
 
-        insertedSocios.push(person);
+          // Insert transaction (fato_transacao_empresas)
+          await insertTransacaoEmpresa({
+            pessoa_id: person.id,
+            empresa_id: insertedCompany.id,
+            tipo_transacao: 'entrada_sociedade',
+            data_transacao: socio.data_entrada || null,
+            qualificacao: socio.qualificacao,
+            cargo: socio.cargo || socio.qualificacao || 'Socio',
+            headline: socio.headline || null,
+            tipo: 'fundador',
+            logo_url: socio.foto_url || null,
+            ativo: true
+          });
+
+          insertedSocios.push(person);
+        } catch (socioError) {
+          logger.error('socio_insert_failed', {
+            empresa_id: insertedCompany.id,
+            socio_nome: socio.nome,
+            error: socioError.message,
+          });
+          // Continue with next socio — don't fail entire approval
+        }
       }
     }
 

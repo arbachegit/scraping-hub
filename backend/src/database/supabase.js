@@ -139,76 +139,108 @@ export async function insertCompany(company) {
 }
 
 /**
+ * Retry a database operation with exponential backoff.
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Max retry attempts (default: 3)
+ * @param {number} baseDelay - Base delay in ms (default: 500)
+ * @returns {Promise<*>} Result of the function
+ */
+async function withRetry(fn, maxRetries = 3, baseDelay = 500) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const code = err?.code || '';
+      // Don't retry on validation/constraint errors (not transient)
+      if (['23505', '23502', '23503', '23514', '42P01'].includes(code)) {
+        throw err;
+      }
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        logger.warn('db_operation_retry', { attempt, maxRetries, delay, error: err.message });
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Insert or update person in dim_pessoas.
  * If CPF exists, updates with new data (keeping non-null fields).
  * If no CPF or CPF not found, inserts new record.
+ * Includes retry with exponential backoff for transient errors.
  * @param {Object} person - Person data
  * @returns {Promise<Object>} Inserted or updated person
  */
 export async function insertPerson(person) {
-  // Normalize CPF: remove non-digits, null if empty/masked
-  const rawCpf = person.cpf ? String(person.cpf).replace(/[^\d]/g, '') : null;
-  const cpf = rawCpf && rawCpf.length === 11 && !rawCpf.includes('0'.repeat(11)) ? rawCpf : null;
+  return withRetry(async () => {
+    // Normalize CPF: remove non-digits, null if empty/masked
+    const rawCpf = person.cpf ? String(person.cpf).replace(/[^\d]/g, '') : null;
+    const cpf = rawCpf && rawCpf.length === 11 && !rawCpf.includes('0'.repeat(11)) ? rawCpf : null;
 
-  // Extract first and last name
-  const nameParts = (person.nome || '').split(' ');
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+    // Extract first and last name
+    const nameParts = (person.nome || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
-  const record = {
-    nome_completo: person.nome,
-    primeiro_nome: firstName,
-    sobrenome: lastName,
-    cpf,
-    linkedin_url: person.linkedin,
-    email: person.email,
-    foto_url: person.foto_url,
-    faixa_etaria: person.faixa_etaria,
-    pais: person.pais_origem || 'Brasil',
-    raw_apollo_data: person.raw_apollo,
-    fonte: 'brasilapi+serper+apollo',
-    data_coleta: new Date().toISOString()
-  };
+    const record = {
+      nome_completo: person.nome,
+      primeiro_nome: firstName,
+      sobrenome: lastName,
+      cpf,
+      linkedin_url: person.linkedin,
+      email: person.email,
+      foto_url: person.foto_url,
+      faixa_etaria: person.faixa_etaria,
+      pais: person.pais_origem || 'Brasil',
+      raw_apollo_data: person.raw_apollo,
+      fonte: 'brasilapi+serper+apollo',
+      data_coleta: new Date().toISOString()
+    };
 
-  // If CPF is available, try to find existing person first
-  if (cpf) {
-    const { data: existing } = await supabase
-      .from('dim_pessoas')
-      .select('*')
-      .eq('cpf', cpf)
-      .maybeSingle();
-
-    if (existing) {
-      // Update only fields that are non-null in the new data
-      const updates = {};
-      for (const [key, value] of Object.entries(record)) {
-        if (value != null && value !== '' && key !== 'cpf') {
-          updates[key] = value;
-        }
-      }
-      updates.updated_at = new Date().toISOString();
-
-      const { data, error } = await supabase
+    // If CPF is available, try to find existing person first
+    if (cpf) {
+      const { data: existing } = await supabase
         .from('dim_pessoas')
-        .update(updates)
-        .eq('id', existing.id)
-        .select()
-        .single();
+        .select('*')
+        .eq('cpf', cpf)
+        .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (existing) {
+        // Update only fields that are non-null in the new data
+        const updates = {};
+        for (const [key, value] of Object.entries(record)) {
+          if (value != null && value !== '' && key !== 'cpf') {
+            updates[key] = value;
+          }
+        }
+        updates.updated_at = new Date().toISOString();
+
+        const { data, error } = await supabase
+          .from('dim_pessoas')
+          .update(updates)
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
     }
-  }
 
-  // No CPF or person not found: insert new
-  const { data, error } = await supabase
-    .from('dim_pessoas')
-    .insert([record])
-    .select()
-    .single();
+    // No CPF or person not found: insert new
+    const { data, error } = await supabase
+      .from('dim_pessoas')
+      .insert([record])
+      .select()
+      .single();
 
-  if (error) throw error;
-  return data;
+    if (error) throw error;
+    return data;
+  });
 }
 
 /**
