@@ -258,6 +258,10 @@ export default function DashboardPage() {
   const dataReferencia = statsQuery.data?.data_referencia || '';
   const isOnline = statsQuery.data?.online ?? false;
   const isStatsLoading = statsQuery.isLoading || historyQuery.isLoading;
+  const statsErrorMessage =
+    (statsQuery.error instanceof Error && statsQuery.error.message) ||
+    (historyQuery.error instanceof Error && historyQuery.error.message) ||
+    '';
 
   const counterStats = Object.keys(categoryConfig).map((key) => {
     const cat = key as CategoryKey;
@@ -504,6 +508,12 @@ export default function DashboardPage() {
             <h2 className="text-[25px] font-semibold text-slate-400 mb-3">
               Estatísticas em Tempo Real
             </h2>
+
+            {statsErrorMessage && (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                Falha ao carregar indicadores do banco: {statsErrorMessage}
+              </div>
+            )}
 
             {/* Row 1: Empresas + Pessoas (large) */}
             <div className="grid grid-cols-2 gap-4 mb-4">

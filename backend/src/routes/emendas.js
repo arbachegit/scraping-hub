@@ -243,6 +243,54 @@ router.get('/aggregation', async (req, res) => {
 });
 
 /**
+ * GET /api/emendas/time-series
+ * Context Intelligence: temporal evolution of budget execution.
+ *
+ * Answers: "Como evolui o orçamento ao longo dos anos?"
+ * Optional filters: funcao, uf, autor, tipo_emenda
+ */
+router.get('/time-series', async (req, res) => {
+  try {
+    if (!brasilDataHub) {
+      return res.status(503).json({ success: false, error: 'Brasil Data Hub not configured.' });
+    }
+
+    const { funcao, uf, autor, tipo_emenda } = req.query;
+
+    const [general, byFuncao, concentration] = await Promise.all([
+      brasilDataHub.rpc('get_emendas_time_series', {
+        p_funcao: funcao || null,
+        p_uf: uf || null,
+        p_autor: autor || null,
+        p_tipo_emenda: tipo_emenda || null,
+      }),
+      brasilDataHub.rpc('get_emendas_funcao_time_series', { p_limit: 8 }),
+      brasilDataHub.rpc('get_emendas_concentration'),
+    ]);
+
+    // Check if RPCs exist
+    const rpcErrors = [general, byFuncao, concentration].filter(r => r.error);
+    if (rpcErrors.length > 0) {
+      const firstError = rpcErrors[0].error;
+      if (firstError.code === '42883' || firstError.code === 'PGRST202') {
+        return res.json({ success: true, rpc_available: false, series: [], by_funcao: [], concentration: null });
+      }
+    }
+
+    res.json({
+      success: true,
+      rpc_available: true,
+      series: general.data || [],
+      by_funcao: byFuncao.data || [],
+      concentration: concentration.data || null,
+    });
+  } catch (error) {
+    logger.error('Error getting emendas time series', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/emendas/subnacionais
  * List subnational emendas (estaduais + municipais) with filters
  */
@@ -301,10 +349,10 @@ router.get('/:id/context', validateParams(integerIdParamSchema), async (req, res
 
     const { id } = req.params;
 
-    // 1. Get emenda from Brasil Data Hub
+    // 1. Get emenda + parallel context queries from Brasil Data Hub
     const { data: emenda, error: emendaErr } = await brasilDataHub
       .from('fato_emendas_parlamentares')
-      .select('id, autor, funcao, localidade, tipo_emenda, ano')
+      .select('id, autor, funcao, subfuncao, localidade, tipo_emenda, ano, codigo_emenda, numero_emenda, partido, codigo_ibge, is_emenda_pix, valor_empenhado, valor_liquidado, valor_pago, valor_resto_inscrito, valor_resto_cancelado, valor_resto_pago')
       .eq('id', id)
       .single();
 
@@ -312,14 +360,26 @@ router.get('/:id/context', validateParams(integerIdParamSchema), async (req, res
       return res.status(404).json({ success: false, error: 'Emenda not found' });
     }
 
-    // 2. Map funcao → taxonomy slug
-    const { data: mapping } = await scrapingDb
-      .from('map_funcao_taxonomia')
-      .select('taxonomia_slug')
-      .eq('funcao', emenda.funcao)
-      .single();
+    // 2. Parallel: taxonomy + favorecidos + author history + associations
+    const [mappingResult, favorecidosResult, autorHistoryResult] = await Promise.all([
+      // Taxonomy mapping
+      scrapingDb
+        .from('map_funcao_taxonomia')
+        .select('taxonomia_slug')
+        .eq('funcao', emenda.funcao)
+        .single(),
+      // Top beneficiaries for this emenda's author + funcao combo
+      brasilDataHub
+        .from('fato_emendas_favorecidos')
+        .select('tipo_favorecido, nome_favorecido, uf_favorecido, municipio_favorecido, valor_recebido')
+        .eq('codigo_emenda', emenda.codigo_emenda)
+        .order('valor_recebido', { ascending: false })
+        .limit(10),
+      // Author time series (try RPC, ignore error)
+      brasilDataHub.rpc('get_emendas_autor_time_series', { p_autor: emenda.autor }),
+    ]);
 
-    const taxonomiaSlug = mapping?.taxonomia_slug || null;
+    const taxonomiaSlug = mappingResult.data?.taxonomia_slug || null;
 
     // 3. Get taxonomy info
     let taxonomia = null;
@@ -373,10 +433,48 @@ router.get('/:id/context', validateParams(integerIdParamSchema), async (req, res
       }
     }
 
+    // 7. Compute execution context for this emenda
+    const valorEmpenhado = emenda.valor_empenhado || 0;
+    const valorPago = emenda.valor_pago || 0;
+    const taxaExecucao = valorEmpenhado > 0 ? Math.round((valorPago / valorEmpenhado) * 1000) / 10 : 0;
+    const restoAPagar = (emenda.valor_resto_inscrito || 0) - (emenda.valor_resto_cancelado || 0) - (emenda.valor_resto_pago || 0);
+
     res.json({
       success: true,
       emenda_id: id,
+      // Factual summary
+      resumo: {
+        autor: emenda.autor,
+        partido: emenda.partido || null,
+        funcao: emenda.funcao,
+        subfuncao: emenda.subfuncao || null,
+        tipo_emenda: emenda.tipo_emenda,
+        localidade: emenda.localidade,
+        ano: emenda.ano,
+        is_pix: emenda.is_emenda_pix || false,
+        codigo_ibge: emenda.codigo_ibge || null,
+      },
+      // Execution context
+      execucao: {
+        empenhado: valorEmpenhado,
+        liquidado: emenda.valor_liquidado || 0,
+        pago: valorPago,
+        resto_a_pagar: restoAPagar,
+        taxa_execucao: taxaExecucao,
+      },
+      // Taxonomy
       taxonomia,
+      // Beneficiaries (top 10 for this emenda)
+      favorecidos: (favorecidosResult.data || []).map(f => ({
+        tipo: f.tipo_favorecido,
+        nome: f.nome_favorecido,
+        uf: f.uf_favorecido,
+        municipio: f.municipio_favorecido,
+        valor: f.valor_recebido,
+      })),
+      // Author time series (may be null if RPC not deployed)
+      autor_historico: autorHistoryResult.error ? null : (autorHistoryResult.data || []),
+      // Related news
       associations_count: associations?.length || 0,
       noticias,
     });

@@ -8,6 +8,7 @@ import { newsSearchSchema, newsListSchema, newsClassifyBatchSchema, newsEnrichBa
 import { escapeLike, sanitizeForLog } from '../utils/sanitize.js';
 import { runClassificationPipeline, countUnclassified } from '../services/news-classifier.js';
 import { runEnrichmentPipeline, countUnenriched } from '../services/news-enricher.js';
+import { runAssociationPipeline, getNoticiaContext } from '../services/association-populator.js';
 
 const router = Router();
 
@@ -213,6 +214,22 @@ router.get('/aggregation', async (req, res) => {
       supabase.from('dim_noticias').select('credibilidade_score').not('credibilidade_score', 'is', null),
     ]);
 
+    const queryErrors = [
+      bySegmento.error,
+      byFonte.error,
+      recentCount.error,
+      totalResult.error,
+      byClassificacao.error,
+      byTema.error,
+      byCredibilidade.error,
+    ].filter(Boolean);
+
+    if (queryErrors.length > 0) {
+      const detail = queryErrors.map((err) => `${err.code || 'query'}: ${err.message}`).join(' | ');
+      logger.error('Error getting news aggregation', { detail });
+      return res.status(503).json({ success: false, error: 'News aggregation unavailable', detail });
+    }
+
     // Aggregate segmento
     const segmentoGrouped = {};
     for (const r of (bySegmento.data || [])) {
@@ -372,6 +389,69 @@ router.post('/enrich-batch', validateBody(newsEnrichBatchSchema), async (req, re
     });
   } catch (error) {
     logger.error('Enrichment batch error', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/news/context-status
+ * Check coverage of contextual associations and signals
+ */
+router.get('/context-status', async (req, res) => {
+  try {
+    const [totalResult, withTemaResult, assocResult, signalsResult] = await Promise.all([
+      supabase.from('dim_noticias').select('id', { count: 'exact', head: true }),
+      supabase.from('dim_noticias').select('id', { count: 'exact', head: true }).not('tema_principal', 'is', null),
+      supabase.from('fato_associacoes_contextuais').select('id', { count: 'exact', head: true }).eq('origem_tipo', 'noticia'),
+      supabase.from('fato_noticias_sinais').select('id', { count: 'exact', head: true }),
+    ]);
+
+    const total = totalResult.count || 0;
+    const withTema = withTemaResult.count || 0;
+    const associations = assocResult.count || 0;
+    const signals = signalsResult.count || 0;
+
+    res.json({
+      success: true,
+      total_noticias: total,
+      with_tema_principal: withTema,
+      tema_coverage: total ? ((withTema / total) * 100).toFixed(1) + '%' : '0%',
+      total_associations: associations,
+      total_signals_detected: signals,
+    });
+  } catch (error) {
+    logger.error('Error getting context status', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/news/populate-associations
+ * Run the association populator pipeline (noticias ↔ emendas via taxonomy)
+ * Body: { maxNoticias?: number, emendasPerSlug?: number, detectSignals?: boolean }
+ */
+router.post('/populate-associations', async (req, res) => {
+  try {
+    const {
+      maxNoticias = 200,
+      emendasPerSlug = 5,
+      detectSignals: detectSignalsEnabled = true,
+    } = req.body || {};
+
+    logger.info('Association pipeline triggered', { maxNoticias, emendasPerSlug, detectSignalsEnabled });
+
+    const stats = await runAssociationPipeline({
+      maxNoticias,
+      emendasPerSlug,
+      detectSignalsEnabled,
+    });
+
+    res.json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    logger.error('Association pipeline error', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -641,6 +721,30 @@ router.get('/sources/list', async (req, res) => {
 
   } catch (error) {
     logger.error('Error listing sources', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/news/:id/context
+ * Context Intelligence: taxonomy, related emendas, signals, entities
+ */
+router.get('/:id/context', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const context = await getNoticiaContext(id);
+
+    if (!context) {
+      return res.status(404).json({ success: false, error: 'Notícia não encontrada' });
+    }
+
+    res.json({
+      success: true,
+      ...context,
+    });
+  } catch (error) {
+    logger.error('Error getting news context', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

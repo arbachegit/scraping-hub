@@ -114,36 +114,65 @@ const RPC_COUNT_MAP = {
   'dim_pessoas': 'count_pessoas_estimate',
 };
 
+function formatCountError(table, operation, error) {
+  const code = error?.code ? `[${error.code}] ` : '';
+  return `${table}:${operation}: ${code}${error?.message || 'unknown error'}`;
+}
+
+async function countWithDiagnostics(client, table) {
+  const rpcName = RPC_COUNT_MAP[table];
+  const errors = [];
+
+  if (rpcName) {
+    const { data, error } = await client.rpc(rpcName, {});
+    if (!error && data != null && data > 0) {
+      return { count: data, method: 'rpc', error: null };
+    }
+    if (error) {
+      errors.push(formatCountError(table, `rpc:${rpcName}`, error));
+      logger.warn('safeCount RPC failed', { table, rpc: rpcName, error: error.message, code: error.code });
+    }
+  }
+
+  const { count: estimated, error: estError } = await client
+    .from(table)
+    .select('id', { count: 'estimated', head: true });
+  if (!estError && estimated != null && estimated > 0) {
+    return { count: estimated, method: 'estimated', error: null };
+  }
+  if (estError) {
+    errors.push(formatCountError(table, 'estimated', estError));
+  } else {
+    logger.info('safeCount estimated returned 0, trying exact', { table, estimated });
+  }
+
+  const { count, error } = await client
+    .from(table)
+    .select('id', { count: 'exact', head: true });
+  if (!error && count != null) {
+    return { count, method: 'exact', error: null };
+  }
+  if (error) {
+    errors.push(formatCountError(table, 'exact', error));
+  }
+
+  return {
+    count: null,
+    method: 'failed',
+    error: errors.join(' | ') || `${table}: count failed`,
+  };
+}
+
 async function safeCount(client, table) {
   try {
-    // 1. Try dedicated RPC for large tables (reads pg_class, instant)
-    const rpcName = RPC_COUNT_MAP[table];
-    if (rpcName) {
-      const { data, error } = await client.rpc(rpcName, {});
-      if (!error && data != null && data > 0) {
-        return data;
-      }
-      logger.warn('safeCount RPC failed', { table, rpc: rpcName, error: error?.message });
+    const result = await countWithDiagnostics(client, table);
+    if (result.count != null) {
+      return result.count;
     }
-
-    // 2. Estimated count (pg_class reltuples via PostgREST, works on most tables)
-    const { count: estimated, error: estError } = await client.from(table).select('id', { count: 'estimated', head: true });
-    if (!estError && estimated != null && estimated > 0) {
-      return estimated;
-    }
-
-    // 3. Exact count (only for small tables where estimated returns 0)
-    logger.info('safeCount estimated returned 0, trying exact', { table, estimated, error: estError?.message });
-    const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
-    if (!error && count != null) {
-      return count;
-    }
-
-    logger.warn('safeCount all methods failed', { table, error: error?.message });
-    return 0;
+    throw new Error(result.error || `${table}: count unavailable`);
   } catch (err) {
     logger.error('safeCount exception', { table, error: err.message });
-    return 0;
+    throw err;
   }
 }
 
@@ -291,12 +320,13 @@ router.get('/current', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching current stats', { error: error.message });
-    res.status(500).json({
+    res.status(503).json({
       success: false,
       stats: [],
       data_referencia: getDateBRT(),
       online: false,
       error: 'Failed to fetch current stats',
+      detail: error.message,
     });
   }
 });
@@ -399,12 +429,13 @@ router.get('/history', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching stats history', { error: error.message });
-    res.status(500).json({
+    res.status(503).json({
       success: false,
       historico: {},
       categorias: [],
       total_registros: 0,
       error: 'Failed to fetch stats history',
+      detail: error.message,
     });
   }
 });
@@ -474,6 +505,7 @@ router.post('/snapshot', async (req, res) => {
       }
     }
 
+    const upsertErrors = [];
     for (const snap of snapshots) {
       const { error } = await supabase
         .from('stats_historico')
@@ -481,7 +513,12 @@ router.post('/snapshot', async (req, res) => {
 
       if (error) {
         logger.warn('Snapshot upsert failed', { snap, error: error.message });
+        upsertErrors.push(`${snap.categoria}: ${error.message}`);
       }
+    }
+
+    if (upsertErrors.length > 0) {
+      throw new Error(`stats_historico upsert failed: ${upsertErrors.join(' | ')}`);
     }
 
     logger.info('Stats snapshot created', { date: hojeISO, counts });
@@ -519,9 +556,10 @@ router.post('/snapshot', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error creating stats snapshot', { error: error.message });
-    res.status(500).json({
+    res.status(503).json({
       success: false,
       error: 'Failed to create stats snapshot',
+      detail: error.message,
     });
   }
 });
@@ -657,21 +695,30 @@ router.get('/diagnostic', async (req, res) => {
       }
       const start = Date.now();
       try {
-        const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
+        const { count, method, error } = await countWithDiagnostics(client, table);
         results[cat] = {
           table,
-          count: count || 0,
-          error: error?.message || null,
+          count: count ?? 0,
+          error: error || null,
+          method,
+          healthy: count != null,
           latency_ms: Date.now() - start,
           client: client === brasilDataHub ? 'brasil_data_hub' : 'local',
         };
       } catch (err) {
-        results[cat] = { table, count: 0, error: err.message, latency_ms: Date.now() - start };
+        results[cat] = {
+          table,
+          count: 0,
+          error: err.message,
+          method: 'failed',
+          healthy: false,
+          latency_ms: Date.now() - start,
+        };
       }
     }
 
     // Historico count por categoria
-    const { data: hist } = await supabase
+    const { data: hist, error: histError } = await supabase
       .from('stats_historico')
       .select('categoria')
       .order('data', { ascending: false })
@@ -688,6 +735,7 @@ router.get('/diagnostic', async (req, res) => {
       success: true,
       categories: results,
       stats_historico_rows: histCount,
+      stats_historico_error: histError?.message || null,
       cache: cacheInfo,
     });
   } catch (error) {

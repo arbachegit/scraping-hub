@@ -278,41 +278,43 @@ export interface StatsResponse {
 export async function getStatsCurrent(): Promise<StatsCurrentResponse> {
   const res = await fetchWithAuth(`${API_BASE}/stats/current`);
   if (!res.ok) {
-    return {
-      success: false,
-      stats: [],
-      data_referencia: new Date().toISOString(),
-      online: false,
-      proxima_atualizacao_segundos: 300,
-      timestamp: new Date().toISOString(),
-    };
+    const error = await res.json().catch(() => ({ error: 'Failed to fetch current stats' }));
+    throw new Error(error.detail || error.error || 'Failed to fetch current stats');
   }
-  return res.json();
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.detail || data.error || 'Failed to fetch current stats');
+  }
+  return data;
 }
 
 export async function getStatsHistory(limit = 30): Promise<StatsHistoryResponse> {
   const res = await fetchWithAuth(`${API_BASE}/stats/history?limit=${limit}`);
   if (!res.ok) {
-    return {
-      success: false,
-      historico: {},
-      categorias: [],
-      total_registros: 0,
-      timestamp: new Date().toISOString(),
-    };
+    const error = await res.json().catch(() => ({ error: 'Failed to fetch stats history' }));
+    throw new Error(error.detail || error.error || 'Failed to fetch stats history');
   }
-  return res.json();
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.detail || data.error || 'Failed to fetch stats history');
+  }
+  return data;
 }
 
-export async function createStatsSnapshot(): Promise<{ success: boolean; message?: string }> {
+export async function createStatsSnapshot(): Promise<{ success: boolean; message?: string; error?: string }> {
   const res = await fetchWithAuth(`${API_BASE}/stats/snapshot`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) {
-    return { success: false };
+    const error = await res.json().catch(() => ({ error: 'Failed to create stats snapshot' }));
+    return { success: false, error: error.detail || error.error || 'Failed to create stats snapshot' };
   }
-  return res.json();
+  const data = await res.json();
+  if (!data.success) {
+    return { success: false, error: data.detail || data.error || 'Failed to create stats snapshot' };
+  }
+  return data;
 }
 
 // Legacy function - converts new format to old format
@@ -2012,12 +2014,46 @@ export interface EmendasAggregation {
 
 export interface EmendaContext {
   emenda_id: number;
+  resumo: {
+    autor: string;
+    partido: string | null;
+    funcao: string;
+    subfuncao: string | null;
+    tipo_emenda: string;
+    localidade: string;
+    ano: number;
+    is_pix: boolean;
+    codigo_ibge: number | null;
+  };
+  execucao: {
+    empenhado: number;
+    liquidado: number;
+    pago: number;
+    resto_a_pagar: number;
+    taxa_execucao: number;
+  };
   taxonomia: {
     slug: string;
     nome: string;
     cor: string;
     icone: string;
   } | null;
+  favorecidos: Array<{
+    tipo: string;
+    nome: string;
+    uf: string;
+    municipio: string;
+    valor: number;
+  }>;
+  autor_historico: Array<{
+    ano: number;
+    total_emendas: number;
+    valor_empenhado: number;
+    valor_liquidado: number;
+    valor_pago: number;
+    taxa_execucao: number;
+    funcoes_distintas: number;
+  }> | null;
   associations_count: number;
   noticias: Array<{
     id: string;
@@ -2028,6 +2064,31 @@ export interface EmendaContext {
     tema_principal: string;
     url: string;
   }>;
+}
+
+export interface EmendasTimeSeries {
+  rpc_available: boolean;
+  series: Array<{
+    ano: number;
+    total_emendas: number;
+    valor_empenhado: number;
+    valor_liquidado: number;
+    valor_pago: number;
+    taxa_execucao: number;
+  }>;
+  by_funcao: Array<{
+    ano: number;
+    funcao: string;
+    total_emendas: number;
+    valor_empenhado: number;
+    valor_pago: number;
+    taxa_execucao: number;
+  }>;
+  concentration: {
+    autor: { total_autores: number; top10_share: number; top50_share: number };
+    territorio: { total_ufs: number; top5_share: number };
+    tema: { total_funcoes: number; top3_share: number };
+  } | null;
 }
 
 export async function getEmendaContext(id: number): Promise<EmendaContext> {
@@ -2041,12 +2102,28 @@ export async function getEmendaContext(id: number): Promise<EmendaContext> {
 
 export async function getEmendasAggregation(): Promise<EmendasAggregation> {
   const res = await fetchWithAuth(`${API_BASE}/emendas/aggregation`);
-
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Aggregation failed' }));
     throw new Error(error.error || 'Aggregation failed');
   }
+  return res.json();
+}
 
+export async function getEmendasTimeSeries(params?: {
+  funcao?: string;
+  uf?: string;
+  autor?: string;
+}): Promise<EmendasTimeSeries> {
+  const searchParams = new URLSearchParams();
+  if (params?.funcao) searchParams.set('funcao', params.funcao);
+  if (params?.uf) searchParams.set('uf', params.uf);
+  if (params?.autor) searchParams.set('autor', params.autor);
+  const qs = searchParams.toString();
+  const res = await fetchWithAuth(`${API_BASE}/emendas/time-series${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Time series failed' }));
+    throw new Error(error.error || 'Time series failed');
+  }
   return res.json();
 }
 

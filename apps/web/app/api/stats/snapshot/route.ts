@@ -25,10 +25,8 @@ export async function POST(request: NextRequest) {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: 'Backend indisponivel' },
-        { status: 200 }
-      );
+      const error = await response.json().catch(() => ({ success: false, error: 'Backend indisponivel' }));
+      return NextResponse.json(error, { status: response.status });
     }
 
     const data = await response.json();
@@ -36,7 +34,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { success: false, error: 'Backend indisponivel' },
-      { status: 200 }
+      { status: 503 }
     );
   }
 }

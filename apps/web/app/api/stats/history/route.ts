@@ -39,12 +39,13 @@ export async function GET(request: NextRequest) {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      return NextResponse.json(FALLBACK_RESPONSE, { status: 200 });
+      const error = await response.json().catch(() => FALLBACK_RESPONSE);
+      return NextResponse.json(error, { status: response.status });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch {
-    return NextResponse.json(FALLBACK_RESPONSE, { status: 200 });
+    return NextResponse.json(FALLBACK_RESPONSE, { status: 503 });
   }
 }

@@ -33,9 +33,11 @@ import {
 import {
   listEmendas,
   getEmendasAggregation,
+  getEmendasTimeSeries,
   getEmendaContext,
   type Emenda,
   type EmendasAggregation,
+  type EmendasTimeSeries,
   type EmendaContext,
 } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
@@ -112,6 +114,13 @@ export default function EmendasPage() {
     staleTime: 60_000,
   });
 
+  const tsQuery = useQuery({
+    queryKey: ['emendas-time-series'],
+    queryFn: () => getEmendasTimeSeries(),
+    enabled: authReady,
+    staleTime: 120_000,
+  });
+
   const listQuery = useQuery({
     queryKey: ['emendas-list'],
     queryFn: () => listEmendas({ limit: 100 }),
@@ -121,6 +130,7 @@ export default function EmendasPage() {
 
   const emendas = listQuery.data?.emendas || [];
   const agg = aggQuery.data;
+  const ts = tsQuery.data;
 
   function handleSort(col: string) {
     if (sortColumn === col) {
@@ -326,6 +336,93 @@ export default function EmendasPage() {
           </div>
         )}
 
+        {/* Row 4: Time Series Chart + Concentration */}
+        {ts?.rpc_available && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* Time Series Bar Chart */}
+            <div className="lg:col-span-2 rounded-xl border border-slate-700/30 bg-[#0f1629]/60 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-cyan-400 mb-4">
+                Evolucao Orcamentaria por Ano
+              </h3>
+              {(ts.series || []).length > 0 ? (
+                <div className="space-y-1.5">
+                  {ts.series.map((s) => {
+                    const maxVal = Math.max(...ts.series.map((x) => x.valor_empenhado || 1));
+                    const empPct = maxVal > 0 ? (s.valor_empenhado / maxVal) * 100 : 0;
+                    const pagoPct = maxVal > 0 ? (s.valor_pago / maxVal) * 100 : 0;
+                    return (
+                      <div key={s.ano} className="flex items-center gap-2 text-xs">
+                        <span className="w-10 text-slate-400 tabular-nums flex-shrink-0">{s.ano}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="relative h-5 bg-slate-700/20 rounded overflow-hidden">
+                            <div
+                              className="absolute inset-y-0 left-0 bg-cyan-500/30 rounded"
+                              style={{ width: `${empPct}%` }}
+                            />
+                            <div
+                              className="absolute inset-y-0 left-0 bg-emerald-500/60 rounded"
+                              style={{ width: `${pagoPct}%` }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-end pr-2">
+                              <span className="text-[10px] text-slate-300 tabular-nums">
+                                {s.taxa_execucao}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="w-20 text-right text-slate-400 tabular-nums flex-shrink-0 text-[10px]">
+                          {formatCurrency(s.valor_pago)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-700/20">
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <div className="w-3 h-2 bg-cyan-500/30 rounded" />
+                      <span className="text-slate-500">Empenhado</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <div className="w-3 h-2 bg-emerald-500/60 rounded" />
+                      <span className="text-slate-500">Pago</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-slate-600 py-8 text-center">Sem dados temporais</div>
+              )}
+            </div>
+
+            {/* Concentration Cards */}
+            <div className="space-y-4">
+              {ts.concentration && (
+                <>
+                  <ConcentrationCard
+                    title="Concentracao por Autor"
+                    metric={`Top 10 = ${ts.concentration.autor.top10_share}%`}
+                    detail={`${ts.concentration.autor.total_autores} autores no total`}
+                    percent={ts.concentration.autor.top10_share}
+                    color="purple"
+                  />
+                  <ConcentrationCard
+                    title="Concentracao Territorial"
+                    metric={`Top 5 UFs = ${ts.concentration.territorio.top5_share}%`}
+                    detail={`${ts.concentration.territorio.total_ufs} UFs com recursos`}
+                    percent={ts.concentration.territorio.top5_share}
+                    color="emerald"
+                  />
+                  <ConcentrationCard
+                    title="Concentracao Tematica"
+                    metric={`Top 3 temas = ${ts.concentration.tema.top3_share}%`}
+                    detail={`${ts.concentration.tema.total_funcoes} funcoes distintas`}
+                    percent={ts.concentration.tema.top3_share}
+                    color="cyan"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Search + Filters */}
         <div className="mb-4">
           <div className="flex items-center gap-3">
@@ -495,12 +592,18 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
       {expanded && (
         <tr>
           <td colSpan={8} className="px-4 py-4 bg-[#0a0e1a]/60">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Left: Emenda details */}
-              <div className="flex-1">
-                {/* Taxonomy badge */}
-                {ctx?.taxonomia && (
-                  <div className="mb-3">
+            {contextQuery.isLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 bg-slate-700/10 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Col 1: Resumo Factual + Execucao */}
+                <div className="space-y-3">
+                  {/* Taxonomy badge */}
+                  {ctx?.taxonomia && (
                     <span
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border"
                       style={{
@@ -512,30 +615,111 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
                       <Tag className="h-3 w-3" />
                       {ctx.taxonomia.nome}
                     </span>
+                  )}
+
+                  {/* Factual info */}
+                  <div className="rounded-lg border border-slate-700/20 bg-[#0f1629]/40 p-3 space-y-2">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resumo Factual</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <InfoPair label="Autor" value={ctx?.resumo?.autor || emenda.autor} />
+                      <InfoPair label="Partido" value={ctx?.resumo?.partido || emenda.partido} />
+                      <InfoPair label="Tipo" value={ctx?.resumo?.tipo_emenda || emenda.tipo_emenda} />
+                      <InfoPair label="Ano" value={String(ctx?.resumo?.ano || emenda.ano)} />
+                      <InfoPair label="Localidade" value={ctx?.resumo?.localidade || emenda.localidade} />
+                      <InfoPair label="Subfuncao" value={ctx?.resumo?.subfuncao || emenda.subfuncao} />
+                      {ctx?.resumo?.is_pix && (
+                        <div className="col-span-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 rounded-full">
+                            <Zap className="h-2.5 w-2.5" /> Emenda PIX
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                  <InfoPair label="Codigo Emenda" value={emenda.codigo_emenda} />
-                  <InfoPair label="Numero" value={emenda.numero_emenda} />
-                  <InfoPair label="Ano" value={String(emenda.ano)} />
-                  <InfoPair label="Subfuncao" value={emenda.subfuncao} />
-                  <InfoPair label="Codigo IBGE" value={emenda.codigo_ibge ? String(emenda.codigo_ibge) : undefined} />
-                  <InfoPair label="Partido" value={emenda.partido} />
+                  {/* Execution context */}
+                  <div className="rounded-lg border border-slate-700/20 bg-[#0f1629]/40 p-3">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Execucao Orcamentaria</h4>
+                    {ctx?.execucao ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Taxa de Execucao</span>
+                          <span className={`font-bold tabular-nums ${ctx.execucao.taxa_execucao >= 80 ? 'text-emerald-400' : ctx.execucao.taxa_execucao >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                            {ctx.execucao.taxa_execucao}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-700/30 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${ctx.execucao.taxa_execucao >= 80 ? 'bg-emerald-500' : ctx.execucao.taxa_execucao >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            style={{ width: `${Math.min(ctx.execucao.taxa_execucao, 100)}%` }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <FinancialCard label="Empenhado" value={ctx.execucao.empenhado} color="cyan" />
+                          <FinancialCard label="Pago" value={ctx.execucao.pago} color="emerald" />
+                          <FinancialCard label="Liquidado" value={ctx.execucao.liquidado} color="blue" />
+                          <FinancialCard label="Resto a Pagar" value={ctx.execucao.resto_a_pagar} color="amber" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <FinancialCard label="Empenhado" value={emenda.valor_empenhado} color="cyan" />
+                        <FinancialCard label="Pago" value={emenda.valor_pago} color="emerald" />
+                        <FinancialCard label="Liquidado" value={emenda.valor_liquidado} color="blue" />
+                        <FinancialCard label="Resto Inscrito" value={emenda.valor_resto_inscrito} color="amber" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {/* Financial Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                  <FinancialCard label="Empenhado" value={emenda.valor_empenhado} color="cyan" />
-                  <FinancialCard label="Liquidado" value={emenda.valor_liquidado} color="blue" />
-                  <FinancialCard label="Pago" value={emenda.valor_pago} color="emerald" />
-                  <FinancialCard label="Resto Inscrito" value={emenda.valor_resto_inscrito} color="amber" />
-                  <FinancialCard label="Resto Cancelado" value={emenda.valor_resto_cancelado} color="red" />
-                  <FinancialCard label="Resto Pago" value={emenda.valor_resto_pago} color="purple" />
-                </div>
-              </div>
 
-              {/* Right: Context panel — related news */}
-              <div className="w-full lg:w-80 flex-shrink-0">
+                {/* Col 2: Beneficiaries + Author History */}
+                <div className="space-y-3">
+                  {/* Favorecidos */}
+                  <div className="rounded-lg border border-slate-700/20 bg-[#0f1629]/40 p-3">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Beneficiarios</h4>
+                    {ctx?.favorecidos && ctx.favorecidos.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {ctx.favorecidos.slice(0, 6).map((f, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-slate-300 truncate">{f.nome || 'N/A'}</div>
+                              <div className="text-[10px] text-slate-500">{f.tipo} · {f.uf || '?'}{f.municipio ? ` / ${f.municipio}` : ''}</div>
+                            </div>
+                            <span className="text-slate-400 tabular-nums flex-shrink-0 text-[10px]">{formatCurrency(f.valor)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-600 py-2 text-center">Sem dados de favorecidos</div>
+                    )}
+                  </div>
+
+                  {/* Author time series mini chart */}
+                  {ctx?.autor_historico && ctx.autor_historico.length > 1 && (
+                    <div className="rounded-lg border border-slate-700/20 bg-[#0f1629]/40 p-3">
+                      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Historico do Autor ({ctx.resumo?.autor?.split(' ').slice(0, 2).join(' ') || 'Autor'})
+                      </h4>
+                      <div className="space-y-1">
+                        {ctx.autor_historico.slice(-6).map((h) => {
+                          const maxEmp = Math.max(...ctx.autor_historico!.map((x) => x.valor_empenhado || 1));
+                          const pct = maxEmp > 0 ? (h.valor_empenhado / maxEmp) * 100 : 0;
+                          return (
+                            <div key={h.ano} className="flex items-center gap-2 text-[10px]">
+                              <span className="w-8 text-slate-500 tabular-nums">{h.ano}</span>
+                              <div className="flex-1 h-3 bg-slate-700/20 rounded overflow-hidden">
+                                <div className="h-full bg-purple-500/40 rounded" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-slate-500 tabular-nums w-6 text-right">{h.taxa_execucao}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Col 3: Related News */}
                 <div className="rounded-xl border border-slate-700/30 bg-[#0f1629]/40 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Newspaper className="h-4 w-4 text-cyan-400" />
@@ -544,13 +728,7 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
                     </h4>
                   </div>
 
-                  {contextQuery.isLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-12 bg-slate-700/20 rounded animate-pulse" />
-                      ))}
-                    </div>
-                  ) : ctx?.noticias && ctx.noticias.length > 0 ? (
+                  {ctx?.noticias && ctx.noticias.length > 0 ? (
                     <div className="space-y-2.5">
                       {ctx.noticias.map((noticia) => (
                         <div
@@ -598,7 +776,7 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </td>
         </tr>
       )}
@@ -717,6 +895,44 @@ function ContextFacetCard({
           </div>
         ))}
         {items.length === 0 && <div className="text-slate-600 text-xs">Sem dados</div>}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CONCENTRATION CARD
+// ============================================
+
+function ConcentrationCard({
+  title,
+  metric,
+  detail,
+  percent,
+  color,
+}: {
+  title: string;
+  metric: string;
+  detail: string;
+  percent: number;
+  color: 'cyan' | 'emerald' | 'purple';
+}) {
+  const borderColor = { cyan: 'border-cyan-500/20', emerald: 'border-emerald-500/20', purple: 'border-purple-500/20' };
+  const barColor = { cyan: 'bg-cyan-500', emerald: 'bg-emerald-500', purple: 'bg-purple-500' };
+  const textColor = { cyan: 'text-cyan-400', emerald: 'text-emerald-400', purple: 'text-purple-400' };
+  const level = percent >= 80 ? 'Alta' : percent >= 50 ? 'Media' : 'Baixa';
+  const levelColor = percent >= 80 ? 'text-red-400' : percent >= 50 ? 'text-amber-400' : 'text-emerald-400';
+
+  return (
+    <div className={`rounded-xl border bg-[#0f1629]/60 p-4 ${borderColor[color]}`}>
+      <h4 className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${textColor[color]}`}>{title}</h4>
+      <div className="text-sm font-bold text-slate-200 tabular-nums mb-1">{metric}</div>
+      <div className="w-full h-1.5 bg-slate-700/30 rounded-full overflow-hidden mb-2">
+        <div className={`h-full rounded-full ${barColor[color]}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+      </div>
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-slate-500">{detail}</span>
+        <span className={`font-medium ${levelColor}`}>{level}</span>
       </div>
     </div>
   );

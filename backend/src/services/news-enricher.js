@@ -193,7 +193,7 @@ async function persistEnrichment(results, signalMap) {
         const validSignalIds = new Set(signalMap.map(s => s.id));
         const signalRows = r.sinais
           .filter(sid => validSignalIds.has(sid))
-          .map(sid => ({ noticia_id: safeId, sinal_id: sid }));
+          .map(sid => ({ noticia_id: safeId, sinal_id: sid, confidence: 0.70, detection_method: 'ia' }));
 
         if (signalRows.length > 0) {
           const { error } = await supabase
