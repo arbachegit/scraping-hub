@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -11,7 +11,6 @@ import {
   Building2,
   Loader2,
   RefreshCw,
-  ChevronDown,
   CheckCircle2,
   X,
 } from 'lucide-react';
@@ -21,9 +20,8 @@ import {
   getBiOpportunities,
   getBiEcosystem,
   executePipeline,
-  getHealth,
 } from '@/lib/api';
-import type { PipelineRun, BiProfile, BiOpportunity, EcosystemData } from '@/lib/api';
+import type { PipelineRun } from '@/lib/api';
 import { fetchWithAuth } from '@/lib/auth';
 import { PipelineStatus } from '@/components/bi/pipeline-status';
 import { ProfileCards } from '@/components/bi/profile-cards';

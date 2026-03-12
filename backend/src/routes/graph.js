@@ -354,7 +354,7 @@ router.get('/materialization/empresa/:empresaId', async (req, res) => {
       evaluation,
     });
   } catch (err) {
-    logger.error('graph_materialization_diagnosis_error', { empresaId: req.params.empresaId, error: err.message });
+    logger.error('graph_materialization_diagnosis_error', { empresaId: sanitizeForLog(req.params.empresaId), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Failed to load graph materialization diagnosis' });
   }
 });
@@ -372,7 +372,7 @@ router.post('/materialize/empresa/:empresaId', async (req, res) => {
       result,
     });
   } catch (err) {
-    logger.error('graph_materialize_company_error', { empresaId: req.params.empresaId, error: err.message });
+    logger.error('graph_materialize_company_error', { empresaId: sanitizeForLog(req.params.empresaId), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Failed to materialize company graph' });
   }
 });
@@ -513,7 +513,7 @@ router.get('/search', async (req, res) => {
     // Pessoas are not capped — return all from DB as a directory
     return res.json({ success: true, results });
   } catch (err) {
-    logger.error('graph_search_error', { query: req.query.q, error: err.message });
+    logger.error('graph_search_error', { query: sanitizeForLog(req.query.q), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Search failed' });
   }
 });
@@ -1288,7 +1288,7 @@ router.get('/explore', async (req, res) => {
       stats
     });
   } catch (err) {
-    logger.error('graph_explore_error', { query: req.query.q, error: err.message, stack: err.stack });
+    logger.error('graph_explore_error', { query: sanitizeForLog(req.query.q), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Explore failed' });
   }
 });
@@ -1408,7 +1408,7 @@ router.get('/node-details/empresa/:empresaId', async (req, res) => {
       socios,
     });
   } catch (err) {
-    logger.error('graph_node_details_error', { empresaId: req.params.empresaId, error: err.message });
+    logger.error('graph_node_details_error', { empresaId: sanitizeForLog(req.params.empresaId), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Failed to fetch node details' });
   }
 });
@@ -2072,7 +2072,7 @@ router.get('/deep-search', async (req, res) => {
       },
     });
   } catch (err) {
-    logger.error('deep_search_error', { query: req.query.q, error: err.message, stack: err.stack });
+    logger.error('deep_search_error', { query: sanitizeForLog(req.query.q), error: sanitizeForLog(err.message) });
     return res.status(500).json({ success: false, error: 'Deep search failed' });
   }
 });

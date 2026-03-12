@@ -472,20 +472,6 @@ export function CompanyModal({
               </div>
             </div>
             <div className="flex gap-3 items-center">
-              <Button
-                onClick={handleSearch}
-                disabled={externalLoading}
-                variant="outline"
-                className="h-12 px-6 border-amber-500/30 text-amber-400 hover:bg-amber-500/15"
-              >
-                {externalLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Globe className="h-4 w-4 mr-2" />
-                )}
-                Buscar Fora
-              </Button>
-
               {/* Mass insert button */}
               {countNew > 0 && (
                 <Button
@@ -683,9 +669,6 @@ export function CompanyModal({
                 !externalLoading && (
                   <div className="text-center py-10 text-slate-500">
                     <p>Nenhuma empresa encontrada para &quot;{debouncedNome}&quot;.</p>
-                    {!externalDone && (
-                      <p className="mt-2 text-sm">Use o botao <strong>&quot;Buscar Fora&quot;</strong> para pesquisar via Serper/BrasilAPI/Perplexity.</p>
-                    )}
                   </div>
                 )}
 

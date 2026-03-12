@@ -135,6 +135,105 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
 });
 
 /**
+ * GET /api/emendas/aggregation
+ * Aggregated stats for emendas dashboard
+ */
+router.get('/aggregation', async (req, res) => {
+  try {
+    if (!brasilDataHub) {
+      return res.status(503).json({ success: false, error: 'Brasil Data Hub not configured.' });
+    }
+
+    // Run all queries in parallel
+    const [byFuncao, byAno, byTipo, byLocalidade, topAutores, totals] = await Promise.all([
+      // By funcao
+      brasilDataHub.rpc('get_emendas_by_funcao'),
+      // By ano
+      brasilDataHub.rpc('get_emendas_by_ano'),
+      // By tipo
+      brasilDataHub.rpc('get_emendas_by_tipo'),
+      // By localidade (top 15)
+      brasilDataHub.rpc('get_emendas_by_localidade'),
+      // Top autores
+      brasilDataHub.rpc('get_emendas_top_autores'),
+      // Totals
+      brasilDataHub.rpc('get_emendas_totals'),
+    ]);
+
+    // Fallback: if RPCs don't exist, use direct queries
+    let funcaoData = byFuncao.data;
+    let anoData = byAno.data;
+    let tipoData = byTipo.data;
+    let localidadeData = byLocalidade.data;
+    let autoresData = topAutores.data;
+    let totalsData = totals.data;
+
+    // If any RPC fails, run fallback queries
+    if (byFuncao.error || byAno.error || byTipo.error) {
+      logger.warn('Emendas aggregation RPCs not available, using fallback');
+
+      const [fRes, aRes, tRes, lRes, auRes] = await Promise.all([
+        brasilDataHub.from('fato_emendas_parlamentares').select('funcao').not('funcao', 'is', null),
+        brasilDataHub.from('fato_emendas_parlamentares').select('ano'),
+        brasilDataHub.from('fato_emendas_parlamentares').select('tipo_emenda').not('tipo_emenda', 'is', null),
+        brasilDataHub.from('fato_emendas_parlamentares').select('localidade').not('localidade', 'is', null),
+        brasilDataHub.from('fato_emendas_parlamentares').select('autor, valor_empenhado').order('valor_empenhado', { ascending: false }).limit(500),
+      ]);
+
+      // Aggregate in memory
+      if (!byFuncao.data && fRes.data) {
+        const grouped = {};
+        for (const r of fRes.data) { grouped[r.funcao] = (grouped[r.funcao] || 0) + 1; }
+        funcaoData = Object.entries(grouped).map(([funcao, count]) => ({ funcao, count })).sort((a, b) => b.count - a.count);
+      }
+      if (!byAno.data && aRes.data) {
+        const grouped = {};
+        for (const r of aRes.data) { grouped[r.ano] = (grouped[r.ano] || 0) + 1; }
+        anoData = Object.entries(grouped).map(([ano, count]) => ({ ano: Number(ano), count })).sort((a, b) => a.ano - b.ano);
+      }
+      if (!byTipo.data && tRes.data) {
+        const grouped = {};
+        for (const r of tRes.data) { grouped[r.tipo_emenda] = (grouped[r.tipo_emenda] || 0) + 1; }
+        tipoData = Object.entries(grouped).map(([tipo, count]) => ({ tipo, count })).sort((a, b) => b.count - a.count);
+      }
+      if (!byLocalidade.data && lRes.data) {
+        const grouped = {};
+        for (const r of lRes.data) { grouped[r.localidade] = (grouped[r.localidade] || 0) + 1; }
+        localidadeData = Object.entries(grouped).map(([localidade, count]) => ({ localidade, count })).sort((a, b) => b.count - a.count).slice(0, 15);
+      }
+      if (!topAutores.data && auRes.data) {
+        const grouped = {};
+        for (const r of auRes.data) {
+          if (!grouped[r.autor]) grouped[r.autor] = { count: 0, valor_total: 0 };
+          grouped[r.autor].count++;
+          grouped[r.autor].valor_total += Number(r.valor_empenhado) || 0;
+        }
+        autoresData = Object.entries(grouped).map(([autor, d]) => ({ autor, count: d.count, valor_total: d.valor_total })).sort((a, b) => b.valor_total - a.valor_total).slice(0, 15);
+      }
+    }
+
+    // Calculate totals from the data if RPC not available
+    if (!totalsData) {
+      const { count } = await brasilDataHub.from('fato_emendas_parlamentares').select('*', { count: 'exact', head: true });
+      totalsData = [{ total_emendas: count || 0, total_empenhado: 0, total_pago: 0 }];
+    }
+
+    res.json({
+      success: true,
+      totals: Array.isArray(totalsData) ? totalsData[0] : totalsData,
+      by_funcao: funcaoData || [],
+      by_ano: anoData || [],
+      by_tipo: tipoData || [],
+      by_localidade: localidadeData || [],
+      top_autores: autoresData || [],
+    });
+  } catch (error) {
+    logger.error('Error getting emendas aggregation', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/emendas/:id
  * Get single emenda by ID
  */
