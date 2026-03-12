@@ -23,9 +23,9 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 import structlog
-from supabase import Client, create_client
 
 from config.settings import settings
+from supabase import Client, create_client
 
 logger = structlog.get_logger()
 
@@ -314,7 +314,7 @@ class EmendasSubnacionaisCollector:
             # Skip empty rows or rows with all None/asterisk
             if all(v is None or str(v).strip() == '*' for v in row):
                 continue
-            row_dict = dict(zip(headers, row))
+            row_dict = dict(zip(headers, row, strict=False))
             record = self._normalize_rj(row_dict, source)
             if record:
                 records.append(record)
