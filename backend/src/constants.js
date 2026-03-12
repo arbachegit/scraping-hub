@@ -175,6 +175,18 @@ export const DATA_SOURCES = {
     confiabilidade: 'alta',
     cobertura_temporal: '2015-presente',
     observacoes: 'Emendas parlamentares individuais e de bancada via Supabase (fato_emendas_parlamentares)'
+  },
+  BRASIL_DATA_HUB_EMENDAS_SUBNACIONAIS: {
+    nome: 'Brasil Data Hub - Emendas Subnacionais',
+    categoria: 'politico',
+    fonte_primaria: 'Portais de Transparência Estaduais e Municipais',
+    url: 'https://mnfjkegtynjtgesfphge.supabase.co',
+    documentacao_url: null,
+    formato: 'JSON',
+    api_key_necessaria: true,
+    confiabilidade: 'alta',
+    cobertura_temporal: '2019-presente',
+    observacoes: 'Emendas estaduais e municipais (GO, MG, RJ, SP) via fato_emendas_subnacionais'
   }
 };
 

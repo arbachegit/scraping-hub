@@ -43,6 +43,7 @@ function getCategoryMapping() {
     politicos: { client: brasilDataHub, table: 'dim_politicos', createdAtColumn: 'criado_em' },
     mandatos: { client: brasilDataHub, table: 'fato_politicos_mandatos', createdAtColumn: 'criado_em' },
     emendas: { client: brasilDataHub, table: 'fato_emendas_parlamentares', createdAtColumn: 'criado_em' },
+    emendas_subnacionais: { client: brasilDataHub, table: 'fato_emendas_subnacionais', createdAtColumn: 'criado_em' },
   };
 }
 
@@ -60,11 +61,14 @@ router.get('/', async (req, res) => {
 
     let politicos = 0, mandatos = 0, emendas = 0;
     if (brasilDataHub) {
-      [politicos, mandatos, emendas] = await Promise.all([
+      let emendasFederais = 0, emendasSubnacionais = 0;
+      [politicos, mandatos, emendasFederais, emendasSubnacionais] = await Promise.all([
         safeCount(brasilDataHub, 'dim_politicos'),
         safeCount(brasilDataHub, 'fato_politicos_mandatos'),
         safeCount(brasilDataHub, 'fato_emendas_parlamentares'),
+        safeCount(brasilDataHub, 'fato_emendas_subnacionais'),
       ]);
+      emendas = emendasFederais + emendasSubnacionais;
     }
 
     const stats = { empresas, pessoas, politicos, mandatos, emendas, noticias };

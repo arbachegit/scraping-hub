@@ -53,6 +53,7 @@ anyio==4.12.1
 # Data Processing
 pandas==3.0.1
 numpy==2.4.2
+openpyxl==3.1.5
 
 # Validation
 validators==0.35.0

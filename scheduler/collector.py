@@ -22,6 +22,7 @@ from mcp_servers.brasilapi_mcp import BrasilAPIMCPServer
 from mcp_servers.cnpja_mcp import CNPJaMCPServer
 from mcp_servers.serper_mcp import SerperMCPServer
 from scripts.audit_graphs import GraphAuditor
+from scheduler.emendas_subnacionais_collector import EmendasSubnacionaisCollector
 
 logger = structlog.get_logger()
 
@@ -419,6 +420,36 @@ class DataCollector:
         finally:
             self._running = False
 
+    async def run_emendas_subnacionais(self) -> dict[str, Any]:
+        """
+        Coleta mensal de emendas subnacionais.
+        Executa após a coleta diária (4 AM).
+
+        Returns:
+            Resultado da coleta
+        """
+        logger.info("emendas_subnacionais_start")
+
+        try:
+            collector = EmendasSubnacionaisCollector()
+            results = await collector.collect_all(dry_run=False)
+            await collector.close()
+
+            summary = {
+                "status": "completed",
+                "sources": len(results),
+                "total_fetched": sum(r.get("fetched", 0) for r in results),
+                "total_inserted": sum(r.get("inserted", 0) for r in results),
+                "errors": sum(r.get("errors", 0) for r in results),
+            }
+
+            logger.info("emendas_subnacionais_complete", **summary)
+            return summary
+
+        except Exception as e:
+            logger.error("emendas_subnacionais_error", error=str(e))
+            return {"status": "error", "error": str(e)}
+
     async def run_daily_audit(self) -> dict[str, Any]:
         """
         Auditoria diária dos gráficos cumulativos.
@@ -470,6 +501,14 @@ class DataCollector:
             CronTrigger(hour=3, minute=0, timezone='America/Sao_Paulo'),
             id="daily_audit",
             name="Auditoria diária de gráficos",
+            replace_existing=True,
+        )
+
+        self.scheduler.add_job(
+            self.run_emendas_subnacionais,
+            CronTrigger(day=1, hour=4, minute=0, timezone='America/Sao_Paulo'),
+            id="monthly_emendas_subnacionais",
+            name="Coleta mensal de emendas subnacionais",
             replace_existing=True,
         )
 

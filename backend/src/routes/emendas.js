@@ -17,6 +17,11 @@ const brasilDataHub = process.env.BRASIL_DATA_HUB_URL && process.env.BRASIL_DATA
   ? createClient(process.env.BRASIL_DATA_HUB_URL, process.env.BRASIL_DATA_HUB_KEY)
   : null;
 
+// Cliente Supabase para iconsai-scraping (noticias, taxonomia, associações)
+const scrapingDb = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  : null;
+
 /**
  * GET /api/emendas/list
  * List emendas with pagination and optional filters
@@ -160,7 +165,16 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
 
 /**
  * GET /api/emendas/aggregation
- * Aggregated stats for emendas dashboard
+ * Context Intelligence: aggregated stats across all 4 emendas tables.
+ *
+ * RPCs answer contextual questions:
+ *  - get_emendas_context_totals → "Qual é o panorama?"
+ *  - get_emendas_beneficiary_focus → "Pra quem vai o dinheiro?"
+ *  - get_emendas_top_funcoes → "Onde mais se investe?"
+ *  - get_emendas_context_top_autores → "Quem mais direciona?"
+ *  - get_emendas_top_destinos → "Pra onde vai?"
+ *  - get_emendas_by_tipo_emenda → "Qual o perfil?"
+ *  - get_emendas_mecanismos → "Como o dinheiro flui?"
  */
 router.get('/aggregation', async (req, res) => {
   try {
@@ -168,91 +182,206 @@ router.get('/aggregation', async (req, res) => {
       return res.status(503).json({ success: false, error: 'Brasil Data Hub not configured.' });
     }
 
-    // Run all queries in parallel
-    const [byFuncao, byAno, byTipo, byLocalidade, topAutores, totals] = await Promise.all([
-      // By funcao
-      brasilDataHub.rpc('get_emendas_by_funcao'),
-      // By ano
-      brasilDataHub.rpc('get_emendas_by_ano'),
-      // By tipo
-      brasilDataHub.rpc('get_emendas_by_tipo'),
-      // By localidade (top 15)
-      brasilDataHub.rpc('get_emendas_by_localidade'),
-      // Top autores
-      brasilDataHub.rpc('get_emendas_top_autores'),
-      // Totals
-      brasilDataHub.rpc('get_emendas_totals'),
+    // All 7 context RPCs in parallel
+    const [totals, beneficiaries, funcoes, autores, destinos, tipos, mecanismos] = await Promise.all([
+      brasilDataHub.rpc('get_emendas_context_totals'),
+      brasilDataHub.rpc('get_emendas_beneficiary_focus'),
+      brasilDataHub.rpc('get_emendas_top_funcoes', { p_limit: 10 }),
+      brasilDataHub.rpc('get_emendas_context_top_autores', { p_limit: 10 }),
+      brasilDataHub.rpc('get_emendas_top_destinos', { p_limit: 10 }),
+      brasilDataHub.rpc('get_emendas_by_tipo_emenda'),
+      brasilDataHub.rpc('get_emendas_mecanismos'),
     ]);
 
-    // Fallback: if RPCs don't exist, use direct queries
-    let funcaoData = byFuncao.data;
-    let anoData = byAno.data;
-    let tipoData = byTipo.data;
-    let localidadeData = byLocalidade.data;
-    let autoresData = topAutores.data;
-    let totalsData = totals.data;
+    // Check for RPC errors
+    const rpcErrors = [totals, beneficiaries, funcoes, autores, destinos, tipos, mecanismos]
+      .filter(r => r.error);
 
-    // If any RPC fails, run fallback queries
-    if (byFuncao.error || byAno.error || byTipo.error) {
-      logger.warn('Emendas aggregation RPCs not available, using fallback');
+    if (rpcErrors.length > 0) {
+      const firstError = rpcErrors[0].error;
+      logger.warn('Emendas context RPCs failed', {
+        failed: rpcErrors.length,
+        code: firstError.code,
+        message: firstError.message,
+      });
 
-      const [fRes, aRes, tRes, lRes, auRes] = await Promise.all([
-        brasilDataHub.from('fato_emendas_parlamentares').select('funcao').not('funcao', 'is', null),
-        brasilDataHub.from('fato_emendas_parlamentares').select('ano'),
-        brasilDataHub.from('fato_emendas_parlamentares').select('tipo_emenda').not('tipo_emenda', 'is', null),
-        brasilDataHub.from('fato_emendas_parlamentares').select('localidade').not('localidade', 'is', null),
-        brasilDataHub.from('fato_emendas_parlamentares').select('autor, valor_empenhado').order('valor_empenhado', { ascending: false }).limit(500),
-      ]);
+      // If RPCs don't exist yet, return minimal fallback
+      if (firstError.code === '42883' || firstError.code === 'PGRST202') {
+        const { count } = await brasilDataHub
+          .from('fato_emendas_parlamentares')
+          .select('*', { count: 'exact', head: true });
 
-      // Aggregate in memory
-      if (!byFuncao.data && fRes.data) {
-        const grouped = {};
-        for (const r of fRes.data) { grouped[r.funcao] = (grouped[r.funcao] || 0) + 1; }
-        funcaoData = Object.entries(grouped).map(([funcao, count]) => ({ funcao, count })).sort((a, b) => b.count - a.count);
+        return res.json({
+          success: true,
+          rpc_available: false,
+          totals: { total_emendas: count || 0 },
+          beneficiaries: [],
+          top_funcoes: [],
+          top_autores: [],
+          top_destinos: [],
+          by_tipo: [],
+          mecanismos: null,
+        });
       }
-      if (!byAno.data && aRes.data) {
-        const grouped = {};
-        for (const r of aRes.data) { grouped[r.ano] = (grouped[r.ano] || 0) + 1; }
-        anoData = Object.entries(grouped).map(([ano, count]) => ({ ano: Number(ano), count })).sort((a, b) => a.ano - b.ano);
-      }
-      if (!byTipo.data && tRes.data) {
-        const grouped = {};
-        for (const r of tRes.data) { grouped[r.tipo_emenda] = (grouped[r.tipo_emenda] || 0) + 1; }
-        tipoData = Object.entries(grouped).map(([tipo, count]) => ({ tipo, count })).sort((a, b) => b.count - a.count);
-      }
-      if (!byLocalidade.data && lRes.data) {
-        const grouped = {};
-        for (const r of lRes.data) { grouped[r.localidade] = (grouped[r.localidade] || 0) + 1; }
-        localidadeData = Object.entries(grouped).map(([localidade, count]) => ({ localidade, count })).sort((a, b) => b.count - a.count).slice(0, 15);
-      }
-      if (!topAutores.data && auRes.data) {
-        const grouped = {};
-        for (const r of auRes.data) {
-          if (!grouped[r.autor]) grouped[r.autor] = { count: 0, valor_total: 0 };
-          grouped[r.autor].count++;
-          grouped[r.autor].valor_total += Number(r.valor_empenhado) || 0;
-        }
-        autoresData = Object.entries(grouped).map(([autor, d]) => ({ autor, count: d.count, valor_total: d.valor_total })).sort((a, b) => b.valor_total - a.valor_total).slice(0, 15);
-      }
-    }
-
-    // Calculate totals from the data if RPC not available
-    if (!totalsData) {
-      const { count } = await brasilDataHub.from('fato_emendas_parlamentares').select('*', { count: 'exact', head: true });
-      totalsData = [{ total_emendas: count || 0, total_empenhado: 0, total_pago: 0 }];
     }
 
     res.json({
       success: true,
-      totals: Array.isArray(totalsData) ? totalsData[0] : totalsData,
-      by_funcao: funcaoData || [],
-      by_ano: anoData || [],
-      by_tipo: tipoData || [],
-      by_localidade: localidadeData || [],
-      top_autores: autoresData || [],
+      rpc_available: true,
+      totals: totals.data || {},
+      beneficiaries: beneficiaries.data || [],
+      top_funcoes: funcoes.data || [],
+      top_autores: autores.data || [],
+      top_destinos: destinos.data || [],
+      by_tipo: tipos.data || [],
+      mecanismos: mecanismos.data || null,
     });
   } catch (error) {
     logger.error('Error getting emendas aggregation', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/emendas/subnacionais
+ * List subnational emendas (estaduais + municipais) with filters
+ */
+router.get('/subnacionais', validateQuery(listEmendasSchema), async (req, res) => {
+  try {
+    if (!brasilDataHub) {
+      return res.status(503).json({
+        success: false,
+        error: 'Brasil Data Hub not configured.'
+      });
+    }
+
+    const { limit, offset, autor, uf, ano, tipo } = req.query;
+    const esfera = req.query.esfera; // 'estadual' | 'municipal'
+
+    let query = brasilDataHub
+      .from('fato_emendas_subnacionais')
+      .select('*', { count: 'exact' })
+      .order('ano', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (autor) query = query.ilike('autor', `%${escapeLike(autor)}%`);
+    if (uf) query = query.eq('uf', uf);
+    if (ano) query = query.eq('ano', ano);
+    if (tipo) query = query.ilike('tipo', `%${escapeLike(tipo)}%`);
+    if (esfera) query = query.eq('esfera', esfera);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      logger.error('Error listing subnacional emendas', { error: error.message });
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      count,
+      emendas: data || []
+    });
+  } catch (error) {
+    logger.error('Error listing subnacional emendas', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/emendas/:id/context
+ * Context Intelligence: related news, taxonomy, and associations for an emenda.
+ * Connects emenda (Brasil Data Hub) with noticias (scraping DB) via shared taxonomy.
+ */
+router.get('/:id/context', validateParams(integerIdParamSchema), async (req, res) => {
+  try {
+    if (!brasilDataHub || !scrapingDb) {
+      return res.status(503).json({ success: false, error: 'Database clients not configured.' });
+    }
+
+    const { id } = req.params;
+
+    // 1. Get emenda from Brasil Data Hub
+    const { data: emenda, error: emendaErr } = await brasilDataHub
+      .from('fato_emendas_parlamentares')
+      .select('id, autor, funcao, localidade, tipo_emenda, ano')
+      .eq('id', id)
+      .single();
+
+    if (emendaErr || !emenda) {
+      return res.status(404).json({ success: false, error: 'Emenda not found' });
+    }
+
+    // 2. Map funcao → taxonomy slug
+    const { data: mapping } = await scrapingDb
+      .from('map_funcao_taxonomia')
+      .select('taxonomia_slug')
+      .eq('funcao', emenda.funcao)
+      .single();
+
+    const taxonomiaSlug = mapping?.taxonomia_slug || null;
+
+    // 3. Get taxonomy info
+    let taxonomia = null;
+    if (taxonomiaSlug) {
+      const { data } = await scrapingDb
+        .from('dim_taxonomia_tematica')
+        .select('slug, nome, cor, icone')
+        .eq('slug', taxonomiaSlug)
+        .single();
+      taxonomia = data;
+    }
+
+    // 4. Get pre-computed associations for this emenda
+    const { data: associations } = await scrapingDb
+      .from('fato_associacoes_contextuais')
+      .select('origem_id, tipo_associacao, confianca, evidencia')
+      .eq('destino_tipo', 'emenda')
+      .eq('destino_id', String(id))
+      .eq('origem_tipo', 'noticia')
+      .order('confianca', { ascending: false })
+      .limit(10);
+
+    // 5. Fetch the actual noticias for those associations
+    let noticias = [];
+    if (associations && associations.length > 0) {
+      const noticiaIds = associations.map(a => a.origem_id);
+      const { data } = await scrapingDb
+        .from('dim_noticias')
+        .select('id, titulo, resumo, fonte_nome, data_publicacao, tema_principal, url')
+        .in('id', noticiaIds)
+        .order('data_publicacao', { ascending: false });
+      noticias = data || [];
+    }
+
+    // 6. If no pre-computed associations, fallback: find noticias by same tema
+    if (noticias.length === 0 && taxonomiaSlug) {
+      const { data: temaMapping } = await scrapingDb
+        .from('map_tema_taxonomia')
+        .select('tema_principal')
+        .eq('taxonomia_slug', taxonomiaSlug);
+
+      if (temaMapping && temaMapping.length > 0) {
+        const temas = temaMapping.map(t => t.tema_principal);
+        const { data } = await scrapingDb
+          .from('dim_noticias')
+          .select('id, titulo, resumo, fonte_nome, data_publicacao, tema_principal, url')
+          .in('tema_principal', temas)
+          .order('data_publicacao', { ascending: false })
+          .limit(5);
+        noticias = data || [];
+      }
+    }
+
+    res.json({
+      success: true,
+      emenda_id: id,
+      taxonomia,
+      associations_count: associations?.length || 0,
+      noticias,
+    });
+  } catch (error) {
+    logger.error('Error getting emenda context', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });
