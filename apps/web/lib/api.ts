@@ -1956,17 +1956,87 @@ export async function getEmendaDetails(id: number): Promise<EmendaDetailResponse
 // ============================================
 
 export interface EmendasAggregation {
+  rpc_available: boolean;
   totals: {
     total_emendas: number;
-    valor_total_empenhado: number;
-    valor_total_pago: number;
+    valor_empenhado: number;
+    valor_liquidado: number;
+    valor_pago: number;
+    valor_resto_a_pagar: number;
     autores_unicos: number;
+    partidos_unicos: number;
+    taxa_execucao: number;
+    total_emendas_pix: number;
+    ano_min: number;
+    ano_max: number;
   };
-  by_funcao: Array<{ funcao: string; count: number; valor_total: number }>;
-  by_ano: Array<{ ano: number; count: number; valor_total: number }>;
-  by_tipo: Array<{ tipo_emenda: string; count: number }>;
-  by_localidade: Array<{ localidade: string; count: number; valor_total: number }>;
-  top_autores: Array<{ autor: string; count: number; valor_total: number }>;
+  beneficiaries: Array<{
+    tipo_favorecido: string;
+    count: number;
+    valor_total: number;
+    percentual: number;
+  }>;
+  top_funcoes: Array<{
+    funcao: string;
+    count: number;
+    valor_empenhado: number;
+    valor_pago: number;
+    taxa_execucao: number;
+  }>;
+  top_autores: Array<{
+    autor: string;
+    count: number;
+    valor_empenhado: number;
+    valor_pago: number;
+    funcoes_distintas: number;
+    taxa_execucao: number;
+  }>;
+  top_destinos: Array<{
+    uf: string;
+    count: number;
+    valor_total: number;
+  }>;
+  by_tipo: Array<{
+    tipo_emenda: string;
+    count: number;
+    valor_empenhado: number;
+    valor_pago: number;
+    taxa_execucao: number;
+  }>;
+  mecanismos: {
+    convenios: { count: number; valor_total: number };
+    emendas_pix: { count: number; valor_empenhado: number; valor_pago: number };
+    apoiamento_rp9: { count: number; valor_empenhado: number; valor_pago: number };
+  } | null;
+}
+
+export interface EmendaContext {
+  emenda_id: number;
+  taxonomia: {
+    slug: string;
+    nome: string;
+    cor: string;
+    icone: string;
+  } | null;
+  associations_count: number;
+  noticias: Array<{
+    id: string;
+    titulo: string;
+    resumo: string;
+    fonte_nome: string;
+    data_publicacao: string;
+    tema_principal: string;
+    url: string;
+  }>;
+}
+
+export async function getEmendaContext(id: number): Promise<EmendaContext> {
+  const res = await fetchWithAuth(`${API_BASE}/emendas/${id}/context`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Context failed' }));
+    throw new Error(error.error || 'Context failed');
+  }
+  return res.json();
 }
 
 export async function getEmendasAggregation(): Promise<EmendasAggregation> {

@@ -19,11 +19,24 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Percent,
+  Building2,
+  MapPin,
+  Landmark,
+  Zap,
+  Handshake,
+  UserCheck,
+  Newspaper,
+  ExternalLink,
+  Tag,
 } from 'lucide-react';
 import {
   listEmendas,
   getEmendasAggregation,
+  getEmendaContext,
   type Emenda,
+  type EmendasAggregation,
+  type EmendaContext,
 } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
 
@@ -46,10 +59,26 @@ function formatNumber(value: number | undefined | null): string {
   return new Intl.NumberFormat('pt-BR').format(value);
 }
 
-function executionRate(empenhado: number | undefined, pago: number | undefined): number {
-  if (!empenhado || empenhado === 0) return 0;
-  return Math.round(((pago || 0) / empenhado) * 100);
+function formatPercent(value: number | undefined | null): string {
+  if (value == null) return '0%';
+  return `${value}%`;
 }
+
+const BENEFICIARY_LABELS: Record<string, { label: string; color: string }> = {
+  'Pessoa Jurídica': { label: 'Mercado (PJ)', color: 'cyan' },
+  'Pessoa Juridica': { label: 'Mercado (PJ)', color: 'cyan' },
+  'Pessoa Física': { label: 'Cidadao (PF)', color: 'emerald' },
+  'Pessoa Fisica': { label: 'Cidadao (PF)', color: 'emerald' },
+  'Unidade Gestora': { label: 'Governo (UG)', color: 'purple' },
+  'Inscrição Genérica': { label: 'Inscr. Generica', color: 'slate' },
+  'Inscricao Generica': { label: 'Inscr. Generica', color: 'slate' },
+  'Inscrição Genéric': { label: 'Inscr. Generica', color: 'slate' },
+  'Inscricao Generic': { label: 'Inscr. Generica', color: 'slate' },
+  'Inválido': { label: 'Invalido', color: 'slate' },
+  'Invalido': { label: 'Invalido', color: 'slate' },
+  'Sem informação': { label: 'Sem Info', color: 'slate' },
+  'Sem informacao': { label: 'Sem Info', color: 'slate' },
+};
 
 // ============================================
 // MAIN PAGE
@@ -162,15 +191,22 @@ export default function EmendasPage() {
               <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                 <Receipt className="h-4 w-4 text-cyan-400" />
               </div>
-              <h1 className="text-lg font-bold text-slate-200">Emendas Parlamentares</h1>
+              <div>
+                <h1 className="text-lg font-bold text-slate-200">Emendas Parlamentares</h1>
+                {agg?.totals?.ano_min && agg?.totals?.ano_max && (
+                  <span className="text-[10px] text-slate-500">
+                    {agg.totals.ano_min}–{agg.totals.ano_max} | Federal
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Row 1: Panorama Cards (4 primary metrics) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <SummaryCard
             icon={FileText}
             label="Total Emendas"
@@ -180,36 +216,113 @@ export default function EmendasPage() {
           />
           <SummaryCard
             icon={DollarSign}
-            label="Valor Empenhado"
-            value={formatCurrency(agg?.totals?.valor_total_empenhado)}
+            label="Empenhado"
+            value={formatCurrency(agg?.totals?.valor_empenhado)}
             color="emerald"
             loading={aggQuery.isLoading}
           />
           <SummaryCard
             icon={TrendingUp}
-            label="Valor Pago"
-            value={formatCurrency(agg?.totals?.valor_total_pago)}
+            label="Pago"
+            value={formatCurrency(agg?.totals?.valor_pago)}
+            sub={agg?.totals?.taxa_execucao ? `${agg.totals.taxa_execucao}% executado` : undefined}
+            subColor="emerald"
             color="blue"
             loading={aggQuery.isLoading}
           />
           <SummaryCard
-            icon={Users}
-            label="Autores Únicos"
-            value={formatNumber(agg?.totals?.autores_unicos)}
-            color="purple"
+            icon={Percent}
+            label="Taxa de Execucao"
+            value={formatPercent(agg?.totals?.taxa_execucao)}
+            sub={agg?.totals?.valor_resto_a_pagar ? `${formatCurrency(agg.totals.valor_resto_a_pagar)} parado` : undefined}
+            subColor="amber"
+            color="amber"
             loading={aggQuery.isLoading}
           />
         </div>
 
-        {/* Top Facets Row */}
+        {/* Row 2: Secondary context cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <SummaryCard
+            icon={Users}
+            label="Autores Unicos"
+            value={formatNumber(agg?.totals?.autores_unicos)}
+            sub={agg?.totals?.ano_min && agg?.totals?.ano_max ? `${agg.totals.ano_max - agg.totals.ano_min + 1} anos de dados` : undefined}
+            subColor="slate"
+            color="purple"
+            loading={aggQuery.isLoading}
+          />
+          <SummaryCard
+            icon={Landmark}
+            label="Liquidado"
+            value={formatCurrency(agg?.totals?.valor_liquidado)}
+            color="blue"
+            loading={aggQuery.isLoading}
+          />
+          <SummaryCard
+            icon={Zap}
+            label="Emendas PIX"
+            value={formatNumber(agg?.totals?.total_emendas_pix)}
+            sub={agg?.mecanismos?.emendas_pix ? formatCurrency(agg.mecanismos.emendas_pix.valor_empenhado) : undefined}
+            subColor="cyan"
+            color="cyan"
+            loading={aggQuery.isLoading}
+          />
+          <SummaryCard
+            icon={Handshake}
+            label="Convenios"
+            value={formatNumber(agg?.mecanismos?.convenios?.count)}
+            sub={agg?.mecanismos?.convenios ? formatCurrency(agg.mecanismos.convenios.valor_total) : undefined}
+            subColor="emerald"
+            color="emerald"
+            loading={aggQuery.isLoading}
+          />
+        </div>
+
+        {/* Row 3: Context Intelligence Cards */}
         {agg && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Top Funções */}
-            <FacetCard title="Top Funções" items={agg.by_funcao.slice(0, 5).map((f) => ({ label: f.funcao, count: f.count, value: f.valor_total }))} color="cyan" />
-            {/* Top Localidades */}
-            <FacetCard title="Top Territórios" items={agg.by_localidade.slice(0, 5).map((l) => ({ label: l.localidade, count: l.count, value: l.valor_total }))} color="emerald" />
-            {/* Top Autores */}
-            <FacetCard title="Top Autores" items={agg.top_autores.slice(0, 5).map((a) => ({ label: a.autor, count: a.count, value: a.valor_total }))} color="purple" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Beneficiary Focus — "Pra quem vai o dinheiro?" */}
+            <BeneficiaryCard items={agg.beneficiaries} loading={aggQuery.isLoading} />
+
+            {/* Top Funções — "Onde mais se investe?" */}
+            <ContextFacetCard
+              title="Onde Investe"
+              icon={Building2}
+              items={(agg.top_funcoes || []).slice(0, 5).map((f) => ({
+                label: f.funcao,
+                primary: formatCurrency(f.valor_empenhado),
+                secondary: `${f.taxa_execucao}% exec`,
+                count: f.count,
+              }))}
+              color="cyan"
+            />
+
+            {/* Top Destinos — "Pra onde vai?" */}
+            <ContextFacetCard
+              title="Destino (UF)"
+              icon={MapPin}
+              items={(agg.top_destinos || []).slice(0, 5).map((d) => ({
+                label: d.uf,
+                primary: formatCurrency(d.valor_total),
+                secondary: `${formatNumber(d.count)} repasses`,
+                count: d.count,
+              }))}
+              color="emerald"
+            />
+
+            {/* Top Autores — "Quem mais direciona?" */}
+            <ContextFacetCard
+              title="Top Autores"
+              icon={UserCheck}
+              items={(agg.top_autores || []).slice(0, 5).map((a) => ({
+                label: a.autor,
+                primary: formatCurrency(a.valor_empenhado),
+                secondary: `${a.taxa_execucao}% exec`,
+                count: a.count,
+              }))}
+              color="purple"
+            />
           </div>
         )}
 
@@ -220,7 +333,7 @@ export default function EmendasPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
               <input
                 type="text"
-                placeholder="Buscar por autor, função, localidade..."
+                placeholder="Buscar por autor, funcao, localidade..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full h-10 pl-10 pr-4 bg-[#0f1629] border border-slate-700/50 rounded-lg text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50"
@@ -247,7 +360,7 @@ export default function EmendasPage() {
           {showFilters && (
             <div className="mt-3 p-4 bg-[#0f1629]/80 border border-slate-700/30 rounded-lg">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <FilterSelect label="Função" value={funcaoFilter} onChange={setFuncaoFilter} options={uniqueFuncoes as string[]} />
+                <FilterSelect label="Funcao" value={funcaoFilter} onChange={setFuncaoFilter} options={uniqueFuncoes as string[]} />
                 <FilterSelect label="Ano" value={anoFilter} onChange={setAnoFilter} options={uniqueAnos as string[]} />
                 <FilterSelect label="Tipo" value={tipoFilter} onChange={setTipoFilter} options={uniqueTipos as string[]} />
                 <FilterSelect label="Localidade" value={localidadeFilter} onChange={setLocalidadeFilter} options={uniqueLocalidades as string[]} />
@@ -276,7 +389,7 @@ export default function EmendasPage() {
               <thead>
                 <tr className="border-b border-slate-700/30">
                   <SortableHeader label="Autor" column="autor" current={sortColumn} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Função" column="funcao" current={sortColumn} direction={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Funcao" column="funcao" current={sortColumn} direction={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Localidade" column="localidade" current={sortColumn} direction={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Tipo" column="tipo_emenda" current={sortColumn} direction={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Empenhado" column="valor_empenhado" current={sortColumn} direction={sortDirection} onSort={handleSort} align="right" />
@@ -321,6 +434,16 @@ export default function EmendasPage() {
 
 function EmendaRow({ emenda }: { emenda: Emenda }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Lazy-load context only when expanded
+  const contextQuery = useQuery({
+    queryKey: ['emenda-context', emenda.id],
+    queryFn: () => getEmendaContext(emenda.id),
+    enabled: expanded,
+    staleTime: 120_000,
+  });
+
+  const ctx = contextQuery.data;
 
   return (
     <>
@@ -372,22 +495,109 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
       {expanded && (
         <tr>
           <td colSpan={8} className="px-4 py-4 bg-[#0a0e1a]/60">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-              <InfoPair label="Código Emenda" value={emenda.codigo_emenda} />
-              <InfoPair label="Número" value={emenda.numero_emenda} />
-              <InfoPair label="Ano" value={String(emenda.ano)} />
-              <InfoPair label="Subfunção" value={emenda.subfuncao} />
-              <InfoPair label="Código IBGE" value={emenda.codigo_ibge ? String(emenda.codigo_ibge) : undefined} />
-              <InfoPair label="Partido" value={emenda.partido} />
-            </div>
-            {/* Financial Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <FinancialCard label="Empenhado" value={emenda.valor_empenhado} color="cyan" />
-              <FinancialCard label="Liquidado" value={emenda.valor_liquidado} color="blue" />
-              <FinancialCard label="Pago" value={emenda.valor_pago} color="emerald" />
-              <FinancialCard label="Resto Inscrito" value={emenda.valor_resto_inscrito} color="amber" />
-              <FinancialCard label="Resto Cancelado" value={emenda.valor_resto_cancelado} color="red" />
-              <FinancialCard label="Resto Pago" value={emenda.valor_resto_pago} color="purple" />
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Left: Emenda details */}
+              <div className="flex-1">
+                {/* Taxonomy badge */}
+                {ctx?.taxonomia && (
+                  <div className="mb-3">
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border"
+                      style={{
+                        borderColor: `${ctx.taxonomia.cor}33`,
+                        backgroundColor: `${ctx.taxonomia.cor}15`,
+                        color: ctx.taxonomia.cor,
+                      }}
+                    >
+                      <Tag className="h-3 w-3" />
+                      {ctx.taxonomia.nome}
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                  <InfoPair label="Codigo Emenda" value={emenda.codigo_emenda} />
+                  <InfoPair label="Numero" value={emenda.numero_emenda} />
+                  <InfoPair label="Ano" value={String(emenda.ano)} />
+                  <InfoPair label="Subfuncao" value={emenda.subfuncao} />
+                  <InfoPair label="Codigo IBGE" value={emenda.codigo_ibge ? String(emenda.codigo_ibge) : undefined} />
+                  <InfoPair label="Partido" value={emenda.partido} />
+                </div>
+                {/* Financial Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  <FinancialCard label="Empenhado" value={emenda.valor_empenhado} color="cyan" />
+                  <FinancialCard label="Liquidado" value={emenda.valor_liquidado} color="blue" />
+                  <FinancialCard label="Pago" value={emenda.valor_pago} color="emerald" />
+                  <FinancialCard label="Resto Inscrito" value={emenda.valor_resto_inscrito} color="amber" />
+                  <FinancialCard label="Resto Cancelado" value={emenda.valor_resto_cancelado} color="red" />
+                  <FinancialCard label="Resto Pago" value={emenda.valor_resto_pago} color="purple" />
+                </div>
+              </div>
+
+              {/* Right: Context panel — related news */}
+              <div className="w-full lg:w-80 flex-shrink-0">
+                <div className="rounded-xl border border-slate-700/30 bg-[#0f1629]/40 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Newspaper className="h-4 w-4 text-cyan-400" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-cyan-400">
+                      Noticias Relacionadas
+                    </h4>
+                  </div>
+
+                  {contextQuery.isLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-12 bg-slate-700/20 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : ctx?.noticias && ctx.noticias.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {ctx.noticias.map((noticia) => (
+                        <div
+                          key={noticia.id}
+                          className="p-2.5 rounded-lg border border-slate-700/20 hover:border-cyan-500/20 transition-colors"
+                        >
+                          <div className="text-xs text-slate-200 font-medium line-clamp-2 mb-1">
+                            {noticia.titulo}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                            <span className="truncate min-w-0">{noticia.fonte_nome || 'Fonte'}</span>
+                            {noticia.data_publicacao && (
+                              <>
+                                <span>·</span>
+                                <span className="flex-shrink-0">
+                                  {new Date(noticia.data_publicacao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                </span>
+                              </>
+                            )}
+                            {noticia.url && (
+                              <a
+                                href={noticia.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-shrink-0 text-cyan-500 hover:text-cyan-400"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-600 py-4 text-center">
+                      Nenhuma noticia relacionada encontrada
+                    </div>
+                  )}
+
+                  {ctx?.associations_count != null && ctx.associations_count > 0 && (
+                    <div className="mt-3 pt-2 border-t border-slate-700/20 text-[10px] text-slate-500">
+                      {ctx.associations_count} associacao{ctx.associations_count !== 1 ? 'es' : ''} por tema
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -397,59 +607,77 @@ function EmendaRow({ emenda }: { emenda: Emenda }) {
 }
 
 // ============================================
-// SUB-COMPONENTS
+// BENEFICIARY FOCUS CARD
 // ============================================
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-  loading,
-}: {
-  icon: typeof Receipt;
-  label: string;
-  value: string;
-  color: 'cyan' | 'emerald' | 'blue' | 'purple';
-  loading: boolean;
-}) {
-  const colorMap = {
-    cyan: 'border-cyan-500/20 text-cyan-400 bg-cyan-500/5',
-    emerald: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5',
-    blue: 'border-blue-500/20 text-blue-400 bg-blue-500/5',
-    purple: 'border-purple-500/20 text-purple-400 bg-purple-500/5',
-  };
-  const iconColor = {
-    cyan: 'bg-cyan-500/10 text-cyan-400',
-    emerald: 'bg-emerald-500/10 text-emerald-400',
-    blue: 'bg-blue-500/10 text-blue-400',
-    purple: 'bg-purple-500/10 text-purple-400',
-  };
+function BeneficiaryCard({ items, loading }: { items: EmendasAggregation['beneficiaries']; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-amber-500/15 bg-[#0f1629]/60 p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-amber-400">
+          Foco do Beneficiario
+        </h3>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-8 bg-slate-700/20 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`rounded-xl border p-4 ${colorMap[color]}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor[color]}`}>
-          <Icon className="h-3.5 w-3.5" />
-        </div>
-        <span className="text-xs text-slate-400 font-medium">{label}</span>
+    <div className="rounded-xl border border-amber-500/15 bg-[#0f1629]/60 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-amber-400">
+        Pra Quem Vai?
+      </h3>
+      <div className="space-y-2.5">
+        {(items || []).map((item) => {
+          const meta = BENEFICIARY_LABELS[item.tipo_favorecido] || { label: item.tipo_favorecido, color: 'slate' };
+          return (
+            <div key={item.tipo_favorecido}>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-slate-300 font-medium min-w-0 truncate">{meta.label}</span>
+                <span className="text-slate-400 tabular-nums flex-shrink-0 ml-2">{item.percentual}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-700/30 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    meta.color === 'cyan' ? 'bg-cyan-500' :
+                    meta.color === 'emerald' ? 'bg-emerald-500' :
+                    meta.color === 'purple' ? 'bg-purple-500' :
+                    'bg-slate-500'
+                  }`}
+                  style={{ width: `${Math.min(item.percentual, 100)}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5 tabular-nums">
+                {formatCurrency(item.valor_total)} | {formatNumber(item.count)} registros
+              </div>
+            </div>
+          );
+        })}
+        {(!items || items.length === 0) && (
+          <div className="text-slate-600 text-xs">Sem dados de favorecidos</div>
+        )}
       </div>
-      {loading ? (
-        <div className="h-6 w-24 bg-slate-700/30 rounded animate-pulse" />
-      ) : (
-        <div className="text-lg font-bold text-slate-200 tabular-nums truncate">{value}</div>
-      )}
     </div>
   );
 }
 
-function FacetCard({
+// ============================================
+// CONTEXT FACET CARD
+// ============================================
+
+function ContextFacetCard({
   title,
+  icon: Icon,
   items,
   color,
 }: {
   title: string;
-  items: Array<{ label: string; count: number; value?: number }>;
+  icon: typeof Receipt;
+  items: Array<{ label: string; primary: string; secondary: string; count: number }>;
   color: 'cyan' | 'emerald' | 'purple';
 }) {
   const borderColor = {
@@ -462,26 +690,100 @@ function FacetCard({
     emerald: 'text-emerald-400',
     purple: 'text-purple-400',
   };
+  const iconBg = {
+    cyan: 'bg-cyan-500/10 text-cyan-400',
+    emerald: 'bg-emerald-500/10 text-emerald-400',
+    purple: 'bg-purple-500/10 text-purple-400',
+  };
 
   return (
     <div className={`rounded-xl border bg-[#0f1629]/60 p-4 ${borderColor[color]}`}>
-      <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${titleColor[color]}`}>
-        {title}
-      </h3>
+      <div className="flex items-center gap-2 mb-3">
+        <div className={`w-5 h-5 rounded flex items-center justify-center ${iconBg[color]}`}>
+          <Icon className="h-3 w-3" />
+        </div>
+        <h3 className={`text-xs font-semibold uppercase tracking-wider ${titleColor[color]}`}>
+          {title}
+        </h3>
+      </div>
       <div className="space-y-2">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center justify-between text-xs">
-            <span className="text-slate-300 truncate min-w-0 mr-2">{item.label || '-'}</span>
+          <div key={i} className="flex items-center justify-between text-xs gap-2">
+            <span className="text-slate-300 truncate min-w-0 flex-1">{item.label || '-'}</span>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {item.value != null && (
-                <span className="text-slate-500 tabular-nums">{formatCurrency(item.value)}</span>
-              )}
-              <span className="text-slate-400 tabular-nums font-medium">{formatNumber(item.count)}</span>
+              <span className="text-slate-400 tabular-nums">{item.primary}</span>
+              <span className="text-slate-600 tabular-nums text-[10px]">{item.secondary}</span>
             </div>
           </div>
         ))}
         {items.length === 0 && <div className="text-slate-600 text-xs">Sem dados</div>}
       </div>
+    </div>
+  );
+}
+
+// ============================================
+// SUB-COMPONENTS
+// ============================================
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  subColor,
+  color,
+  loading,
+}: {
+  icon: typeof Receipt;
+  label: string;
+  value: string;
+  sub?: string;
+  subColor?: string;
+  color: 'cyan' | 'emerald' | 'blue' | 'purple' | 'amber';
+  loading: boolean;
+}) {
+  const colorMap = {
+    cyan: 'border-cyan-500/20 text-cyan-400 bg-cyan-500/5',
+    emerald: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5',
+    blue: 'border-blue-500/20 text-blue-400 bg-blue-500/5',
+    purple: 'border-purple-500/20 text-purple-400 bg-purple-500/5',
+    amber: 'border-amber-500/20 text-amber-400 bg-amber-500/5',
+  };
+  const iconColor = {
+    cyan: 'bg-cyan-500/10 text-cyan-400',
+    emerald: 'bg-emerald-500/10 text-emerald-400',
+    blue: 'bg-blue-500/10 text-blue-400',
+    purple: 'bg-purple-500/10 text-purple-400',
+    amber: 'bg-amber-500/10 text-amber-400',
+  };
+  const subColorMap: Record<string, string> = {
+    emerald: 'text-emerald-400/70',
+    amber: 'text-amber-400/70',
+    cyan: 'text-cyan-400/70',
+    slate: 'text-slate-500',
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 ${colorMap[color]}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor[color]}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs text-slate-400 font-medium min-w-0 truncate">{label}</span>
+      </div>
+      {loading ? (
+        <div className="h-6 w-24 bg-slate-700/30 rounded animate-pulse" />
+      ) : (
+        <>
+          <div className="text-lg font-bold text-slate-200 tabular-nums truncate">{value}</div>
+          {sub && (
+            <div className={`text-[10px] mt-0.5 tabular-nums ${subColorMap[subColor || 'slate']}`}>
+              {sub}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
