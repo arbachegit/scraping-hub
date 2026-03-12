@@ -14,7 +14,6 @@ import {
   X,
   DollarSign,
   Users,
-  MapPin,
   TrendingUp,
   FileText,
   ArrowUpDown,
@@ -25,7 +24,6 @@ import {
   listEmendas,
   getEmendasAggregation,
   type Emenda,
-  type EmendasAggregation,
 } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
 
@@ -323,7 +321,6 @@ export default function EmendasPage() {
 
 function EmendaRow({ emenda }: { emenda: Emenda }) {
   const [expanded, setExpanded] = useState(false);
-  const rate = executionRate(emenda.valor_empenhado, emenda.valor_pago);
 
   return (
     <>

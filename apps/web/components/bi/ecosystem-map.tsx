@@ -5,7 +5,6 @@ import {
   Truck,
   Swords,
   Handshake,
-  ExternalLink,
   ShieldCheck,
 } from 'lucide-react';
 import type { EcosystemData } from '@/lib/api';

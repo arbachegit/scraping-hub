@@ -5,8 +5,6 @@ import {
   Building2,
   MapPin,
   TrendingUp,
-  Users,
-  DollarSign,
   Activity,
 } from 'lucide-react';
 import type { BiProfile } from '@/lib/api';

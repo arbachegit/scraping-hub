@@ -22,13 +22,11 @@ import {
   Shield,
   ShieldCheck,
   ShieldAlert,
-  Layers,
 } from 'lucide-react';
 import {
   listNews,
   getNewsAggregation,
   type NewsItem,
-  type NewsAggregation,
 } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
 
