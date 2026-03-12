@@ -389,61 +389,70 @@ router.get('/search', async (req, res) => {
 
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 25);
     const escaped = escapeLike(q);
-    // Word-start matching: "cesla" matches "Cesla" but NOT "Venceslau"
+    // Fallback patterns for ilike (used only if RPC unavailable)
     const startPattern = `${escaped}%`;
     const wordPattern = `% ${escaped}%`;
 
-    // Search all entity types in parallel (22M rows — avoid full scan)
-    const upperQ = q.toUpperCase();
-    const escapedUpper = escapeLike(upperQ);
-    let pessoasQuery;
-    if (upperQ.split(/\s+/).length === 1) {
-      // Single word: primeiro_nome exact match OR nome_completo starts-with
-      pessoasQuery = supabase
-        .from('dim_pessoas')
-        .select('id, nome_completo, cargo_atual, empresa_atual')
-        .or(`primeiro_nome.eq.${escapedUpper},nome_completo.ilike.${escapedUpper}%`)
-        .limit(200);
-    } else {
-      // Multi-word: contains match on nome_completo
-      pessoasQuery = supabase
-        .from('dim_pessoas')
-        .select('id, nome_completo, cargo_atual, empresa_atual')
-        .ilike('nome_completo', `%${escapedUpper}%`)
-        .limit(200);
-    }
+    // Helper: try RPC with graceful fallback to ilike query
+    const tryRpcOrFallback = async (client, rpcName, rpcParams, fallbackQuery) => {
+      const { data, error } = await client.rpc(rpcName, rpcParams);
+      if (!error && data) return { data, source: 'rpc' };
+      if (error && (error.code === '42883' || error.code === 'PGRST202')) {
+        // RPC not found — use fallback ilike query
+        const result = await fallbackQuery();
+        return { data: result.data || [], source: 'fallback' };
+      }
+      // Other error — try fallback
+      logger.warn('graph_search_rpc_failed', { rpc: rpcName, error: error?.message });
+      const result = await fallbackQuery();
+      return { data: result.data || [], source: 'fallback' };
+    };
 
+    // Search all entity types in parallel using hybrid RPCs
     const searchPromises = [
-      // Empresas
+      // Empresas — uses company-search.js which already has buscar_empresas RPC
       searchCompaniesByName({ query: q, limit }),
-      // Pessoas (all from DB when short query, contains-match otherwise)
-      pessoasQuery,
-      // Noticias
-      supabase
-        .from('dim_noticias')
-        .select('id, titulo, fonte_nome, data_publicacao')
-        .or(`titulo.ilike.${startPattern},titulo.ilike.${wordPattern}`)
-        .limit(limit),
+      // Pessoas — hybrid RPC
+      tryRpcOrFallback(supabase, 'buscar_pessoas', { p_query: q, p_limit: limit }, () => {
+        const upperQ = q.toUpperCase();
+        const escapedUpper = escapeLike(upperQ);
+        return upperQ.split(/\s+/).length === 1
+          ? supabase.from('dim_pessoas').select('id, nome_completo, cargo_atual, empresa_atual')
+              .or(`primeiro_nome.eq.${escapedUpper},nome_completo.ilike.${escapedUpper}%`).limit(200)
+          : supabase.from('dim_pessoas').select('id, nome_completo, cargo_atual, empresa_atual')
+              .ilike('nome_completo', `%${escapedUpper}%`).limit(200);
+      }),
+      // Noticias — hybrid RPC
+      tryRpcOrFallback(supabase, 'buscar_noticias', { p_query: q, p_limit: limit }, () =>
+        supabase.from('dim_noticias').select('id, titulo, fonte_nome, data_publicacao')
+          .or(`titulo.ilike.${startPattern},titulo.ilike.${wordPattern}`).limit(limit)
+      ),
     ];
 
-    // Politicos + Emendas from brasilDataHub (if configured)
+    // Politicos + Mandatos + Emendas from brasilDataHub (if configured)
     if (brasilDataHub) {
       searchPromises.push(
-        brasilDataHub
-          .from('dim_politicos')
-          .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual')
-          .or(`nome_completo.ilike.${startPattern},nome_completo.ilike.${wordPattern},nome_urna.ilike.${startPattern},nome_urna.ilike.${wordPattern}`)
-          .limit(limit),
-        brasilDataHub
-          .from('fato_politicos_mandatos')
-          .select('id, cargo, municipio, ano_eleicao, partido_sigla, eleito')
-          .or(`cargo.ilike.${startPattern},cargo.ilike.${wordPattern},municipio.ilike.${startPattern},municipio.ilike.${wordPattern}`)
-          .limit(limit),
-        brasilDataHub
-          .from('fato_emendas_parlamentares')
-          .select('id, autor, tipo, valor_empenhado, ano, uf')
-          .or(`autor.ilike.${startPattern},autor.ilike.${wordPattern}`)
-          .limit(limit)
+        // Politicos — hybrid RPC
+        tryRpcOrFallback(brasilDataHub, 'buscar_politicos', { p_query: q, p_limit: limit }, () =>
+          brasilDataHub.from('dim_politicos')
+            .select('id, nome_completo, nome_urna, partido_sigla, cargo_atual')
+            .or(`nome_completo.ilike.${startPattern},nome_completo.ilike.${wordPattern},nome_urna.ilike.${startPattern},nome_urna.ilike.${wordPattern}`)
+            .limit(limit)
+        ),
+        // Mandatos — hybrid RPC
+        tryRpcOrFallback(brasilDataHub, 'buscar_mandatos', { p_query: q, p_limit: limit }, () =>
+          brasilDataHub.from('fato_politicos_mandatos')
+            .select('id, cargo, municipio, ano_eleicao, partido_sigla, eleito')
+            .or(`cargo.ilike.${startPattern},cargo.ilike.${wordPattern},municipio.ilike.${startPattern},municipio.ilike.${wordPattern}`)
+            .limit(limit)
+        ),
+        // Emendas — hybrid RPC
+        tryRpcOrFallback(brasilDataHub, 'buscar_emendas', { p_query: q, p_limit: limit }, () =>
+          brasilDataHub.from('fato_emendas_parlamentares')
+            .select('id, autor, tipo, valor_empenhado, ano, uf')
+            .or(`autor.ilike.${startPattern},autor.ilike.${wordPattern}`)
+            .limit(limit)
+        )
       );
     }
 
@@ -463,7 +472,14 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    for (const p of (pessoasRes.data || [])) {
+    // Extract data arrays — RPC results come as { data, source }, Supabase as { data }
+    const pessoasData = Array.isArray(pessoasRes) ? pessoasRes : (pessoasRes.data || []);
+    const noticiasData = Array.isArray(noticiasRes) ? noticiasRes : (noticiasRes.data || []);
+    const politicosData = Array.isArray(politicosRes) ? politicosRes : (politicosRes.data || []);
+    const mandatosData = Array.isArray(mandatosRes) ? mandatosRes : (mandatosRes.data || []);
+    const emendasData = Array.isArray(emendasRes) ? emendasRes : (emendasRes.data || []);
+
+    for (const p of pessoasData) {
       results.push({
         id: String(p.id),
         type: 'pessoa',
@@ -472,7 +488,7 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    for (const pol of (politicosRes.data || [])) {
+    for (const pol of politicosData) {
       results.push({
         id: String(pol.id),
         type: 'politico',
@@ -481,7 +497,7 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    for (const mandato of (mandatosRes.data || [])) {
+    for (const mandato of mandatosData) {
       results.push({
         id: String(mandato.id),
         type: 'mandato',
@@ -490,7 +506,7 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    for (const n of (noticiasRes.data || [])) {
+    for (const n of noticiasData) {
       results.push({
         id: String(n.id),
         type: 'noticia',
@@ -499,7 +515,7 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    for (const em of (emendasRes.data || [])) {
+    for (const em of emendasData) {
       results.push({
         id: String(em.id),
         type: 'emenda',

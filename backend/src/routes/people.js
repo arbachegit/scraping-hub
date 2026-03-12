@@ -105,16 +105,28 @@ router.get('/list-enriched', validateQuery(peopleListEnrichedSchema), async (req
     let pessoasError = null;
 
     if (search.length >= 2) {
-      // RPC uses 3-tier strategy: FTS → prefix → trigram (handles 22M+ rows)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('search_pessoas_ranked_v1', {
+      // Hybrid search: buscar_pessoas (v2) → search_pessoas_ranked_v1 (v1) fallback
+      const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_pessoas', {
         p_query: search,
         p_limit: limit,
       });
 
       if (!rpcError && rpcData) {
         pessoas = rpcData;
+      } else if (rpcError && (rpcError.code === '42883' || rpcError.code === 'PGRST202')) {
+        // buscar_pessoas not yet deployed — fallback to v1
+        logger.warn('buscar_pessoas not found, falling back to v1', { code: rpcError.code });
+        const { data: v1Data, error: v1Error } = await supabase.rpc('search_pessoas_ranked_v1', {
+          p_query: search,
+          p_limit: limit,
+        });
+        if (!v1Error && v1Data) {
+          pessoas = v1Data;
+        } else {
+          pessoasError = v1Error;
+        }
       } else {
-        logger.warn('RPC search_pessoas_ranked_v1 failed', { error: rpcError?.message });
+        logger.warn('buscar_pessoas failed', { error: rpcError?.message });
         pessoasError = rpcError;
       }
     } else {
@@ -944,32 +956,41 @@ router.post('/search-v2', validateBody(searchPersonV2Schema), async (req, res) =
         dbTotal = count || data.length;
       }
     } else {
-      // CRITICAL: 22M rows — avoid full table scan.
-      // - No count:exact (forces full scan)
-      // - No order (forces full sort)
-      // - Single word → primeiro_nome exact match (indexed) + nome_completo starts-with
-      // - Multi word → nome_completo ilike (narrower, acceptable)
-      const searchName = (guardrail.normalizedQuery || nome.trim()).toUpperCase();
-      const escapedSearchName = escapeLike(searchName);
-      plog.info('DB query debug', { searchName, escapedSearchName });
+      // Hybrid search: buscar_pessoas RPC → ilike fallback
+      const searchName = (guardrail.normalizedQuery || nome.trim());
+      plog.info('DB query debug', { searchName });
 
-      const query = supabase
-        .from('dim_pessoas')
-        .select('*')
-        .ilike('nome_completo', `%${escapedSearchName}%`);
-
-      const { data, error } = await query
-        .limit(pageSize)
-        .range(offset, offset + pageSize - 1);
-
-      plog.info('DB query result', {
-        error: error?.message || null,
-        rowsReturned: data?.length || 0,
+      const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_pessoas', {
+        p_query: searchName,
+        p_limit: pageSize,
       });
 
-      if (!error && data) {
-        dbResults = data;
-        dbTotal = data.length;
+      if (!rpcError && rpcData) {
+        dbResults = rpcData;
+        dbTotal = rpcData.length;
+        plog.info('DB query result (hybrid RPC)', { rowsReturned: rpcData.length });
+      } else {
+        // Fallback: ilike (if RPC not available)
+        if (rpcError) {
+          plog.warn('buscar_pessoas failed in search-v2, falling back to ilike', { error: rpcError.message, code: rpcError.code });
+        }
+        const escapedSearchName = escapeLike(searchName.toUpperCase());
+        const { data, error } = await supabase
+          .from('dim_pessoas')
+          .select('*')
+          .ilike('nome_completo', `%${escapedSearchName}%`)
+          .limit(pageSize)
+          .range(offset, offset + pageSize - 1);
+
+        plog.info('DB query result (ilike fallback)', {
+          error: error?.message || null,
+          rowsReturned: data?.length || 0,
+        });
+
+        if (!error && data) {
+          dbResults = data;
+          dbTotal = data.length;
+        }
       }
     }
 

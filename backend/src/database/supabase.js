@@ -408,8 +408,8 @@ async function searchCompaniesInDimEmpresas({ nome, cidade = null, limit = 100 }
   const fetchLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 50), 500);
   const { city, state } = parseCityState(cidade);
 
-  // Try RPC with FTS first (fast on large tables)
-  const { data: rpcData, error: rpcError } = await supabaseRead.rpc('search_empresas_ranked_v1', {
+  // Hybrid search: buscar_empresas (v2) → search_empresas_ranked_v1 (v1) → ilike fallback
+  const { data: rpcData, error: rpcError } = await supabaseRead.rpc('buscar_empresas', {
     p_query: searchTerm,
     p_cidade: city || null,
     p_estado: state || null,
@@ -417,15 +417,23 @@ async function searchCompaniesInDimEmpresas({ nome, cidade = null, limit = 100 }
   });
 
   if (!rpcError && rpcData && rpcData.length > 0) {
-    // RPC returns flat rows — map to match expected shape
     return rpcData.map(r => ({
       ...r,
-      _source: 'rpc_fts',
+      _source: 'rpc_hybrid',
     }));
   }
 
   if (rpcError) {
-    logger.warn('RPC search_empresas_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+    if (rpcError.code === '42883' || rpcError.code === 'PGRST202') {
+      // buscar_empresas not yet deployed — try v1
+      const { data: v1Data, error: v1Error } = await supabaseRead.rpc('search_empresas_ranked_v1', {
+        p_query: searchTerm, p_cidade: city || null, p_estado: state || null, p_limit: fetchLimit,
+      });
+      if (!v1Error && v1Data && v1Data.length > 0) {
+        return v1Data.map(r => ({ ...r, _source: 'rpc_fts' }));
+      }
+    }
+    logger.warn('buscar_empresas failed, falling back to ilike', { error: rpcError.message });
   }
 
   // Fallback: direct ilike queries

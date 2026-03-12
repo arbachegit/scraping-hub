@@ -88,10 +88,10 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
     // Query params already validated by Zod (q >= 2 chars, sanitized)
     const { q, limit } = req.query;
 
-    // Search using RPC with FTS → ilike fallback
+    // Hybrid search: buscar_emendas (v2) → search_emendas_ranked_v1 (v1) → ilike fallback
     let data, error, count;
 
-    const { data: rpcData, error: rpcError } = await brasilDataHub.rpc('search_emendas_ranked_v1', {
+    const { data: rpcData, error: rpcError } = await brasilDataHub.rpc('buscar_emendas', {
       p_query: q,
       p_limit: limit,
     });
@@ -100,9 +100,33 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
       data = rpcData;
       count = rpcData.length;
       error = null;
+    } else if (rpcError && (rpcError.code === '42883' || rpcError.code === 'PGRST202')) {
+      // buscar_emendas not yet deployed — try v1 fallback
+      logger.warn('buscar_emendas not found, falling back to v1', { code: rpcError.code });
+      const { data: v1Data, error: v1Error } = await brasilDataHub.rpc('search_emendas_ranked_v1', {
+        p_query: q,
+        p_limit: limit,
+      });
+      if (!v1Error && v1Data) {
+        data = v1Data;
+        count = v1Data.length;
+        error = null;
+      } else {
+        // Final fallback: ilike
+        const escaped = escapeLike(q);
+        const result = await brasilDataHub
+          .from('fato_emendas_parlamentares')
+          .select('*', { count: 'exact' })
+          .or(`autor.ilike.%${escaped}%,descricao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
+          .order('ano', { ascending: false })
+          .limit(limit);
+        data = result.data;
+        error = result.error;
+        count = result.data?.length || 0;
+      }
     } else {
       if (rpcError) {
-        logger.warn('RPC search_emendas_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
+        logger.warn('buscar_emendas failed, falling back to ilike', { error: rpcError.message });
       }
       const escaped = escapeLike(q);
       const result = await brasilDataHub

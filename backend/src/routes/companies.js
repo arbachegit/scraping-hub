@@ -900,9 +900,9 @@ router.get('/list', validateQuery(listCompaniesSchema), async (req, res) => {
     let empresas = [];
 
     if (nome && nome.length >= 2) {
-      // Use the ranked search RPC (trigram index on razao_social + nome_fantasia)
+      // Hybrid search: buscar_empresas (v2) → search_empresas_ranked_v1 (v1) → approved cache fallback
       const { data: rpcResults, error: rpcErr } = await supabase.rpc(
-        'search_empresas_ranked_v1',
+        'buscar_empresas',
         {
           p_query: nome,
           p_cidade: cidade || null,
@@ -911,16 +911,27 @@ router.get('/list', validateQuery(listCompaniesSchema), async (req, res) => {
         }
       );
 
-      if (rpcErr) {
-        logger.warn('RPC search_empresas_ranked_v1 failed, falling back to approved cache', {
-          requestId,
-          error: rpcErr.message,
+      if (!rpcErr && rpcResults) {
+        empresas = rpcResults;
+      } else if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === 'PGRST202')) {
+        // buscar_empresas not yet deployed — try v1
+        logger.warn('buscar_empresas not found in /list, falling back to v1', { requestId, code: rpcErr.code });
+        const { data: v1Data, error: v1Err } = await supabase.rpc('search_empresas_ranked_v1', {
+          p_query: nome, p_cidade: cidade || null, p_estado: null, p_limit: searchLimit,
         });
-        // Fallback to approved cache
+        if (!v1Err && v1Data) {
+          empresas = v1Data;
+        } else {
+          const { data: fallback } = await listCompanies({ nome, cidade, regime, limit: searchLimit, offset: 0 });
+          empresas = fallback;
+        }
+      } else {
+        logger.warn('buscar_empresas failed in /list, falling back to approved cache', {
+          requestId,
+          error: rpcErr?.message,
+        });
         const { data: fallback } = await listCompanies({ nome, cidade, regime, limit: searchLimit, offset: 0 });
         empresas = fallback;
-      } else {
-        empresas = rpcResults || [];
       }
     } else {
       // No search term — return approved companies (cached)

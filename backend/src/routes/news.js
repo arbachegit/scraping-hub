@@ -56,8 +56,8 @@ router.get('/search', validateQuery(newsSearchSchema), async (req, res) => {
   try {
     const { q, limit } = req.query;
 
-    // Search using RPC with FTS (tsvector) → ilike fallback
-    const { data: rpcData, error: rpcError } = await supabase.rpc('search_noticias_ranked_v1', {
+    // Hybrid search: buscar_noticias (v2) → search_noticias_ranked_v1 (v1) → ilike fallback
+    const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_noticias', {
       p_query: q,
       p_limit: limit,
     });
@@ -66,19 +66,33 @@ router.get('/search', validateQuery(newsSearchSchema), async (req, res) => {
     let error = rpcError;
     let count = rpcData?.length || 0;
 
-    // Fallback to ilike if RPC fails
     if (rpcError) {
-      logger.warn('RPC search_noticias_ranked_v1 failed, falling back to ilike', { error: rpcError.message });
-      const escaped = escapeLike(q);
-      const result = await supabase
-        .from('dim_noticias')
-        .select('id, titulo, resumo, fonte_nome, url, segmento, data_publicacao, relevancia_geral', { count: 'exact' })
-        .or(`titulo.ilike.%${escaped}%,resumo.ilike.%${escaped}%`)
-        .order('data_publicacao', { ascending: false })
-        .limit(limit);
-      data = result.data;
-      error = result.error;
-      count = result.data?.length || 0;
+      if (rpcError.code === '42883' || rpcError.code === 'PGRST202') {
+        // buscar_noticias not yet deployed — try v1 fallback
+        logger.warn('buscar_noticias not found, falling back to v1', { code: rpcError.code });
+        const { data: v1Data, error: v1Error } = await supabase.rpc('search_noticias_ranked_v1', {
+          p_query: q,
+          p_limit: limit,
+        });
+        data = v1Data;
+        error = v1Error;
+        count = v1Data?.length || 0;
+      }
+
+      // Final fallback: ilike
+      if (error) {
+        logger.warn('RPC search failed, falling back to ilike', { error: error.message });
+        const escaped = escapeLike(q);
+        const result = await supabase
+          .from('dim_noticias')
+          .select('id, titulo, resumo, fonte_nome, url, segmento, data_publicacao, relevancia_geral', { count: 'exact' })
+          .or(`titulo.ilike.%${escaped}%,resumo.ilike.%${escaped}%`)
+          .order('data_publicacao', { ascending: false })
+          .limit(limit);
+        data = result.data;
+        error = result.error;
+        count = result.data?.length || 0;
+      }
     }
 
     if (error) {

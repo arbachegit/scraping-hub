@@ -9,9 +9,7 @@ const PREFETCH_MULTIPLIER = 4;
 const PREFETCH_LIMIT = 100;
 const SEARCH_CACHE_PREFIX = 'dim_empresas:search:v1';
 const RECENT_CACHE_PREFIX = 'dim_empresas:recent:v1';
-const SEARCH_RPC_FUNCTIONS = process.env.ENABLE_EMPRESAS_SEARCH_RPC === 'true'
-  ? ['search_empresas_ranked_v1', 'search_empresas']
-  : [];
+const SEARCH_RPC_FUNCTIONS = ['buscar_empresas', 'search_empresas_ranked_v1'];
 const RECENT_RPC_FUNCTION = 'list_empresas_recent_v1';
 
 function clampLimit(limit = DEFAULT_LIMIT) {
