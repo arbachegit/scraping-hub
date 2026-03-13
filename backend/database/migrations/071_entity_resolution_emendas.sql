@@ -62,19 +62,20 @@ BEGIN
   LOOP
     v_total := v_total + 1;
 
-    -- Buscar melhor match em dim_politicos
+    -- Buscar melhor match em dim_politicos (usa operador % que aproveita indice GIN)
+    -- SET pg_trgm.similarity_threshold dentro do loop nao e suportado,
+    -- entao filtramos com % (default 0.3) e re-verificamos com p_min_similarity
     SELECT
       p.id,
       GREATEST(
-        similarity(normalize_name(p.nome_urna), normalize_name(v_rec.autor)),
-        similarity(normalize_name(p.nome_completo), normalize_name(v_rec.autor))
+        similarity(p.nome_urna, v_rec.autor),
+        similarity(p.nome_completo, v_rec.autor)
       ) AS score,
       COALESCE(p.nome_urna, p.nome_completo) AS nome
     INTO v_best_politico, v_best_score, v_best_name
     FROM dim_politicos p
-    WHERE
-      similarity(normalize_name(p.nome_urna), normalize_name(v_rec.autor)) >= p_min_similarity
-      OR similarity(normalize_name(p.nome_completo), normalize_name(v_rec.autor)) >= p_min_similarity
+    WHERE p.nome_urna % v_rec.autor
+       OR p.nome_completo % v_rec.autor
     ORDER BY score DESC
     LIMIT 1;
 
@@ -124,7 +125,14 @@ RETURNS JSON AS $$
   );
 $$ LANGUAGE sql STABLE;
 
--- 5. RPC: busca politico para um autor especifico (para context endpoint)
+-- 5. INDICES TRIGRAM (necessarios para usar operador % com GIN)
+CREATE INDEX IF NOT EXISTS idx_politicos_nome_urna_trgm
+  ON dim_politicos USING gin (nome_urna gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_politicos_nome_completo_trgm
+  ON dim_politicos USING gin (nome_completo gin_trgm_ops);
+
+-- 6. RPC: busca politico para um autor especifico (para context endpoint)
+-- Usa operador % do pg_trgm (aproveita indice GIN) em vez de similarity() scan
 CREATE OR REPLACE FUNCTION find_politico_by_autor(p_autor TEXT)
 RETURNS JSON AS $$
   SELECT json_build_object(
@@ -134,17 +142,16 @@ RETURNS JSON AS $$
     'estado', p.estado,
     'cidade', p.cidade,
     'similarity_score', GREATEST(
-      similarity(normalize_name(p.nome_urna), normalize_name(p_autor)),
-      similarity(normalize_name(p.nome_completo), normalize_name(p_autor))
+      similarity(p.nome_urna, p_autor),
+      similarity(p.nome_completo, p_autor)
     )
   )
   FROM dim_politicos p
-  WHERE
-    similarity(normalize_name(p.nome_urna), normalize_name(p_autor)) >= 0.4
-    OR similarity(normalize_name(p.nome_completo), normalize_name(p_autor)) >= 0.4
+  WHERE p.nome_urna % p_autor
+     OR p.nome_completo % p_autor
   ORDER BY GREATEST(
-    similarity(normalize_name(p.nome_urna), normalize_name(p_autor)),
-    similarity(normalize_name(p.nome_completo), normalize_name(p_autor))
+    similarity(p.nome_urna, p_autor),
+    similarity(p.nome_completo, p_autor)
   ) DESC
   LIMIT 1;
 $$ LANGUAGE sql STABLE;
