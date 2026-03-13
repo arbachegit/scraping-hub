@@ -9,6 +9,8 @@ import {
   searchEmendasSchema,
   timeSeriesEmendasSchema,
   listEmendasSubnacionaisSchema,
+  emendasAnomaliesSchema,
+  emendasNetworkSchema,
   integerIdParamSchema
 } from '../validation/schemas.js';
 
@@ -81,7 +83,7 @@ router.get('/list', validateQuery(listEmendasSchema), async (req, res) => {
 
 /**
  * GET /api/emendas/search
- * Search emendas by text (autor, descricao, localidade, etc.)
+ * Search emendas by text (autor, funcao, localidade, etc.)
  */
 router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
   try {
@@ -124,7 +126,7 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
         const result = await brasilDataHub
           .from('fato_emendas_parlamentares')
           .select('*', { count: 'exact' })
-          .or(`autor.ilike.%${escaped}%,descricao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
+          .or(`autor.ilike.%${escaped}%,funcao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
           .order('ano', { ascending: false })
           .limit(limit);
         data = result.data;
@@ -139,7 +141,7 @@ router.get('/search', validateQuery(searchEmendasSchema), async (req, res) => {
       const result = await brasilDataHub
         .from('fato_emendas_parlamentares')
         .select('*', { count: 'exact' })
-        .or(`autor.ilike.%${escaped}%,descricao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
+        .or(`autor.ilike.%${escaped}%,funcao.ilike.%${escaped}%,localidade.ilike.%${escaped}%`)
         .order('ano', { ascending: false })
         .limit(limit);
       data = result.data;
@@ -340,6 +342,47 @@ router.get('/subnacionais', validateQuery(listEmendasSubnacionaisSchema), async 
 });
 
 /**
+ * GET /api/emendas/anomalies
+ * Context Intelligence: detect outlier emendas.
+ *
+ * Answers: "Quais emendas merecem atenção?"
+ * Types: taxa_execucao (Z-score), valor_empenhado (IQR), concentracao_autor
+ */
+router.get('/anomalies', validateQuery(emendasAnomaliesSchema), async (req, res) => {
+  try {
+    if (!brasilDataHub) {
+      return res.status(503).json({ success: false, error: 'Brasil Data Hub not configured.' });
+    }
+
+    const { min_zscore, iqr_factor, limit } = req.query;
+
+    const { data, error } = await brasilDataHub.rpc('get_emendas_anomalies', {
+      p_min_zscore: min_zscore,
+      p_iqr_factor: iqr_factor,
+      p_limit: limit,
+    });
+
+    if (error) {
+      // RPC not deployed yet
+      if (error.code === '42883' || error.code === 'PGRST202') {
+        return res.json({ success: true, rpc_available: false, execucao: [], valor: [], concentracao: [] });
+      }
+      logger.error('Error getting emendas anomalies', { error: error.message });
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      rpc_available: true,
+      ...(data || { execucao: [], valor: [], concentracao: [] }),
+    });
+  } catch (error) {
+    logger.error('Error getting emendas anomalies', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/emendas/:id/context
  * Context Intelligence: related news, taxonomy, and associations for an emenda.
  * Connects emenda (Brasil Data Hub) with noticias (scraping DB) via shared taxonomy.
@@ -520,6 +563,293 @@ router.get('/:id', validateParams(integerIdParamSchema), async (req, res) => {
 
   } catch (error) {
     logger.error('Error getting emenda', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/emendas/:id/network
+ * Context Intelligence: graph neighborhood of an emenda.
+ *
+ * Answers: "O que está conectado a esta emenda?"
+ * Returns: politico (autor), favorecidos, noticias, taxonomia — as graph nodes + edges.
+ */
+router.get('/:id/network', validateParams(integerIdParamSchema), validateQuery(emendasNetworkSchema), async (req, res) => {
+  try {
+    if (!brasilDataHub || !scrapingDb) {
+      return res.status(503).json({ success: false, error: 'Database clients not configured.' });
+    }
+
+    const { id } = req.params;
+    const { hops } = req.query;
+
+    // 1. Get the emenda
+    const { data: emenda, error: emendaErr } = await brasilDataHub
+      .from('fato_emendas_parlamentares')
+      .select('id, autor, funcao, subfuncao, localidade, tipo_emenda, ano, codigo_emenda, politico_id, valor_empenhado, valor_pago')
+      .eq('id', id)
+      .single();
+
+    if (emendaErr || !emenda) {
+      return res.status(404).json({ success: false, error: 'Emenda not found' });
+    }
+
+    const nodes = [];
+    const edges = [];
+
+    // Center node: the emenda itself
+    nodes.push({
+      id: `emenda:${emenda.id}`,
+      type: 'emenda',
+      label: `${emenda.autor} - ${emenda.funcao || ''} (${emenda.ano})`,
+      data: {
+        autor: emenda.autor,
+        funcao: emenda.funcao,
+        ano: emenda.ano,
+        tipo_emenda: emenda.tipo_emenda,
+        localidade: emenda.localidade,
+        valor_empenhado: emenda.valor_empenhado,
+        valor_pago: emenda.valor_pago,
+      },
+    });
+
+    // 2. Parallel: politico + favorecidos + associations + taxonomy
+    const [politicoResult, favorecidosResult, associationsResult, taxonomyResult] = await Promise.all([
+      // Politico (if entity resolution resolved)
+      emenda.politico_id
+        ? brasilDataHub.from('dim_politicos')
+            .select('id, nome_completo, nome_urna, estado, cidade')
+            .eq('id', emenda.politico_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      // Top favorecidos
+      brasilDataHub.from('fato_emendas_favorecidos')
+        .select('tipo_favorecido, favorecido, uf_favorecido, municipio_favorecido, valor_recebido')
+        .eq('codigo_emenda', emenda.codigo_emenda)
+        .order('valor_recebido', { ascending: false })
+        .limit(10),
+      // Context associations (noticia ↔ emenda)
+      scrapingDb.from('fato_associacoes_contextuais')
+        .select('id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_associacao, confianca, evidencia, taxonomia_slug')
+        .or(`and(destino_tipo.eq.emenda,destino_id.eq.${id}),and(origem_tipo.eq.emenda,origem_id.eq.${id})`)
+        .order('confianca', { ascending: false })
+        .limit(20),
+      // Taxonomy
+      scrapingDb.from('map_funcao_taxonomia')
+        .select('taxonomia_slug')
+        .eq('funcao', emenda.funcao)
+        .single(),
+    ]);
+
+    // 3. Add politico node + edge
+    const politico = politicoResult.data;
+    if (politico) {
+      nodes.push({
+        id: `politico:${politico.id}`,
+        type: 'politico',
+        label: politico.nome_urna || politico.nome_completo,
+        data: {
+          estado: politico.estado,
+          cidade: politico.cidade,
+        },
+      });
+      edges.push({
+        source: `politico:${politico.id}`,
+        target: `emenda:${emenda.id}`,
+        type: 'autoria',
+        strength: 1.0,
+      });
+
+      // Hop 2: politico's other emendas (if hops >= 2)
+      if (hops >= 2) {
+        const { data: otherEmendas } = await brasilDataHub
+          .from('fato_emendas_parlamentares')
+          .select('id, funcao, ano, valor_empenhado')
+          .eq('politico_id', politico.id)
+          .neq('id', emenda.id)
+          .order('ano', { ascending: false })
+          .limit(5);
+
+        for (const oe of (otherEmendas || [])) {
+          const oeId = `emenda:${oe.id}`;
+          nodes.push({
+            id: oeId,
+            type: 'emenda',
+            label: `${emenda.autor} - ${oe.funcao || ''} (${oe.ano})`,
+            data: { funcao: oe.funcao, ano: oe.ano, valor_empenhado: oe.valor_empenhado },
+          });
+          edges.push({
+            source: `politico:${politico.id}`,
+            target: oeId,
+            type: 'autoria',
+            strength: 0.8,
+          });
+        }
+
+        // Hop 2: politico's mandatos
+        const { data: mandatos } = await brasilDataHub
+          .from('fato_politicos_mandatos')
+          .select('id, cargo, municipio, ano_eleicao, partido_sigla, eleito')
+          .eq('politico_id', politico.id)
+          .limit(5);
+
+        for (const m of (mandatos || [])) {
+          const mId = `mandato:${m.id}`;
+          nodes.push({
+            id: mId,
+            type: 'mandato',
+            label: `${m.cargo} - ${m.municipio || ''} (${m.ano_eleicao})`,
+            data: { cargo: m.cargo, municipio: m.municipio, ano: m.ano_eleicao, partido: m.partido_sigla, eleito: m.eleito },
+          });
+          edges.push({
+            source: `politico:${politico.id}`,
+            target: mId,
+            type: 'mandato',
+            strength: 0.9,
+          });
+        }
+      }
+    }
+
+    // 4. Add favorecido nodes + edges
+    for (const fav of (favorecidosResult.data || [])) {
+      const favId = `favorecido:${(fav.favorecido || '').substring(0, 30).replace(/\s/g, '_')}`;
+      // Avoid duplicate nodes
+      if (!nodes.find(n => n.id === favId)) {
+        nodes.push({
+          id: favId,
+          type: 'favorecido',
+          label: fav.favorecido || 'N/A',
+          data: {
+            tipo: fav.tipo_favorecido,
+            uf: fav.uf_favorecido,
+            municipio: fav.municipio_favorecido,
+            valor: fav.valor_recebido,
+          },
+        });
+      }
+      edges.push({
+        source: `emenda:${emenda.id}`,
+        target: favId,
+        type: 'beneficiario',
+        strength: 0.7,
+        data: { valor: fav.valor_recebido },
+      });
+    }
+
+    // 5. Add noticia nodes + edges from associations
+    const noticiaIds = [];
+    for (const assoc of (associationsResult.data || [])) {
+      const isOrigin = assoc.origem_tipo === 'emenda';
+      const noticiaId = isOrigin ? assoc.destino_id : assoc.origem_id;
+      const noticiaTipo = isOrigin ? assoc.destino_tipo : assoc.origem_tipo;
+      if (noticiaTipo !== 'noticia') continue;
+      noticiaIds.push(noticiaId);
+
+      edges.push({
+        source: `emenda:${emenda.id}`,
+        target: `noticia:${noticiaId}`,
+        type: assoc.tipo_associacao,
+        strength: assoc.confianca || 0.5,
+        data: { evidencia: assoc.evidencia, taxonomia: assoc.taxonomia_slug },
+      });
+    }
+
+    // Fetch noticia details
+    if (noticiaIds.length > 0) {
+      const { data: noticias } = await scrapingDb
+        .from('dim_noticias')
+        .select('id, titulo, fonte_nome, data_publicacao, tema_principal')
+        .in('id', noticiaIds);
+
+      for (const n of (noticias || [])) {
+        nodes.push({
+          id: `noticia:${n.id}`,
+          type: 'noticia',
+          label: (n.titulo || '').substring(0, 80),
+          data: {
+            fonte: n.fonte_nome,
+            data: n.data_publicacao,
+            tema: n.tema_principal,
+          },
+        });
+      }
+    }
+
+    // 6. Add taxonomy node
+    const taxSlug = taxonomyResult.data?.taxonomia_slug;
+    if (taxSlug) {
+      const { data: tax } = await scrapingDb
+        .from('dim_taxonomia_tematica')
+        .select('slug, nome, cor, icone')
+        .eq('slug', taxSlug)
+        .single();
+
+      if (tax) {
+        nodes.push({
+          id: `taxonomia:${tax.slug}`,
+          type: 'taxonomia',
+          label: tax.nome,
+          data: { cor: tax.cor, icone: tax.icone },
+        });
+        edges.push({
+          source: `emenda:${emenda.id}`,
+          target: `taxonomia:${tax.slug}`,
+          type: 'tema',
+          strength: 1.0,
+        });
+      }
+    }
+
+    // 7. Also pull graph edges from fato_relacoes_entidades (hop 2 only)
+    if (hops >= 2) {
+      const { data: graphEdges } = await scrapingDb
+        .from('fato_relacoes_entidades')
+        .select('source_type, source_id, target_type, target_id, tipo_relacao, strength, confidence')
+        .or(`and(source_type.eq.emenda,source_id.eq.${id}),and(target_type.eq.emenda,target_id.eq.${id})`)
+        .eq('ativo', true)
+        .limit(30);
+
+      for (const edge of (graphEdges || [])) {
+        const sourceNode = `${edge.source_type}:${edge.source_id}`;
+        const targetNode = `${edge.target_type}:${edge.target_id}`;
+
+        // Only add edge if we don't already have it
+        if (!edges.find(e => e.source === sourceNode && e.target === targetNode && e.type === edge.tipo_relacao)) {
+          edges.push({
+            source: sourceNode,
+            target: targetNode,
+            type: edge.tipo_relacao,
+            strength: edge.strength,
+          });
+
+          // Add placeholder node if not already present
+          for (const [nType, nId] of [[edge.source_type, edge.source_id], [edge.target_type, edge.target_id]]) {
+            const nodeId = `${nType}:${nId}`;
+            if (!nodes.find(n => n.id === nodeId)) {
+              nodes.push({ id: nodeId, type: nType, label: nodeId, data: {} });
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      emenda_id: id,
+      hops,
+      graph: {
+        nodes,
+        edges,
+        stats: {
+          total_nodes: nodes.length,
+          total_edges: edges.length,
+          node_types: [...new Set(nodes.map(n => n.type))],
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Error getting emenda network', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
 });

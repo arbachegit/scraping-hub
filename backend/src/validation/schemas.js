@@ -535,6 +535,18 @@ export const listEmendasSubnacionaisSchema = z.object({
   esfera: z.enum(['estadual', 'municipal']).optional()
 });
 
+// Emendas anomalies query params (GET /api/emendas/anomalies)
+export const emendasAnomaliesSchema = z.object({
+  min_zscore: z.coerce.number().min(1).max(5).default(2.0),
+  iqr_factor: z.coerce.number().min(1).max(3).default(1.5),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+
+// Emendas network query params (GET /api/emendas/:id/network)
+export const emendasNetworkSchema = z.object({
+  hops: z.coerce.number().int().min(1).max(3).default(1),
+});
+
 // Emendas search query params (GET /api/emendas/search)
 export const searchEmendasSchema = z.object({
   q: z.string()

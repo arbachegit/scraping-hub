@@ -2128,6 +2128,120 @@ export async function getEmendasTimeSeries(params?: {
 }
 
 // ============================================
+// EMENDAS ANOMALIES
+// ============================================
+
+export interface EmendaAnomaly {
+  id: number;
+  autor: string;
+  funcao: string;
+  ano: number;
+  tipo_emenda: string;
+  localidade: string;
+  valor_empenhado: number;
+  valor_pago: number;
+  tipo_anomalia: string;
+  direcao: 'acima' | 'abaixo';
+}
+
+export interface EmendaAnomalyExecucao extends EmendaAnomaly {
+  taxa_execucao: number;
+  media_grupo: number;
+  zscore: number;
+}
+
+export interface EmendaAnomalyValor extends EmendaAnomaly {
+  mediana_grupo: number;
+  limite_superior: number;
+  iqr_ratio: number;
+}
+
+export interface EmendaAnomalyConcentracao {
+  autor: string;
+  num_emendas: number;
+  valor_total: number;
+  share_percentual: number;
+  media_por_autor: number;
+  zscore: number;
+  funcoes_distintas: number;
+  anos_ativos: number;
+  tipo_anomalia: string;
+}
+
+export interface EmendasAnomalies {
+  rpc_available: boolean;
+  execucao: EmendaAnomalyExecucao[] | null;
+  valor: EmendaAnomalyValor[] | null;
+  concentracao: EmendaAnomalyConcentracao[] | null;
+  metadata?: {
+    min_zscore: number;
+    iqr_factor: number;
+    limit_per_type: number;
+    generated_at: string;
+  };
+}
+
+export async function getEmendasAnomalies(params?: {
+  min_zscore?: number;
+  iqr_factor?: number;
+  limit?: number;
+}): Promise<EmendasAnomalies> {
+  const searchParams = new URLSearchParams();
+  if (params?.min_zscore) searchParams.set('min_zscore', String(params.min_zscore));
+  if (params?.iqr_factor) searchParams.set('iqr_factor', String(params.iqr_factor));
+  if (params?.limit) searchParams.set('limit', String(params.limit));
+  const qs = searchParams.toString();
+  const res = await fetchWithAuth(`${API_BASE}/emendas/anomalies${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Anomalies failed' }));
+    throw new Error(error.error || 'Anomalies failed');
+  }
+  return res.json();
+}
+
+// ============================================
+// EMENDAS NETWORK (GRAPH)
+// ============================================
+
+export interface EmendaGraphNode {
+  id: string;
+  type: 'emenda' | 'politico' | 'favorecido' | 'noticia' | 'taxonomia' | 'mandato';
+  label: string;
+  data: Record<string, unknown>;
+}
+
+export interface EmendaGraphEdge {
+  source: string;
+  target: string;
+  type: string;
+  strength: number;
+  data?: Record<string, unknown>;
+}
+
+export interface EmendaNetwork {
+  emenda_id: number;
+  hops: number;
+  graph: {
+    nodes: EmendaGraphNode[];
+    edges: EmendaGraphEdge[];
+    stats: {
+      total_nodes: number;
+      total_edges: number;
+      node_types: string[];
+    };
+  };
+}
+
+export async function getEmendaNetwork(id: number, hops = 1): Promise<EmendaNetwork> {
+  const res = await fetchWithAuth(`${API_BASE}/emendas/${id}/network?hops=${hops}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Network failed' }));
+    throw new Error(error.error || 'Network failed');
+  }
+  return res.json();
+}
+
+// ============================================
 // NEWS AGGREGATION
 // ============================================
 
